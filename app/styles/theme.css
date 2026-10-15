@@ -1,0 +1,98 @@
+/* OpenFini theme — design tokens layered on top of the Shoelace design system.
+   Dark is the default; `.sl-theme-light` flips the neutrals. */
+
+:root {
+  --of-font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --of-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --of-radius: 6px;
+  --of-radius-sm: 4px;
+  --of-gap: 8px;
+
+  --of-accent: #8b7cf6;
+  --of-accent-strong: #7a69f2;
+  --of-accent-soft: rgba(139, 124, 246, 0.18);
+  --of-danger: #ef5b64;
+  --of-ok: #3dd68c;
+
+  --of-bg-app: #1d1e22;
+  --of-bg-bar: #25262b;
+  --of-bg-panel: #2a2b31;
+  --of-bg-raised: #34353c;
+  --of-bg-input: #1a1b1e;
+  --of-bg-canvas: #141518;
+  --of-border: #3a3b43;
+  --of-border-soft: #2f3037;
+  --of-text: #e8e9ee;
+  --of-text-dim: #a3a5ae;
+  --of-text-faint: #6f717b;
+  --of-hover: rgba(255, 255, 255, 0.07);
+  --of-active: rgba(255, 255, 255, 0.12);
+  --of-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+
+  --of-tools-w: 48px;
+  --of-dock-w: 304px;
+  --of-bar-h: 38px;
+  --of-tabs-h: 32px;
+  --of-context-h: 42px;
+  --of-status-h: 26px;
+
+  color-scheme: dark;
+}
+
+:root.sl-theme-light {
+  --of-accent: #6b58e8;
+  --of-accent-strong: #5a46de;
+  --of-accent-soft: rgba(107, 88, 232, 0.14);
+  --of-bg-app: #e9eaee;
+  --of-bg-bar: #f6f6f8;
+  --of-bg-panel: #f1f1f4;
+  --of-bg-raised: #ffffff;
+  --of-bg-input: #ffffff;
+  --of-bg-canvas: #cfd1d8;
+  --of-border: #d2d3da;
+  --of-border-soft: #dfe0e6;
+  --of-text: #1c1d22;
+  --of-text-dim: #5d5f69;
+  --of-text-faint: #8b8d97;
+  --of-hover: rgba(0, 0, 0, 0.06);
+  --of-active: rgba(0, 0, 0, 0.1);
+  --of-shadow: 0 8px 28px rgba(20, 20, 40, 0.2);
+  color-scheme: light;
+}
+
+/* ---- Shoelace token overrides: dense, compact controls ---- */
+:root,
+:host {
+  --sl-font-sans: var(--of-font);
+  --sl-font-mono: var(--of-mono);
+  --sl-font-size-x-small: 11px;
+  --sl-font-size-small: 12px;
+  --sl-font-size-medium: 13px;
+  --sl-border-radius-medium: var(--of-radius-sm);
+  --sl-input-height-small: 24px;
+  --sl-input-height-medium: 28px;
+  --sl-input-font-size-small: 12px;
+  --sl-input-font-size-medium: 12px;
+  --sl-input-border-color: var(--of-border);
+  --sl-input-background-color: var(--of-bg-input);
+  --sl-input-color: var(--of-text);
+  --sl-input-border-color-hover: var(--of-text-faint);
+  --sl-input-border-color-focus: var(--of-accent);
+  --sl-focus-ring-color: var(--of-accent);
+  --sl-focus-ring: solid 2px var(--of-accent-soft);
+  --sl-focus-ring-width: 2px;
+  --sl-focus-ring-offset: 1px;
+  --sl-panel-background-color: var(--of-bg-raised);
+  --sl-panel-border-color: var(--of-border);
+  --sl-color-primary-500: var(--of-accent);
+  --sl-color-primary-600: var(--of-accent-strong);
+  --sl-color-primary-400: var(--of-accent);
+  --sl-tooltip-background-color: #101114;
+  --sl-tooltip-color: #f1f1f5;
+  --sl-tooltip-font-size: 11px;
+  --sl-tooltip-padding: 4px 8px;
+  --sl-shadow-large: var(--of-shadow);
+  --sl-overlay-background-color: rgba(8, 9, 12, 0.55);
+  --sl-spacing-x-small: 6px;
+}

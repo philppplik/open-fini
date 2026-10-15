@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-labelledby="of-title">
+  <title id="of-title">OpenFini</title>
+  <!--
+    OpenFini mark: an open ring (the "O" of Open, an unfinished path) whose last
+    anchor carries a Bezier handle. Transparent outside the rounded tile, which
+    follows the usual 824/1024 icon grid so it is safe on every OS.
+  -->
+  <defs>
+    <linearGradient id="of-tile" x1="140" y1="100" x2="900" y2="940" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2b2866"/>
+      <stop offset="1" stop-color="#14151b"/>
+    </linearGradient>
+    <radialGradient id="of-glow" cx="512" cy="512" r="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8b5cf6" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="of-ring" x1="290" y1="250" x2="750" y2="800" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#a78bfa"/>
+      <stop offset="0.55" stop-color="#7f8cf5"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="100" y="100" width="824" height="824" rx="184" fill="url(#of-tile)"/>
+  <rect x="100" y="100" width="824" height="824" rx="184" fill="url(#of-glow)"/>
+  <rect x="102" y="102" width="820" height="820" rx="182" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="4"/>
+
+  <!-- open ring: 304 degree arc, gap towards the upper right -->
+  <path d="M 753 438.3 A 252 252 0 1 1 585.7 271" fill="none" stroke="url(#of-ring)" stroke-width="64" stroke-linecap="round"/>
+
+  <!-- bezier handle leaving the last anchor, with its control knob -->
+  <line x1="585.7" y1="271" x2="736.8" y2="317.2" stroke="#67e8f9" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="736.8" cy="317.2" r="34" fill="#14151b" stroke="#22d3ee" stroke-width="16"/>
+
+  <!-- anchor node, aligned with the path tangent -->
+  <rect x="545.7" y="231" width="80" height="80" rx="16" transform="rotate(17 585.7 271)" fill="#ffffff" stroke="#a78bfa" stroke-width="14"/>
+</svg>

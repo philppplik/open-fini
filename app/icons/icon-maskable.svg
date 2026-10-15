@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-labelledby="of-title">
+  <title id="of-title">OpenFini</title>
+  <!--
+    Full-bleed variant of the OpenFini mark for maskable (adaptive) icons: the
+    background fills the whole canvas and the artwork stays inside the central
+    safe zone (a circle of 80% of the canvas), so any OS mask can crop it.
+  -->
+  <defs>
+    <linearGradient id="of-tile" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2b2866"/>
+      <stop offset="1" stop-color="#14151b"/>
+    </linearGradient>
+    <radialGradient id="of-glow" cx="512" cy="512" r="480" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8b5cf6" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#8b5cf6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="of-ring" x1="290" y1="250" x2="750" y2="800" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#a78bfa"/>
+      <stop offset="0.55" stop-color="#7f8cf5"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#of-tile)"/>
+  <rect width="1024" height="1024" fill="url(#of-glow)"/>
+
+  <path d="M 753 438.3 A 252 252 0 1 1 585.7 271" fill="none" stroke="url(#of-ring)" stroke-width="64" stroke-linecap="round"/>
+  <line x1="585.7" y1="271" x2="736.8" y2="317.2" stroke="#67e8f9" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="736.8" cy="317.2" r="34" fill="#14151b" stroke="#22d3ee" stroke-width="16"/>
+  <rect x="545.7" y="231" width="80" height="80" rx="16" transform="rotate(17 585.7 271)" fill="#ffffff" stroke="#a78bfa" stroke-width="14"/>
+</svg>

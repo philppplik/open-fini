@@ -1,0 +1,14 @@
+{
+  "bundle": {
+    "fileAssociations": [
+      {
+        "ext": ["ofini"],
+        "name": "OpenFini.Document",
+        "description": "OpenFini document",
+        "mimeType": "application/x-openfini",
+        "role": "Editor",
+        "rank": "Owner"
+      }
+    ]
+  }
+}

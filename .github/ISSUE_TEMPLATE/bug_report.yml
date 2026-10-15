@@ -1,0 +1,88 @@
+name: Bug report
+description: Something does not work the way it should.
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please search the existing issues first.
+        For security problems do **not** open a public issue; use the private security advisory link on the issue chooser page.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The shortest path that makes the bug appear. A sample file helps a lot.
+      placeholder: |
+        1. Open the Vector studio
+        2. Draw a rectangle
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: studio
+    attributes:
+      label: Where did it happen?
+      options:
+        - Vector studio
+        - Pixel studio
+        - Layout studio
+        - Export studio
+        - Installation / updates / offline mode
+        - Not sure
+    validations:
+      required: true
+  - type: dropdown
+    id: edition
+    attributes:
+      label: How do you run OpenFini?
+      options:
+        - Desktop app (installer)
+        - Installed PWA
+        - In the browser
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS
+        - Linux
+        - Android / iOS / other
+    validations:
+      required: true
+  - type: dropdown
+    id: arch
+    attributes:
+      label: CPU architecture
+      options:
+        - x64 / Intel
+        - ARM64 / Apple Silicon
+        - Not sure
+  - type: input
+    id: version
+    attributes:
+      label: OpenFini version
+      description: Shown in the About dialog, or the name of the installer file.
+      placeholder: "0.1.0"
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version (web / PWA only)
+      placeholder: "Chrome 130, Firefox 132, Safari 18, ..."
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console output or screenshots
+      description: Paste errors from the browser console (F12) if there are any, or drag screenshots here.
+      render: shell

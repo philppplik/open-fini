@@ -1,0 +1,5 @@
+{
+  "$comment": "Budgets for scripts/check-size.mjs, in KiB of gzip-compressed bytes (level 9). shellJs covers every .js file outside vendor/ (the app shell and service worker). total covers everything the browser downloads (dist/) except fonts and license texts.",
+  "shellJsGzipKiB": 400,
+  "totalGzipKiB": 2048
+}

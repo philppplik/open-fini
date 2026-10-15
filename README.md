@@ -1,0 +1,139 @@
+<div align="center">
+
+<img src="app/icons/icon.svg" alt="OpenFini logo" width="96" height="96" />
+
+# OpenFini
+
+**A lightweight, open-source creative suite — Vector, Pixel, Layout and Code studios in one small app.**
+
+[![CI](https://github.com/philppplik/open-fini/actions/workflows/ci.yml/badge.svg)](https://github.com/philppplik/open-fini/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Status: alpha](https://img.shields.io/badge/status-alpha-orange)
+![Platforms](https://img.shields.io/badge/platforms-Windows%20x64%2FARM64%20%C2%B7%20macOS%20Intel%2FARM%20%C2%B7%20Linux%20x64%2FARM64%20%C2%B7%20PWA-informational)
+
+[Download](#install) · [Studios](#the-studios) · [Why it is light](#why-it-is-light) · [Build from source](#build-from-source) · [Docs](#documentation) · [Contributing](CONTRIBUTING.md)
+
+</div>
+
+OpenFini is a design and photo-editing suite built around **studios** — focused workspaces that share one document:
+
+| Studio | For | Highlights |
+| --- | --- | --- |
+| **Vector** | Logos, icons, illustration, UI | Bézier pen, node editing, shapes, booleans, gradients, live effects, SVG import/export |
+| **Pixel** | Photo editing and painting | Layers and masks, brushes, selections, retouching, live adjustments and filters, Develop and Liquify |
+| **Layout** | Brochures, books, print | Pages and master pages, text frames that flow across pages, styles, tables, PDF with bleed |
+| **Code** | Websites | Code editor and visual designer over the same HTML / CSS / JS files: explorer, Emmet, live canvas with breakpoints, class-based style panel, static-site export |
+
+Switch studios at any time: a document can mix vector shapes, pixel layers, flowing text and a website project. **Export** is a button in the header (PNG / JPEG / WebP / SVG / PDF, slices, websites), not a studio of its own.
+
+> **Status: v0.1 alpha.** OpenFini is a real, working application, but it is young. Read [what is not there yet](docs/roadmap.md) before you plan production work around it. File format and APIs may still change.
+
+> **Not affiliated with any commercial product.** OpenFini is an independent, clean-room implementation. It contains no code, assets, icons or file formats from other products. Product names mentioned anywhere are trademarks of their owners. See [docs/clean-room.md](docs/clean-room.md).
+
+## Install
+
+| Platform | Download | Notes |
+| --- | --- | --- |
+| Windows x64 / ARM64 | `OpenFini_x.y.z_x64-setup.exe` / `…_arm64-setup.exe` | Per-user installer, no admin rights needed |
+| macOS Apple Silicon / Intel | `OpenFini_x.y.z_aarch64.dmg` / `…_x64.dmg` | Unsigned builds: right-click → Open the first time |
+| Linux x64 / ARM64 | `.AppImage`, `.deb`, `.rpm` | Needs WebKitGTK 4.1 (preinstalled on most desktops) |
+| Any browser (PWA) | <https://philppplik.github.io/open-fini/> | Installable, works offline, files stay on your device |
+
+> **Heads-up:** the desktop installers are built by GitHub Actions on the first tagged release. The web app and all engines are tested locally; the installers themselves (especially Windows ARM64 and the macOS Intel cross-build) have not been run on hardware yet — see the status column in [docs/platform-support.md](docs/platform-support.md). Please report problems.
+
+Installers are produced by the [release workflow](.github/workflows/release.yml) and listed on the [Releases](https://github.com/philppplik/open-fini/releases) page together with `SHA256SUMS.txt`. See [docs/platform-support.md](docs/platform-support.md) for the full support matrix and [docs/building.md](docs/building.md) for the unsigned-binary caveats.
+
+## The studios
+
+### Vector
+
+- **Draw**: pen (click / drag Béziers), pencil with curve fitting, rectangle, ellipse, polygon, star, line and 17 preset shapes.
+- **Edit**: node tool (move, convert, break, join, insert, delete; drag a segment to reshape), transform handles that work on rotated objects, snapping to guides / objects / grid / margins, rulers and guides, align and distribute.
+- **Combine**: Add, Subtract, Intersect, Exclude and Divide; convert to curves; expand stroke; image trace.
+- **Style**: solid, linear, radial and conical gradients on fills and strokes, stroke alignment / caps / joins / dashes, opacity and 16 blend modes, live effects (outer / inner shadow, outer / inner glow, outline, color overlay, Gaussian blur).
+- **Type**: artistic text and frames with an in-canvas editor (IME aware), character and paragraph controls, your own font files.
+- **Import / export**: SVG in and out, PNG / JPEG / WebP, PDF.
+
+### Pixel
+
+- **Layers**: pixel layers, groups, layer masks (paint on them or build them from selections), blend modes, nested or global adjustments.
+- **Select**: rectangular / elliptical marquee, freehand and polygonal lasso, magic wand, color range; add / subtract / intersect, feather, grow, shrink, border, smooth, invert; selection to layer / mask / curves.
+- **Paint**: brush with pressure, hardness, flow, spacing and stabilizer, pencil, eraser, paint bucket, gradients — all respect the selection.
+- **Retouch**: clone stamp, healing brush, spot healing, red-eye removal, smudge, blur, sharpen, dodge, burn, sponge.
+- **Adjust** (non-destructive layers): 18 adjustments (levels, curves, HSL, white balance, selective color, gradient map, …), 22 live filters (Gaussian / motion / radial / zoom blur, unsharp mask, clarity, noise, halftone, oil paint, tilt-shift, …), a RAW-style **Develop** pipeline and **Tone Mapping**; auto levels / contrast / color; live histogram.
+- **Transform**: crop with ratios, resize and canvas size, **Liquify** (push, twirl, pinch, bloat, reconstruct), **Image Trace** to vectors.
+
+### Layout
+
+- **Pages**: add, duplicate, reorder, facing pages, bleed, margins and columns, guides.
+- **Masters**: master pages with automatic page-number, page-count and date fields.
+- **Text**: frames that **flow across pages** (link, unlink, flow into a new frame, autoflow), justification, hyphenation (US English), tabs with leaders, bullets and numbering, drop caps, widow / orphan control, paragraph and character styles, table of contents from heading styles.
+- **Objects**: image frames (fill-crop on drop), tables, shapes and everything from the Vector studio.
+- **Data merge**: load a CSV, preview each record in place, export one merged PDF.
+- **Output**: PDF with embedded TrueType/OpenType fonts, bleed and crop marks.
+
+### Code
+
+- **Two ways of working on the same files.** A real code editor ([CodeMirror 6](https://codemirror.net)) with one tab and undo history per file, syntax highlighting for HTML / CSS / JavaScript / JSON / Markdown / SVG, completions that know your classes, custom properties and files, **Emmet** (`Tab`), find and replace across the project, a command palette (`Ctrl+Shift+P`) and quick open (`Ctrl+P`) — and a **visual designer** with a live canvas at desktop, tablet and mobile breakpoints.
+- **Source-preserving.** The files are the only source of truth. Clicking, dragging, inserting and styling write minimal edits into your HTML and CSS (formatting and comments survive); typing in the editor updates the canvas instantly.
+- **Class-based style panel**: layout (flex / grid), spacing, size, position, typography, backgrounds and gradients, borders, shadows, effects — per class and per breakpoint (`@media` blocks are written for you), with inherited values shown.
+- **Navigator, Add panel, Assets, Console and Problems**; design pages of the same document can become SVG / PNG assets.
+- **Templates** (landing page, portfolio, blog, documentation, link in bio) and **static-site export** (ZIP, single-file pages or a folder, minify, sitemap).
+- The preview runs in a sandboxed frame that cannot touch the app. See the [Code studio guide](docs/code-studio.md).
+
+### Export (popup)
+
+The **Export** button in the header opens a popup from any studio: PNG / JPEG / WebP / SVG / PDF with scale, quality, bleed and crop marks; **slices** (draw them with the Slice tool or create them from layers, one file each or one ZIP); and, for documents with a website project, the **website**.
+
+## Why it is light
+
+OpenFini is designed for older and low-power devices as much as for workstations.
+
+- **No framework, no bundled browser.** Plain ES modules and Canvas 2D (no WebGL needed), the [Shoelace](https://shoelace.style) design system loaded component-by-component. The desktop app is a [Tauri](https://tauri.app) shell around the operating system's WebView, so installers do not carry a copy of a browser (typically a few megabytes instead of the ~100 MB of Electron-style apps; exact installer sizes are published with each release).
+- **Measured** (production build, Chromium, release candidate): DOMContentLoaded 83 ms, first contentful paint 208 ms, ~6 MB JavaScript heap at start-up, start-up needs only the core application JavaScript (the Code studio loads on demand). See [docs/performance.md](docs/performance.md) for method and more numbers.
+- **Draws only what changed.** Display lists are cached per node; panning and zooming move a GPU-composited bitmap and re-render when the gesture settles; brush strokes recomposite only the 256×256 tiles they touched.
+- **Low-power mode** (automatic on weak hardware): 1× rendering, no shadows, shorter undo history, no live-effect preview while dragging.
+- **Everything stays on your device**: no accounts, no telemetry, no network calls after the app is installed (a website project's preview only loads what that project itself references).
+- **The Code studio costs nothing until you open it**: its editor (CodeMirror), engine and panels are loaded lazily.
+
+## Build from source
+
+Requirements: Node.js 20+ and npm. (Rust is only needed for the desktop app.)
+
+```bash
+git clone https://github.com/philppplik/open-fini.git
+cd OpenFini
+npm install
+npm start            # http://localhost:4173 — no build step, edit and reload
+npm test             # unit tests
+npm run build        # optimized PWA in dist/
+npm run tauri:dev    # desktop app (needs Rust, see docs/building.md)
+npm run tauri:build  # installers for your platform
+```
+
+The application itself has **no build step** in development: `app/` is served as-is. Production builds bundle and minify it with esbuild.
+
+## Documentation
+
+| | |
+| --- | --- |
+| [Architecture](docs/architecture.md) | Layers, data flow, display lists, performance design |
+| [Studios guide](docs/studios.md) | Tools, panels and shortcuts per studio |
+| [Code studio](docs/code-studio.md) · [Web engine](docs/web-engine.md) | Website workbench and its pure engine |
+| [File format](docs/file-format.md) | The `.ofini` container |
+| [Design system](docs/design-system.md) | Shoelace, tokens, theming, icons |
+| [Performance](docs/performance.md) | Measurements and low-power design |
+| [Engine contracts](docs/engine-contracts.md) | Data shapes shared by the engines |
+| [Testing](docs/testing.md) | Test suites, benchmarks, manual QA checklist |
+| [Building](docs/building.md) · [Platform support](docs/platform-support.md) · [Release process](docs/release-process.md) | Packaging and CI/CD |
+| [Roadmap](docs/roadmap.md) | Known gaps and plans |
+| [Clean-room policy](docs/clean-room.md) | Legal and contribution hygiene |
+| [Decision records](docs/adr) | Why Tauri, Canvas 2D, Shoelace, … |
+
+## Contributing
+
+Contributions are welcome — start with [CONTRIBUTING.md](CONTRIBUTING.md). By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Please report security issues privately as described in [SECURITY.md](SECURITY.md).
+
+## License
+
+OpenFini is released under the [MIT License](LICENSE). Third-party components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

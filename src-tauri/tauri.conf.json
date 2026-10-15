@@ -1,0 +1,163 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "OpenFini",
+  "version": "../package.json",
+  "identifier": "io.github.philppplik.openfini",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:4173",
+    "beforeDevCommand": "npm start",
+    "beforeBuildCommand": "npm run build"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "OpenFini",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 800,
+        "minHeight": 560,
+        "center": true,
+        "resizable": true,
+        "backgroundColor": "#1c1d21",
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self' data: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com",
+        "style-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://fonts.googleapis.com",
+        "style-src-attr": "'unsafe-inline'",
+        "img-src": "'self' data: blob: https:",
+        "media-src": "'self' data: blob: https:",
+        "font-src": "'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com",
+        "connect-src": "'self' ipc: http://ipc.localhost blob: data:",
+        "worker-src": "'self' blob:",
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "frame-src": "https:",
+        "form-action": "'none'"
+      },
+      "dangerousDisableAssetCspModification": [
+        "style-src"
+      ]
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/128x128.png",
+      "icons/32x32.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "publisher": "OpenFini contributors",
+    "homepage": "https://github.com/philppplik/open-fini",
+    "copyright": "Copyright (c) 2026 OpenFini contributors",
+    "license": "MIT",
+    "licenseFile": "../LICENSE",
+    "category": "GraphicsAndDesign",
+    "shortDescription": "Lightweight vector, pixel and layout studio",
+    "longDescription": "OpenFini is a lightweight, open-source creative suite with a Vector studio for illustration, a Pixel studio for photo editing, a Layout studio for page design and a Code studio for building websites, with one-click export to PNG, JPEG, WebP, SVG, PDF and static sites. It runs offline and starts fast.",
+    "fileAssociations": [
+      {
+        "ext": [
+          "ofini"
+        ],
+        "name": "OpenFini Document",
+        "description": "OpenFini document",
+        "mimeType": "application/x-openfini",
+        "role": "Editor",
+        "rank": "Owner",
+        "exportedType": {
+          "identifier": "io.github.philppplik.openfini.document",
+          "conformsTo": [
+            "public.data"
+          ]
+        }
+      },
+      {
+        "ext": [
+          "svg"
+        ],
+        "name": "SVG Image",
+        "description": "SVG vector image",
+        "mimeType": "image/svg+xml",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "png"
+        ],
+        "name": "PNG Image",
+        "description": "PNG image",
+        "mimeType": "image/png",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "jpg",
+          "jpeg"
+        ],
+        "name": "JPEG Image",
+        "description": "JPEG image",
+        "mimeType": "image/jpeg",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "webp"
+        ],
+        "name": "WebP Image",
+        "description": "WebP image",
+        "mimeType": "image/webp",
+        "role": "Editor",
+        "rank": "Alternate"
+      }
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "English"
+        ],
+        "displayLanguageSelector": false,
+        "compression": "lzma"
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    },
+    "linux": {
+      "deb": {
+        "section": "graphics",
+        "priority": "optional",
+        "files": {
+          "/usr/share/mime/packages/io.github.philppplik.openfini.xml": "linux/openfini-mime.xml"
+        }
+      },
+      "rpm": {
+        "files": {
+          "/usr/share/mime/packages/io.github.philppplik.openfini.xml": "linux/openfini-mime.xml"
+        }
+      },
+      "appimage": {
+        "files": {
+          "/usr/share/mime/packages/io.github.philppplik.openfini.xml": "linux/openfini-mime.xml"
+        }
+      }
+    }
+  }
+}

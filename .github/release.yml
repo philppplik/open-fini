@@ -1,0 +1,16 @@
+# Groups the pull requests in the notes that GitHub generates for each release.
+changelog:
+  exclude:
+    labels:
+      - skip-changelog
+  categories:
+    - title: New features
+      labels: [enhancement, feature]
+    - title: Bug fixes
+      labels: [bug]
+    - title: Desktop app, PWA and build
+      labels: [packaging, ci, dependencies]
+    - title: Documentation
+      labels: [documentation]
+    - title: Other changes
+      labels: ["*"]

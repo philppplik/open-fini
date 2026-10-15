@@ -1,0 +1,10 @@
+name: OpenFini CodeQL configuration
+
+# Vendored, minified third-party code and local tooling are not ours to fix.
+paths-ignore:
+  - app/vendor
+  - _vendor
+  - _tools
+  - node_modules
+  - dist
+  - src-tauri/target

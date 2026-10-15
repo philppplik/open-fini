@@ -1,0 +1,41 @@
+[package]
+name = "openfini"
+version = "0.2.0"
+description = "OpenFini - a lightweight, open-source creative suite (desktop shell)"
+authors = ["OpenFini contributors"]
+license = "MIT"
+repository = "https://github.com/philppplik/open-fini"
+homepage = "https://github.com/philppplik/open-fini#readme"
+edition = "2021"
+# Tauri 2.12 and its plugins require Rust 1.90 or newer.
+rust-version = "1.90"
+publish = false
+
+# The `_lib` suffix avoids a Windows-only collision between the library and
+# binary output names (both would otherwise be called `openfini`).
+[lib]
+name = "openfini_lib"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+# `image-png` lets the clipboard plugin accept PNG bytes (see app/src/platform/tauri.js).
+tauri = { version = "2.12", features = ["image-png"] }
+tauri-plugin-clipboard-manager = "2.4"
+tauri-plugin-dialog = "2.8"
+tauri-plugin-fs = "2.7"
+tauri-plugin-opener = "2.7"
+
+# Desktop only: a second launch hands its arguments to the running instance.
+[target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
+tauri-plugin-single-instance = "2.5"
+
+# Tuned for a tiny native binary. Build time is traded for size.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

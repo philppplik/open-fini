@@ -1,0 +1,41 @@
+version: 2
+
+updates:
+  # JavaScript: esbuild, the Tauri CLI and the vendoring helper libraries.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      tauri-cli:
+        patterns: ["@tauri-apps/*"]
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+        exclude-patterns: ["@tauri-apps/*"]
+
+  # Rust: the Tauri crates move together, so they are grouped.
+  - package-ecosystem: cargo
+    directory: /src-tauri
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      tauri:
+        patterns: ["tauri", "tauri-*"]
+      cargo-minor-and-patch:
+        update-types: [minor, patch]
+        exclude-patterns: ["tauri", "tauri-*"]
+
+  # GitHub Actions used by the workflows (including the commit-pinned ones).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns: ["*"]

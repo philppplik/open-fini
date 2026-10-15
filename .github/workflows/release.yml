@@ -1,0 +1,361 @@
+name: Release
+
+# Push a tag such as v0.2.0 (or start the workflow by hand) and this workflow
+# builds the desktop installers for six platforms plus the PWA, collects them in
+# ONE DRAFT release together with SHA256SUMS.txt, and stops there. Nothing is
+# published until a maintainer reviews the draft and clicks "Publish".
+#
+# Optional code signing / notarization is switched on by repository secrets and
+# skipped when they are missing; see docs/release-process.md.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag for the draft release, e.g. v0.2.0. Empty = v<version in package.json>."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Verify and plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      tag: ${{ steps.plan.outputs.tag }}
+      version: ${{ steps.plan.outputs.version }}
+      prerelease: ${{ steps.plan.outputs.prerelease }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Work out the tag and verify the versions
+        id: plan
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "$REF_TYPE" = "tag" ]; then
+            tag="$REF_NAME"
+          elif [ -n "$INPUT_TAG" ]; then
+            tag="$INPUT_TAG"
+          else
+            tag="v$(node -p "require('./package.json').version")"
+          fi
+          case "$tag" in
+            v[0-9]*) ;;
+            *) echo "The tag must look like v1.2.3 (got '$tag')." >&2; exit 1 ;;
+          esac
+          node scripts/version.mjs check --tag "$tag"
+          version="${tag#v}"
+          prerelease=false
+          case "$version" in *-*) prerelease=true ;; esac
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build the web app
+        run: npm run build
+
+      - name: Check build size
+        run: npm run check:size
+
+  create-release:
+    name: Create the draft release
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    outputs:
+      release_id: ${{ steps.release.outputs.id }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      # Creating the release once, here, avoids the race of six matrix jobs
+      # each creating their own draft.
+      - name: Create the draft (or reuse the one for this tag)
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          existing=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            --jq ".[] | select(.tag_name == \"$TAG\") | .id")
+          id=$(printf '%s\n' "$existing" | head -n 1)
+          if [ -z "$id" ]; then
+            id=$(gh api "repos/$GITHUB_REPOSITORY/releases" -X POST \
+              -f tag_name="$TAG" \
+              -f target_commitish="$GITHUB_SHA" \
+              -f name="OpenFini $VERSION" \
+              -F body=@.github/release-body.md \
+              -F draft=true \
+              -F prerelease="$PRERELEASE" \
+              -F generate_release_notes=true \
+              --jq .id)
+          fi
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          echo "Release id: $id"
+
+  build:
+    name: Build ${{ matrix.name }}
+    needs: [prepare, create-release]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows x64
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            # MSI (WiX) only accepts numeric pre-release identifiers, so pre-releases get NSIS only.
+            args: --target x86_64-pc-windows-msvc --bundles ${{ needs.prepare.outputs.prerelease == 'true' && 'nsis' || 'nsis,msi' }}
+          - name: Windows ARM64
+            runner: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            args: --target aarch64-pc-windows-msvc --bundles nsis
+          - name: macOS Apple Silicon
+            runner: macos-latest
+            target: aarch64-apple-darwin
+            args: --target aarch64-apple-darwin --bundles app,dmg
+          - name: macOS Intel
+            runner: macos-latest
+            target: x86_64-apple-darwin
+            args: --target x86_64-apple-darwin --bundles app,dmg
+          - name: Linux x64
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            args: --bundles deb,rpm,appimage
+          - name: Linux ARM64
+            runner: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            args: --bundles deb,rpm,appimage
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev patchelf xdg-utils
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install Rust
+        # dtolnay/rust-toolchain v1, pinned to a commit
+        uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - name: Cache Rust build
+        # Swatinem/rust-cache v2, pinned to a commit
+        uses: swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+        with:
+          workspaces: ./src-tauri -> target
+          key: ${{ matrix.target }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ---- optional: Windows code signing (needs WINDOWS_CERTIFICATE, WINDOWS_CERTIFICATE_PASSWORD) ----
+      - name: Configure Windows code signing
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrEmpty($env:WINDOWS_CERTIFICATE)) {
+            Write-Host "No WINDOWS_CERTIFICATE secret: the installers will be unsigned."
+            exit 0
+          }
+          $pfx = Join-Path $env:RUNNER_TEMP 'openfini-signing.pfx'
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $cert = Import-PfxCertificate -FilePath $pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          Remove-Item $pfx
+          $config = @{
+            bundle = @{
+              windows = @{
+                certificateThumbprint = $cert.Thumbprint
+                digestAlgorithm       = 'sha256'
+                timestampUrl          = 'http://timestamp.digicert.com'
+              }
+            }
+          } | ConvertTo-Json -Depth 5
+          $configPath = Join-Path $env:RUNNER_TEMP 'tauri-sign.conf.json'
+          Set-Content -Path $configPath -Value $config
+          "TAURI_SIGN_ARGS=--config $configPath" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      # ---- optional: macOS signing + notarization ----
+      # Without APPLE_CERTIFICATE the app is only ad-hoc signed ("-"), which Apple Silicon needs to run it at all.
+      - name: Configure macOS signing and notarization
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          SECRET_APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          SECRET_APPLE_ID: ${{ secrets.APPLE_ID }}
+          SECRET_APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          SECRET_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APPLE_CERTIFICATE:-}" ] || [ -z "${APPLE_CERTIFICATE_PASSWORD:-}" ]; then
+            echo "No Apple signing secrets: ad-hoc signing only."
+            echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          echo "APPLE_CERTIFICATE=$APPLE_CERTIFICATE" >> "$GITHUB_ENV"
+          echo "APPLE_CERTIFICATE_PASSWORD=$APPLE_CERTIFICATE_PASSWORD" >> "$GITHUB_ENV"
+          if [ -n "${SECRET_APPLE_SIGNING_IDENTITY:-}" ]; then
+            echo "APPLE_SIGNING_IDENTITY=$SECRET_APPLE_SIGNING_IDENTITY" >> "$GITHUB_ENV"
+          fi
+          if [ -n "${SECRET_APPLE_ID:-}" ] && [ -n "${SECRET_APPLE_PASSWORD:-}" ] && [ -n "${SECRET_APPLE_TEAM_ID:-}" ]; then
+            echo "APPLE_ID=$SECRET_APPLE_ID" >> "$GITHUB_ENV"
+            echo "APPLE_PASSWORD=$SECRET_APPLE_PASSWORD" >> "$GITHUB_ENV"
+            echo "APPLE_TEAM_ID=$SECRET_APPLE_TEAM_ID" >> "$GITHUB_ENV"
+            echo "Signing and notarizing."
+          else
+            echo "Signing without notarization (APPLE_ID, APPLE_PASSWORD or APPLE_TEAM_ID missing)."
+          fi
+
+      - name: Build and upload the installers
+        # tauri-apps/tauri-action v1, pinned to a commit
+        uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          args: ${{ matrix.args }} ${{ env.TAURI_SIGN_ARGS }}
+          retryAttempts: 1
+
+  pwa:
+    name: Package the PWA
+    needs: [prepare, create-release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Zip and attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          zip_name="OpenFini-${VERSION}-pwa.zip"
+          (cd dist && zip -qr -X "../$zip_name" .)
+          bash .github/scripts/upload-release-asset.sh "$RELEASE_ID" "$zip_name"
+
+  checksums:
+    name: Checksums and provenance
+    needs: [prepare, create-release, build, pwa]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Collect the release assets and write SHA256SUMS.txt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+        run: |
+          set -euo pipefail
+          mkdir assets
+          gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" --paginate \
+            --jq '.[] | [.id, .name] | @tsv' > assets.tsv
+          while IFS=$'\t' read -r id name; do
+            if [ "$name" = "SHA256SUMS.txt" ]; then continue; fi
+            gh api -H "Accept: application/octet-stream" \
+              "repos/$GITHUB_REPOSITORY/releases/assets/$id" > "assets/$name"
+          done < assets.tsv
+          (cd assets && sha256sum -- * > ../SHA256SUMS.txt)
+          cat SHA256SUMS.txt
+          bash .github/scripts/upload-release-asset.sh "$RELEASE_ID" SHA256SUMS.txt
+
+      - name: Attest build provenance
+        continue-on-error: true
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: assets/*
+
+      - name: Summary
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          {
+            echo "### Draft release ready"
+            echo
+            echo "All installers, the PWA zip and \`SHA256SUMS.txt\` are attached to the draft for \`$TAG\`."
+            echo "Review it under **Releases**, then publish it."
+          } >> "$GITHUB_STEP_SUMMARY"

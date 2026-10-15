@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+src-tauri/target/
+src-tauri/gen/
+
+# Local toolchains and third-party checkouts used while developing
+_tools/
+_vendor/
+
+# Logs and OS cruft
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor / IDE
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+
+# Local environment
+.env
+.env.*
+!.env.example
+
+# Test artifacts
+coverage/
+test-results/

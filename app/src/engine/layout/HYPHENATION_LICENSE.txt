@@ -1,0 +1,51 @@
+Hyphenation patterns for American English (en-US)
+=================================================
+
+Files in this directory derived from this data: hyphenation-en-us.js
+
+Source
+------
+https://raw.githubusercontent.com/hyphenation/tex-hyphen/master/hyph-utf8/tex/generic/hyph-utf8/patterns/tex/hyph-en-us.tex
+(project: https://github.com/hyphenation/tex-hyphen, package "hyph-utf8", file hyph-en-us.tex, version 2005-05-30)
+The pattern list and the exception list were copied unchanged (comments removed, duplicate patterns removed,
+whitespace normalized) into hyphenation-en-us.js.
+
+Original file header and license notice
+----------------------------------------
+% title: Hyphenation patterns for American English
+% copyright: Copyright (C) 1990, 2004, 2005 Gerard D.C. Kuiken
+% notice: This file is part of the hyph-utf8 package.
+%     See http://www.hyphenation.org/tex for more information.
+% language:
+%     name: English, American spelling
+%     tag: en-us
+% version: 2005-05-30
+% authors:
+%   -
+%     name: Gerard D.C. Kuiken
+% licence:
+%     text: >
+%         Copying and distribution of this file, with or without modification,
+%         are permitted in any medium without royalty provided the copyright
+%         notice and this notice are preserved.
+% hyphenmins:
+%     typesetting:
+%         left: 2
+%         right: 3
+% changes:
+%     March 1, 1990 Initial release
+%     May 30, 2005 Added copyright notice, no patterns change.
+% texlive:
+%     encoding: ascii
+%     babelname: usenglishmax
+%     legacy_patterns: ushyphmax.tex
+%     message: Hyphenation patterns for American English
+%     package: english
+% known_bugs:
+%     de-mo-c-rat: 'instead of dem-o-crat (see GitHub issue #15)'
+
+License summary
+---------------
+"Copying and distribution of this file, with or without modification, are permitted in any medium without royalty
+provided the copyright notice and this notice are preserved." The copyright notice above (Copyright (C) 1990, 2004,
+2005 Gerard D.C. Kuiken) and this notice are preserved here, as required.

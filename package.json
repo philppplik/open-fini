@@ -1,0 +1,60 @@
+{
+  "name": "openfini",
+  "version": "0.2.0",
+  "description": "OpenFini — a lightweight, open-source creative suite with Vector, Pixel, Layout and Export studios. Runs as a PWA and as a tiny native app on Windows (x64/ARM64), macOS (Intel/Apple Silicon) and Linux (x64/ARM64).",
+  "type": "module",
+  "license": "MIT",
+  "private": false,
+  "homepage": "https://github.com/philppplik/open-fini#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/philppplik/open-fini.git"
+  },
+  "bugs": {
+    "url": "https://github.com/philppplik/open-fini/issues"
+  },
+  "keywords": [
+    "vector-editor",
+    "photo-editor",
+    "page-layout",
+    "desktop-publishing",
+    "design-tool",
+    "canvas",
+    "pwa",
+    "tauri",
+    "open-source"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "test": "node scripts/test.mjs",
+    "build": "node scripts/build.mjs",
+    "vendor": "node scripts/vendor.mjs",
+    "check:size": "node scripts/check-size.mjs",
+    "icons": "node scripts/icons.mjs",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "devDependencies": {
+    "@codemirror/autocomplete": "^6.20.3",
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-html": "^6.4.12",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/lang-xml": "^6.1.0",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/lint": "^6.9.7",
+    "@codemirror/search": "^6.7.2",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.14",
+    "@lezer/highlight": "^1.2.5",
+    "@tauri-apps/cli": "^2.12.2",
+    "esbuild": "^0.28.2",
+    "polygon-clipping": "^0.15.7"
+  }
+}
