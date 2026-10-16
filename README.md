@@ -4,7 +4,7 @@
 
 # OpenFini
 
-**A lightweight, open-source creative suite — Vector, Pixel, Layout and Code studios in one small app.**
+**A lightweight, open-source creative suite — Vector, Pixel, Layout, Code and Vibe studios in one small app.**
 
 [![CI](https://github.com/philppplik/open-fini/actions/workflows/ci.yml/badge.svg)](https://github.com/philppplik/open-fini/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -81,6 +81,13 @@ Installers are produced by the [release workflow](.github/workflows/release.yml)
 - **Templates** (landing page, portfolio, blog, documentation, link in bio) and **static-site export** (ZIP, single-file pages or a folder, minify, sitemap).
 - The preview runs in a sandboxed frame that cannot touch the app. See the [Code studio guide](docs/code-studio.md).
 
+### Vibe (AI)
+
+- **Tell it what you want.** A chat like Claude Code or Cowork, with attachments, skills, memory and a plan view. The assistant uses OpenFini's own 52 tools: it draws shapes and text, adjusts photos, lays out pages and builds websites in the other studios, and every run can be undone in one click.
+- **Not locked in.** Bring your own account: OpenRouter (with sign-in), OpenAI, Anthropic, DeepSeek, xAI (Grok), Mistral, Groq, Together, Gemini, local models (Ollama, LM Studio) or any OpenAI-compatible server. Keys stay on your device, optionally encrypted with a passphrase.
+- **Modern AI plumbing.** Tool use with permission modes, MCP servers (plus a localhost gateway for stdio servers), RAG over your own documents, skills (`SKILL.md` style), custom tools the assistant can write, image generation and editing.
+- **Right-click AI** in the canvas, the code editor and the website designer. **Off by default**: nothing is sent anywhere until you switch it on. An offline *Demo* assistant shows how it works without a key. See the [Vibe Studio guide](docs/vibe-studio.md).
+
 ### Export (popup)
 
 The **Export** button in the header opens a popup from any studio: PNG / JPEG / WebP / SVG / PDF with scale, quality, bleed and crop marks; **slices** (draw them with the Slice tool or create them from layers, one file each or one ZIP); and, for documents with a website project, the **website**.
@@ -93,8 +100,8 @@ OpenFini is designed for older and low-power devices as much as for workstations
 - **Measured** (production build, Chromium, release candidate): DOMContentLoaded 83 ms, first contentful paint 208 ms, ~6 MB JavaScript heap at start-up, start-up needs only the core application JavaScript (the Code studio loads on demand). See [docs/performance.md](docs/performance.md) for method and more numbers.
 - **Draws only what changed.** Display lists are cached per node; panning and zooming move a GPU-composited bitmap and re-render when the gesture settles; brush strokes recomposite only the 256×256 tiles they touched.
 - **Low-power mode** (automatic on weak hardware): 1× rendering, no shadows, shorter undo history, no live-effect preview while dragging.
-- **Everything stays on your device**: no accounts, no telemetry, no network calls after the app is installed (a website project's preview only loads what that project itself references).
-- **The Code studio costs nothing until you open it**: its editor (CodeMirror), engine and panels are loaded lazily.
+- **Everything stays on your device**: no accounts, no telemetry, no network calls after the app is installed (a website project's preview only loads what that project itself references). The one exception is opt-in: if you switch on AI features and connect a model, your requests go to the provider you chose — and only then.
+- **The Code and Vibe studios cost nothing until you open them**: the editor (CodeMirror), the engines, the AI runtime and the panels are loaded lazily.
 
 ## Build from source
 
@@ -120,6 +127,7 @@ The application itself has **no build step** in development: `app/` is served as
 | [Architecture](docs/architecture.md) | Layers, data flow, display lists, performance design |
 | [Studios guide](docs/studios.md) | Tools, panels and shortcuts per studio |
 | [Code studio](docs/code-studio.md) · [Web engine](docs/web-engine.md) | Website workbench and its pure engine |
+| [Vibe Studio](docs/vibe-studio.md) · [AI engine](docs/ai-engine.md) | The AI studio, providers, tools, MCP, RAG, skills |
 | [File format](docs/file-format.md) | The `.ofini` container |
 | [Design system](docs/design-system.md) | Shoelace, tokens, theming, icons |
 | [Performance](docs/performance.md) | Measurements and low-power design |

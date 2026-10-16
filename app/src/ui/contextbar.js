@@ -18,6 +18,7 @@ export function createContextBar(app) {
 
   function build() {
     empty(el);
+    if (app.studio === "vibe") return; // the Vibe workspace has no context bar content
     if (app.studio === "code") {
       // the Code studio brings its own toolbar (views, page, breakpoints, zoom)
       if (app.codeUI?.toolbar) el.append(app.codeUI.toolbar);

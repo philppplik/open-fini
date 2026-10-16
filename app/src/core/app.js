@@ -8,13 +8,34 @@ import { solid } from "./nodes.js";
 const PREF_KEY = "openfini.prefs.v1";
 
 const defaultPrefs = () => ({
+  // appearance and accessibility
   theme: "dark", // dark | light | auto
+  accent: "violet",
+  density: "default", // compact | default | spacious
+  uiScale: 100, // percent
+  reduceMotion: "auto", // auto | on | off
+  highContrast: false,
+  focusRings: false,
+  showHints: true, // tooltips
+  // general
+  restoreSession: true,
+  autosave: true,
+  autosaveSeconds: 4,
+  confirmClose: true,
+  // canvas and performance
   lowPower: "auto", // auto | on | off
   rulers: true,
-  autosave: true,
-  showHints: true,
   clipContent: null, // null = per studio default
   historyMB: 96,
+  // code studio
+  codeTabSize: 2,
+  codeWordWrap: false,
+  codeFontSize: 13,
+  codeFormatOnSave: false,
+  previewScripts: true,
+  // security and AI
+  confirmExternal: true,
+  aiEnabled: false,
 });
 
 function loadPrefs() {
@@ -25,7 +46,7 @@ function loadPrefs() {
   }
 }
 
-export const STUDIO_ORDER = ["vector", "pixel", "layout", "code"];
+export const STUDIO_ORDER = ["vector", "pixel", "layout", "code", "vibe"];
 
 export class App extends Emitter {
   constructor() {
@@ -74,6 +95,20 @@ export class App extends Emitter {
       historyBytes: (low ? Math.min(32, this.prefs.historyMB) : this.prefs.historyMB) * 1024 * 1024,
       fxDuringDrag: !low,
     };
+  }
+
+  /** Restores every preference to its default. */
+  resetPrefs() {
+    this.prefs = defaultPrefs();
+    try {
+      localStorage.removeItem(PREF_KEY);
+    } catch {
+      /* private mode */
+    }
+    this.perf = this.#resolvePerf();
+    for (const d of this.docs) d.history.limitBytes = this.perf.historyBytes;
+    this.emit("prefs", "*");
+    this.emit("render");
   }
 
   setPref(key, value) {

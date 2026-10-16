@@ -87,7 +87,7 @@ export function registerEditCommands(app) {
     if (a.state?.pixelMask) return a.run("select.none");
     a.clearSelection();
   }, { shortcut: "Mod+D", enabled: hasDoc });
-  def("edit.preferences", "Preferences…", (a) => a.emit("dialog", { id: "preferences" }), { shortcut: "Mod+,", icon: "gear" });
+  def("edit.preferences", "Settings…", (a) => a.emit("dialog", { id: "preferences" }), { shortcut: "Mod+,", icon: "gear" });
 
   // ---- arrange
   def("arrange.group", "Group", (a) => ops.groupSelection(a), { shortcut: "Mod+G", enabled: hasSel, icon: "collection" });
@@ -140,7 +140,7 @@ export function registerEditCommands(app) {
   def("view.theme", "Toggle Light / Dark", (a) => a.setPref("theme", a.prefs.theme === "dark" ? "light" : "dark"));
   def("view.lowPower", "Low-power Mode", (a) => a.setPref("lowPower", a.perf.low ? "off" : "on"), { checked: (a) => a.perf.low });
 
-  for (const [i, id] of ["vector", "pixel", "layout", "code"].entries()) {
+  for (const [i, id] of ["vector", "pixel", "layout", "code", "vibe"].entries()) {
     def(`studio.${id}`, `${id[0].toUpperCase()}${id.slice(1)} Studio`, (a) => a.setStudio(id), { shortcut: `Alt+${i + 1}`, checked: (a) => a.studio === id });
   }
 }

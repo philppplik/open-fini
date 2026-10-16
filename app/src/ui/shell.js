@@ -1,7 +1,7 @@
 // Application shell: assembles header, tabs, context bar, toolbox, canvas, dock and status bar.
 import { h } from "../core/util.js";
 import { CanvasView } from "./canvas-view.js";
-import { createMenubar, showContextMenu } from "./menus.js";
+import { createMenubar, showContextMenu, buildMenu } from "./menus.js";
 import { createToolbox, iconEl } from "./toolbox.js";
 import { createContextBar } from "./contextbar.js";
 import { createDock } from "./dock.js";
@@ -10,15 +10,11 @@ import { createDocTabs } from "./tabs.js";
 import { iconButton } from "./controls.js";
 import { STUDIOS } from "../studios/index.js";
 import { STUDIO_ORDER } from "../core/app.js";
+import { applyAppearance } from "./appearance.js";
 import { newDocumentDialog, preferencesDialog, aboutDialog, shortcutsDialog, colorDialog } from "./dialogs.js";
 
 export function applyTheme(app) {
-  const t = app.prefs.theme;
-  const dark = t === "dark" || (t === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
-  const root = document.documentElement;
-  root.classList.toggle("sl-theme-dark", dark);
-  root.classList.toggle("sl-theme-light", !dark);
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#1d1e22" : "#f6f6f8");
+  applyAppearance(app); // theme, accent, density, scale and the accessibility preferences
 }
 
 export function createShell(app, root) {
@@ -26,7 +22,14 @@ export function createShell(app, root) {
   app.cv = cv;
 
   // ---- header: brand, menus, studio switcher, quick actions
-  const brand = h("div.of-brand", h("img", { src: "./icons/icon.svg", alt: "", width: 22, height: 22 }), h("span", "OpenFini"));
+  // The brand opens the application menu: settings, save all, shortcuts, about …
+  const brandBtn = h("button.of-brand", { type: "button", slot: "trigger", "aria-label": "OpenFini menu", "aria-haspopup": "menu" }, h("img", { src: "./icons/mark.svg", alt: "", width: 22, height: 22 }), h("span", "OpenFini"), h("sl-icon.of-brand__caret", { name: "chevron-down" }));
+  const brand = h("sl-dropdown.of-brandmenu", { distance: 4, hoist: true }, brandBtn);
+  brand.addEventListener("sl-show", (e) => {
+    if (e.target !== brand) return;
+    for (const c of [...brand.children]) if (c.tagName === "SL-MENU") c.remove();
+    brand.append(buildMenu(app, ["help.about", "-", "edit.preferences", "file.saveAll", "file.openFolder", "-", "help.shortcuts", "help.docs", "help.issues"]));
+  });
   const studioBtns = STUDIO_ORDER.map((id) => {
     const s = STUDIOS[id];
     const b = h("button.of-studio", { type: "button", "data-studio": id, "data-tip": `${s.label} Studio — ${s.blurb}`, "data-shortcut": `Alt+${STUDIO_ORDER.indexOf(id) + 1}`, "aria-pressed": "false" }, iconEl(`of:${s.icon}`), h("span", s.label));
@@ -57,6 +60,29 @@ export function createShell(app, root) {
   const layout = h("div.of-layout", header, tabs.el, context.el, toolbox.el, codeSide, canvasArea, dock.el, status.el);
   root.append(layout);
   app.dock = dock;
+
+  // Vibe Studio (the AI workspace) is also loaded on first use; it does not need an open document
+  const vibeArea = h("div.of-vibearea");
+  canvasArea.append(vibeArea);
+  let vibeMod = null;
+  let vibeMounted = false;
+  async function syncVibe() {
+    if (app.studio !== "vibe") return;
+    vibeMod ||= import("./vibe/workspace.js");
+    try {
+      const mod = await vibeMod;
+      const v = mod.vibeStudio(app);
+      if (!vibeMounted) {
+        vibeArea.replaceChildren(v.el);
+        vibeMounted = true;
+      }
+      v.activate();
+    } catch (err) {
+      console.error(err);
+      app.toast(`Vibe Studio could not be loaded: ${err.message}`, "danger", 6000);
+    }
+  }
+  app.on("studio", syncVibe);
 
   let codeModule = null;
   let mountedCode = null;
@@ -114,7 +140,7 @@ export function createShell(app, root) {
     undo.disabled = !app.isEnabled("edit.undo");
     redo.disabled = !app.isEnabled("edit.redo");
     exportBtn.disabled = !app.isEnabled("file.export");
-    welcome.el.classList.toggle("hidden", !!app.doc);
+    welcome.el.classList.toggle("hidden", !!app.doc || app.studio === "vibe");
     layout.classList.toggle("no-doc", !app.doc);
     layout.dataset.studio = app.studio;
     const d = app.doc;
@@ -134,6 +160,7 @@ export function createShell(app, root) {
   app.on("dialog", (d) => {
     switch (d.id) {
       case "new":
+        if (d.studio === "vibe") return app.setStudio("vibe");
         if ((d.studio || app.studio) === "code") return import("./code/start.js").then((m) => m.newWebsiteDialog(app));
         return newDocumentDialog(app, d);
       case "preferences":
@@ -159,6 +186,8 @@ export function createShell(app, root) {
       "-", "shape.convert", "shape.expandStroke", "-", "arrange.lock", "arrange.hide",
     ];
     if (layers) items.push("-", "layer.addMask", "layer.rasterize", "layer.mergeDown");
+    const ai = app.aiQuick?.canvasAiItems(app) || [];
+    if (ai.length) items.push("-", { label: "AI", icon: "stars", items: ai });
     showContextMenu(app, x, y, items);
   });
 
@@ -179,7 +208,7 @@ function createWelcome(app) {
       h("img", { src: "./icons/icon.svg", alt: "", width: 84, height: 84 }),
       h("h1", "OpenFini"),
       h("p", "Design, code and publish — in one lightweight app."),
-      h("div.of-welcome__cards", card("vector", "Curves, shapes, type and effects"), card("pixel", "Photo editing, painting and retouching"), card("layout", "Pages, text flow, styles and print"), card("code", "HTML, CSS and JavaScript with a visual designer")),
+      h("div.of-welcome__cards", card("vector", "Curves, shapes, type and effects"), card("pixel", "Photo editing, painting and retouching"), card("layout", "Pages, text flow, styles and print"), card("code", "HTML, CSS and JavaScript with a visual designer"), card("vibe", "Describe it — an AI builds it for you")),
       h("div.of-welcome__actions",
         h("sl-button", { variant: "primary", onclick: () => app.run("file.new") }, h("sl-icon", { slot: "prefix", name: "plus-lg" }), "New Document"),
         h("sl-button", { onclick: () => app.run("file.open") }, h("sl-icon", { slot: "prefix", name: "folder2-open" }), "Open…")),

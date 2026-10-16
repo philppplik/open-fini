@@ -4,6 +4,7 @@ import { registerFileCommands } from "./file.js";
 import { registerPixelCommands } from "./pixel.js";
 import { registerLayoutCommands } from "./layout.js";
 import { registerCodeCommands } from "./code.js";
+import { registerVibeCommands } from "./vibe.js";
 import { installAnts } from "../studios/tools/pixel-select.js";
 
 export function registerCommands(app) {
@@ -12,6 +13,7 @@ export function registerCommands(app) {
   registerPixelCommands(app);
   registerLayoutCommands(app);
   registerCodeCommands(app);
+  registerVibeCommands(app);
   installAnts(app);
   app.emit("commands");
 }

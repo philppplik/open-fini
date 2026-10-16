@@ -23,6 +23,7 @@ export function installTooltips() {
     if (!t) return hide();
     clearTimeout(tipTimer);
     tipTimer = setTimeout(() => {
+      if (document.documentElement.classList.contains("of-no-tips")) return;
       const el = ensureTip();
       const text = t.getAttribute("data-tip");
       const sc = t.getAttribute("data-shortcut");

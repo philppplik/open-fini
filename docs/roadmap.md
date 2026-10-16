@@ -63,6 +63,18 @@ so you can decide whether OpenFini fits your work — and where contributions ar
 - JavaScript source edits cannot be formatted automatically beyond re-indentation; minification of JavaScript is
   not part of the site export.
 
+## Vibe studio
+
+- Providers other than OpenAI-compatible servers and Anthropic are not built in (Gemini is used through its
+  OpenAI-compatible endpoint). Subscription logins (ChatGPT, Claude.ai) are not possible: only API keys.
+- The engine is tested with fake servers and recorded protocol shapes; real providers differ in details (tool-call
+  streaming, image APIs, model lists) and may need fixes as they change.
+- MCP: Streamable HTTP with bearer headers only. stdio servers need `npm run mcp:gateway`; no OAuth for MCP servers,
+  no resources or prompts yet, only tools.
+- No voice input yet, no web browsing tool, no automatic image-to-vector tracing by the model (use *Image Trace*).
+- Long projects: context is compacted automatically; very large documents are summarized, not sent whole.
+- Not yet: OpenFini as an MCP *server* so that external agents (Claude Code, …) can drive an open OpenFini window.
+
 ## File compatibility
 
 - Reads and writes `.ofini`; imports SVG, PNG, JPEG, WebP, GIF, BMP, AVIF; exports PNG, JPEG, WebP, SVG, PDF.

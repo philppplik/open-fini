@@ -1,6 +1,6 @@
 # Studios guide
 
-Switch studios with the buttons in the header or **Alt+1 … Alt+4**. A studio changes the toolbox, the
+Switch studios with the buttons in the header or **Alt+1 … Alt+5**. A studio changes the toolbox, the
 default panels and the context bar — it never converts or changes your document.
 
 `Mod` below means **Ctrl** on Windows/Linux and **⌘** on macOS.
@@ -115,6 +115,22 @@ HTML, CSS and JavaScript files, stored inside the document. See the [Code studio
 | `Mod+Alt+1` / `2` / `3` | Design / Split / Code view |
 | `Mod+Alt+P` | Design mode ↔ live preview |
 | `Tab` | Expand an Emmet abbreviation |
+
+## Vibe studio
+
+Describe what you want and an assistant builds it in the other studios, with undo for the whole run. It has no
+toolbox of its own: a chat with the *Canvas* live view, and panels for *Activity*, *Models*, *Tools*, *Skills* and
+*Knowledge*. AI features must be switched on under *Settings ▸ Artificial intelligence*. See the
+[Vibe Studio guide](vibe-studio.md).
+
+| Key | Action |
+| --- | --- |
+| `Alt+5` | Open Vibe Studio |
+| `Enter` / `Shift+Enter` | Send / new line in the composer |
+| `/` | Commands and skills in the composer |
+| `Esc` | Stop the running request |
+
+Right-click menus gain an **AI** submenu (canvas, code editor, website elements) when AI features are on.
 
 ## Export (popup)
 

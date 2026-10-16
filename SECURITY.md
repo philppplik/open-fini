@@ -36,7 +36,7 @@ service by opening an enormous but valid document, and vulnerabilities in the op
 
 ## Design notes
 
-* OpenFini makes **no network requests** after installation: no telemetry, no accounts, no remote fonts or
+* OpenFini makes **no network requests** after installation unless you opt in to AI features (see below): no telemetry, no accounts, no remote fonts or
   scripts (a website project previewed in the Code studio loads only what that project references). The desktop app ships a restrictive Content-Security-Policy (`src-tauri/tauri.conf.json`).
 * Files are opened by explicit user action (dialog, drop, OS file association). The desktop app's
   permissions (`src-tauri/capabilities/default.json`) allow reading and writing only inside the Desktop,
@@ -50,5 +50,15 @@ service by opening an enormous but valid document, and vulnerabilities in the op
   The preview inherits the app's Content-Security-Policy (`data:` scripts, `https:` media, no `fetch` to other
   servers in the desktop app). Opening an untrusted project runs its scripts in that sandbox — do so as you
   would open an untrusted web page.
+* **AI features (Vibe Studio)** are off by default (`aiEnabled`). When on, requests go only to the provider base URLs
+  and MCP servers you add; the desktop Content-Security-Policy allows `connect-src` to `https:`, localhost
+  and WebSockets for that purpose. API keys are stored on the device (IndexedDB / app storage), optionally encrypted
+  with a passphrase (AES-GCM, PBKDF2-SHA256 250 000 iterations); they are never written to documents, logs or URLs and
+  only sent to the provider's own base URL. Tool results, MCP responses, attached files and document text are treated
+  as untrusted data (prompt-injection is a known limitation of every LLM agent): the permission modes ask before
+  risky actions, custom tools run in a sandboxed frame without network access and can only call OpenFini tools through
+  the same approvals, and the assistant cannot read your files, run commands or reach the network except through the
+  connections you add. `scripts/mcp-gateway.mjs` listens on 127.0.0.1 only, checks the browser `Origin` and can
+  require a bearer token.
 * The service worker only serves the app's own precached files.
 * Release artifacts are accompanied by `SHA256SUMS.txt`; see [docs/release-process.md](docs/release-process.md).

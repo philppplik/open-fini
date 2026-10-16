@@ -7,7 +7,7 @@ const DESIGN = ["vector", "pixel", "layout"];
 export const MENUS = [
   {
     label: "File",
-    items: ["file.new", "file.open", { label: "Open Recent", dynamic: "recent" }, "-", "file.save", "file.saveAs", "-", "file.export", { label: "Quick Export", items: ["file.exportPNG", "file.exportJPG", "file.exportWEBP", "file.exportSVG", "file.exportPDF"] }, "-", "file.place", "file.docSetup", "-", "file.close"],
+    items: ["file.new", "file.open", "file.openFolder", { label: "Open Recent", dynamic: "recent" }, "-", "file.save", "file.saveAs", "file.saveAll", "-", "file.export", { label: "Quick Export", items: ["file.exportPNG", "file.exportJPG", "file.exportWEBP", "file.exportSVG", "file.exportPDF"] }, "-", "file.place", "file.docSetup", "-", "file.close"],
   },
   {
     label: "Edit",
@@ -71,8 +71,18 @@ export const MENUS = [
     studios: ["code"],
     items: ["code.quickOpen", "code.gotoElement", "code.gotoLine", "-", "code.showExplorer", "code.showAdd", "code.showNavigator", "code.showAssets", "-", "code.problems", "code.console", "-", "code.palette"],
   },
-  { label: "Studio", items: ["studio.vector", "studio.pixel", "studio.layout", "studio.code"] },
-  { label: "Help", items: ["help.shortcuts", "help.docs", "help.about"] },
+  {
+    label: "Edit",
+    studios: ["vibe"],
+    items: ["vibe.newChat", "vibe.undoRun", "vibe.stop", "-", "edit.preferences"],
+  },
+  {
+    label: "View",
+    studios: ["vibe"],
+    items: ["vibe.tabCanvas", "vibe.tabActivity", "vibe.tabModels", "vibe.tabTools", "vibe.tabSkills", "vibe.tabKnowledge", "-", "view.theme"],
+  },
+  { label: "Studio", items: ["studio.vector", "studio.pixel", "studio.layout", "studio.code", "studio.vibe"] },
+  { label: "Help", items: ["help.shortcuts", "help.docs", "help.issues", "-", "help.about"] },
 ];
 
 function itemFor(app, cmdId) {

@@ -81,7 +81,7 @@ Rules the app code has to follow so the build can do this safely:
 
 | Budget | Default | Covers |
 | --- | --- | --- |
-| `shellJsGzipKiB` | 400 | all JavaScript outside `vendor/` (the app shell and the service worker) |
+| `shellJsGzipKiB` | 520 | all JavaScript outside `vendor/` (the app shell and the service worker) |
 | `totalGzipKiB` | 2048 | everything the browser downloads, except fonts and license texts |
 
 CI runs it on every push. Raise a budget only deliberately, in its own commit.

@@ -34,7 +34,7 @@
         "img-src": "'self' data: blob: https:",
         "media-src": "'self' data: blob: https:",
         "font-src": "'self' data: https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com",
-        "connect-src": "'self' ipc: http://ipc.localhost blob: data:",
+        "connect-src": "'self' ipc: http://ipc.localhost blob: data: https: http://localhost:* http://127.0.0.1:* ws://127.0.0.1:*",
         "worker-src": "'self' blob:",
         "object-src": "'none'",
         "base-uri": "'self'",

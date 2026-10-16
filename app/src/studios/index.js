@@ -68,6 +68,17 @@ export const STUDIOS = {
     top: ["style", "element"],
     bottom: [],
   },
+  // Vibe Studio: an AI assistant that works inside the other studios. Its whole workspace is ui/vibe/.
+  vibe: {
+    id: "vibe",
+    label: "Vibe",
+    icon: "vibe",
+    blurb: "Describe it — an AI builds it in your studios",
+    workspace: true,
+    tools: [],
+    top: [],
+    bottom: [],
+  },
 };
 
 export function registerAllTools(app) {

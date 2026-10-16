@@ -6,6 +6,33 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] — Vibe Studio
+
+### Added
+
+- New OpenFini logo and app icon (UI, installers, PWA).
+
+**Vibe Studio** (`Alt+5`) — an AI studio that works natively with OpenFini. See docs/vibe-studio.md.
+- Chat with attachments, skills (`/`), memory, a plan view, tool cards and a live Canvas of the document being made;
+  the assistant uses 52 tools across Vector, Pixel, Layout and Code and every run can be undone in one click.
+- Bring your own model: OpenRouter (OAuth sign-in), OpenAI, Anthropic, DeepSeek, xAI, Mistral, Groq, Together, Gemini,
+  Ollama, LM Studio and any OpenAI-compatible server. Keys stay on the device, optionally encrypted with a passphrase.
+- Permission modes (careful / balanced / auto), MCP servers (Streamable HTTP) with `npm run mcp:gateway` for stdio
+  servers, RAG over your documents and open website project, SKILL.md-style skills (eight built in), custom tools the
+  assistant can write (sandboxed), image generation and editing.
+- Right-click AI functions in the canvas, the code editor and the website designer.
+- An offline Demo assistant that needs no key. AI features are **off by default** (*Settings ▸ Artificial intelligence*).
+- Pure AI runtime in `app/src/ai` with its own tests (docs/ai-engine.md).
+
+**Settings and compatibility**
+- Settings dialog with sidebar (General, Appearance, Accessibility, Canvas and editing, Code studio, Artificial
+  intelligence, Security and privacy, Keyboard shortcuts, About), logo menu with *Save All* and *Open Folder…*.
+- Open PSD / PSB and IDML, export PSD; drag and drop files or folders anywhere on the window; open whole project
+  folders (website projects or design files). See docs/file-compat.md.
+
+### Changed
+- The application JavaScript budget is 520 KiB gzip (was 400): the Code studio and Vibe Studio chunks are loaded lazily.
+
 ## [0.2.0] — Code studio
 
 ### Added

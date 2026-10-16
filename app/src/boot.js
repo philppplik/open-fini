@@ -5,8 +5,17 @@ import { registerServiceWorker } from "./platform/pwa.js";
 export async function boot(app) {
   const params = new URLSearchParams(location.search);
   const studio = params.get("studio");
-  if (studio && ["vector", "pixel", "layout", "code"].includes(studio)) app.setStudio(studio);
+  if (studio && ["vector", "pixel", "layout", "code", "vibe"].includes(studio)) app.setStudio(studio);
   if (studio === "export") app.run("file.export"); // legacy launcher shortcut: Export is a popup now
+
+  // returning from "Sign in with OpenRouter"
+  if (params.get("vibe_oauth") === "openrouter" && params.has("code")) import("./vibe/oauth.js").then((m) => m.finishOAuth(app, params));
+
+  // AI context-menu functions (loaded in the background; they only show when AI features are enabled)
+  import("./vibe/quick-actions.js").then((m) => (app.aiQuick = m));
+
+  // drop files or folders anywhere on the window to open them
+  import("./ui/open-folder.js").then((m) => m.installDropToOpen(app));
 
   // reopen files handed over by the OS (file association / launch arguments)
   platform.onOpenFiles?.(async (files) => {
@@ -32,7 +41,7 @@ export async function boot(app) {
     /* fonts are optional */
   }
 
-  if (!app.docs.length && !params.has("fresh")) await app.restoreSession?.();
+  if (!app.docs.length && !params.has("fresh") && app.prefs.restoreSession !== false) await app.restoreSession?.();
 
   platform.setTitle?.("OpenFini");
   if (!platform.isDesktop && "serviceWorker" in navigator && location.protocol.startsWith("http") && location.hostname !== "localhost") {

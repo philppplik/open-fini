@@ -30,6 +30,11 @@ export function createStatusBar(app) {
   });
 
   function update() {
+    if (app.studio === "vibe") {
+      info.textContent = "Vibe · your documents, chats and keys stay on this device";
+      perf.textContent = app.perf.low ? "Low-power" : "";
+      return;
+    }
     if (app.studio === "code") {
       info.textContent = app.codeUI?.doc === app.doc ? app.codeUI.statusText() : "Code studio";
       perf.textContent = app.perf.low ? "Low-power" : "";

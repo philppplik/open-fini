@@ -6,6 +6,7 @@ import { Emitter, h, empty, formatBytes } from "../../core/util.js";
 import { languageOf, parseHtml, parseCss, formatCss, resolveRef, dirname } from "../../engine/web/index.js";
 import { expandHtml, expandCss, abbreviationBefore } from "../../engine/web/emmet.js";
 import { fileIcon, fuzzyScore, trimmedChange } from "./util.js";
+import { showContextMenu } from "../menus.js";
 
 const SNIPPETS_HTML = [
   { label: "html5", detail: "HTML document", template: `<!doctype html>\n<html lang="en-US">\n  <head>\n    <meta charset="utf-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1" />\n    <title>\${Title}</title>\n    <link rel="stylesheet" href="css/style.css" />\n  </head>\n  <body>\n    \${}\n    <script src="js/main.js"></script>\n  </body>\n</html>\n` },
@@ -72,6 +73,13 @@ export class CodeEditors extends Emitter {
     this.media = h("div.of-editor__media.hidden");
     this.el = h("div.of-editor", this.tabsEl, this.host, this.media, this.placeholder);
 
+    // editor preferences (Settings ▸ Code studio) are global; the project keeps the effective values
+    web.settings.tabSize = app.prefs.codeTabSize || web.settings.tabSize || 2;
+    web.settings.wordWrap = !!app.prefs.codeWordWrap;
+    this.offPrefs = app.on("prefs", () => {
+      web.settings.tabSize = app.prefs.codeTabSize || 2;
+      if (!!app.prefs.codeWordWrap !== !!web.settings.wordWrap) this.setWordWrap(!!app.prefs.codeWordWrap);
+    });
     web.on("text", ({ path, origin }) => {
       if (origin !== "editor" && origin !== "visual") this.#syncFromProject(path);
     });
@@ -138,6 +146,34 @@ export class CodeEditors extends Emitter {
         } else if (u.selectionSet && self.active) self.states.set(self.active, u.state);
         if (u.selectionSet || u.docChanged) self.emit("cursor", self.cursorInfo());
         if (u.focusChanged) self.emit("focus", u.view.hasFocus);
+      }),
+      CM.EditorView.domEventHandlers({
+        contextmenu(e, view) {
+          e.preventDefault();
+          const sel = view.state.selection.main;
+          const has = !sel.empty;
+          const items = [
+            { label: "Cut", icon: "scissors", disabled: !has, run: () => (view.focus(), document.execCommand("cut")) },
+            { label: "Copy", icon: "clipboard", disabled: !has, run: () => (view.focus(), document.execCommand("copy")) },
+            { label: "Paste", icon: "clipboard-plus", run: async () => { const t = await navigator.clipboard.readText().catch(() => ""); if (t) view.dispatch(view.state.replaceSelection(t)); } },
+            { label: "Select all", run: () => CM.selectAll(view) },
+            "-",
+            { label: "Format document", icon: "text-indent-left", run: () => self.format() },
+            { label: "Toggle comment", run: () => CM.toggleComment(view) },
+          ];
+          const ctx = () => {
+            const d = view.state.doc;
+            const s = view.state.selection.main;
+            const a = d.lineAt(s.from);
+            const b = d.lineAt(s.to);
+            const whole = s.empty;
+            return { path: self.active, fromLine: a.number, toLine: b.number, text: whole ? d.sliceString(a.from, a.to) : d.sliceString(s.from, s.to) };
+          };
+          const ai = self.app.aiQuick?.codeAiItems(self.app, ctx) || [];
+          if (ai.length) items.push("-", { label: "AI", icon: "stars", items: ai });
+          showContextMenu(self.app, e.clientX, e.clientY, items);
+          return true;
+        },
       }),
       CM.EditorView.contentAttributes.of({ "aria-label": `Editor for ${path}`, spellcheck: "false", autocorrect: "off", autocapitalize: "off" }),
     ];
@@ -531,6 +567,7 @@ export class CodeEditors extends Emitter {
 
   setWordWrap(on) {
     this.web.settings.wordWrap = !!on;
+    if (!!this.app.prefs.codeWordWrap !== !!on) this.app.setPref("codeWordWrap", !!on);
     for (const [p, st] of this.states) {
       const next = st.update({ effects: this.wrap.reconfigure(on ? CM.EditorView.lineWrapping : []) }).state;
       this.states.set(p, next);
@@ -609,6 +646,7 @@ export class CodeEditors extends Emitter {
   }
 
   destroy() {
+    this.offPrefs?.();
     this.#hideMedia();
     this.view?.destroy();
     this.view = null;

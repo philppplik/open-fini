@@ -13,8 +13,10 @@ import { canvasToBytes } from "./ofini.js";
 
 export const IMAGE_EXTS = ["png", "jpg", "jpeg", "webp", "gif", "bmp", "avif"];
 export const OPEN_FILTERS = [
-  { name: "All supported files", extensions: ["ofini", "svg", ...IMAGE_EXTS] },
+  { name: "All supported files", extensions: ["ofini", "psd", "psb", "idml", "svg", ...IMAGE_EXTS] },
   { name: "OpenFini documents", extensions: ["ofini"] },
+  { name: "Photoshop (PSD, PSB)", extensions: ["psd", "psb"] },
+  { name: "InDesign (IDML)", extensions: ["idml"] },
   { name: "Images", extensions: IMAGE_EXTS },
   { name: "SVG graphics", extensions: ["svg"] },
 ];

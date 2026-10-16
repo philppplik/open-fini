@@ -16,6 +16,7 @@ const FORMATS = [
   { value: "webp", label: "WebP — modern, small files" },
   { value: "svg", label: "SVG — scalable vector" },
   { value: "pdf", label: "PDF — print and share" },
+  { value: "psd", label: "PSD — Photoshop, one file layer per layer" },
 ];
 
 export function exportDialog(app, preset = {}) {
@@ -61,7 +62,7 @@ export function exportDialog(app, preset = {}) {
     quality.el.classList.toggle("hidden", st.format === "png" || !raster);
     transparent.el.classList.toggle("hidden", !raster?.alpha);
     const [w, hh] = sizeOf();
-    info.textContent = raster ? `Output: ${w} × ${hh} px` : st.format === "svg" ? "Vector output; effects and adjustments are flattened where SVG cannot express them." : `${st.scope === "all" ? doc.pages.length : 1} page(s)`;
+    info.textContent = raster ? `Output: ${w} × ${hh} px` : st.format === "psd" ? "Every top-level layer becomes a Photoshop layer (groups are merged into one). Live effects are baked in." : st.format === "svg" ? "Vector output; effects and adjustments are flattened where SVG cannot express them." : `${st.scope === "all" ? doc.pages.length : 1} page(s)`;
   }
   render();
 
@@ -132,6 +133,16 @@ export async function runExport(app, st) {
       const r = await platform.saveFile({ suggestedName: downloadName(base, "pdf"), bytes, mime: "application/pdf", filters: [{ name: "PDF", extensions: ["pdf"] }] });
       if (r) app.toast(`Exported ${r.name} (${formatBytes(bytes.length)})`, "success");
       return;
+    }
+    if (st.format === "psd") {
+      const { exportPsd } = await import("../core/export-psd.js");
+      const out = [];
+      for (const [i, p] of pages.entries()) {
+        const r = await exportPsd(app, p);
+        if (r.warnings.length) app.toast(r.warnings.join(" "), "warning", 6000);
+        out.push({ name: pages.length > 1 ? `${base}-${i + 1}.psd` : downloadName(base, "psd"), bytes: r.bytes });
+      }
+      return await saveFiles(app, base, out, "image/vnd.adobe.photoshop", [{ name: "Photoshop", extensions: ["psd"] }]);
     }
     if (st.format === "svg") {
       const files = pages.map((p, i) => {

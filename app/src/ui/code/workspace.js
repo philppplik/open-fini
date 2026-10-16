@@ -16,7 +16,7 @@ import { createBottomPanel } from "./bottom.js";
 import { createToolbar } from "./toolbar.js";
 import { createStart } from "./start.js";
 import { showContextMenu } from "../menus.js";
-import { promptDialog } from "../dialogs.js";
+import { promptDialog, confirmDialog } from "../dialogs.js";
 import { iconEl } from "../toolbox.js";
 import { openCommandPalette } from "./palette.js";
 import { updateReferences } from "./refs.js";
@@ -248,6 +248,7 @@ export class CodeWorkspace extends Emitter {
   cycleTabSize() {
     const next = { 2: 4, 4: 8, 8: 2 }[this.web.settings.tabSize || 2] || 2;
     this.web.settings.tabSize = next;
+    this.app.setPref("codeTabSize", next);
     this.app.toast(`Tab size is now ${next} for new editor tabs.`, "primary", 1800);
   }
 
@@ -279,6 +280,10 @@ export class CodeWorkspace extends Emitter {
   openExternal(href) {
     // only web links, mail and phone links leave the app; anything else is ignored
     if (!/^(https?:|mailto:|tel:)/i.test(href) && !href.startsWith("//")) return;
+    if (this.app.prefs.confirmExternal !== false) {
+      confirmDialog({ title: "Open link", message: `Open ${href.length > 120 ? href.slice(0, 120) + "…" : href} in your browser?`, ok: "Open" }).then((ok) => ok && platform.openExternal(href.startsWith("//") ? `https:${href}` : href).catch(() => {}));
+      return;
+    }
     platform.openExternal(href.startsWith("//") ? `https:${href}` : href).catch(() => {});
   }
   afterRename(pairs) {
@@ -784,6 +789,8 @@ export class CodeWorkspace extends Emitter {
         { label: "Delete", icon: "trash3", run: () => this.deleteSelected(), disabled: cur.el.tag === "body" || cur.el.tag === "html" },
       );
     } else items.push({ label: "Paste", icon: "clipboard-plus", run: () => this.pasteElement() });
+    const ai = this.app.aiQuick?.elementAiItems(this.app, this) || [];
+    if (ai.length) items.push("-", { label: "AI", icon: "stars", items: ai });
     showContextMenu(this.app, x, y, items);
   }
 

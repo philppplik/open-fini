@@ -15,6 +15,7 @@ const ICONS = {
   pixel: ["f", `<path d="M2 2h3.5v3.5H2zM9 2h3.5v3.5H9zM5.5 5.5H9V9H5.5zM12.5 5.5H16V9h-3.5zM2 9h3.5v3.5H2zM9 9h3.5v3.5H9zM5.5 12.5H9V16H5.5z" transform="translate(-1 -1) scale(.95)"/>`],
   layout: ["s", `<rect x="2.5" y="1.5" width="11" height="13" rx="1.2"/><path d="M5 5h6M5 8h6M5 11h3.5"/>`],
   export: ["s", `<path d="M8 10.5V2M5 5l3-3 3 3M3 9v4.5h10V9"/>`],
+  vibe: ["s", `<path d="M6.5 2.2l1.2 3.6 3.6 1.2-3.6 1.2-1.2 3.6-1.2-3.6L1.7 7l3.6-1.2zM12.2 9.6l.6 1.8 1.8.6-1.8.6-.6 1.8-.6-1.8-1.8-.6 1.8-.6z"/>`],
   code: ["s", `<path d="M5.2 4.4L1.6 8l3.6 3.6M10.8 4.4L14.4 8l-3.6 3.6M9.1 2.6L6.9 13.4"/>`],
   // selection / pixel tools
   marquee: ["s", `<rect x="2.5" y="2.5" width="11" height="11" stroke-dasharray="2 2"/>`],

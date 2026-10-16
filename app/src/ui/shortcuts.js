@@ -33,7 +33,7 @@ export function installShortcuts(app) {
     table.sort((a, b) => (b.studios ? 1 : 0) - (a.studios ? 1 : 0));
   };
   // The Code studio has no canvas selection: only these general commands apply there.
-  const generalInCode = /^(file|studio|help)\.|^edit\.(preferences)$|^view\.(theme|lowPower)$/;
+  const generalInCode = /^(file|studio|help|vibe)\.|^edit\.(preferences)$|^view\.(theme|lowPower)$/;
   rebuild();
   app.on("commands", rebuild);
 
@@ -52,14 +52,14 @@ export function installShortcuts(app) {
     if (!force && typing(ev)) return false;
     const key = normalize(ev);
 
-    if (!force && app.studio !== "code" && !mod && !ev.altKey && app.tool?.keyDown?.(ev)) {
+    if (!force && app.studio !== "code" && app.studio !== "vibe" && !mod && !ev.altKey && app.tool?.keyDown?.(ev)) {
       ev.preventDefault();
       return true;
     }
     // commands
     for (const t of table) {
       if (t.studios && !t.studios.includes(app.studio)) continue;
-      if (!t.studios && app.studio === "code" && !generalInCode.test(t.id)) continue;
+      if (!t.studios && (app.studio === "code" || app.studio === "vibe") && !generalInCode.test(t.id)) continue;
       if (t.key === key && t.mod === mod && t.alt === ev.altKey && t.shift === ev.shiftKey) {
         if (app.isEnabled(t.id)) {
           ev.preventDefault();

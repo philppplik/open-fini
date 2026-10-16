@@ -222,7 +222,7 @@
 .of-editor__empty p { margin: 2px; }
 
 /* CodeMirror */
-.of-editor .cm-editor { background: var(--of-editor-bg); color: var(--of-text); font-size: 13px; outline: none; }
+.of-editor .cm-editor { background: var(--of-editor-bg); color: var(--of-text); font-size: var(--of-code-font-size, 13px); outline: none; }
 .of-editor .cm-editor.cm-focused { outline: none; }
 .of-editor .cm-scroller { font-family: var(--of-mono); line-height: 1.55; scrollbar-width: thin; }
 .of-editor .cm-content { caret-color: var(--of-accent); padding: 8px 0; }

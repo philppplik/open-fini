@@ -7,7 +7,7 @@ import { bridgeSource } from "./bridge.js";
 
 const dataUrlCache = new WeakMap();
 
-function toDataUrl(path, bytes, mime) {
+export function toDataUrl(path, bytes, mime) {
   let url = dataUrlCache.get(bytes);
   if (url) return url;
   let bin = "";
@@ -167,7 +167,8 @@ export class PreviewPane extends Emitter {
       res = buildPreview(this.web.source, this.page, {
         bridge: bridgeSource,
         config: { mode: this.edit ? "edit" : "preview", accent: "#4f8cff", spacing: true },
-        makeScriptUrl: scriptUrl,
+        // with "Run JavaScript in the preview" off, only the inspector runs: page scripts become empty
+        makeScriptUrl: (code, info) => scriptUrl(this.app.prefs.previewScripts === false && info?.file !== "openfini-bridge.js" ? "" : code),
         makeAssetUrl: toDataUrl,
         annotate: true,
       });

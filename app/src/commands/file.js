@@ -8,6 +8,7 @@ import { saveOfini, loadOfini, OFINI_MIME } from "../core/ofini.js";
 import { OPEN_FILTERS, PLACE_FILTERS, sniffMime, placeFile, placeSvg, openImageAsDocument } from "../core/io.js";
 import { addRecent, getRecents, getRecentBytes, saveSession, loadSession } from "../core/storage.js";
 import { pick } from "../engine/hit.js";
+import { foreignFormatInfo } from "../core/foreign.js";
 
 const SAVE_FILTERS = [{ name: "OpenFini document", extensions: ["ofini"] }];
 
@@ -18,6 +19,19 @@ export function registerFileCommands(app) {
   def("file.new", "New…", (a) => a.emit("dialog", { id: "new" }), { shortcut: "Mod+N", icon: "file-earmark-plus" });
 
   async function openFile(file) {
+    // Photoshop and InDesign files have public specifications: PSD / PSB and IDML open as documents
+    if (/.(psd|psb|idml)$/i.test(file.name) || (file.bytes[0] === 0x38 && file.bytes[1] === 0x42 && file.bytes[2] === 0x50 && file.bytes[3] === 0x53)) {
+      const { sniffFormat } = await import("../engine/formats/index.js");
+      const kind = sniffFormat(file.bytes, file.name);
+      const imp = await import("../core/import-formats.js");
+      if (kind === "psd" || kind === "psb") return imp.openPsd(app, file);
+      if (kind === "idml") return imp.openIdml(app, file);
+    }
+    const foreign = foreignFormatInfo(file.name);
+    if (foreign) {
+      openDialog({ title: foreign.title, body: h("p.of-dialog__text", foreign.message), width: 480, buttons: [{ label: "OK", variant: "primary", onClick: (c) => c() }] });
+      return null;
+    }
     const mime = sniffMime(file.bytes, file.name);
     if (mime === OFINI_MIME || /\.ofini$/i.test(file.name)) {
       const doc = await loadOfini(file.bytes);
@@ -66,6 +80,7 @@ export function registerFileCommands(app) {
   async function save(a, forceDialog) {
     const doc = a.doc;
     if (!doc) return;
+    if (a.studio === "code" && a.prefs.codeFormatOnSave && a.codeUI?.built) a.codeUI.editors.format();
     a.status("Saving…");
     try {
       const bytes = await saveOfini(doc);
@@ -85,12 +100,26 @@ export function registerFileCommands(app) {
     }
   }
   def("file.save", "Save", (a) => save(a, false), { shortcut: "Mod+S", enabled: hasDoc, icon: "save" });
+  def("file.saveAll", "Save All", async (a) => {
+    const keep = a.doc;
+    let n = 0;
+    for (const d of [...a.docs]) {
+      if (d.saved) continue;
+      a.activateDoc(d);
+      await save(a, false);
+      if (d.saved) n++;
+    }
+    if (keep && a.docs.includes(keep)) a.activateDoc(keep);
+    a.toast(n ? `Saved ${n} document${n === 1 ? "" : "s"}.` : "Everything is already saved.", n ? "success" : "primary", 1800);
+  }, { shortcut: "Mod+Alt+S", enabled: (a) => a.docs.length > 0, icon: "save2" });
   def("file.saveAs", "Save As…", (a) => save(a, true), { shortcut: "Mod+Shift+S", enabled: hasDoc });
 
   def("file.export", "Export…", (a) => exportDialog(a), { shortcut: "Mod+Shift+E", enabled: hasDoc, icon: "box-arrow-up" });
   for (const [fmt, label] of [["png", "PNG"], ["jpeg", "JPEG"], ["webp", "WebP"], ["svg", "SVG"], ["pdf", "PDF"]]) {
     def(`file.export${fmt === "jpeg" ? "JPG" : fmt.toUpperCase()}`, `Export as ${label}`, (a) => runExport(a, { format: fmt, scope: "page", scale: 1, quality: 0.9, transparent: false, bleed: false, marks: false, rasterDpi: 200 }).catch((e) => a.toast(e.message, "danger", 6000)), { enabled: hasDoc });
   }
+
+  def("file.openFolder", "Open Folder…", async (a) => (await import("../ui/open-folder.js")).openFolderDialog(a), { shortcut: "Mod+Shift+O", icon: "folder-symlink" });
 
   def("file.place", "Place Image…", async (a) => {
     const files = await platform.openFiles({ accept: PLACE_FILTERS, multiple: true });
@@ -156,7 +185,7 @@ export function registerFileCommands(app) {
   def("file.close", "Close", async (a, doc) => {
     const d = doc && doc.pages ? doc : a.doc;
     if (!d) return;
-    if (!d.saved) {
+    if (!d.saved && app.prefs.confirmClose !== false) {
       const r = await confirmDialog({ title: "Close document", message: `“${d.name}” has unsaved changes.`, ok: "Save", extra: "Don’t Save", cancel: "Cancel" });
       if (r === false) return;
       if (r === true) {
@@ -173,6 +202,7 @@ export function registerFileCommands(app) {
   // ---- help
   def("help.shortcuts", "Keyboard Shortcuts", (a) => a.emit("dialog", { id: "shortcuts" }), { shortcut: "F1" });
   def("help.about", "About OpenFini", (a) => a.emit("dialog", { id: "about" }));
+  def("help.issues", "Report an Issue…", () => platform.openExternal("https://github.com/philppplik/open-fini/issues/new"));
   def("help.docs", "Documentation", () => platform.openExternal("https://github.com/philppplik/open-fini#readme"));
 
   // ---- recent files menu
@@ -190,7 +220,7 @@ export function registerFileCommands(app) {
   const schedule = () => {
     if (!app.prefs.autosave) return;
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(autosave, 4000);
+    saveTimer = setTimeout(autosave, Math.max(1, Number(app.prefs.autosaveSeconds) || 4) * 1000);
   };
   async function autosave() {
     if (!app.docs.length) return;

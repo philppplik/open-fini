@@ -244,25 +244,13 @@ export function createDocument(app, o) {
 
 // ------------------------------------------------------------------ preferences / about / shortcuts
 
-export function preferencesDialog(app) {
-  const theme = segmented([{ value: "dark", label: "Dark", text: "Dark" }, { value: "light", label: "Light", text: "Light" }, { value: "auto", label: "Match system", text: "System" }], app.prefs.theme, (v) => app.setPref("theme", v));
-  const low = segmented([{ value: "auto", label: "Detect automatically", text: "Auto" }, { value: "on", label: "Always on", text: "On" }, { value: "off", label: "Always off", text: "Off" }], app.prefs.lowPower, (v) => app.setPref("lowPower", v));
-  const rulers = switchField({ label: "Show rulers", value: app.prefs.rulers, onChange: (v) => app.setPref("rulers", v) });
-  const autosave = switchField({ label: "Autosave to this device", value: app.prefs.autosave, onChange: (v) => app.setPref("autosave", v) });
-  const hist = numField({ label: "History memory", value: app.prefs.historyMB, min: 8, max: 1024, unit: "MB", precision: 0, wide: true, onChange: (v) => app.setPref("historyMB", Math.round(v)) });
-  const body = h(
-    "div.of-form.of-prefs",
-    h("div.of-row", h("span.of-slider__label", "Theme"), theme.el),
-    h("div.of-row", h("span.of-slider__label", "Low-power mode"), low.el),
-    h("p.of-hint", "Low-power mode renders at standard resolution, skips shadows and live effect previews while dragging, and keeps less undo history — ideal for older or lightweight devices."),
-    rulers.el,
-    autosave.el,
-    hist.el,
-  );
-  openDialog({ title: "Preferences", body, width: 520, buttons: [{ label: "Done", variant: "primary", onClick: (c) => c() }] });
+export function preferencesDialog(app, section) {
+  import("./settings-dialog.js").then((m) => m.settingsDialog(app, section));
 }
 
 export function aboutDialog() {
+  const version = h("p.of-hint", "MIT License");
+  fetch("./build-info.json").then((r) => (r.ok ? r.json() : null)).then((j) => j && (version.textContent = `Version ${j.version} (build ${String(j.buildId).split("-").pop()}) · MIT License`)).catch(() => {});
   openDialog({
     title: "About OpenFini",
     width: 480,
@@ -271,7 +259,7 @@ export function aboutDialog() {
       h("img", { src: "./icons/icon.svg", width: 72, height: 72, alt: "" }),
       h("h2", "OpenFini"),
       h("p", "A lightweight, open-source creative suite with Vector, Pixel, Layout and Code studios."),
-      h("p.of-hint", "Version 0.1.0 · MIT License"),
+      version,
       h("p.of-hint", "OpenFini is an independent project. It is not affiliated with, endorsed by or derived from any commercial product. All product names are trademarks of their respective owners."),
       h("p", h("a", { href: "https://github.com/philppplik/open-fini", target: "_blank", rel: "noopener" }, "github.com/philppplik/open-fini")),
     ),
@@ -280,6 +268,10 @@ export function aboutDialog() {
 }
 
 export function shortcutsDialog(app) {
+  openDialog({ title: "Keyboard Shortcuts", body: shortcutsContent(app), width: 720, buttons: [{ label: "Close", variant: "primary", onClick: (c) => c() }] });
+}
+
+export function shortcutsContent(app) {
   const groups = new Map();
   const group = (c) => c.id.split(".")[0];
   const names = { file: "File", edit: "Edit", arrange: "Arrange", align: "Align", view: "View", studio: "Studios", layer: "Layer", select: "Select", doc: "Document", help: "Help", bool: "Shape", shape: "Shape", pixel: "Pixel", filter: "Filter", distribute: "Align" };
@@ -291,13 +283,12 @@ export function shortcutsDialog(app) {
   }
   const toolRows = [];
   for (const C of app.toolClasses.values()) if (C.shortcut) toolRows.push(h("div.of-sc__row", h("span", C.label), h("kbd", C.shortcut)));
-  const body = h(
+  return h(
     "div.of-shortcuts",
     ...[...groups].map(([g, cmds]) => h("section", h("h3", g), ...cmds.map((c) => h("div.of-sc__row", h("span", c.label), h("kbd", prettyShortcut(c.shortcut)))))),
     h("section", h("h3", "Tools"), ...toolRows),
     h("section", h("h3", "Navigation"), h("div.of-sc__row", h("span", "Pan"), h("kbd", "Space + drag")), h("div.of-sc__row", h("span", "Zoom"), h("kbd", "Ctrl + wheel")), h("div.of-sc__row", h("span", "Constrain / uniform"), h("kbd", "Shift")), h("div.of-sc__row", h("span", "From center / copy"), h("kbd", "Alt"))),
   );
-  openDialog({ title: "Keyboard Shortcuts", body, width: 720, buttons: [{ label: "Close", variant: "primary", onClick: (c) => c() }] });
 }
 
 export function colorDialog(app, which) {
