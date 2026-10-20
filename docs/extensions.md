@@ -158,7 +158,7 @@ rejected.
 - `commands`: `{ id, title, category?, icon?, studios?, requires?: "document" | "selection" }`. The handler is attached
   with `openfini.commands.register(id, fn)`. They are real OpenFini commands (id `ext:<extension id>:<id>`).
 - `menus`: `{ menu, command, studios? }` with `menu` one of `File Edit Layer Arrange Shape Select Filter Text Document
-  View Insert Go Studio Help` or `context:canvas` (right-click menu of the canvas).
+  View Insert Go Studio Help` or `context:canvas`, `context:code`, `context:explorer`, `context:layers`, `context:text` (right-click menus, see context-menus.md).
 - `keybindings`: `{ command, key: "Mod+Alt+G", studios? }`.
 - `panels`: `{ id, title, html, icon?, studios?, location?: "top" | "bottom" }`. `html` is a file of the package.
 - `themes`: `{ id, label, dark: {--of-…}, light: {--of-…} }`: both variants are required.

@@ -1,0 +1,17 @@
+/* Context menus (app/src/ui/context-menu/, showContextMenu in ui/menus.js). Theme-aware through the --of-* variables. */
+.of-ctxmenu > sl-menu { max-height: var(--of-ctx-max, 90vh); overflow-y: auto; overscroll-behavior: contain; box-shadow: 0 10px 30px rgb(0 0 0 / 0.28); }
+.of-ctxmenu sl-menu-item.of-ctx-last::part(base) { font-weight: 600; }
+.of-ctx-lastbadge { margin-left: 18px; padding: 0 6px; border-radius: 999px; background: color-mix(in srgb, var(--of-accent) 16%, transparent); color: var(--of-accent); font-size: 10px; line-height: 16px; letter-spacing: 0.02em; }
+.of-ctxmenu sl-menu-item[disabled]::part(base) { opacity: 0.5; }
+.of-ctx-hint { margin: 0; padding: 4px 12px 6px; color: var(--of-text-faint); font-size: 11px; max-width: 260px; }
+@media (prefers-reduced-motion: reduce) { .of-ctxmenu * { transition: none !important; animation: none !important; } }
+/* Unicode info and encode chooser dialogs */
+.of-enc { display: flex; flex-direction: column; gap: 12px; min-width: min(420px, 80vw); }
+.of-enc fieldset { border: 1px solid var(--of-border); border-radius: 8px; padding: 8px 12px 10px; margin: 0; }
+.of-enc legend { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--of-text-faint); padding: 0 6px; }
+.of-enc label { display: flex; gap: 8px; align-items: center; padding: 3px 0; font-size: 13px; cursor: pointer; }
+.of-enc__preview { font-family: var(--of-mono, ui-monospace, Consolas, monospace); font-size: 12px; background: var(--of-bg-raised); border: 1px solid var(--of-border); border-radius: 6px; padding: 8px 10px; white-space: pre-wrap; word-break: break-all; max-height: 120px; overflow: auto; }
+.of-uinfo { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13px; margin: 0; }
+.of-uinfo dt { color: var(--of-text-dim); }
+.of-uinfo dd { margin: 0; font-family: var(--of-mono, ui-monospace, Consolas, monospace); }
+.of-uinfo__char { font-size: 40px; text-align: center; grid-column: 1 / -1; line-height: 1.2; font-family: inherit; }

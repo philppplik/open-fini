@@ -1,6 +1,7 @@
 // Tool-call cards for the Vibe transcript: compact one-line header (icon, title, argument summary, duration, status),
 // expandable details (collapsible JSON arguments/result with copy buttons, clickable image thumbnails), an inline
 // approval state and "Used N tools" groups for consecutive calls.
+import { markContext } from "../context-menu/index.js";
 import { h } from "../../core/util.js";
 import { iconEl } from "../toolbox.js";
 import { toolTitle, summarizeArgs, formatDuration, formatJson, resultParts, endStatus, groupLabel, STATUS_LABEL } from "./tool-format.js";
@@ -219,6 +220,7 @@ export function createToolCards({ settings, saveSettings, onGrow }) {
     const el = h("div.of-tcall", { "data-tool": name }, head, detail);
     const r = { id, name, input, el, head, title, sum, time, stat, sr, detail, open: false, built: false, t0: Date.now(), status: "running", group: null, titleText: toolTitle(name) };
     r.title = title;
+    markContext(el, "vibe-tool-card", { name, input, card: el, toggle: () => setOpen(r, !r.open), isOpen: () => r.open, detail: () => detail });
     head.addEventListener("click", () => setOpen(r, !r.open));
     // consecutive calls share one collapsible group
     if (b.tail?.type === "tool") {

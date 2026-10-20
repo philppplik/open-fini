@@ -98,6 +98,7 @@ tested against recorded protocol fixtures and fake servers.
 - **Imported documents**: `get_import_report` (what an import kept, flattened or dropped), `list_pdf_pages`, `describe_document_pages` and `extract_pdf_text` (page text in reading order, for summarizing or translating a PDF). The assistant has no file access: attach a PDF, AI, PSD, IDML or Sketch file in the composer and click *Open as document* on the chip first. See [pdf-import.md](pdf-import.md).
 - **Tables and charts**: `add_table`, `edit_table`, `read_table`, `list_tables`, `import_csv_to_table`, `add_chart`, `edit_chart`, `read_chart` build and edit real table / chart objects (formulas, merges, number formats, sorting, charts linked to a table). The built-in skill `report-with-charts` assembles a report page. See [layout-tables-charts.md](layout-tables-charts.md).
 - **Extensions**: list installed extensions, run an extension command, install an extension from a URL (you confirm its permissions), and write a small local extension from a description (`create_extension`). Tools that extensions add appear as `ext_<id>_<tool>`, always ask for approval and show their origin; see [extensions.md](extensions.md).
+- **Text and encoding**: `encode_text`, `decode_text` (pure transforms: HTML entities, JS, CSS, percent, code points) and `transform_file_text` (apply a named transform to project files; more than one file needs approval).
 - **Assistant**: knowledge search (RAG), remember, use a skill, ask you a question, update the visible plan, create a
   tool.
 

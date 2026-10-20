@@ -3,6 +3,7 @@ import { h, empty } from "../core/util.js";
 import { STUDIOS } from "../studios/index.js";
 import { PANELS } from "./panels/index.js";
 import { iconEl } from "./toolbox.js";
+import { markContext } from "./context-menu/index.js";
 
 export function createDock(app) {
   const topArea = makeArea();
@@ -28,6 +29,7 @@ export function createDock(app) {
     for (const id of list) {
       const def = PANELS[id];
       const b = h("button.of-dock__tab", { type: "button", class: id === active[key] ? "active" : "", "data-tip": def.title, "aria-label": def.title }, iconEl(def.icon), h("span", def.title));
+      markContext(b, "panel-header", { id, title: def.title });
       b.addEventListener("click", () => {
         active[key] = id;
         renderArea(area, ids, key);
@@ -42,8 +44,25 @@ export function createDock(app) {
     area.el.classList.toggle("hidden", !list.length);
   }
 
-  function render() {
+  // Panel layout tweaks made through the panel tabs' context menu (hide, move). They last for the session.
+  const hiddenIds = new Set(); // `${studio}:${panel id}`
+  const movedIds = new Map(); // `${studio}:${panel id}` -> "top" | "bottom"
+  const keyOf = (id) => `${app.studio}:${id}`;
+  function lay() {
     const s = STUDIOS[app.studio];
+    const top = [];
+    const bottom = [];
+    for (const [list, area] of [[s.top, "top"], [s.bottom, "bottom"]]) {
+      for (const id of list) {
+        if (hiddenIds.has(keyOf(id))) continue;
+        ((movedIds.get(keyOf(id)) || area) === "top" ? top : bottom).push(id);
+      }
+    }
+    return { top, bottom };
+  }
+
+  function render() {
+    const s = lay();
     renderArea(topArea, s.top, "top");
     renderArea(bottomArea, s.bottom, "bottom");
     split.classList.toggle("hidden", !s.top.length || !s.bottom.length);
@@ -68,7 +87,8 @@ export function createDock(app) {
 
   app.on("studio", render);
   app.on("revealpanel", (id) => {
-    const s = STUDIOS[app.studio];
+    hiddenIds.delete(keyOf(id));
+    const s = lay();
     if (s.top.includes(id)) active.top = id;
     else if (s.bottom.includes(id)) active.bottom = id;
     else return;
@@ -80,10 +100,35 @@ export function createDock(app) {
     render,
     /** Brings a panel to the front in whichever area owns it. */
     reveal(id) {
-      const s = STUDIOS[app.studio];
+      hiddenIds.delete(keyOf(id));
+      const s = lay();
       if (s.top.includes(id)) active.top = id;
       else if (s.bottom.includes(id)) active.bottom = id;
       else return;
+      render();
+    },
+    hidePanel(id) {
+      hiddenIds.add(keyOf(id));
+      render();
+    },
+    showPanel(id) {
+      hiddenIds.delete(keyOf(id));
+      this.reveal(id);
+    },
+    /** Moves a panel to the other area (top <-> bottom). */
+    movePanel(id) {
+      const s = lay();
+      movedIds.set(keyOf(id), s.top.includes(id) ? "bottom" : "top");
+      active[s.top.includes(id) ? "bottom" : "top"] = id;
+      render();
+    },
+    visibleCount: () => lay().top.length + lay().bottom.length,
+    canMove: (id) => lay().top.includes(id) || lay().bottom.includes(id),
+    hiddenPanels: () => [...STUDIOS[app.studio].top, ...STUDIOS[app.studio].bottom].filter((id) => hiddenIds.has(keyOf(id)) && PANELS[id]).map((id) => ({ id, title: PANELS[id].title })),
+    isCustomized: () => [...hiddenIds, ...movedIds.keys()].some((k) => k.startsWith(`${app.studio}:`)),
+    resetPanels() {
+      for (const k of [...hiddenIds]) if (k.startsWith(`${app.studio}:`)) hiddenIds.delete(k);
+      for (const k of [...movedIds.keys()]) if (k.startsWith(`${app.studio}:`)) movedIds.delete(k);
       render();
     },
   };

@@ -7,6 +7,8 @@ import { vibeStore } from "../../vibe/store.js";
 import { showContextMenu } from "../menus.js";
 import { createToolCards, copyButton } from "./tool-cards.js";
 import { markEl } from "./logo.js";
+import { markContext } from "../context-menu/index.js";
+import { registerVibeContext } from "./context.js";
 
 const textOfMessage = (m) => (typeof m.content === "string" ? m.content : (m.content || []).filter((b) => b.type === "text" && !/^\[Attached/.test(b.text)).map((b) => b.text).join("\n"));
 
@@ -67,6 +69,8 @@ export function createChat(vs) {
     ro.observe(scroller);
   }
 
+  let msgIndex = -1; // index in session.chat.messages of the message being rendered (-1: live, not stored yet)
+  registerVibeContext(vs);
   const tools = createToolCards({ settings: () => vibeStore.settings, saveSettings: (p) => vibeStore.saveSettings(p), onGrow: follow });
 
   // ------------------------------------------------------------ transcript
@@ -75,7 +79,9 @@ export function createChat(vs) {
   function assistantBubble() {
     if (cur) return cur;
     const body = h("div.of-vmsg__body");
-    thread.append(h("div.of-vmsg.of-vmsg--assistant", h("div.of-vmsg__avatar", markEl()), body));
+    const el = h("div.of-vmsg.of-vmsg--assistant", h("div.of-vmsg__avatar", markEl()), body);
+    markContext(el, "vibe-message", { role: "assistant", index: msgIndex, el });
+    thread.append(el);
     cur = { body, text: "", all: [], textEl: null, tail: null, group: null, thinking: null };
     return cur;
   }
@@ -114,7 +120,8 @@ export function createChat(vs) {
       else if (b.type === "image") body.append(h("img.of-vmsg__img", { src: `data:${b.mime};base64,${b.data}`, alt: "Attached image" }));
     }
     const copy = copyButton(() => textOfMessage(msg), "Copy message");
-    thread.append(h("div.of-vmsg.of-vmsg--user", h("div.of-vmsg__tools", copy), body));
+    const uel = markContext(h("div.of-vmsg.of-vmsg--user", h("div.of-vmsg__tools", copy), body), "vibe-message", { role: "user", index: session.chat.messages.indexOf(msg), el: body });
+    thread.append(uel);
     follow();
   }
   /** Copy (and, on the newest answer, retry) under a finished assistant bubble. */
@@ -164,6 +171,7 @@ export function createChat(vs) {
     const results = new Map();
     for (const m of msgs) if (m.role === "user" && Array.isArray(m.content)) for (const b of m.content) if (b.type === "tool_result") results.set(b.toolUseId, b);
     for (const m of msgs) {
+      msgIndex = msgs.indexOf(m);
       if (m.role === "user") {
         if (Array.isArray(m.content) && m.content.every((b) => b.type === "tool_result")) continue;
         finishBubble(cur, false);
@@ -193,6 +201,7 @@ export function createChat(vs) {
     }
     finishBubble(cur, true);
     cur = null;
+    msgIndex = -1;
     toBottom();
   }
 

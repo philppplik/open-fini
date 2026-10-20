@@ -1,5 +1,6 @@
 // Document tab strip.
 import { h, empty } from "../core/util.js";
+import { markContext } from "./context-menu/index.js";
 
 export function createDocTabs(app) {
   const el = h("div.of-doctabs", { role: "tablist", "aria-label": "Documents" });
@@ -18,6 +19,7 @@ export function createDocTabs(app) {
           app.run("file.close", doc);
         } }, "×"),
       );
+      markContext(tab, "doc-tab", { doc });
       tab.addEventListener("click", () => app.activateDoc(doc));
       tab.addEventListener("auxclick", (e) => e.button === 1 && app.run("file.close", doc));
       el.append(tab);
