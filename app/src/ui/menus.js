@@ -86,7 +86,7 @@ export const MENUS = [
     studios: ["vibe"],
     items: ["vibe.tabCanvas", "vibe.tabActivity", "vibe.tabModels", "vibe.tabTools", "vibe.tabSkills", "vibe.tabKnowledge", "-", "view.theme"],
   },
-  { label: "Studio", items: ["studio.vector", "studio.pixel", "studio.layout", "studio.code", "studio.vibe", "-", "ext.manage", { label: "Extension Commands", dynamic: "extCommands" }] },
+  { label: "Studio", items: [{ dynamic: "studios" }, "-", "ext.manage", { label: "Extension Commands", dynamic: "extCommands" }] },
   { label: "Help", items: ["help.palette", "help.tour", "help.studioTour", "help.whatsThis", "-", "help.shortcuts", "help.whatsNew", "help.docs", "help.issues", "help.troubleshoot", "help.security", "-", "help.about"] },
 ];
 

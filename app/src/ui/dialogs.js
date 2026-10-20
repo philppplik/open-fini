@@ -2,7 +2,7 @@
 import { h, prettyShortcut } from "../core/util.js";
 import { Doc } from "../core/doc.js";
 import { numField, selectField, segmented, colorField, switchField, button } from "./controls.js";
-import { STUDIOS } from "../studios/index.js";
+import { STUDIOS, listStudios } from "../studios/registry.js";
 import { createOnceRegistry } from "../core/single-flight.js";
 
 const keyedDialogs = createOnceRegistry();
@@ -181,13 +181,13 @@ export function newDocumentDialog(app, { studio = app.studio === "code" ? "vecto
   const bg = colorField({ value: "#ffffff", alpha: false, label: "Background", onChange: (c) => (state.bg = c) });
   const transparent = switchField({ label: "Transparent background", value: false, onChange: (v) => (state.transparent = v) });
   const studioSeg = segmented(
-    ["vector", "pixel", "layout", "code"].map((id) => ({ value: id, label: `${STUDIOS[id].label} studio — ${STUDIOS[id].blurb}`, text: STUDIOS[id].label })),
+    listStudios().filter((s) => s.document || s.newDocument).map((s) => ({ value: s.id, label: `${s.label} studio — ${s.blurb}`, text: s.label })),
     state.studio,
     (v) => {
-      if (v === "code") {
-        // websites start from a template gallery instead of a canvas size
+      if (STUDIOS[v]?.newDocument) {
+        // a studio with its own start dialog (Code: a template gallery instead of a canvas size)
         dialogRef?.close();
-        import("./code/start.js").then((m) => m.newWebsiteDialog(app));
+        STUDIOS[v].newDocument(app, {});
         return;
       }
       state.studio = v;

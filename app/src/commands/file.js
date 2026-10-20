@@ -217,6 +217,17 @@ export function registerFileCommands(app) {
     }
     a.closeDoc(d);
   }, (a, doc) => (doc && doc.pages ? doc : a.doc));
+  // Quitting (desktop window close, Alt+F4, Cmd+Q): every unsaved document goes through the same
+  // "Save / Don't Save / Cancel" confirmation as closing its tab. Resolves false when the user cancels.
+  app.confirmQuit = async () => {
+    if (app.prefs.confirmClose === false) return true;
+    for (const d of [...app.docs]) {
+      if (d.saved) continue;
+      await closeDoc(app, d);
+      if (app.docs.includes(d)) return false; // cancelled (or the save was cancelled)
+    }
+    return true;
+  };
   def("file.close", "Close", (a, doc) => closeDoc(a, doc), { shortcut: "Mod+W", enabled: hasDoc });
 
   def("file.docSetup", "Document Setup…", (a) => documentSetupDialog(a), { enabled: hasDoc });

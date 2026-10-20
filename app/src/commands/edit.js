@@ -139,10 +139,7 @@ export function registerEditCommands(app) {
   def("view.clipContent", "Clip Content to Page", (a) => a.setPref("clipContent", !(a.prefs.clipContent ?? a.doc?.studio !== "vector")), { checked: (a) => a.prefs.clipContent ?? a.doc?.studio !== "vector" });
   def("view.theme", "Toggle Light / Dark", (a) => a.setPref("theme", a.prefs.theme === "dark" ? "light" : "dark"));
   def("view.lowPower", "Low-power Mode", (a) => a.setPref("lowPower", a.perf.low ? "off" : "on"), { checked: (a) => a.perf.low });
-
-  for (const [i, id] of ["vector", "pixel", "layout", "code", "vibe"].entries()) {
-    def(`studio.${id}`, `${id[0].toUpperCase()}${id.slice(1)} Studio`, (a) => a.setStudio(id), { shortcut: `Alt+${i + 1}`, checked: (a) => a.studio === id });
-  }
+  // studio.<id> commands and Alt+N shortcuts: commands/studios.js (derived from the studio registry)
 }
 
 function zoomStep(a, dir) {

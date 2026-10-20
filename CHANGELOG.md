@@ -6,6 +6,15 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+**Studio registry, More menu and custom title bar** (docs/studios.md, docs/os-integration.md)
+- Studios come from a registry (`registerStudio`); the header shows at most five (Settings ▸ Studios: choose and reorder), the rest are in a new **More** menu. Alt+1..N follow the header order.
+- Desktop app: the header is the window title bar (drag, double-click maximize, minimize / maximize / close; macOS keeps the traffic lights). Closing the window asks about unsaved documents.
+
+### Fixed
+- Save, Save As, close and export prompts could appear twice (no re-entrancy guard, the Export button could be clicked twice while the popup animated out). They are now one prompt per request.
+
 ## [0.4.0] — Extensions, Git, tables and charts, PDF, themes
 
 ### Added

@@ -901,9 +901,8 @@ export class CodeWorkspace extends Emitter {
       { key: "Mod-b", run: () => (this.toggleSidebar(), true), preventDefault: true },
       { key: "Mod-j", run: () => (this.bottom.toggle(), true), preventDefault: true },
       { key: "Mod-Shift-f", run: () => (this.showSide("search"), true), preventDefault: true },
-      { key: "Alt-1", run: () => (app.setStudio("vector"), true), preventDefault: true },
-      { key: "Alt-2", run: () => (app.setStudio("pixel"), true), preventDefault: true },
-      { key: "Alt-3", run: () => (app.setStudio("layout"), true), preventDefault: true },
+      // Alt+1..5 follow the visible studio order of the header
+      ...[1, 2, 3, 4, 5].map((n) => ({ key: `Alt-${n}`, run: () => (app.visibleStudios[n - 1] ? (app.setStudio(app.visibleStudios[n - 1]), true) : false), preventDefault: true })),
       { key: "Alt-z", run: () => (this.editors.setWordWrap(!this.web.settings.wordWrap), true), preventDefault: true },
     ];
   }
