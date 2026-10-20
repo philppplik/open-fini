@@ -1,6 +1,6 @@
 # Studios guide
 
-Switch studios with the buttons in the header or **Alt+1 … Alt+5**. A studio changes the toolbox, the
+Switch studios with the buttons in the header or **Alt+1 … Alt+6**. A studio changes the toolbox, the
 default panels and the context bar — it never converts or changes your document.
 
 `Mod` below means **Ctrl** on Windows/Linux and **⌘** on macOS.
@@ -133,6 +133,25 @@ toolbox of its own: a chat with the *Canvas* live view, and panels for *Activity
 | `Esc` | Stop the running request |
 
 Right-click menus gain an **AI** submenu (canvas, code editor, website elements) when AI features are on.
+
+## Office studio
+
+A page-based word processor for Word (.docx), OpenDocument (.odt), RTF, HTML, Markdown and text documents, with
+named styles, lists, tables, images, footnotes, headers and footers, find and replace, and export to DOCX, ODT, RTF,
+PDF, HTML, Markdown and text. Its workspace replaces the toolbox and dock: a formatting toolbar, an *Outline* /
+*Styles* sidebar and the pages. Spreadsheets and presentations are planned for a later version. See the
+[Office Studio guide](office-studio.md).
+
+| Key | Action |
+| --- | --- |
+| `Alt+6` | Open the Office studio (until the studio bar shows at most five studios; then it is in *More*) |
+| `Mod+B` / `Mod+I` / `Mod+U` | Bold / italic / underline |
+| `Mod+Alt+1` … `Mod+Alt+3` / `Mod+Alt+0` | Heading 1-3 / Normal text |
+| `Mod+Shift+L` / `Mod+Shift+N` | Bulleted / numbered list |
+| `Tab` / `Shift+Tab` | Indent list item (next / previous cell in a table) |
+| `Mod+Enter` | Page break |
+| `Mod+K` | Link |
+| `Mod+F` / `Mod+H` | Find / replace |
 
 ## Export (popup)
 

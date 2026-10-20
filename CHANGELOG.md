@@ -6,6 +6,13 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+**Office Studio: a word processor for Word documents** (docs/office-studio.md)
+- **New studio** with page view (real page sheets, headers and footers with page numbers), web layout, zoom, a formatting toolbar, outline and styles sidebar, find and replace (regular expressions), word count, page setup, named styles with inheritance, lists with levels, tables (insert with a grid picker, rows and columns, merge and split, shading, borders, header rows), images, links, footnotes, spellcheck and an optional dark page; every edit is one step of the normal undo history.
+- **Open and save** Word `.docx`, OpenDocument `.odt`, RTF, HTML, Markdown and text, and **export PDF**; clean-room readers and writers with an import report, ZIP-bomb and path-traversal limits and sanitized HTML. `.docx`, `.odt` and `.rtf` join the "Open with" lists. Google Docs shortcuts (`.gdoc`), Apple Pages, legacy `.doc`, spreadsheets and presentations are recognized and explained (with a button that opens a Google document in the browser).
+- **Vibe**: ten `office_` tools, the `write-business-document` skill and AI quick actions in the editor's context menu (Improve writing, Fix grammar, Summarize, Translate, Change tone).
+
 ## [0.4.0] — Extensions, Git, tables and charts, PDF, themes
 
 ### Added

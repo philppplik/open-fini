@@ -23,6 +23,10 @@ No proprietary code was used.
 | PDF, Illustrator AI (PDF compatible), EPS with PDF | yes (editable Layout document) | export only | through pdf.js in `core/import-pdf.js`, see [pdf-import.md](pdf-import.md) |
 | Sketch `.sketch` | best effort | no | documented ZIP + JSON, `engine/formats/sketch.js`, verified with synthetic files |
 | Figma `.fig`, Adobe XD `.xd` | no | no | proprietary; the app shows how to export PDF / SVG instead |
+| Word DOCX, OpenDocument ODT, RTF | yes (Office Studio) | yes | `engine/office/`, clean-room from ECMA-376, ISO/IEC 26300 and the RTF 1.9 specification; see [office-studio.md](office-studio.md) for the fidelity matrix |
+| HTML, Markdown, plain text as documents | yes (in the Office Studio) | yes | outside the Office Studio these still open in the Code studio |
+| Word 97-2003 `.doc`, Apple `.pages`, Google Docs `.gdoc` | no | no | detected; the app explains how to save or download a `.docx` (Google Docs: button opens the document in the browser) |
+| Excel / Calc / Numbers, PowerPoint / Impress / Keynote | not yet | no | detected and explained ("not supported yet in Office Studio"); CSV opens as a table in Layout (Table ▸ Import Table) |
 
 ## `sniffFormat(bytes, name?)`
 

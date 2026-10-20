@@ -9,6 +9,7 @@ Document.ofini
 ├─ document.json         structure, styles and text
 ├─ assets/<id>.<ext>     original bytes of placed images (png, jpg, webp, gif, avif, …)
 ├─ pixels/<nodeId>.png   one lossless PNG per pixel layer or mask
+├─ office/media/<id>.<ext>  images of an Office Studio document (only when "office" is present)
 └─ thumbnail.png         preview of the first page (≤ 256 px)
 ```
 
@@ -79,6 +80,39 @@ A story is a list of paragraphs, each with `runs` (`{text, attrs}`) and optional
 ### Tables and charts
 
 A `table` node stores its whole model (see [layout-tables-charts.md](layout-tables-charts.md)); cell text starting with `=` is a formula, evaluated at render time. Merged cells: the origin cell has `rs` / `cs`, covered cells have `m: [row, col]`. A `chart` node stores its definition, never generated geometry; with `source` set the data comes from the table node with that id in the same document (the stored `data` is a cache). Document-level `tableStyles` is `{ id: { name, style } }`. Readers that do not know these types render nothing for them.
+
+### Office documents (`"office"`)
+
+A document created in or opened by the Office Studio has an `"office"` object in `document.json` (its `studio` is
+`"office"`; the design `pages` hold one empty page used for the thumbnail). It is the word-processing model of
+[`engine/office/model.js`](../app/src/engine/office/model.js), lengths in points:
+
+```jsonc
+"office": {
+  "type": "office-document", "version": 1,
+  "meta":   { "title": "", "author": "", "subject": "", "keywords": "", "created": "2026-…", "lang": "en-US" },
+  "page":   { "size": "A4", "width": 595.28, "height": 841.89, "orientation": "portrait", "columns": 1, "columnGap": 36,
+              "margins": { "top": 70.87, "right": 70.87, "bottom": 70.87, "left": 70.87, "header": 36, "footer": 36 } },
+  "styles": { "Normal": { "name": "Normal", "type": "paragraph", "para": { "spaceAfter": 8, "lineHeight": 1.15 }, "run": { "font": "Calibri", "size": 11 } },
+              "Heading1": { "name": "Heading 1", "basedOn": "Normal", "next": "Normal", "outline": 1, "para": {…}, "run": {…} } },
+  "blocks": [
+    { "type": "paragraph", "style": "Heading1", "runs": [ { "text": "Intro" } ] },
+    { "type": "paragraph", "style": "List", "list": { "kind": "bullet", "level": 0, "id": "l1" }, "props": { "align": "left" },
+      "runs": [ { "text": "bold", "b": true }, { "type": "break" }, { "type": "image", "media": "img1", "width": 120, "height": 80, "alt": "…" },
+                { "type": "footnote", "id": "fn1" }, { "type": "field", "field": "page" } ] },
+    { "type": "table", "cols": [150, 150], "borders": { "style": "single", "width": 0.5, "color": "#808080" },
+      "rows": [ { "header": true, "cells": [ { "blocks": [ … ], "colspan": 2, "shading": "#ffeeaa" } ] } ] },
+    { "type": "pageBreak" }, { "type": "rule" }
+  ],
+  "header": [ /* paragraphs */ ], "footer": [ /* paragraphs */ ],
+  "footnotes": { "fn1": [ /* paragraphs */ ] },
+  "media":  { "img1": { "id": "img1", "mime": "image/png", "name": "photo.png", "w": 800, "h": 600, "file": "office/media/img1.png" } }
+}
+```
+
+Run marks are `b`, `i`, `u`, `s`, `va` (`"sub"` / `"super"`), `color`, `highlight`, `font`, `size` (pt) and `link`.
+Covered cells of a merge are simply absent (HTML-style `colspan` / `rowspan`). Readers validate the object with
+`normalizeDoc()`, which drops unknown fields and clamps values.
 
 ## Compatibility
 
