@@ -16,11 +16,30 @@ export function metaTools(app, ctx) {
       return { ok: true };
     }, { needsApproval: (a) => `Remember: “${a.note.slice(0, 120)}”?` }),
 
-    tool("use_skill", "Loads the full instructions of a skill listed in the system prompt (for example logo-design). Call it before starting a task the skill covers.", { name: S.str("Skill name") }, ["name"], async (a) => {
+    tool("use_skill", "Loads the full instructions of a skill listed in the system prompt (for example logo-design). Call it before starting a task the skill covers. Pass args for skills that list [args: …] (an object, or a string like “brand=Acme tone=calm”). Pass file to load one of the skill's reference files.", {
+      name: S.str("Skill name"),
+      args: { anyOf: [{ type: "string" }, { type: "object" }], description: "Skill arguments" },
+      file: S.str("Reference file of the skill to load instead of the main instructions"),
+    }, ["name"], async (a) => {
+      if (ctx.useSkill) return ctx.useSkill(a.name, a.args, a.file);
       const s = ctx.skills?.find((x) => x.name === a.name);
       if (!s) throw new Error(`Unknown skill “${a.name}”. Available: ${(ctx.skills || []).map((x) => x.name).join(", ") || "none"}.`);
       return s.body;
     }, { readOnly: true }),
+
+    tool("create_skill", "Saves a reusable skill (SKILL.md) distilled from the work in this chat, as a DRAFT the user reviews in Vibe ▸ Skills before it is used. Write a concrete workflow: numbered steps with the exact tools, rules with numbers, token-saving tips and a “## Verify” section. Use {{param}} placeholders for things that change between uses and declare them in params.", {
+      name: S.str("lowercase-with-dashes", { pattern: "^[a-z0-9][a-z0-9-]{1,63}$" }),
+      description: S.str("One sentence: what it does and when to use it"),
+      body: S.str("Markdown instructions (Workflow, Rules, Verify)"),
+      allowedTools: { type: "array", items: { type: "string" }, description: "Tools the skill uses" },
+      tags: { type: "array", items: { type: "string" } },
+      params: { type: "array", items: { type: "string" }, description: "Parameter specs like “brand: Brand name”, “tone: Voice (default: friendly)”" },
+      whenToUse: S.str("Trigger phrases for auto-suggestion"),
+    }, ["name", "description", "body"], async (a) => {
+      if (!ctx.saveSkillDraft) throw new Error("Skills cannot be saved here.");
+      const r = await ctx.saveSkillDraft(a);
+      return { ok: true, ...r, note: "Saved as a draft (disabled). The user can review, edit and enable it in Vibe ▸ Skills." };
+    }, { needsApproval: (a) => `Save a new skill draft “${a.name}”?` }),
 
     tool("ask_user", "Asks the user a clarifying question and waits for the answer. Use it sparingly, only when a missing detail would change the result a lot.", {
       question: S.str("The question"), options: { type: "array", items: { type: "string" }, description: "Optional quick answers" },
