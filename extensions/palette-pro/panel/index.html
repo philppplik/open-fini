@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><link rel="stylesheet" href="panel.css"></head>
+<body>
+  <section aria-labelledby="h-src">
+    <h2 id="h-src">Source colors</h2>
+    <div class="row">
+      <button id="from-sel" type="button">From selection</button>
+      <button id="from-img" type="button">From image…</button>
+      <label class="grow">Base <input id="base" type="color" value="#3b82f6" aria-label="Base color"></label>
+    </div>
+    <div id="source" class="sw" role="list" aria-label="Source colors"></div>
+  </section>
+  <section aria-labelledby="h-harm">
+    <h2 id="h-harm">Harmonies</h2>
+    <div class="row"><label>Type <select id="kind"></select></label></div>
+    <div id="harm" class="sw" role="list" aria-label="Harmony colors"></div>
+    <div class="row"><button id="apply" type="button" class="primary">Apply palette to selected layers</button><button id="save" type="button">Save palette</button></div>
+    <div id="saved"></div>
+  </section>
+  <section aria-labelledby="h-con">
+    <h2 id="h-con">Contrast checker</h2>
+    <div class="row">
+      <label>Text <input id="fg" type="color" value="#777777"></label>
+      <label>Background <input id="bg" type="color" value="#ffffff"></label>
+      <button id="swap" type="button" title="Swap colors">Swap</button>
+      <button id="pair" type="button" title="Use the first two selected layers">From selection</button>
+    </div>
+    <div id="result" class="result" aria-live="polite"></div>
+    <div id="fixes"></div>
+  </section>
+  <div id="status" class="status" role="status" aria-live="polite"></div>
+  <script src="panel.js"></script>
+</body>
+</html>

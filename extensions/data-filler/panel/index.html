@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><link rel="stylesheet" href="panel.css"></head>
+<body>
+  <section aria-labelledby="h-fill">
+    <h2 id="h-fill">Fill selection</h2>
+    <div class="row" id="presets" role="group" aria-label="Presets"></div>
+    <div class="grid">
+      <label>Content <select id="kind"></select></label>
+      <label>Seed <input id="seed" type="number" value="1" min="0" max="99999"></label>
+    </div>
+    <div class="row"><button id="fill" type="button" class="primary">Fill selected text layers</button><button id="reroll" type="button">New seed</button></div>
+  </section>
+  <section aria-labelledby="h-prev">
+    <h2 id="h-prev">Preview</h2>
+    <div class="row"><label>Count <input id="count" type="number" value="3" min="1" max="30"></label><button id="copy" type="button">Copy</button></div>
+    <pre id="preview" aria-live="polite"></pre>
+  </section>
+  <section id="design" aria-labelledby="h-av">
+    <h2 id="h-av">Avatars</h2>
+    <div class="row"><button id="avatars" type="button">Insert 4 initials avatars</button></div>
+  </section>
+  <section id="code" aria-labelledby="h-code" hidden>
+    <h2 id="h-code">Code studio</h2>
+    <p>Inserts markup with fake data into the page. Add the styles you like afterwards.</p>
+    <div class="row"><button data-block="list" type="button">List</button><button data-block="table" type="button">Table</button><button data-block="cards" type="button">Card grid</button></div>
+  </section>
+  <div id="status" class="status" role="status" aria-live="polite"></div>
+  <script src="panel.js"></script>
+</body>
+</html>
