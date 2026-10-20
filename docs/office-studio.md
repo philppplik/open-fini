@@ -9,6 +9,8 @@ recognized and you get an honest explanation instead of a broken import (see [No
 
 ## Getting started
 
+* **Open the studio**: the header's **More** menu (the header shows five studios; add Office there in *Settings ▸
+  Studios* to get an `Alt+<n>` shortcut), *Studio ▸ Office Studio*, or the command palette.
 * **New document**: *File ▸ New…* in the Office studio, the *Office Studio* card on the welcome screen, or *Document*
   in the *Start in* row of the New Document dialog. Pick a template (blank, letter, report, resume), a page size (A4,
   US Letter, US Legal, A5) and the orientation.

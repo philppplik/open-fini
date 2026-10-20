@@ -4,8 +4,8 @@ import { parseVersion, validRange, satisfies } from "./semver.js";
 
 export const MANIFEST_FILE = "openfini-extension.json";
 export const API_VERSION = 1;
-export const STUDIO_IDS = ["vector", "pixel", "layout", "code", "vibe", "office"];
-export const MENU_NAMES = ["File", "Edit", "Layer", "Arrange", "Shape", "Select", "Filter", "Text", "Document", "View", "Insert", "Go", "Studio", "Help", "context:canvas"];
+export const STUDIO_IDS = ["vector", "pixel", "layout", "code", "vibe"];
+export const MENU_NAMES = ["File", "Edit", "Layer", "Arrange", "Shape", "Select", "Filter", "Text", "Document", "View", "Insert", "Go", "Studio", "Help", "context:canvas", "context:code", "context:explorer", "context:layers", "context:text"];
 export const FLAG_PERMISSIONS = ["document.read", "document.write", "ui", "storage", "files", "vibe", "commands"];
 export const ID_RE = /^[a-z0-9][a-z0-9-]{1,30}\.[a-z0-9][a-z0-9-]{1,40}$/;
 const LOCAL_ID = /^[A-Za-z][A-Za-z0-9._-]{0,63}$/;

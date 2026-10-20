@@ -9,6 +9,9 @@ export const OFFICE_STUDIO = {
   icon: "office",
   blurb: "Word documents: write, format and export",
   workspace: true,
+  order: 60,
+  // File ▸ New in this studio and the New Document dialog open the Office templates and page presets
+  newDocument: (app) => import("../ui/office/dialogs.js").then((m) => m.newOfficeDocumentDialog(app)),
   tools: [],
   top: [],
   bottom: [],

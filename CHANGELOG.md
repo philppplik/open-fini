@@ -8,10 +8,41 @@ All notable changes to OpenFini are documented here. The format follows
 
 ### Added
 
+**Customization everywhere** (docs/customization.md)
+- **Keyboard shortcut editor:** click to record, conflict detection (swap / unassign / use for both), two shortcuts per command, search and filters, reset one or all, import / export JSON, presets Default, Classic, Compact and Editor-style. Menus, tooltips and the palette show the effective shortcut.
+- **Toolbox and menus:** show, hide, reorder and ungroup tools per studio, hide menus and menu items, choose the header's quick actions. Hidden tools stay in the command palette ("Tool: …").
+- **Layout and workspaces:** panel visibility, dock side and width, built-in and saved workspaces per studio, reset layout.
+- **Look and defaults:** interface text size, interface font, corner radius, animation speed, pointer size, canvas background, checkerboard, grid, guide and selection colors, default new-document, export and text settings. Reset arrow per setting and per section.
+- **Profiles:** export / import `.ofprofile` with a strict validator and a merge / replace preview, named profiles (Work, Presentation, Low power templates), reset everything. Secrets, keys and documents are never included.
+- **Hooks:** `app.customize.registerSetting` and `registerToolboxEntry` for extensions and future studios.
+- Vibe tools `get_settings`, `set_setting`, `list_shortcuts`, `set_shortcut`, `export_profile`.
+**Studio registry, More menu and custom title bar** (docs/studios.md, docs/os-integration.md)
+- Studios come from a registry (`registerStudio`); the header shows at most five (Settings ▸ Studios: choose and reorder), the rest are in a new **More** menu. Alt+1..N follow the header order.
+- Desktop app: the header is the window title bar (drag, double-click maximize, minimize / maximize / close; macOS keeps the traffic lights). Closing the window asks about unsaved documents.
 **Office Studio: a word processor for Word documents** (docs/office-studio.md)
 - **New studio** with page view (real page sheets, headers and footers with page numbers), web layout, zoom, a formatting toolbar, outline and styles sidebar, find and replace (regular expressions), word count, page setup, named styles with inheritance, lists with levels, tables (insert with a grid picker, rows and columns, merge and split, shading, borders, header rows), images, links, footnotes, spellcheck and an optional dark page; every edit is one step of the normal undo history.
 - **Open and save** Word `.docx`, OpenDocument `.odt`, RTF, HTML, Markdown and text, and **export PDF**; clean-room readers and writers with an import report, ZIP-bomb and path-traversal limits and sanitized HTML. `.docx`, `.odt` and `.rtf` join the "Open with" lists. Google Docs shortcuts (`.gdoc`), Apple Pages, legacy `.doc`, spreadsheets and presentations are recognized and explained (with a button that opens a Google document in the browser).
 - **Vibe**: ten `office_` tools, the `write-business-document` skill and AI quick actions in the editor's context menu (Improve writing, Fix grammar, Summarize, Translate, Change tone).
+
+### Fixed
+- Save, Save As, close and export prompts could appear twice (no re-entrancy guard, the Export button could be clicked twice while the popup animated out). They are now one prompt per request.
+**Context menus and text tools** (docs/context-menus.md)
+- **One context menu service** (`app/src/ui/context-menu/`): menus are assembled from providers that match what was clicked (canvas, layers, tabs, explorer, history, assets, navigator, panels, status bar, rulers, recent files, text fields, code editor, Vibe messages and tool cards). Keyboard navigation, type-ahead, screen-reader roles, viewport-aware placement, a "last used" marker, touch long-press, and Shift + right-click for the browser menu in text fields. Extensions can contribute to `context:code`, `context:explorer`, `context:layers` and `context:text` besides `context:canvas`.
+- **Code editor Transform menu**: encode special characters (HTML named, decimal and hex entities, JS and JSON `\u`, CSS, percent, code points; three modes), decode them, Base64, URL, case, sort and join lines, trim, tabs and spaces, wrap, JSON prettify and minify, color converter and Unicode info. Every transform is one undo step and has a command palette entry.
+- **Vibe tools** `encode_text`, `decode_text`, `transform_file_text`; Vibe chat messages can be copied, retried, deleted and branched from the right-click menu.
+**Branded installers and new app icon** (docs/installer.md)
+- **Windows installer:** custom NSIS wizard with an OpenFini sidebar and header, custom welcome and finish texts, the MIT license page, and a new *Windows integration* page (associate `.ofini` / `.ofext`, offer OpenFini under Open with for images, PDF and code files, optional desktop shortcut). Finish page can launch OpenFini and open the online quick-start guide. Still per user without an administrator prompt; the uninstaller keeps its optional "Delete the application data" checkbox.
+- **macOS DMG:** styled window with background, arrow and fixed icon positions.
+- Artwork is generated from SVG sources in `src-tauri/installer/` with `npm run installer:assets`.
+- **New app icon:** near-black mark on an off-white tile (desktop, PWA, maskable, apple-touch, favicon and document icons); installer artwork follows. The Windows installer picks English or German from the Windows display language.
+**Vibe Studio UI polish** (docs/vibe-studio.md)
+- Redesigned tool cards (compact line, collapsible JSON, image thumbnails, groups, inline approvals), text shimmer for running work, collapsible thinking blocks with elapsed time, follow-the-bottom auto-scroll with a "Jump to latest" pill, message copy and retry, slimmer themed scrollbars.
+- **Activity tab is a real run log:** plan, tool calls with timing, approvals, errors, tokens, filters, per-run undo order, click-to-reveal, copy and clear.
+- The OpenFini mark replaces the generic icon in the assistant avatar, empty state and send button.
+
+### Fixed
+
+- Vibe tool cards were broken by a class name clash with the toolbox styles; the side panel no longer covers the composer on windows up to 1180 px wide; the Canvas panel no longer prints "null" or a broken image.
 
 ## [0.4.0] — Extensions, Git, tables and charts, PDF, themes
 

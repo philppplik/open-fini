@@ -3,7 +3,7 @@ import { h, empty, formatBytes } from "../../core/util.js";
 import { dirname, basename, sanitizeFileName } from "../../engine/web/index.js";
 import { iconButton } from "../controls.js";
 import { promptDialog, confirmDialog } from "../dialogs.js";
-import { showContextMenu } from "../menus.js";
+import { openContextMenu } from "../context-menu/index.js";
 import { platform } from "../../platform/index.js";
 import { fileIcon } from "./util.js";
 import { pickFiles, entriesFromPicked, entriesFromDrop, importInto } from "./import.js";
@@ -113,7 +113,7 @@ export function createExplorer(ws) {
       e.preventDefault();
       selected = n.path;
       render();
-      showContextMenu(app, e.clientX, e.clientY, menuFor(n));
+      openContextMenu(app, { kind: n.type === "dir" ? "explorer-folder" : "explorer-file", x: e.clientX, y: e.clientY, event: e, data: { path: n.path, node: n }, base: menuFor(n) });
     });
     r.addEventListener("dragstart", (e) => {
       e.dataTransfer.setData("text/x-of-path", n.path);

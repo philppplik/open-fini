@@ -34,6 +34,7 @@
     "vendor": "node scripts/vendor.mjs",
     "check:size": "node scripts/check-size.mjs",
     "icons": "node scripts/icons.mjs",
+    "installer:assets": "node scripts/installer-assets.mjs",
     "ext:create": "node sdk/create-extension.mjs",
     "ext:pack": "node sdk/pack.mjs",
     "mcp:gateway": "node scripts/mcp-gateway.mjs",

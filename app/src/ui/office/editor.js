@@ -648,6 +648,7 @@ export class OfficeEditor {
       if (e.target.closest?.(".of-oed__img")) this.app.run("office.imageProperties");
     });
     f.addEventListener("contextmenu", (e) => {
+      if (e.shiftKey) return; // Shift + right-click: the browser's own menu (spelling suggestions)
       e.preventDefault();
       e.stopPropagation();
       const img = e.target.closest?.(".of-oed__img");
@@ -659,7 +660,7 @@ export class OfficeEditor {
         if (pos && (this.collapsed || M.comparePos(pos, a) < 0 || M.comparePos(pos, b) > 0)) this.setSelection({ anchor: pos, focus: pos }, { scroll: false });
       }
       this.#notify("contextmenu");
-      import("./context-menu.js").then((m) => m.showOfficeContextMenu(this.app, this, e.clientX, e.clientY));
+      import("./context-menu.js").then((m) => m.showOfficeContextMenu(this.app, this, e.clientX, e.clientY, e));
     });
     f.addEventListener("focus", () => this.#notify("focus"));
     this.resizeObs = typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => this.view.layout === "web" && this.#applyLayout()) : null;

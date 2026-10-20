@@ -21,6 +21,8 @@
         "minHeight": 560,
         "center": true,
         "resizable": true,
+        "decorations": false,
+        "shadow": true,
         "backgroundColor": "#1c1d21",
         "dragDropEnabled": false
       }
@@ -371,15 +373,37 @@
       "nsis": {
         "installMode": "currentUser",
         "languages": [
-          "English"
+          "English",
+          "German"
         ],
         "displayLanguageSelector": false,
         "compression": "lzma",
-        "installerHooks": "windows/open-with.nsh"
+        "installerHooks": "windows/open-with.nsh",
+        "template": "windows/installer.nsi",
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "sidebarImage": "installer/sidebar.bmp",
+        "headerImage": "installer/header.bmp",
+        "uninstallerHeaderImage": "installer/header.bmp"
       }
     },
     "macOS": {
-      "minimumSystemVersion": "11.0"
+      "minimumSystemVersion": "11.0",
+      "dmg": {
+        "background": "installer/dmg-background.png",
+        "windowSize": {
+          "width": 660,
+          "height": 400
+        },
+        "appPosition": {
+          "x": 180,
+          "y": 170
+        },
+        "applicationFolderPosition": {
+          "x": 480,
+          "y": 170
+        }
+      }
     },
     "linux": {
       "deb": {

@@ -16,6 +16,7 @@ import { createBottomPanel } from "./bottom.js";
 import { createToolbar } from "./toolbar.js";
 import { createStart } from "./start.js";
 import { showContextMenu } from "../menus.js";
+import { openContextMenu } from "../context-menu/index.js";
 import { promptDialog, confirmDialog } from "../dialogs.js";
 import { iconEl } from "../toolbox.js";
 import { openCommandPalette } from "./palette.js";
@@ -832,9 +833,8 @@ export class CodeWorkspace extends Emitter {
         { label: "Delete", icon: "trash3", run: () => this.deleteSelected(), disabled: cur.el.tag === "body" || cur.el.tag === "html" },
       );
     } else items.push({ label: "Paste", icon: "clipboard-plus", run: () => this.pasteElement() });
-    const ai = this.app.aiQuick?.elementAiItems(this.app, this) || [];
-    if (ai.length) items.push("-", { label: "AI", icon: "stars", items: ai });
-    showContextMenu(this.app, x, y, items);
+    // the AI submenu comes from a provider (code/context.js), gated by prefs.aiEnabled
+    openContextMenu(this.app, { kind: "web-element", x, y, data: { ws: this, element: cur?.el }, base: items });
   }
 
   /** Keys forwarded from the preview frame (the frame cannot reach the app's shortcut handler). */
@@ -901,9 +901,8 @@ export class CodeWorkspace extends Emitter {
       { key: "Mod-b", run: () => (this.toggleSidebar(), true), preventDefault: true },
       { key: "Mod-j", run: () => (this.bottom.toggle(), true), preventDefault: true },
       { key: "Mod-Shift-f", run: () => (this.showSide("search"), true), preventDefault: true },
-      { key: "Alt-1", run: () => (app.setStudio("vector"), true), preventDefault: true },
-      { key: "Alt-2", run: () => (app.setStudio("pixel"), true), preventDefault: true },
-      { key: "Alt-3", run: () => (app.setStudio("layout"), true), preventDefault: true },
+      // Alt+1..5 follow the visible studio order of the header
+      ...[1, 2, 3, 4, 5].map((n) => ({ key: `Alt-${n}`, run: () => (app.visibleStudios[n - 1] ? (app.setStudio(app.visibleStudios[n - 1]), true) : false), preventDefault: true })),
       { key: "Alt-z", run: () => (this.editors.setWordWrap(!this.web.settings.wordWrap), true), preventDefault: true },
     ];
   }

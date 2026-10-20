@@ -22,6 +22,31 @@ Composer extras: attach images and text files (paperclip), start a skill or comm
 `/clear`, `/<skill>`), choose the approval mode and the thinking effort. The assistant always knows which layers you
 have selected, so "make this bigger" works.
 
+## Chat behavior
+
+- **Tool cards** are one line: icon, title, a one-line summary of the arguments, duration and status (running,
+  done, failed, declined, stopped, waiting for approval). Click a card for formatted, collapsible arguments and
+  result with copy buttons; image results (for example `screenshot`) show clickable thumbnails. Consecutive calls
+  collapse into one group ("Using 3 tools…" while they run, "Used 4 tools" afterwards); a group opens by itself when a
+  call needs approval or fails. Approvals appear inside the card of the call.
+- **Thinking** blocks are collapsible and show the elapsed seconds; running titles and the "Thinking…" indicator use a
+  text shimmer that is switched off by Settings ▸ Reduce motion.
+- **Auto-scroll** follows the newest content while Vibe streams. Scroll up and it stops; a "Jump to latest" pill brings
+  you back (sending a message also resumes following).
+- Message **Copy** buttons, **Retry** (sends the last message again as a new message), a Stop button that shows the
+  OpenFini mark while a run is active, and a composer that grows up to 40% of the panel height.
+
+## Activity tab
+
+A live log of the current chat, kept while you switch tabs (it is not saved with the chat and is cleared when you open
+another chat). Each request is a run with its plan, tool calls (timing, result, files and layers touched), approvals
+and your decision, errors and retries, token usage when the provider reports it, and the total duration. Filter with
+**All / Changes / Errors**; click a file or layer chip to open the file in the Code studio or select the layer;
+**Copy log** copies plain text; **Clear** empties the log (it does not undo anything).
+**Undo this run** is offered where a run edited a document. Undo is a stack: only the newest run is undone directly,
+older runs show **Undo back to here**, which undoes the newer runs first. Runs that changed nothing, or whose changes
+were undone already, say so. "Changes" is a name heuristic (tools that only read are excluded).
+
 ## Connecting a model
 
 You are never locked in. Under **Models**, *Add* a connection and pick a preset, or enter any OpenAI-compatible base
@@ -64,6 +89,7 @@ tested against recorded protocol fixtures and fake servers.
   element inspection and insertion, class-based style edits with breakpoints, page meta, problem check.
 - **System and files**: `get_platform_info` (OS, desktop or browser, version, which file types OpenFini opens and how to
   make it the default) and `list_recent_files`, both read-only.
+- **Customization**: `get_settings`, `set_setting`, `list_shortcuts`, `set_shortcut` (approval), `export_profile` (settings and shortcuts only, never secrets; see [customization.md](customization.md)).
 - **Appearance and help**: `list_themes`, `set_theme` (theme, mode and accent of the interface), `start_tour` and
   `list_commands` (every command that can run now, with its shortcut; the assistant can tell you where things are but
   cannot run commands itself). The built-in skill `help-me-use-openfini` ties them together.
@@ -74,6 +100,7 @@ tested against recorded protocol fixtures and fake servers.
 - **Tables and charts**: `add_table`, `edit_table`, `read_table`, `list_tables`, `import_csv_to_table`, `add_chart`, `edit_chart`, `read_chart` build and edit real table / chart objects (formulas, merges, number formats, sorting, charts linked to a table). The built-in skill `report-with-charts` assembles a report page. See [layout-tables-charts.md](layout-tables-charts.md).
 - **Office documents**: `office_new_document`, `office_read_document`, `office_find` (read-only), `office_insert_blocks` (Markdown or typed blocks), `office_replace_text`, `office_set_style`, `office_apply_format`, `office_insert_table`, `office_set_page_setup` and `office_export` (asks first; a save dialog opens) write and format Word-style documents in the Office Studio, one undo step per call. The built-in skill `write-business-document` covers letters, reports, proposals, memos and resumes. See [office-studio.md](office-studio.md).
 - **Extensions**: list installed extensions, run an extension command, install an extension from a URL (you confirm its permissions), and write a small local extension from a description (`create_extension`). Tools that extensions add appear as `ext_<id>_<tool>`, always ask for approval and show their origin; see [extensions.md](extensions.md).
+- **Text and encoding**: `encode_text`, `decode_text` (pure transforms: HTML entities, JS, CSS, percent, code points) and `transform_file_text` (apply a named transform to project files; more than one file needs approval).
 - **Assistant**: knowledge search (RAG), remember, use a skill, ask you a question, update the visible plan, create a
   tool.
 

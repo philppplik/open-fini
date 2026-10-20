@@ -11,6 +11,8 @@ import { FILE_TYPES, defaultAppsInstructions } from "../platform/file-types.js";
 import { kvGet, kvDelete, getRecents, clearSession } from "../core/storage.js";
 import { securitySection, troubleshootingSection } from "./security-center.js";
 import { openLink } from "./links.js";
+import { withCustomization, resetButton, sectionResetButton } from "./customize/sections.js";
+import { studiosSettings } from "./studio-settings.js";
 
 const sw = (key, label, hint, extra = {}) => ({ type: "switch", key, label, hint, ...extra });
 const seg = (key, label, options, hint, extra = {}) => ({ type: "segmented", key, label, options, hint, ...extra });
@@ -18,7 +20,7 @@ const num = (key, label, min, max, step, unit, hint) => ({ type: "number", key, 
 
 /** Sections of the settings dialog. `keywords` feed the search box. */
 export function settingsSections(app) {
-  return [
+  return withCustomization(app, [
     {
       id: "general",
       label: "General",
@@ -56,6 +58,15 @@ export function settingsSections(app) {
           ],
         },
       ],
+    },
+    {
+      id: "studios",
+      label: "Studios",
+      icon: "layout-three-columns",
+      lead: "Choose which studios the header shows (up to five) and their order. The rest stay in the More menu.",
+      keywords: "studios header more order reorder visible show hide vector pixel layout code vibe office shortcut alt",
+      groups: [],
+      custom: () => studiosSettings(app),
     },
     {
       id: "appearance",
@@ -243,7 +254,7 @@ export function settingsSections(app) {
       groups: [],
       custom: () => aboutPane(app),
     },
-  ];
+  ]);
 }
 
 function aboutPane() {
@@ -319,7 +330,7 @@ function row(app, item, rerender) {
     return h("div.of-set__row", h("div", h("div.of-set__label", "Storage"), h("div.of-set__hint", "Autosave, recent files and added fonts live in this browser or app profile.")), h("div.of-set__ctl", v));
   }
   const ctl = control(app, item, rerender);
-  return h("div.of-set__row", h("div", h("div.of-set__label", item.label), item.hint ? h("div.of-set__hint", item.hint) : null), h("div.of-set__ctl", ctl));
+  return h("div.of-set__row", h("div", h("div.of-set__label", item.label), item.hint ? h("div.of-set__hint", item.hint) : null), h("div.of-set__ctl", ctl, resetButton(app, item, rerender)));
 }
 
 export function settingsDialog(app, sectionId = "general") {
@@ -351,7 +362,7 @@ export function settingsDialog(app, sectionId = "general") {
     if (!s || !matches(s)) s = sections.find(matches);
     if (!s) return body.append(h("div.of-set__empty", `No settings match “${query}”.`));
     current = s.id;
-    body.append(h("h2", s.label), h("p.of-set__lead", s.lead || ""));
+    body.append(h("div.of-set__head", h("h2", s.label), sectionResetButton(app, s, renderBody)), h("p.of-set__lead", s.lead || ""));
     if (s.custom) body.append(s.custom());
     for (const g of s.groups) {
       const items = g.items.filter((i) => !i.when || i.when());

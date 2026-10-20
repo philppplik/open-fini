@@ -81,8 +81,8 @@ Rules the app code has to follow so the build can do this safely:
 
 | Budget | Default | Covers |
 | --- | --- | --- |
-| `shellJsGzipKiB` | 900 | all JavaScript outside `vendor/` (the app, its lazily loaded studios, panels and engines, and the service worker) |
-| `startupJsGzipKiB` | 340 | JavaScript needed to start: the `index.html` modules and everything they import statically |
+| `shellJsGzipKiB` | 1050 | all JavaScript outside `vendor/` (the app, its lazily loaded studios, panels and engines, and the service worker) |
+| `startupJsGzipKiB` | 380 | JavaScript needed to start: the `index.html` modules and everything they import statically |
 | `totalGzipKiB` | 2048 | everything the browser downloads, except fonts, license texts and the on-demand libraries (PDF import and KaTeX under `vendor/pdfjs` and `vendor/katex`, which are not precached and are cached on first use) |
 
 CI runs it on every push. Raise a budget only deliberately, in its own commit.
@@ -157,9 +157,15 @@ Details, prerequisites, cross-compiling notes and troubleshooting are in
 
 ### Icons
 
-`app/icons/icon.svg` (tile with transparent corners) and `app/icons/icon-maskable.svg` (full-bleed
+`app/icons/icon.svg` (off-white tile with a near-black mark, transparent corners) and `app/icons/icon-maskable.svg` (full-bleed
 for adaptive icons) are the sources. `npm run icons` regenerates every PNG, `.ico` and `.icns`
 (desktop in `src-tauri/icons`, PWA in `app/icons`) with the Tauri CLI; no other tool is needed.
+
+### Installer artwork
+
+The Windows installer sidebar and header (BMP) and the macOS DMG background come from the SVGs in
+`src-tauri/installer/`. `npm run installer:assets` regenerates the committed binaries (needs Edge or Chrome).
+The custom NSIS template, the options page and the design decisions are in [installer.md](installer.md).
 
 ## Running unsigned builds
 

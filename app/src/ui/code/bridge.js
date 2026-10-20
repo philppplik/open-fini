@@ -340,7 +340,7 @@ export function bridgeMain() {
     var forward = false;
     if (mod && /^[zyxcvdsjpbk\/]$/i.test(key)) forward = true;
     else if (mod && e.shiftKey && /^[ep]$/i.test(key)) forward = true;
-    else if (e.altKey && /^[1-4]$/.test(key)) forward = true;
+    else if (e.altKey && /^[1-5]$/.test(key)) forward = true;
     else if (edit && (key === "Delete" || key === "Backspace" || key === "Escape" || key === "F2" || key === "Enter")) forward = true;
     else if (key === "F1") forward = true;
     if (!forward) return;

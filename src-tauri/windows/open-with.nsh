@@ -7,7 +7,7 @@
 ; app is listed with its capabilities so a user can assign types to it on purpose.
 ;
 ; The extension lists below must match app/src/platform/file-types.js (tests/packaging/os-integration.test.js
-; checks it). This file is plain NSIS; it has only been exercised by the release workflow on windows-latest.
+; checks it). The hook runs inside windows/installer.nsi (custom template). It is plain NSIS; it has only been exercised by the release workflow on windows-latest.
 
 !macro OPENFINI_OPENWITH_ADD EXT
   WriteRegStr SHCTX "Software\Classes\.${EXT}\OpenWithProgids" "OpenFini.File" ""
@@ -19,6 +19,12 @@
 !macroend
 
 !macro NSIS_HOOK_POSTINSTALL
+  ; Document icon for the types OpenFini owns (the icon file is a bundle resource, see tauri.windows.conf.json).
+  WriteRegStr SHCTX "Software\Classes\OpenFini.Document\DefaultIcon" "" "$INSTDIR\ofini-doc.ico"
+  WriteRegStr SHCTX "Software\Classes\OpenFini.Extension\DefaultIcon" "" "$INSTDIR\ofini-doc.ico"
+
+  ; $OpenWithChoice comes from the "Windows integration" page of windows/installer.nsi (default: on).
+  ${If} $OpenWithChoice = 1
   ; Shared handler for the types OpenFini can open but does not own.
   WriteRegStr SHCTX "Software\Classes\OpenFini.File" "" "${PRODUCTNAME} file"
   WriteRegStr SHCTX "Software\Classes\OpenFini.File\DefaultIcon" "" "$INSTDIR\${MAINBINARYNAME}.exe,0"
@@ -28,10 +34,6 @@
   ; Name shown in the "Open with" list.
   WriteRegStr SHCTX "Software\Classes\Applications\${MAINBINARYNAME}.exe" "FriendlyAppName" "${PRODUCTNAME}"
   WriteRegStr SHCTX "Software\Classes\Applications\${MAINBINARYNAME}.exe\shell\open\command" "" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\" $\"%1$\""
-
-  ; Document icon for the types OpenFini owns (the icon file is a bundle resource, see tauri.windows.conf.json).
-  WriteRegStr SHCTX "Software\Classes\OpenFini.Document\DefaultIcon" "" "$INSTDIR\ofini-doc.ico"
-  WriteRegStr SHCTX "Software\Classes\OpenFini.Extension\DefaultIcon" "" "$INSTDIR\ofini-doc.ico"
 
   ; Capabilities: makes OpenFini appear in Settings > Apps > Default apps.
   WriteRegStr SHCTX "Software\OpenFini\Capabilities" "ApplicationName" "${PRODUCTNAME}"
@@ -70,6 +72,7 @@
   !insertmacro OPENFINI_OPENWITH_ADD "txt"
   !insertmacro OPENFINI_OPENWITH_ADD "csv"
   WriteRegStr SHCTX "Software\RegisteredApplications" "OpenFini" "Software\OpenFini\Capabilities"
+  ${EndIf}
 
   !insertmacro UPDATEFILEASSOC
 !macroend

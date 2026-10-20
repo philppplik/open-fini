@@ -1,16 +1,19 @@
 // Application shell: assembles header, tabs, context bar, toolbox, canvas, dock and status bar.
 import { h } from "../core/util.js";
 import { CanvasView } from "./canvas-view.js";
-import { createMenubar, showContextMenu, buildMenu } from "./menus.js";
+import { createMenubar, buildMenu } from "./menus.js";
+import { initContextMenus, markContext } from "./context-menu/index.js";
 import { createToolbox, iconEl } from "./toolbox.js";
 import { createContextBar } from "./contextbar.js";
 import { createDock } from "./dock.js";
 import { createStatusBar } from "./statusbar.js";
 import { createDocTabs } from "./tabs.js";
 import { iconButton } from "./controls.js";
-import { STUDIOS } from "../studios/index.js";
-import { STUDIO_ORDER } from "../core/app.js";
+import { STUDIOS, listStudios, onStudioRegistered, studioIconSpec } from "../studios/registry.js";
+import { createStudioBar } from "./studio-bar.js";
+import { installTitleBar } from "./titlebar.js";
 import { applyAppearance } from "./appearance.js";
+import { mountQuickActions } from "./customize/quick-actions.js";
 import { newDocumentDialog, preferencesDialog, aboutDialog, shortcutsDialog, colorDialog } from "./dialogs.js";
 
 export function applyTheme(app) {
@@ -30,13 +33,7 @@ export function createShell(app, root) {
     for (const c of [...brand.children]) if (c.tagName === "SL-MENU") c.remove();
     brand.append(buildMenu(app, ["help.about", "-", "edit.preferences", "file.saveAll", "file.openFolder", "-", "file.lock", "-", "help.palette", "help.shortcuts", "help.tour", "help.docs", "help.issues", "help.troubleshoot"]));
   });
-  const studioBtns = STUDIO_ORDER.map((id) => {
-    const s = STUDIOS[id];
-    const b = h("button.of-studio", { type: "button", "data-studio": id, "data-tip": `${s.label} Studio — ${s.blurb}`, "data-shortcut": `Alt+${STUDIO_ORDER.indexOf(id) + 1}`, "aria-pressed": "false" }, iconEl(`of:${s.icon}`), h("span", s.label));
-    b.addEventListener("click", () => app.setStudio(id));
-    return b;
-  });
-  const studioSwitch = h("div.of-studios", { role: "tablist", "aria-label": "Studios" }, studioBtns);
+  const studioBar = createStudioBar(app); // max five studios + a More menu (ui/studio-bar.js)
   const undo = iconButton({ icon: "arrow-counterclockwise", label: "Undo", shortcut: "Mod+Z", onClick: () => app.run("edit.undo") });
   const redo = iconButton({ icon: "arrow-clockwise", label: "Redo", shortcut: "Mod+Shift+Z", onClick: () => app.run("edit.redo") });
   const theme = iconButton({ icon: "circle-half", label: "Toggle light / dark", onClick: () => app.run("view.theme") });
@@ -44,13 +41,21 @@ export function createShell(app, root) {
   // Export is a popup (formats, slices, website) available from every studio — not a studio of its own.
   const exportBtn = h("button.of-export-btn", { type: "button", "data-tip": "Export… (formats, slices, website)", "data-shortcut": "Mod+Shift+E", "aria-label": "Export" }, iconEl("box-arrow-up"), h("span", "Export"));
   exportBtn.addEventListener("click", () => app.run("file.export"));
-  const header = h("header.of-header", brand, createMenubar(app), studioSwitch, h("div.of-header__actions", undo, redo, theme, exportBtn, dockToggle));
+  const header = h("header.of-header", brand, createMenubar(app), studioBar.el, h("div.of-header__actions", undo, redo, theme, exportBtn, dockToggle));
+
+  installTitleBar(app, header); // desktop app: the header is the window's title bar
+
+  // which header buttons show, and in what order, is a setting (Settings > Toolbox and menus > Quick actions)
+  mountQuickActions(app, header.querySelector(".of-header__actions"), { undo, redo, theme, export: exportBtn, panels: dockToggle });
 
   const tabs = createDocTabs(app);
   const context = createContextBar(app);
   const toolbox = createToolbox(app);
   const dock = createDock(app);
   const status = createStatusBar(app);
+  markContext(status.el, "status-bar");
+  markContext(cv.hRuler, "ruler", { cv, axis: "h" });
+  markContext(cv.vRuler, "ruler", { cv, axis: "v" });
   const welcome = createWelcome(app);
 
   // Code studio: its sidebar and workbench are mounted lazily (the module is loaded the first time it is needed)
@@ -144,11 +149,7 @@ export function createShell(app, root) {
   });
 
   function sync() {
-    for (const b of studioBtns) {
-      const on = b.dataset.studio === app.studio;
-      b.classList.toggle("active", on);
-      b.setAttribute("aria-pressed", String(on));
-    }
+    studioBar.sync();
     undo.disabled = !app.isEnabled("edit.undo");
     redo.disabled = !app.isEnabled("edit.redo");
     exportBtn.disabled = !app.isEnabled("file.export");
@@ -180,10 +181,14 @@ export function createShell(app, root) {
   app.on("dialog", (d) => {
     switch (d.id) {
       case "new":
-        if (d.studio === "vibe") return app.setStudio("vibe");
-        if ((d.studio || app.studio) === "code") return import("./code/start.js").then((m) => m.newWebsiteDialog(app));
-        if ((d.studio || app.studio) === "office") return import("./office/dialogs.js").then((m) => m.newOfficeDocumentDialog(app));
+      {
+        // each studio decides what "New" means: a canvas dialog (default), its own start dialog (Code: website
+        // templates), or just opening the studio (workspace studios such as Vibe)
+        const target = STUDIOS[d.studio || app.studio];
+        if (target?.newDocument) return target.newDocument(app, d);
+        if (d.studio && target?.workspace) return app.setStudio(d.studio);
         return newDocumentDialog(app, d);
+      }
       case "preferences":
         return preferencesDialog(app, d.section);
       case "about":
@@ -197,45 +202,29 @@ export function createShell(app, root) {
     }
   });
 
-  app.on("contextmenu", ({ x, y, layers, event }) => {
-    if (!app.doc) return;
-    const items = [
-      "edit.cut", "edit.copy", "edit.paste", "edit.pasteInPlace", "edit.duplicate", "edit.delete", "-",
-      "arrange.group", "arrange.ungroup", "-",
-      { label: "Arrange", items: ["arrange.front", "arrange.forward", "arrange.backward", "arrange.back"] },
-      { label: "Align", items: ["align.left", "align.centerH", "align.right", "-", "align.top", "align.centerV", "align.bottom"] },
-      "-", "shape.convert", "shape.expandStroke", "-", "arrange.lock", "arrange.hide",
-    ];
-    if (layers) items.push("-", "layer.addMask", "layer.rasterize", "layer.mergeDown");
-    const ai = app.aiQuick?.canvasAiItems(app) || [];
-    if (ai.length) items.push("-", { label: "AI", icon: "stars", items: ai });
-    items.push(...(app.extMenuItems?.("context:canvas", app.studio) || []));
-    // table / chart specific items (commands/data.js)
-    for (const p of app.contextItemProviders || []) {
-      const extra = p(app, event);
-      if (extra?.length) items.unshift(...extra, "-");
-    }
-    showContextMenu(app, x, y, items);
-  });
+  // right-click menus: one service decides the menu from the target (ui/context-menu/, docs/context-menus.md)
+  initContextMenus(app);
 
   return { cv, toolbox, dock, context, status, welcome, sync };
 }
 
 function createWelcome(app) {
   const recent = h("div.of-welcome__recent");
-  const card = (studio, text) => {
-    const s = STUDIOS[studio];
-    const b = h("button.of-welcome__card", { type: "button" }, h("span.of-welcome__icon", iconEl(`of:${s.icon}`)), h("strong", `${s.label} Studio`), h("span", text));
-    b.addEventListener("click", () => app.emit("dialog", { id: "new", studio }));
+  // one card per registered studio (a studio registered later adds its card)
+  const card = (s) => {
+    const b = h("button.of-welcome__card", { type: "button" }, h("span.of-welcome__icon", iconEl(studioIconSpec(s))), h("strong", `${s.label} Studio`), h("span", s.blurb));
+    b.addEventListener("click", () => app.emit("dialog", { id: "new", studio: s.id }));
     return b;
   };
+  const cards = h("div.of-welcome__cards", listStudios().map(card));
+  onStudioRegistered(() => cards.replaceChildren(...listStudios().map(card)));
   const el = h(
     "div.of-welcome",
     h("div.of-welcome__inner",
       h("img", { src: "./icons/icon.svg", alt: "", width: 84, height: 84 }),
       h("h1", "OpenFini"),
       h("p", "Design, code and publish — in one lightweight app."),
-      h("div.of-welcome__cards", card("vector", "Curves, shapes, type and effects"), card("pixel", "Photo editing, painting and retouching"), card("layout", "Pages, text flow, styles and print"), card("code", "HTML, CSS and JavaScript with a visual designer"), card("vibe", "Describe it — an AI builds it for you"), card("office", "Write, format and export Word documents")),
+      cards,
       h("div.of-welcome__actions",
         h("sl-button", { variant: "primary", onclick: () => app.run("file.new") }, h("sl-icon", { slot: "prefix", name: "plus-lg" }), "New Document"),
         h("sl-button", { onclick: () => app.run("file.open") }, h("sl-icon", { slot: "prefix", name: "folder2-open" }), "Open…")),
@@ -246,7 +235,7 @@ function createWelcome(app) {
   app.on("recents", (list) => {
     recent.replaceChildren();
     if (!list?.length) return;
-    recent.append(h("h3", "Recent"), ...list.slice(0, 6).map((r) => h("button.of-welcome__recent-item", { type: "button", onclick: () => app.run("file.openRecent", r) }, h("sl-icon", { name: "file-earmark-image" }), h("span", r.name), h("small", new Date(r.time).toLocaleDateString("en-US")))));
+    recent.append(h("h3", "Recent"), ...list.slice(0, 6).map((r) => markContext(h("button.of-welcome__recent-item", { type: "button", onclick: () => app.run("file.openRecent", r) }, h("sl-icon", { name: "file-earmark-image" }), h("span", r.name), h("small", new Date(r.time).toLocaleDateString("en-US"))), "welcome-recent", { recent: r })));
   });
   return { el };
 }

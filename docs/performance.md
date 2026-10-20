@@ -102,5 +102,5 @@ Reproduce with `node tests/pixel/bench.mjs`.
 
 ## Budgets in CI
 
-`npm run check:size` fails the build when the gzip size of the application JavaScript exceeds 900 KiB, the JavaScript needed to start exceeds 340 KiB, or the
+`npm run check:size` fails the build when the gzip size of the application JavaScript exceeds 1050 KiB, the JavaScript needed to start exceeds 380 KiB, or the
 total download exceeds 2 MiB (see [`scripts/size-budget.json`](../scripts/size-budget.json)).

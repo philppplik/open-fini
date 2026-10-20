@@ -1,6 +1,6 @@
 # Studios guide
 
-Switch studios with the buttons in the header or **Alt+1 … Alt+6**. A studio changes the toolbox, the
+Switch studios with the buttons in the header or **Alt+1 … Alt+5**. A studio changes the toolbox, the
 default panels and the context bar — it never converts or changes your document.
 
 `Mod` below means **Ctrl** on Windows/Linux and **⌘** on macOS.
@@ -144,7 +144,7 @@ PDF, HTML, Markdown and text. Its workspace replaces the toolbox and dock: a for
 
 | Key | Action |
 | --- | --- |
-| `Alt+6` | Open the Office studio (until the studio bar shows at most five studios; then it is in *More*) |
+| *More* menu | Open the Office studio (or add it to the header in Settings ▸ Studios; it then gets an `Alt` shortcut) |
 | `Mod+B` / `Mod+I` / `Mod+U` | Bold / italic / underline |
 | `Mod+Alt+1` … `Mod+Alt+3` / `Mod+Alt+0` | Heading 1-3 / Normal text |
 | `Mod+Shift+L` / `Mod+Shift+N` | Bulleted / numbered list |
@@ -173,3 +173,15 @@ Click into text to edit. Standard navigation applies (arrows, Home/End, `Mod`+ar
 select, double-click selects a word, triple-click a paragraph). `Mod+B`, `Mod+I`, `Mod+U` toggle bold,
 italic and underline; everything else is in the **Type** panel. Copy / paste keeps formatting inside
 OpenFini and falls back to plain text elsewhere. `Esc` leaves text editing.
+
+## Studio registry, the header and the More menu
+
+The studios are defined in `app/src/studios/registry.js`. A new studio is one call:
+`registerStudio({ id, label, icon, blurb, order, workspace?, document?, newDocument?, tools?, top?, bottom? })`
+(`systemIcon` uses a Shoelace icon instead of an `assets/icons` glyph). The header, More menu, Studio menu, `studio.<id>`
+commands, welcome cards, New document dialog and Alt+N shortcuts are all derived from it.
+
+The header shows at most **five** studios (preference `visibleStudios`, default Vector, Pixel, Layout, Code, Vibe). Every
+other registered studio is in the **More** menu; opening one from there shows it in place of the More label until you pick
+another studio. Choose and order the header studios in **Settings ▸ Studios** (drag or arrow buttons, at least one, never
+more than five). Alt+1 to Alt+N follow the header order. The Office studio registers this way and starts in the *More* menu; planned studios (video, motion, render) will too.

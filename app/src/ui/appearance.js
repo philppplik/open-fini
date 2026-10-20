@@ -2,6 +2,7 @@
 // interface scale, reduced motion, high contrast, focus rings and tooltips. Called on start-up and on every change.
 
 import { applyTheme, onThemesChanged } from "./themes.js";
+import { applyCustomization } from "../customize/apply.js";
 
 export const ACCENTS = [
   { id: "violet", label: "Theme default", color: null }, // each theme brings its own accent
@@ -70,4 +71,5 @@ export function applyAppearance(app) {
   root.classList.toggle("of-no-tips", p.showHints === false);
   root.classList.toggle("of-code-font", true);
   root.style.setProperty("--of-code-font-size", `${Number(p.codeFontSize) || 13}px`);
+  applyCustomization(app); // fonts, radius, animation speed, canvas colors, dock (after the theme so it wins)
 }

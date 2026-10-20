@@ -54,7 +54,9 @@ export function createToolbox(app) {
 
   function render() {
     empty(el);
-    for (const entry of toolboxFor(app.studio)) {
+    // tool visibility, order and grouping come from Settings > Toolbox and menus (customize/toolbox-model.js)
+    const entries = toolboxFor(app.studio);
+    for (const entry of app.customize ? app.customize.arrangeToolbox(app.studio, entries) : entries) {
       const id = toolIdFor(entry);
       const C = id && app.toolClasses.get(id);
       if (!C) continue;
@@ -84,11 +86,19 @@ export function createToolbox(app) {
       el.append(btn);
       if (["crop", "text", "eyedropper"].includes(id) && false) el.append(h("div.of-tool__sep"));
     }
+    // command buttons contributed through app.customize.registerToolboxEntry (extensions, future studios)
+    for (const x of app.customize?.toolboxExtras(app.studio) || []) {
+      const b = h("button.of-tool", { type: "button", "data-tip": x.label, "data-tip-pos": "right", "aria-label": x.label, "data-cmd": x.command }, iconEl(x.icon));
+      b.addEventListener("click", () => app.run(x.command));
+      el.append(b);
+    }
     // color chips for pixel painting
     if (app.studio === "pixel") el.append(colorChips(app));
   }
 
   app.on("studio", render);
+  app.on("toolboxchanged", render);
+  app.on("shortcuts", render);
   app.on("tool", () => {
     // update the active state / swapped group icons without a full rebuild
     render();

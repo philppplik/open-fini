@@ -2,7 +2,7 @@
 // projects — the published site. Export is a popup, not a studio, so it is reachable from every studio.
 import { h, formatBytes, downloadName } from "../core/util.js";
 import { zipSync } from "../../vendor/fflate/fflate.js";
-import { openDialog } from "./dialogs.js";
+import { openDialog, isDialogOpen } from "./dialogs.js";
 import { numField, selectField, segmented, switchField } from "./controls.js";
 import { exportRaster, exportSvg, exportPdf, RASTER_FORMATS } from "../core/io.js";
 import { platform } from "../platform/index.js";
@@ -10,6 +10,7 @@ import { pageBoundsOf } from "../core/transform.js";
 import { createSlicesTab } from "./export-slices.js";
 import { createWebsiteTab } from "./export-website.js";
 import { createPublishTab } from "./export-publish.js";
+import { singleFlight } from "../core/single-flight.js";
 
 const FORMATS = [
   { value: "png", label: "PNG — lossless, transparency" },
@@ -21,8 +22,10 @@ const FORMATS = [
 ];
 
 export function exportDialog(app, preset = {}) {
+  if (isDialogOpen("export")) return; // already showing: never stack a second popup
   const doc = app.doc;
-  const st = { format: preset.format || "png", scope: "page", scale: 1, quality: 0.9, transparent: false, bleed: false, marks: false, rasterDpi: 200 };
+  const st = { format: preset.format || "png", scope: "page", scale: 1, quality: 0.9, transparent: false, bleed: false, marks: false, rasterDpi: 200, ...(app.prefs.exportDefaults || {}) }; // Settings > Defaults for new things
+  st.format = preset.format || st.format;
   const info = h("div.of-hint");
   const rasterBox = h("div.of-form");
   const pdfBox = h("div.of-form");
@@ -36,8 +39,8 @@ export function exportDialog(app, preset = {}) {
   ];
   const scope = selectField({ label: "Area", value: st.scope, options: scopeOpts, onChange: (v) => { st.scope = v; render(); } });
   const scale = segmented([0.5, 1, 2, 3, 4].map((v) => ({ value: v, label: `${v}×`, text: `${v}×` })), st.scale, (v) => { st.scale = v; render(); });
-  const quality = numField({ label: "Quality", value: 90, min: 1, max: 100, unit: "%", precision: 0, wide: true, onChange: (v) => (st.quality = v / 100) });
-  const transparent = switchField({ label: "Transparent background", value: false, onChange: (v) => { st.transparent = v; } });
+  const quality = numField({ label: "Quality", value: Math.round(st.quality * 100), min: 1, max: 100, unit: "%", precision: 0, wide: true, onChange: (v) => (st.quality = v / 100) });
+  const transparent = switchField({ label: "Transparent background", value: st.transparent, onChange: (v) => { st.transparent = v; } });
   const bleed = switchField({ label: "Include bleed", value: false, onChange: (v) => (st.bleed = v) });
   const marks = switchField({ label: "Crop marks", value: false, onChange: (v) => (st.marks = v) });
   const rdpi = numField({ label: "Effects resolution", value: 200, min: 72, max: 600, unit: "dpi", precision: 0, wide: true, onChange: (v) => (st.rasterDpi = v) });
@@ -83,7 +86,9 @@ export function exportDialog(app, preset = {}) {
     tabs.map((t) => h("sl-tab", { slot: "nav", panel: t.id, active: t === active || undefined }, t.label)),
     tabs.map((t) => h("sl-tab-panel", { name: t.id, active: t === active || undefined }, t.el)),
   );
+  let submitted = false; // a double click on the primary button must start one export, not two
   const { dlg } = openDialog({
+    key: "export",
     title: "Export",
     body: group,
     width: 540,
@@ -95,6 +100,8 @@ export function exportDialog(app, preset = {}) {
         variant: "primary",
         onClick: async (close) => {
           if (active === tabs[1] && !slicesTab.count()) return app.toast("Add a slice first.", "warning");
+          if (submitted) return;
+          submitted = true;
           close();
           try {
             await active.run();
@@ -122,8 +129,14 @@ export function exportDialog(app, preset = {}) {
   });
 }
 
-/** Runs an export with the given settings and hands the file(s) to the platform bridge. */
-export async function runExport(app, st) {
+/**
+ * Runs an export with the given settings and hands the file(s) to the platform bridge. One run per document at a
+ * time: a double click on the Export button or a repeated shortcut joins the running export instead of opening
+ * a second file dialog.
+ */
+export const runExport = singleFlight((app, st) => runExportNow(app, st), (app) => app.doc);
+
+async function runExportNow(app, st) {
   const doc = app.doc;
   const pages = st.scope === "all" ? doc.pages : [app.page];
   const base = doc.name || "Untitled";
