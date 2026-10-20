@@ -268,8 +268,7 @@ export function createOutline(ws) {
     // expand ancestors of the selection
     let changed = false;
     for (let n = cur.el.parent; n; n = n.parent) {
-  ws.on("page", () => render());
-  ws.on("docmode", () => render());
+      const k = keyOf(n);
       if (collapsed.has(k)) {
         collapsed.delete(k);
         changed = true;
@@ -284,6 +283,7 @@ export function createOutline(ws) {
   ws.on("project", sched);
   ws.on("swap", sched);
   ws.on("page", () => render());
+  ws.on("docmode", () => render());
   ws.on("selection", revealSelected);
   ws.on("hover", paintState);
   list.addEventListener("keydown", (e) => {
