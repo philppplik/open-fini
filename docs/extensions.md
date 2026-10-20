@@ -11,6 +11,8 @@ examples).
 
 ## For users
 
+Five ready-made extensions ship with OpenFini but are not installed by default; see [bundled-extensions.md](bundled-extensions.md).
+
 ### Installing
 
 *Studio ▸ Extensions…* (or *Settings ▸ Extensions*) opens the manager:
@@ -149,6 +151,7 @@ rejected.
 | `ui` | `ui.*` (messages, dialogs, forms, panels, status) and `studio.set` |
 | `storage` | `storage.*`: a private key-value store (256 KB per value, 200 keys, 1 MB) |
 | `files` | `files.open` / `files.save`: always through the system file dialog |
+| `export` | `document.export`: render layers or pages to PNG, JPEG, WebP or SVG bytes |
 | `vibe` | `vibe.registerTool` / `registerSkill` and `contributes.vibeTools` / `vibeSkills` |
 | `commands` | run any OpenFini command id (`commands.execute`); your own commands need nothing |
 | `network:<origin>` | `network.fetch` to that origin (`https://host[:port]`, `https://*.host`, or `http://localhost[:port]`) |
@@ -195,6 +198,7 @@ return promises. Typings: [`sdk/openfini.d.ts`](../sdk/openfini.d.ts). Errors ar
 | `ui.openPanel(id)`, `ui.setStatus(text)` | `ui` | |
 | `document.info() / pageInfo() / readSelection() / readLayers(opts)` | `document.read` | |
 | `document.listTools()` | `document.read` | the tools you may call, with schemas |
+| `document.export({format, scale, ids, page})` | `export` | image bytes of layers or a page, see [bundled-extensions.md](bundled-extensions.md#the-export-permission-and-documentexport) |
 | `document.callTool(name, args)` | read tools: `document.read`; others: `document.write` | same tools as Vibe (`add_shape`, `add_text`, `set_style`, `apply_adjustment`, `insert_html`, …), undoable as one step |
 | `studio.current() / list()` | none | `studio.set(id)` needs `ui` |
 | `storage.get/set/delete/keys/clear` | `storage` | JSON values |

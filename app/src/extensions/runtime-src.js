@@ -118,6 +118,7 @@ function runtime() {
       readLayers: (opts) => call("document.readLayers", opts || {}),
       listTools: () => call("document.listTools"),
       callTool: (name, args) => call("document.callTool", { name, args: args || {} }),
+      export: (opts) => call("document.export", opts || {}),
     },
     studio: { current: () => call("studio.current"), list: () => call("studio.list"), set: (id) => call("studio.set", { id }) },
     storage: {

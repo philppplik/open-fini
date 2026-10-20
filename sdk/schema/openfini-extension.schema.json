@@ -58,7 +58,7 @@
     "permissions": {
       "type": "array",
       "maxItems": 40,
-      "items": { "type": "string", "pattern": "^(document\\.read|document\\.write|ui|storage|files|vibe|commands|network:https?://[^/\\s]+)$" },
+      "items": { "type": "string", "pattern": "^(document\\.read|document\\.write|ui|storage|files|export|vibe|commands|network:https?://[^/\\s]+)$" },
       "description": "Capabilities the user must approve. network:<origin> allows requests to one origin, e.g. network:https://api.example.com."
     },
     "contributes": {

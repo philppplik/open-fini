@@ -6,7 +6,7 @@ export const MANIFEST_FILE = "openfini-extension.json";
 export const API_VERSION = 1;
 export const STUDIO_IDS = ["vector", "pixel", "layout", "code", "vibe"];
 export const MENU_NAMES = ["File", "Edit", "Layer", "Arrange", "Shape", "Select", "Filter", "Text", "Document", "View", "Insert", "Go", "Studio", "Help", "context:canvas", "context:code", "context:explorer", "context:layers", "context:text"];
-export const FLAG_PERMISSIONS = ["document.read", "document.write", "ui", "storage", "files", "vibe", "commands"];
+export const FLAG_PERMISSIONS = ["document.read", "document.write", "ui", "storage", "files", "export", "vibe", "commands"];
 export const ID_RE = /^[a-z0-9][a-z0-9-]{1,30}\.[a-z0-9][a-z0-9-]{1,40}$/;
 const LOCAL_ID = /^[A-Za-z][A-Za-z0-9._-]{0,63}$/;
 const TOOL_NAME = /^[a-z][a-z0-9_]{1,40}$/;
@@ -395,6 +395,7 @@ export function describePermission(p) {
     ui: { label: "Show messages and dialogs", risk: "low", text: "Can show notices, ask you questions, open its panels and switch studios." },
     storage: { label: "Store its own data", risk: "low", text: "Keeps a small private store on this device (up to 1 MB)." },
     files: { label: "Open and save files", risk: "medium", text: "Can ask you to pick files to read or choose where to save a file. It never gets access without your dialog." },
+    export: { label: "Render exports", risk: "medium", text: "Can render pages and layers of the open document to PNG, JPEG, WebP or SVG data (it still needs the Save permission to write files)." },
     vibe: { label: "Extend the Vibe assistant", risk: "medium", text: "Can add tools and skills to Vibe Studio. Its tools always ask for your approval before running." },
     commands: { label: "Run other commands", risk: "high", text: "Can run any OpenFini menu command, for example save, close or export." },
   };
