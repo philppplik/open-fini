@@ -4,17 +4,15 @@ import { h } from "../core/util.js";
 import { vibeStore } from "./store.js";
 import { openDialog, promptDialog, confirmDialog } from "../ui/dialogs.js";
 
-let session = null;
 let bar = null;
 
+/** Every quick action runs in its own hidden chat of the Vibe hub, so several can run next to Vibe chats. */
 async function getSession(app) {
-  const { VibeSession } = await import("./session.js");
+  const { getVibeHub } = await import("./hub.js");
   await vibeStore.load();
-  if (!session) {
-    session = new VibeSession(app);
-    session.on("approval", async (req) => req.resolve(await confirmDialog({ title: "Allow this action?", message: req.reason || `Vibe wants to use “${req.name}”.`, ok: "Allow" })));
-    session.on("ask", async (q) => q.resolve((await promptDialog({ title: "Vibe asks", label: q.question, ok: "Answer" })) || ""));
-  }
+  const session = getVibeHub(app).create({ hidden: true });
+  session.on("approval", async (req) => req.resolve(await confirmDialog({ title: "Allow this action?", message: req.reason || `Vibe wants to use “${req.name}”.`, ok: "Allow" })));
+  session.on("ask", async (q) => q.resolve((await promptDialog({ title: "Vibe asks", label: q.question, ok: "Answer" })) || ""));
   return session;
 }
 
@@ -26,7 +24,7 @@ function selectionHint(app) {
 
 function undoBar(app, s, label) {
   bar?.remove();
-  bar = h("div.of-aibar", h("span", `AI: ${label}`), h("button.of-btn", { type: "button", onclick: () => { const n = s.undoLastRun(); app.toast(`Undid ${n} change${n === 1 ? "" : "s"}.`, "success", 1500); bar.remove(); } }, "Undo"), h("button.of-btn", { type: "button", "aria-label": "Dismiss", onclick: () => bar.remove() }, "×"));
+  bar = h("div.of-aibar", h("span", `AI: ${label}`), h("button.of-btn", { type: "button", onclick: () => { const n = s.undoLastRun(); app.toast(n ? `Undid ${n} change${n === 1 ? "" : "s"}.` : s.lastUndoError || "Nothing to undo.", n ? "success" : "warning", n ? 1500 : 5000); bar.remove(); } }, "Undo"), h("button.of-btn", { type: "button", "aria-label": "Dismiss", onclick: () => bar.remove() }, "×"));
   document.body.append(bar);
   setTimeout(() => bar?.remove(), 12000);
 }
@@ -51,14 +49,11 @@ function ready(app) {
 export async function runQuickAction(app, { label, prompt, mode = "apply", extra = "" }) {
   if (!ready(app)) return;
   const s = await getSession(app);
-  if (s.running) return app.toast("Vibe is still working on the previous request.", "warning", 2000);
-  s.newChat();
+  s.label = label;
   let text = "";
   const off = s.on("event", (ev) => {
     if (ev.type === "text") text += ev.delta;
-    if (ev.type === "tool_start") app.status(`AI: ${ev.name.replace(/_/g, " ")}…`);
   });
-  app.status(`AI: ${label}…`);
   try {
     await s.send(`${prompt}\n\n${extra}\n\nContext: ${selectionHint(app)} Work directly with the tools; keep changes focused on what was asked; reply with at most two sentences when done.`.trim());
   } catch (err) {
@@ -66,7 +61,7 @@ export async function runQuickAction(app, { label, prompt, mode = "apply", extra
     return;
   } finally {
     off();
-    app.status("");
+    setTimeout(() => s.hub.remove(s.id), 15000); // keep it for the undo bar, then forget the hidden chat
   }
   if (mode === "answer") {
     const { renderMarkdown } = await import("../ui/vibe/markdown.js");

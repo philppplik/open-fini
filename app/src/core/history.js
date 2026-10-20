@@ -11,6 +11,9 @@ export class History extends Emitter {
     this.limitBytes = limitBytes;
     this.limitEntries = limitEntries;
     this.bytes = 0;
+    // Optional ambient tag stamped on every entry pushed while it is set (e.g. { chat, run } of the Vibe chat that
+    // holds the document write lock). Entries with different tags never coalesce. See docs/adr/0007-vibe-hub.md.
+    this.tag = null;
   }
 
   get canUndo() {
@@ -27,7 +30,8 @@ export class History extends Emitter {
     this.entries.length = this.index;
     const last = this.entries[this.entries.length - 1];
     const now = Date.now();
-    if (entry.key && last && last.key === entry.key && now - last.time < 1200) {
+    if (entry.tag === undefined && this.tag) entry.tag = this.tag;
+    if (entry.key && last && last.key === entry.key && now - last.time < 1200 && (last.tag || null) === (entry.tag || null)) {
       last.ops.push(...entry.ops);
       if (entry.touched && last.touched) for (const n of entry.touched) last.touched.add(n);
       last.structure = last.structure || entry.structure;
