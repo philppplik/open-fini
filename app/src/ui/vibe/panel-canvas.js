@@ -1,9 +1,8 @@
-// Vibe Studio side panels: Canvas (live view of the document the assistant works on) and Activity (plan, undo).
+// Vibe Studio side panels: Canvas (live view of the document the assistant works on).
 import { h, empty, debounce } from "../../core/util.js";
 import { scriptsBlocked } from "../../core/security.js";
 import { withOfflinePreviewCsp } from "../../core/network.js";
 import { exportRaster } from "../../core/io.js";
-import { iconEl } from "../toolbox.js";
 
 const STUDIO_BUTTONS = [["vector", "Vector"], ["pixel", "Pixel"], ["layout", "Layout"], ["code", "Code"]];
 
@@ -27,7 +26,7 @@ export function createCanvasPanel(vs) {
     empty0.classList.toggle("hidden", !!doc);
     if (!doc) return (info.textContent = "");
     const page = app.page;
-    info.replaceChildren(h("strong", doc.name), h("span", `${doc.pages.length > 1 ? `${page.name} · ` : ""}${Math.round(page.w)} × ${Math.round(page.h)} px`), doc.web ? h("span", `${doc.web.files.size} website files`) : null);
+    info.replaceChildren(...[h("strong", doc.name), h("span", `${doc.pages.length > 1 ? `${page.name} · ` : ""}${Math.round(page.w)} × ${Math.round(page.h)} px`), doc.web ? h("span", `${doc.web.files.size} website files`) : null].filter(Boolean));
     for (const [id, label] of STUDIO_BUTTONS) actions.append(h("button.of-btn", { type: "button", class: app.studio === id ? "of-btn--primary" : "", onclick: () => app.setStudio(id) }, label));
     if (busy) {
       again = true;
@@ -69,29 +68,4 @@ export function createCanvasPanel(vs) {
   for (const ev of ["docchange", "doc", "page", "studio", "selection"]) app.on(ev, schedule);
   session.on("event", (e) => e.type === "tool_end" && schedule());
   return { el, show: refresh };
-}
-
-export function createActivityPanel(vs) {
-  const { app, session } = vs;
-  const plan = h("div.of-vplan");
-  const runs = h("div.of-vruns");
-  const el = h("div.of-vactivity", h("h3", "Plan"), plan, h("h3", "Changes"), runs, h("p.of-hint", "Every change Vibe makes is a normal OpenFini edit: you can also undo it step by step with Ctrl+Z."));
-
-  function renderPlan() {
-    empty(plan);
-    if (!session.plan.length) return plan.append(h("div.of-empty", "Vibe shows its plan here for multi-step work."));
-    for (const s of session.plan) plan.append(h("div.of-vplan__step", { class: s.status }, iconEl(s.status === "done" ? "check-circle-fill" : s.status === "active" ? "arrow-right-circle-fill" : "circle"), h("span", s.text)));
-  }
-  function renderRuns() {
-    empty(runs);
-    if (!session.runs.length) return runs.append(h("div.of-empty", "No AI changes in this chat yet."));
-    for (const r of session.runs.slice().reverse()) runs.append(h("div.of-vruns__row", h("span", `“${r.title}” — ${r.doc.history.index - r.marker} edit${r.doc.history.index - r.marker === 1 ? "" : "s"} in ${r.doc.name}`)));
-    runs.append(h("button.of-btn.of-btn--primary", { type: "button", onclick: () => { const n = session.undoLastRun(); app.toast(`Undid ${n} change${n === 1 ? "" : "s"}.`, "success", 1600); } }, iconEl("arrow-counterclockwise"), "Undo last AI run"));
-  }
-  session.on("plan", renderPlan);
-  session.on("runs", renderRuns);
-  session.on("chat", () => { renderPlan(); renderRuns(); });
-  renderPlan();
-  renderRuns();
-  return { el };
 }
