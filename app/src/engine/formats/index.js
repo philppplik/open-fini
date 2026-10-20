@@ -2,7 +2,14 @@
 export { readPsd, writePsd } from './psd.js';
 export { readIdml, parseXml } from './idml.js';
 export { readSketch, isSketch } from './sketch.js';
-export { findPdfStart, findEmbeddedPreview } from './embedded.js';
+export { readTiff, isTiff } from './tiff.js';
+export { readGif, isGif } from './gif.js';
+export { readIco, isIco } from './ico.js';
+export { readOra, writeOra, isOra } from './ora.js';
+export { readKraMerged, isKra } from './kra.js';
+export { readPalette, readGpl, writeGpl, readAse, writeAse, readAco, writeAco, readHexList } from './palette.js';
+export { fontContainer, woffToSfnt, ttcFonts, unwrapFont } from './fontwrap.js';
+export { findPdfStart, findEmbeddedPreview, dosEpsParts } from './embedded.js';
 
 const INDD_MAGIC = [0x06, 0x06, 0xed, 0xf5, 0xd8, 0x1d, 0x46, 0xe5, 0xbd, 0x31, 0xef, 0xe7, 0xfe, 0x74, 0xb7, 0x1d];
 
