@@ -11,6 +11,7 @@ import { FILE_TYPES, defaultAppsInstructions } from "../platform/file-types.js";
 import { kvGet, kvDelete, getRecents, clearSession } from "../core/storage.js";
 import { securitySection, troubleshootingSection } from "./security-center.js";
 import { openLink } from "./links.js";
+import { updateRows } from "./update-check.js";
 import { withCustomization, resetButton, sectionResetButton } from "./customize/sections.js";
 import { studiosSettings } from "./studio-settings.js";
 import { t, detected } from "../i18n/index.js";
@@ -263,12 +264,13 @@ export function settingsSections(app) {
   ]);
 }
 
-function aboutPane() {
+function aboutPane(app) {
   const version = h("span", "…");
   fetch("./build-info.json").then((r) => (r.ok ? r.json() : null)).then((j) => (version.textContent = j ? t("{version} (build {build})", { version: j.version, build: String(j.buildId).split("-").pop() }) : t("development build"))).catch(() => (version.textContent = t("development build")));
   return h(
     "div.of-set__group",
     h("div.of-set__row", h("div.of-set__label", t("Version")), h("div.of-set__ctl", version)),
+    ...updateRows(app, { button }),
     h("div.of-set__row", h("div.of-set__label", t("License")), h("div.of-set__ctl", "MIT")),
     h("div.of-set__row", h("div.of-set__label", t("Source code")), h("div.of-set__ctl", button("github.com/philppplik/open-fini", () => openLink("https://github.com/philppplik/open-fini")))),
     h("div.of-set__row", h("div.of-set__label", t("Documentation")), h("div.of-set__ctl", button(t("Open"), () => openLink("https://github.com/philppplik/open-fini#readme")))),

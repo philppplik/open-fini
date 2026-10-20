@@ -9,7 +9,15 @@ export function sniffImage(b, name = "") {
   if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) return "image/gif";
   if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46 && b[8] === 0x57 && b[9] === 0x45) return "image/webp";
   const head = new TextDecoder().decode(b.subarray(0, Math.min(1024, b.length))).trimStart();
-  if (/^(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*(<!DOCTYPE[^>]*>\s*)?<svg[\s>]/i.test(head) || (/\.svg$/i.test(name) && head.includes("<svg"))) return "image/svg+xml";
+  // plain string steps instead of one nested-quantifier regex (CodeQL js/redos)
+  let s = head.replace(/^<\?xml[^>]*>/, "").trimStart();
+  for (let k = 0; k < 20 && s.startsWith("<!--"); k++) {
+    const e = s.indexOf("-->");
+    if (e < 0) break;
+    s = s.slice(e + 3).trimStart();
+  }
+  s = s.replace(/^<!DOCTYPE[^>]*>/i, "").trimStart();
+  if (/^<svg[\s>]/i.test(s) || (/\.svg$/i.test(name) && head.includes("<svg"))) return "image/svg+xml";
   return null;
 }
 

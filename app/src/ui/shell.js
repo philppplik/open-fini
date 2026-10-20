@@ -29,7 +29,7 @@ export function createShell(app, root) {
 
   // ---- header: brand, menus, studio switcher, quick actions
   // The brand opens the application menu: settings, save all, shortcuts, about …
-  const brandBtn = h("button.of-brand", { type: "button", slot: "trigger", ...ta({ "aria-label": "OpenFini menu" }), "aria-haspopup": "menu" }, h("img", { src: "./icons/mark.svg", alt: "", width: 22, height: 22 }), h("span", "OpenFini"), h("sl-icon.of-brand__caret", { name: "chevron-down" }));
+  const brandBtn = h("button.of-brand", { type: "button", slot: "trigger", ...ta({ "aria-label": "OpenFini menu" }), "aria-haspopup": "menu" }, h("span.of-brand__logo", h("img", { src: "./icons/mark-white.svg", alt: "", width: 16, height: 16 })), h("span", "OpenFini"), h("sl-icon.of-brand__caret", { name: "chevron-down" }));
   const brand = h("sl-dropdown.of-brandmenu", { distance: 4, hoist: true }, brandBtn);
   brand.addEventListener("sl-show", (e) => {
     if (e.target !== brand) return;
