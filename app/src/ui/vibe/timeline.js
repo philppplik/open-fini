@@ -61,7 +61,7 @@ export class Timeline {
         run.steps = Math.max(run.steps, ev.n || 0);
         break;
       case "tool_start":
-        run.entries.push({ id: `${run.id}.${run.entries.length + 1}`, kind: "tool", toolId: ev.id, name: ev.name, title: toolTitle(ev.name), summary: summarizeArgs(ev.input), at: this.now(), endedAt: null, ms: null, status: "running", change: !isReadTool(ev.name), touches: touchedBy(ev.name, ev.input, null), input: ev.input });
+        run.entries.push({ id: `${run.id}.${run.entries.length + 1}`, kind: "tool", toolId: ev.id, name: ev.name, title: ev.child ? `↳ ${ev.child}: ${toolTitle(ev.name)}` : toolTitle(ev.name), ...(ev.child ? { child: ev.child } : {}), summary: summarizeArgs(ev.input), at: this.now(), endedAt: null, ms: null, status: "running", change: !isReadTool(ev.name), touches: touchedBy(ev.name, ev.input, null), input: ev.input });
         break;
       case "tool_end": {
         const e = this.#tool(ev.id);

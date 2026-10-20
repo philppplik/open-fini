@@ -1,0 +1,92 @@
+/* Vibe engine UI: concurrent chat list badges, sub-agent boxes, skill suggestion chip, skill editor,
+   and the AI progress pill (shown in every studio). Theme tokens only (--of-*). */
+
+/* ---- chat list: running state */
+.of-vlist__head { gap: 6px; }
+.of-vlist__head strong { margin-right: auto; }
+.of-vlist__running { font-size: 11px; color: var(--of-text-dim); white-space: nowrap; }
+.of-vlist__running:empty { display: none; }
+.of-vlist__stopall { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: 11px; color: var(--of-danger); border: 1px solid color-mix(in srgb, var(--of-danger) 40%, transparent); background: transparent; }
+.of-vlist__stopall:hover { background: color-mix(in srgb, var(--of-danger) 12%, transparent); }
+.of-vlist__stopall:focus-visible, .of-aipill button:focus-visible, .of-tagent__head:focus-visible, .of-tagent__cancel:focus-visible, .of-skillsug button:focus-visible { outline: 2px solid var(--of-accent); outline-offset: 2px; }
+.of-vlist__row { align-items: center; }
+.of-vlist__row > span:first-child { flex: 1; min-width: 0; }
+.of-vlist__badge { display: inline-flex; align-items: center; gap: 3px; flex: none; font-size: 12px; color: var(--of-text-dim); }
+.of-vlist__badge sl-spinner { font-size: 12px; --track-width: 2px; --indicator-color: var(--of-accent); }
+.of-vlist__badge.approval { color: var(--of-warn, #b45309); }
+.of-vlist__badge.error { color: var(--of-danger); }
+.of-vlist__badge.done { color: var(--of-ok); }
+.of-vlist__badge b { font-size: 10px; font-weight: 700; min-width: 15px; height: 15px; line-height: 15px; text-align: center; border-radius: 999px; background: var(--of-warn, #b45309); color: #fff; }
+
+/* ---- sub-agents nested under the spawn_agent card */
+.of-tagent { margin: 4px 8px 6px 26px; border: 1px solid var(--of-border-soft); border-left: 2px solid var(--of-accent); border-radius: 8px; background: var(--of-bg-raised); }
+.of-tagent[data-status="error"] { border-left-color: var(--of-danger); }
+.of-tagent[data-status="cancelled"] { border-left-color: var(--of-text-faint); }
+.of-tagent[data-status="done"] { border-left-color: var(--of-ok); }
+.of-tagent__row { display: flex; align-items: center; }
+.of-tagent__head { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 5px 8px; font-size: 12px; color: var(--of-text); text-align: left; border-radius: 8px; }
+.of-tagent__head:hover { background: var(--of-hover); }
+.of-tagent__head > sl-icon:first-child { transition: transform 0.15s; color: var(--of-text-faint); }
+.of-tagent.open .of-tagent__head > sl-icon:first-child { transform: rotate(90deg); }
+.of-tagent__title { font-weight: 600; flex: none; }
+.of-tagent__sum { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--of-text-dim); }
+.of-tagent__stat { flex: none; display: inline-flex; color: var(--of-text-dim); }
+.of-tagent__stat sl-spinner { font-size: 12px; --track-width: 2px; --indicator-color: var(--of-accent); }
+.of-tagent__cancel { flex: none; padding: 4px 8px; color: var(--of-text-dim); border-radius: 6px; }
+.of-tagent__cancel:hover { color: var(--of-danger); background: var(--of-hover); }
+.of-tagent__body { padding: 0 8px 8px; }
+.of-tagent__text { font-size: 12px; color: var(--of-text-dim); white-space: pre-wrap; max-height: 9em; overflow: auto; padding: 2px 4px 6px; }
+.of-tagent__text:empty { display: none; }
+.of-tagent__list .of-tcall { margin-left: 0; }
+
+/* ---- skill suggestion chip in the composer */
+.of-skillsug { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; padding: 4px 6px 4px 10px; font-size: 12px; color: var(--of-text-dim); border-radius: 999px; background: var(--of-accent-soft); width: fit-content; max-width: 100%; }
+.of-skillsug.hidden { display: none; }
+.of-skillsug strong { color: var(--of-text); }
+.of-skillsug .of-btn--sm, .of-skillsug .of-btn { padding: 2px 10px; min-height: 0; font-size: 12px; }
+.of-skillsug__x { padding: 0 6px; font-size: 15px; line-height: 1; color: var(--of-text-dim); border-radius: 999px; }
+.of-skillsug__x:hover { color: var(--of-text); background: var(--of-hover); }
+
+/* ---- skills panel v2 */
+.of-vskills__bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.of-vskills__bar input[type="search"] { flex: 1; min-width: 140px; }
+.of-vskills__tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+.of-vskills__tag { padding: 2px 8px; font-size: 11px; border-radius: 999px; border: 1px solid var(--of-border); color: var(--of-text-dim); background: transparent; }
+.of-vskills__tag[aria-pressed="true"] { background: var(--of-accent-soft); color: var(--of-text); border-color: var(--of-accent); }
+.of-vskill { display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; padding: 8px 0; border-top: 1px solid var(--of-border-soft); }
+.of-vskill:first-of-type { border-top: 0; }
+.of-vskill__name { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.of-vskill__name code { font-size: 12px; }
+.of-vskill small { display: block; color: var(--of-text-dim); font-size: 11.5px; line-height: 1.4; }
+.of-vskill__meta { color: var(--of-text-faint) !important; font-size: 10.5px !important; }
+.of-vskill__actions { display: flex; gap: 4px; align-items: center; align-self: start; flex-wrap: wrap; justify-content: flex-end; }
+.of-badge { display: inline-block; padding: 0 6px; font-size: 10px; line-height: 16px; border-radius: 999px; background: var(--of-hover); color: var(--of-text-dim); text-transform: uppercase; letter-spacing: 0.03em; }
+.of-badge.builtin { background: color-mix(in srgb, var(--of-accent) 14%, transparent); color: var(--of-text); }
+.of-badge.user { background: color-mix(in srgb, var(--of-ok) 16%, transparent); color: var(--of-text); }
+.of-badge.draft { background: color-mix(in srgb, var(--of-warn, #b45309) 18%, transparent); color: var(--of-text); }
+.of-skilledit { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.of-skilledit textarea { min-height: 320px; }
+.of-skilledit__preview { border: 1px solid var(--of-border-soft); border-radius: var(--of-radius); padding: 8px 10px; overflow: auto; max-height: 420px; font-size: 12.5px; background: var(--of-bg-raised); }
+.of-skilledit__issues { grid-column: 1 / -1; font-size: 12px; }
+.of-skilledit__issues li.err { color: var(--of-danger); }
+.of-skilledit__issues li.warn { color: var(--of-warn, #b45309); }
+@media (max-width: 900px) { .of-skilledit { grid-template-columns: 1fr; } }
+.of-skillform .of-vfield { margin: 8px 0; }
+.of-skillform label small { color: var(--of-text-dim); font-weight: 400; }
+
+/* ---- AI progress pill (every studio) */
+.of-aipill { position: fixed; left: 50%; bottom: calc(var(--of-status-h, 24px) + 12px); transform: translateX(-50%); z-index: 900; display: flex; align-items: center; gap: 2px; padding: 3px 3px 3px 4px; max-width: min(520px, calc(100vw - 32px)); border-radius: 999px; background: var(--of-bg-raised); border: 1px solid var(--of-border); box-shadow: var(--of-shadow); overflow: hidden; }
+.of-aipill.hidden { display: none; }
+.of-aipill.waiting { border-color: var(--of-warn, #b45309); }
+.of-aipill__open { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 4px 10px 4px 8px; border-radius: 999px; font-size: 12.5px; color: var(--of-text); }
+.of-aipill__open sl-icon { color: var(--of-accent); flex: none; }
+.of-aipill__open:hover { background: var(--of-hover); }
+.of-aipill__text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.of-aipill__stop { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 999px; color: var(--of-text-dim); }
+.of-aipill__stop:hover { color: var(--of-danger); background: var(--of-hover); }
+.of-aipill__bar { position: absolute; left: 14px; right: 14px; bottom: 0; height: 2px; border-radius: 2px; overflow: hidden; background: color-mix(in srgb, var(--of-accent) 14%, transparent); }
+.of-aipill__fill { display: block; height: 100%; width: 0; background: var(--of-accent); transition: width 0.3s ease; }
+.of-aipill__bar.indeterminate .of-aipill__fill { width: 30%; animation: of-aipill-slide 1.4s ease-in-out infinite; }
+@keyframes of-aipill-slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+.of-reduce-motion .of-aipill__bar.indeterminate .of-aipill__fill { animation: none; width: 100%; opacity: 0.5; }
+@media (prefers-reduced-motion: reduce) { .of-aipill__bar.indeterminate .of-aipill__fill { animation: none; width: 100%; opacity: 0.5; } .of-aipill__fill { transition: none; } }
