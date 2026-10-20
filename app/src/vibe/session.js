@@ -285,7 +285,16 @@ export class VibeSession extends Emitter {
   }
 
   async send(text, files = []) {
-    if (this.running) return;
+    if (this.running || this.starting) return;
+    this.starting = true; // set synchronously: the hub must not reuse this chat while send() is still preparing
+    try {
+      return await this.#send(text, files);
+    } finally {
+      this.starting = false;
+    }
+  }
+
+  async #send(text, files) {
     const app = this.app;
     const s = this.settings();
     const providerId = s.activeProvider || "demo";

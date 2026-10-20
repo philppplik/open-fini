@@ -33,6 +33,16 @@ test("two chats run at the same time on one document; edits are serialized and u
   assert.equal(layers(app).length, 0, "both runs undone");
 });
 
+test("a chat that is still preparing its request is never reused as the new chat", async () => {
+  const hub = new VibeHub(fakeApp());
+  const a = hub.newChat();
+  const run = a.send("hello");
+  const b = hub.newChat();
+  assert.notEqual(a, b);
+  assert.equal(hub.active, b);
+  await run;
+});
+
 test("background approvals queue in the session and never block other chats", async () => {
   const app = fakeApp();
   const hub = new VibeHub(app);

@@ -111,7 +111,7 @@ export class VibeHub extends Emitter {
   /** Starts a new chat (keeps running chats running). Reuses the active chat when it is still empty. */
   newChat() {
     const cur = this.active;
-    if (cur && !cur.running && !cur.chat.messages.length) {
+    if (cur && !cur.running && !cur.starting && !cur.chat.messages.length) {
       this.view.emit("chat");
       return cur;
     }

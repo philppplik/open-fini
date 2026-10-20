@@ -54,7 +54,8 @@ export function installAiPill(app, hub) {
       lastSpoken = spoken;
     }
   }
-  const schedule = () => (raf ||= requestAnimationFrame(paint));
+  // a timer, not requestAnimationFrame: the pill must also update while the window is in the background
+  const schedule = () => (raf ||= setTimeout(paint, 80));
 
   open.addEventListener("click", async () => {
     const list = tasks();

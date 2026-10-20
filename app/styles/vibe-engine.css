@@ -6,7 +6,7 @@
 .of-vlist__head strong { margin-right: auto; }
 .of-vlist__running { font-size: 11px; color: var(--of-text-dim); white-space: nowrap; }
 .of-vlist__running:empty { display: none; }
-.of-vlist__stopall { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: 11px; color: var(--of-danger); border: 1px solid color-mix(in srgb, var(--of-danger) 40%, transparent); background: transparent; }
+.of-vlist__stopall { white-space: nowrap; flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 999px; font-size: 11px; color: var(--of-danger); border: 1px solid color-mix(in srgb, var(--of-danger) 40%, transparent); background: transparent; }
 .of-vlist__stopall:hover { background: color-mix(in srgb, var(--of-danger) 12%, transparent); }
 .of-vlist__stopall:focus-visible, .of-aipill button:focus-visible, .of-tagent__head:focus-visible, .of-tagent__cancel:focus-visible, .of-skillsug button:focus-visible { outline: 2px solid var(--of-accent); outline-offset: 2px; }
 .of-vlist__row { align-items: center; }
