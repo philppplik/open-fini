@@ -154,3 +154,15 @@ Click into text to edit. Standard navigation applies (arrows, Home/End, `Mod`+ar
 select, double-click selects a word, triple-click a paragraph). `Mod+B`, `Mod+I`, `Mod+U` toggle bold,
 italic and underline; everything else is in the **Type** panel. Copy / paste keeps formatting inside
 OpenFini and falls back to plain text elsewhere. `Esc` leaves text editing.
+
+## Studio registry, the header and the More menu
+
+The studios are defined in `app/src/studios/registry.js`. A new studio is one call:
+`registerStudio({ id, label, icon, blurb, order, workspace?, document?, newDocument?, tools?, top?, bottom? })`
+(`systemIcon` uses a Shoelace icon instead of an `assets/icons` glyph). The header, More menu, Studio menu, `studio.<id>`
+commands, welcome cards, New document dialog and Alt+N shortcuts are all derived from it.
+
+The header shows at most **five** studios (preference `visibleStudios`, default Vector, Pixel, Layout, Code, Vibe). Every
+other registered studio is in the **More** menu; opening one from there shows it in place of the More label until you pick
+another studio. Choose and order the header studios in **Settings ▸ Studios** (drag or arrow buttons, at least one, never
+more than five). Alt+1 to Alt+N follow the header order. Planned studios (Office, video, motion, render) register the same way.

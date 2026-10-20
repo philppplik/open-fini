@@ -1,5 +1,6 @@
 // Registers every command with the app.
 import { registerEditCommands } from "./edit.js";
+import { registerStudioCommands } from "./studios.js";
 import { registerFileCommands } from "./file.js";
 import { registerPdfCommands } from "./pdf.js";
 import { registerPixelCommands } from "./pixel.js";
@@ -15,6 +16,7 @@ import { installAnts } from "../studios/tools/pixel-select.js";
 
 export function registerCommands(app) {
   registerEditCommands(app);
+  registerStudioCommands(app);
   registerFileCommands(app);
   registerPdfCommands(app);
   registerPixelCommands(app);

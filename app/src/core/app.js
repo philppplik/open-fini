@@ -7,6 +7,7 @@ import { solid } from "./nodes.js";
 import { log } from "./log.js";
 import { createNetwork } from "./network.js";
 import { isSafeMode } from "./bootguard.js";
+import { studioIds, hasStudio, resolveVisibleStudios, overflowStudios, DEFAULT_VISIBLE_STUDIOS } from "../studios/registry.js";
 
 const PREF_KEY = "openfini.prefs.v1";
 
@@ -27,6 +28,8 @@ const defaultPrefs = () => ({
   toursSeen: {}, // tour id → true
   whatsNewSeen: "", // version whose "What's new" was shown
   recentCommands: [], // command palette history (ids)
+  // studios shown in the header, in order (max 5; every other registered studio is in the More menu)
+  visibleStudios: [...DEFAULT_VISIBLE_STUDIOS],
   // general
   restoreSession: true,
   autosave: true,
@@ -68,7 +71,8 @@ function loadPrefs() {
   }
 }
 
-export const STUDIO_ORDER = ["vector", "pixel", "layout", "code", "vibe"];
+/** @deprecated Use app.visibleStudios; kept for extensions and old imports. */
+export const STUDIO_ORDER = [...DEFAULT_VISIBLE_STUDIOS];
 
 export class App extends Emitter {
   constructor() {
@@ -297,8 +301,20 @@ export class App extends Emitter {
 
   // ------------------------------------------------------------ studios & tools
 
+  /** Studios shown in the header (at most five, user order). */
+  get visibleStudios() {
+    return resolveVisibleStudios(this.prefs.visibleStudios, studioIds());
+  }
+  /** Registered studios that are not in the header: listed in the "More" menu. */
+  get moreStudios() {
+    return overflowStudios(this.visibleStudios, studioIds());
+  }
+  setVisibleStudios(list) {
+    this.setPref("visibleStudios", resolveVisibleStudios(list, studioIds()));
+  }
+
   setStudio(id) {
-    if (this.studio === id) return;
+    if (this.studio === id || !hasStudio(id)) return;
     this.studio = id;
     const cls = this.tool && this.toolClasses.get(this.tool.id);
     if (!cls || !this.studioHasTool(id, cls)) this.setTool(this.defaultToolFor(id));
@@ -351,6 +367,8 @@ export class App extends Emitter {
   // ------------------------------------------------------------ commands
 
   registerCommand(id, def) {
+    // A command id has exactly one owner; a second registration is a bug (it would silently replace the first).
+    if (this.commands.has(id)) log.warn("command", `Command ${id} is registered twice; the later definition wins.`);
     this.commands.set(id, { id, ...def });
   }
 
