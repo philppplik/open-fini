@@ -124,6 +124,14 @@ export async function addRecent({ name, bytes, path }) {
   return next;
 }
 
+/** Removes one entry (and its stored copy) from the recent list; returns the new list. */
+export async function removeRecent(id) {
+  const next = (await getRecents()).filter((r) => r.id !== id);
+  await kvDelete(`recent:${id}`);
+  await kvSet("recents", next);
+  return next;
+}
+
 export const getRecentBytes = (id) => kvGet(`recent:${id}`);
 
 /** Autosave session: every open document as .ofini bytes. */

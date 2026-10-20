@@ -5,6 +5,7 @@ import { BLEND_MODES } from "../../core/effects.js";
 import { reparent, setProp, topLevelSelection } from "../../core/ops.js";
 import { iconButton, selectField, sliderField } from "../controls.js";
 import { showContextMenu } from "../menus.js";
+import { openContextMenu } from "../context-menu/index.js";
 import { cssColor } from "../../core/color.js";
 
 const TYPE_ICON = {
@@ -125,7 +126,7 @@ export function createLayersPanel(app) {
     r.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       if (!app.isSelected(node)) app.select([node]);
-      app.emit("contextmenu", { x: e.clientX, y: e.clientY, layers: true });
+      openContextMenu(app, { kind: "layers-row", x: e.clientX, y: e.clientY, selection: app.selection, event: e, data: { node, rename: () => rename(node, name), layers: true } });
     });
     // drag and drop
     r.addEventListener("dragstart", (e) => {
