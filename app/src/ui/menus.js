@@ -190,7 +190,8 @@ export function createMenubar(app) {
       if (e.target !== dd) return;
       openDd = dd;
       for (const c of [...dd.children]) if (c.tagName === "SL-MENU") c.remove();
-      dd.append(buildMenu(app, app.extMenuItems ? m.items.concat(app.extMenuItems(m.label, app.studio)) : m.items));
+      const all = app.extMenuItems ? m.items.concat(app.extMenuItems(m.label, app.studio)) : m.items;
+      dd.append(buildMenu(app, app.customize ? app.customize.filterMenu(all) : all)); // hidden items: Settings > Toolbox and menus
     });
     dd.addEventListener("sl-after-hide", (e) => {
       if (e.target !== dd) return;
@@ -203,16 +204,18 @@ export function createMenubar(app) {
       }
     });
     dd.dataset.studios = m.studios ? m.studios.join(" ") : "";
+    dd.dataset.menu = m.label;
     dropdowns.push(dd);
     bar.append(dd);
   }
   const syncStudio = () => {
     for (const dd of dropdowns) {
       const list = dd.dataset.studios;
-      dd.classList.toggle("hidden", !!list && !list.split(" ").includes(app.studio));
+      dd.classList.toggle("hidden", (!!list && !list.split(" ").includes(app.studio)) || !!app.customize?.isMenuHidden(dd.dataset.menu));
     }
   };
   app.on("studio", syncStudio);
+  app.on("menuschanged", syncStudio);
   syncStudio();
   return bar;
 }

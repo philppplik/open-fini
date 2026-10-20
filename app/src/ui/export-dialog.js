@@ -22,7 +22,8 @@ const FORMATS = [
 
 export function exportDialog(app, preset = {}) {
   const doc = app.doc;
-  const st = { format: preset.format || "png", scope: "page", scale: 1, quality: 0.9, transparent: false, bleed: false, marks: false, rasterDpi: 200 };
+  const st = { format: preset.format || "png", scope: "page", scale: 1, quality: 0.9, transparent: false, bleed: false, marks: false, rasterDpi: 200, ...(app.prefs.exportDefaults || {}) }; // Settings > Defaults for new things
+  st.format = preset.format || st.format;
   const info = h("div.of-hint");
   const rasterBox = h("div.of-form");
   const pdfBox = h("div.of-form");
@@ -36,8 +37,8 @@ export function exportDialog(app, preset = {}) {
   ];
   const scope = selectField({ label: "Area", value: st.scope, options: scopeOpts, onChange: (v) => { st.scope = v; render(); } });
   const scale = segmented([0.5, 1, 2, 3, 4].map((v) => ({ value: v, label: `${v}×`, text: `${v}×` })), st.scale, (v) => { st.scale = v; render(); });
-  const quality = numField({ label: "Quality", value: 90, min: 1, max: 100, unit: "%", precision: 0, wide: true, onChange: (v) => (st.quality = v / 100) });
-  const transparent = switchField({ label: "Transparent background", value: false, onChange: (v) => { st.transparent = v; } });
+  const quality = numField({ label: "Quality", value: Math.round(st.quality * 100), min: 1, max: 100, unit: "%", precision: 0, wide: true, onChange: (v) => (st.quality = v / 100) });
+  const transparent = switchField({ label: "Transparent background", value: st.transparent, onChange: (v) => { st.transparent = v; } });
   const bleed = switchField({ label: "Include bleed", value: false, onChange: (v) => (st.bleed = v) });
   const marks = switchField({ label: "Crop marks", value: false, onChange: (v) => (st.marks = v) });
   const rdpi = numField({ label: "Effects resolution", value: 200, min: 72, max: 600, unit: "dpi", precision: 0, wide: true, onChange: (v) => (st.rasterDpi = v) });

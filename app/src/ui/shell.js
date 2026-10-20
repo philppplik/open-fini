@@ -11,6 +11,7 @@ import { iconButton } from "./controls.js";
 import { STUDIOS } from "../studios/index.js";
 import { STUDIO_ORDER } from "../core/app.js";
 import { applyAppearance } from "./appearance.js";
+import { mountQuickActions } from "./customize/quick-actions.js";
 import { newDocumentDialog, preferencesDialog, aboutDialog, shortcutsDialog, colorDialog } from "./dialogs.js";
 
 export function applyTheme(app) {
@@ -45,6 +46,9 @@ export function createShell(app, root) {
   const exportBtn = h("button.of-export-btn", { type: "button", "data-tip": "Export… (formats, slices, website)", "data-shortcut": "Mod+Shift+E", "aria-label": "Export" }, iconEl("box-arrow-up"), h("span", "Export"));
   exportBtn.addEventListener("click", () => app.run("file.export"));
   const header = h("header.of-header", brand, createMenubar(app), studioSwitch, h("div.of-header__actions", undo, redo, theme, exportBtn, dockToggle));
+
+  // which header buttons show, and in what order, is a setting (Settings > Toolbox and menus > Quick actions)
+  mountQuickActions(app, header.querySelector(".of-header__actions"), { undo, redo, theme, export: exportBtn, panels: dockToggle });
 
   const tabs = createDocTabs(app);
   const context = createContextBar(app);

@@ -44,9 +44,11 @@ export function createDock(app) {
 
   function render() {
     const s = STUDIOS[app.studio];
-    renderArea(topArea, s.top, "top");
-    renderArea(bottomArea, s.bottom, "bottom");
-    split.classList.toggle("hidden", !s.top.length || !s.bottom.length);
+    const vis = (ids) => (app.customize ? app.customize.visiblePanels(app.studio, ids) : ids); // hidden panels (Settings > Layout)
+    renderArea(topArea, vis(s.top), "top");
+    renderArea(bottomArea, vis(s.bottom), "bottom");
+    split.classList.toggle("hidden", !vis(s.top).length || !vis(s.bottom).length);
+    el.classList.toggle("of-dock--empty", !vis(s.top).length && !vis(s.bottom).length);
   }
 
   // vertical splitter between the two areas
@@ -67,6 +69,7 @@ export function createDock(app) {
   });
 
   app.on("studio", render);
+  app.on("layout", render);
   app.on("revealpanel", (id) => {
     const s = STUDIOS[app.studio];
     if (s.top.includes(id)) active.top = id;

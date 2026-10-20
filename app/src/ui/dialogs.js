@@ -136,6 +136,8 @@ const PRESETS = {
 
 export function newDocumentDialog(app, { studio = app.studio === "code" ? "vector" : app.studio } = {}) {
   const state = { studio, name: "Untitled", w: 1920, h: 1080, unit: "px", dpi: 96, pages: 1, bg: "#ffffff", transparent: false, bleed: 0, facing: false };
+  const dd = app.prefs.newDocDefaults?.[studio]; // Settings > Defaults for new things
+  if (dd) Object.assign(state, { w: dd.width ?? state.w, h: dd.height ?? state.h, unit: dd.unit ?? state.unit, dpi: dd.dpi ?? state.dpi, bg: dd.bg ?? state.bg, transparent: dd.transparent ?? state.transparent });
   const cats = Object.keys(PRESETS);
   let cat = studio === "layout" ? "Print" : studio === "pixel" ? "Photo" : "Screen";
   const grid = h("div.of-presets");

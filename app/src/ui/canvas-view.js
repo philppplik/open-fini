@@ -8,6 +8,7 @@ import { Viewport } from "../core/viewport.js";
 import { pageBoundsOf } from "../core/transform.js";
 import { localBounds, worldMatrix } from "../core/nodes.js";
 import { apply } from "../core/math.js";
+import { checkerConfig, overlayColors, cursorFor } from "../customize/canvas-style.js";
 
 const css = (name, fallback) => getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 
@@ -313,24 +314,29 @@ export class CanvasView {
   }
 
   #checker(ctx, x, y, w, h, dpr) {
-    if (!this.checker) {
+    const cfg = checkerConfig(this.app.prefs); // colors and square size are customizable (customize/canvas-style.js)
+    if (!cfg) return; // "solid": a plain white page
+    const key = `${cfg.a}|${cfg.b}|${cfg.size}|${dpr}`;
+    if (!this.checker || this.checkerKey !== key) {
+      const sq = Math.max(1, Math.round(cfg.size * dpr));
       const c = document.createElement("canvas");
-      c.width = c.height = 16;
+      c.width = c.height = sq * 2;
       const k = c.getContext("2d");
-      k.fillStyle = "#ffffff";
-      k.fillRect(0, 0, 16, 16);
-      k.fillStyle = "#d4d4d8";
-      k.fillRect(0, 0, 8, 8);
-      k.fillRect(8, 8, 8, 8);
+      k.fillStyle = cfg.a;
+      k.fillRect(0, 0, sq * 2, sq * 2);
+      k.fillStyle = cfg.b;
+      k.fillRect(0, 0, sq, sq);
+      k.fillRect(sq, sq, sq, sq);
       this.checker = ctx.createPattern(c, "repeat");
+      this.checkerKey = key;
     }
     ctx.save();
     ctx.beginPath();
     ctx.rect(x, y, w, h);
     ctx.clip();
-    ctx.setTransform(dpr * 0.75, 0, 0, dpr * 0.75, 0, 0);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = this.checker;
-    ctx.fillRect(x / (dpr * 0.75), y / (dpr * 0.75), w / (dpr * 0.75), h / (dpr * 0.75));
+    ctx.fillRect(x, y, w, h);
     ctx.restore();
   }
 
@@ -358,7 +364,7 @@ export class CanvasView {
     ctx.strokeStyle = "rgba(255,255,255,0.75)";
     for (const n of app.selection) this.#outlineNode(ctx, n);
     ctx.lineWidth = 1;
-    ctx.strokeStyle = css("--of-accent-strong", "#7a69f2");
+    ctx.strokeStyle = overlayColors(app.prefs, css("--of-accent-strong", "#7a69f2")).selection;
     for (const n of app.selection) this.#outlineNode(ctx, n);
     ctx.restore();
     app.tool?.overlay(ctx, view);
@@ -395,6 +401,7 @@ export class CanvasView {
   }
 
   #drawGrid(ctx, view) {
+    const oc = overlayColors(this.app.prefs);
     const doc = this.app.doc;
     const g = doc.settings.grid;
     if (!g?.visible) return;
@@ -412,7 +419,7 @@ export class CanvasView {
     for (let i = 0; i <= (sub > 1 ? 1 : 0); i++) {
       const s = i === 0 ? step : step / sub;
       if (s < 5) continue;
-      ctx.strokeStyle = i === 0 ? "rgba(120,130,255,0.35)" : "rgba(120,130,255,0.14)";
+      ctx.strokeStyle = i === 0 ? oc.gridMajor : oc.gridMinor;
       ctx.lineWidth = 1;
       ctx.beginPath();
       for (let x = ox; x <= x1; x += s) {
@@ -477,7 +484,7 @@ export class CanvasView {
         ctx.fillText(page.name, Math.round(ox), Math.round(oy) - 6);
       }
       if (showGuides) {
-        ctx.strokeStyle = "rgba(34,211,238,0.85)";
+        ctx.strokeStyle = overlayColors(this.app.prefs).guide;
         ctx.beginPath();
         for (const gx of page.guides.v) {
           const x = Math.round(ox + gx * view.zoom) + 0.5;
@@ -498,7 +505,7 @@ export class CanvasView {
   #drawGuidePreview(ctx, view) {
     const g = this.guideDrag;
     ctx.save();
-    ctx.strokeStyle = "rgba(34,211,238,0.95)";
+    ctx.strokeStyle = overlayColors(this.app.prefs).guidePreview;
     ctx.setLineDash([4, 3]);
     ctx.beginPath();
     const page = this.app.page;
@@ -654,11 +661,11 @@ export class CanvasView {
     let c = t?.cursor || "default";
     if (this.panning) c = "grabbing";
     else if (this.spaceDown) c = "grab";
-    this.stage.style.cursor = c;
+    this.stage.style.cursor = cursorFor(c, this.app.prefs.cursorSize);
   }
 
   setCursor(c) {
-    this.stage.style.cursor = c;
+    this.stage.style.cursor = cursorFor(c, this.app.prefs.cursorSize);
   }
 
   #capture(id) {
