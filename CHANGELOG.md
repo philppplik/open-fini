@@ -6,6 +6,14 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+**Branded installers and new app icon** (docs/installer.md)
+- **Windows installer:** custom NSIS wizard with an OpenFini sidebar and header, custom welcome and finish texts, the MIT license page, and a new *Windows integration* page (associate `.ofini` / `.ofext`, offer OpenFini under Open with for images, PDF and code files, optional desktop shortcut). Finish page can launch OpenFini and open the online quick-start guide. Still per user without an administrator prompt; the uninstaller keeps its optional "Delete the application data" checkbox.
+- **macOS DMG:** styled window with background, arrow and fixed icon positions.
+- Artwork is generated from SVG sources in `src-tauri/installer/` with `npm run installer:assets`.
+- App icon sources checked against the new `ofini-app-icon.png` (the mark is identical); added a light-tile alternative `app/icons/icon-light.svg`.
+
 ## [0.4.0] — Extensions, Git, tables and charts, PDF, themes
 
 ### Added
