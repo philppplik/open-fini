@@ -69,10 +69,10 @@ export function registerVibeContext(vs) {
     priority: 60,
     matches: (c) => c.kind === "vibe-tool-card",
     items: (c) => {
-      const { name, input, card } = c.data;
-      const result = card?.querySelector(".of-tool__result")?.innerText?.trim() || "";
+      const { name, input, toggle, isOpen, detail } = c.data;
+      const result = detail?.()?.innerText?.trim() || "";
       return [
-        { label: card?.classList.contains("open") ? "Collapse details" : "Expand details", icon: "arrows-expand", run: () => card?.classList.toggle("open") },
+        { label: isOpen?.() ? "Collapse details" : "Expand details", icon: "arrows-expand", run: () => toggle?.() },
         { label: "Copy tool input (JSON)", icon: "braces", run: () => copy(JSON.stringify(input ?? {}, null, 2), "Input copied.") },
         { label: "Copy tool result", icon: "clipboard", disabled: !result, run: () => copy(result, "Result copied.") },
         { label: "Copy tool name", icon: "wrench", run: () => copy(name, "Tool name copied.") },
