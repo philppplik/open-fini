@@ -6,6 +6,11 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+**Small improvements**
+- **Update checker** (Settings, About): "Check for updates" asks GitHub for the latest release, compares versions and offers the installer for your platform plus the release notes; optional automatic check once a day (off by default); honors offline mode. Nothing is installed automatically.
+- **Hidden layers** stay in the Layers panel (dimmed, with a highlighted eye) instead of disappearing, so they can be shown again.
+- **Header logo**: the white OpenFini mark on an accent-colored tile, in every theme (`app/icons/mark-white.svg`).
+
 ### Added
 
 **Customization everywhere** (docs/customization.md)

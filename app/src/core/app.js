@@ -52,6 +52,9 @@ const defaultPrefs = () => ({
   // security and AI
   confirmExternal: true,
   aiEnabled: false,
+  updateCheckAuto: false, // check GitHub for a newer release at start-up (once a day); off by default
+  updateLastCheck: 0,
+  updateSeenVersion: "",
   offlineMode: false, // network kill-switch (core/network.js)
   appLock: false, // mirror of the lock record; the lock itself is in storage (ui/app-lock.js)
   appLockIdleMinutes: 10, // 0 = never lock on idle
