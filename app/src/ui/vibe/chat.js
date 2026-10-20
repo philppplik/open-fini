@@ -5,6 +5,8 @@ import { iconEl } from "../toolbox.js";
 import { renderMarkdown } from "./markdown.js";
 import { vibeStore } from "../../vibe/store.js";
 import { showContextMenu } from "../menus.js";
+import { markContext } from "../context-menu/index.js";
+import { registerVibeContext } from "./context.js";
 
 const pretty = (name) => name.replace(/^mcp_/, "").replace(/__/g, " › ").replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 const TOOL_ICONS = { add_shape: "bounding-box", add_text: "fonts", add_path: "bezier2", import_svg: "filetype-svg", set_style: "palette", screenshot: "camera", generate_image: "stars", edit_image: "magic", write_file: "file-earmark-code", edit_file: "pencil-square", read_file: "file-earmark-text", create_website: "globe2", ask_user: "question-circle", update_plan: "list-check", search_knowledge: "search", remember: "bookmark-star", apply_adjustment: "sliders", new_document: "file-earmark-plus", insert_element: "plus-square", set_element_style: "palette2", use_skill: "mortarboard" };
@@ -44,11 +46,14 @@ export function createChat(vs) {
   // ------------------------------------------------------------ transcript
   let cur = null; // current assistant bubble { el, body, text }
   const tools = new Map();
+  let msgIndex = -1; // index in session.chat.messages of the message being rendered (-1: live, not stored yet)
+  registerVibeContext(vs);
 
   function assistantBubble() {
     if (cur) return cur;
     const body = h("div.of-vmsg__body");
     const el = h("div.of-vmsg.of-vmsg--assistant", h("div.of-vmsg__avatar", iconEl("of:vibe")), body);
+    markContext(el, "vibe-message", { role: "assistant", index: msgIndex, el });
     thread.append(el);
     cur = { el, body, text: "", textEl: null, thinking: null };
     return cur;
@@ -76,7 +81,8 @@ export function createChat(vs) {
       if (b.type === "text") body.append(h("div.of-vmsg__text", b.text.length > 1500 && b.text.startsWith("[Attached") ? h("em", `${b.text.split("\n")[0]}`) : b.text));
       else if (b.type === "image") body.append(h("img.of-vmsg__img", { src: `data:${b.mime};base64,${b.data}`, alt: "Attached image" }));
     }
-    thread.append(h("div.of-vmsg.of-vmsg--user", body));
+    const uel = markContext(h("div.of-vmsg.of-vmsg--user", body), "vibe-message", { role: "user", index: session.chat.messages.indexOf(msg), el: body });
+    thread.append(uel);
     toBottom();
   }
   function toolCard(id, name, input) {
@@ -85,6 +91,7 @@ export function createChat(vs) {
     const detail = h("div.of-tool__detail", h("pre", JSON.stringify(input ?? {}, null, 2)));
     const head = h("button.of-tool__head", { type: "button", "aria-expanded": "false" }, iconEl(TOOL_ICONS[name] || "wrench"), h("strong", pretty(name)), sum, status);
     const card = h("div.of-tool", { "data-tool": name }, head, detail);
+    markContext(card, "vibe-tool-card", { name, input, card });
     head.addEventListener("click", () => card.classList.toggle("open"));
     const b = assistantBubble();
     endText();
@@ -157,6 +164,7 @@ export function createChat(vs) {
     const results = new Map();
     for (const m of msgs) if (m.role === "user" && Array.isArray(m.content)) for (const b of m.content) if (b.type === "tool_result") results.set(b.toolUseId, b);
     for (const m of msgs) {
+      msgIndex = msgs.indexOf(m);
       if (m.role === "user") {
         if (Array.isArray(m.content) && m.content.every((b) => b.type === "tool_result")) continue;
         cur = null;
@@ -175,6 +183,7 @@ export function createChat(vs) {
       }
     }
     cur = null;
+    msgIndex = -1;
     stick = true;
     toBottom();
   }

@@ -6,6 +6,13 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+**Context menus and text tools** (docs/context-menus.md)
+- **One context menu service** (`app/src/ui/context-menu/`): menus are assembled from providers that match what was clicked (canvas, layers, tabs, explorer, history, assets, navigator, panels, status bar, rulers, recent files, text fields, code editor, Vibe messages and tool cards). Keyboard navigation, type-ahead, screen-reader roles, viewport-aware placement, a "last used" marker, touch long-press, and Shift + right-click for the browser menu in text fields. Extensions can contribute to `context:code`, `context:explorer`, `context:layers` and `context:text` besides `context:canvas`.
+- **Code editor Transform menu**: encode special characters (HTML named, decimal and hex entities, JS and JSON `\u`, CSS, percent, code points; three modes), decode them, Base64, URL, case, sort and join lines, trim, tabs and spaces, wrap, JSON prettify and minify, color converter and Unicode info. Every transform is one undo step and has a command palette entry.
+- **Vibe tools** `encode_text`, `decode_text`, `transform_file_text`; Vibe chat messages can be copied, retried, deleted and branched from the right-click menu.
+
 ## [0.4.0] — Extensions, Git, tables and charts, PDF, themes
 
 ### Added
