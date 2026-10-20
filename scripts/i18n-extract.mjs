@@ -23,7 +23,7 @@ export const LOCALE_DIR = join(SRC, "i18n", "locales");
 /** Files whose static tables are translated at render time: [path test, regex with the text in group 1 (double-quoted literal)]. */
 const STR = String.raw`"((?:[^"\\\n]|\\.)*)"`;
 export const IMPLICIT = [
-  { test: (p) => p === "ui/menus.js", re: new RegExp(String.raw`\blabel:\s*${STR}`, "g") },
+  { test: (p) => p === "ui/menus.js" || p === "studios/office.js", re: new RegExp(String.raw`\blabel:\s*${STR}`, "g") },
   { test: (p) => p.startsWith("commands/"), re: new RegExp(String.raw`\bdef\(\s*"[\w.\-]+"\s*,\s*${STR}`, "g") },
   // DOM helpers (i18n/dom.js) and icon buttons (their label is the tooltip and aria-label, translated by iconButton itself)
   { test: () => true, re: new RegExp(String.raw`\btspan\(\s*${STR}`, "g") },
@@ -95,13 +95,15 @@ export function extract(files = walk(SRC).map((f) => ({ path: f, text: readFileS
   for (const { path, text } of files) {
     const rel = relative(base, path).split(sep).join("/");
     if (rel.startsWith("i18n/")) continue;
-    for (const m of text.matchAll(CALL)) {
+    // Only files that import the i18n runtime call the real t(); other files may have a local helper named t.
+    const usesI18n = /from\s+["'][^"']*i18n\/index\.js["']/.test(text);
+    for (const m of usesI18n ? text.matchAll(CALL) : []) {
       const first = litValue(m[2]);
       if (m[2][0] === "`" && m[2].includes("${")) continue;
       if (m[3] !== undefined && m[1] === "t") add(first, litValue(m[3]), rel, text, m.index);
       else add(first, first, rel, text, m.index);
     }
-    for (const m of text.matchAll(DYN)) warnings.push(`${rel}:${text.slice(0, m.index).split("\n").length}: dynamic t() key cannot be extracted`);
+    for (const m of usesI18n ? text.matchAll(DYN) : []) warnings.push(`${rel}:${text.slice(0, m.index).split("\n").length}: dynamic t() key cannot be extracted`);
     for (const rule of IMPLICIT) {
       if (!rule.test(rel)) continue;
       for (const m of text.matchAll(rule.re)) {

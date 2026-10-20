@@ -9,7 +9,7 @@ import { LOCALES } from "../../app/src/i18n/locales.js";
 const { catalog } = extract();
 
 test("extractor finds t(), N_() and explicit ids in source text", () => {
-  const text = 'const a = t("Hello {n}", { n }); const b = t("menu.file", "File"); const c = N_("Static"); t(`dyn ${x}`);\nconst d = t("It\\u2019s");';
+  const text = 'import { t } from "../i18n/index.js";\nconst a = t("Hello {n}", { n }); const b = t("menu.file", "File"); const c = N_("Static"); t(`dyn ${x}`);\nconst d = t("It\\u2019s");';
   const r = extract([{ path: "/x/app/src/a.js", text }], "/x/app/src");
   assert.deepEqual(r.catalog, { "Hello {n}": "Hello {n}", "It’s": "It’s", "menu.file": "File", Static: "Static" });
   assert.equal(r.warnings.length, 1);
