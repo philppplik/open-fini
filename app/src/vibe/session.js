@@ -242,6 +242,7 @@ export class VibeSession extends Emitter {
       memory: vibeStore.memory.map((m) => m.text),
       mode: s.approval,
       extra: s.extraInstructions,
+      language: app.i18n?.locale(),
     });
 
     this.running = true;
