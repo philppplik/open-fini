@@ -26,7 +26,7 @@ export function consentDialog({ manifest, existing, warnings = [], source = {}, 
     const adds = [["command", c.commands], ["panel", c.panels], ["theme", c.themes], ["template", c.templates], ["file importer", c.importers], ["file exporter", c.exporters], ["Vibe tool", c.vibeTools], ["Vibe skill", c.vibeSkills], ["snippet", c.snippets]]
       .filter(([, l]) => l.length)
       .map(([n, l]) => `${l.length} ${n}${l.length === 1 ? "" : "s"}`);
-    const src = source.type === "url" ? `Downloaded from ${source.url}` : source.type === "unpacked" ? `Unpacked folder “${source.name}” (developer mode)` : source.type === "assistant" ? "Written by the Vibe assistant for you" : source.name ? `File ${source.name}` : "Local package";
+    const src = source.type === "url" ? `Downloaded from ${source.url}` : source.type === "unpacked" ? `Unpacked folder “${source.name}” (developer mode)` : source.type === "assistant" ? "Written by the Vibe assistant for you" : source.type === "bundled" ? "Ships with OpenFini (not installed by default)" : source.name ? `File ${source.name}` : "Local package";
     const body = h(
       "div.of-ext-consent",
       h("div.of-ext-consent__head", h("h3", manifest.name), h("small", `${manifest.id} · version ${manifest.version}`)),

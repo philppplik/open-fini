@@ -145,6 +145,14 @@ export async function build({
     },
   });
 
+  // Bundled extensions (data, not code of the app): the catalog and the packed .ofext files are served next to the
+  // app so the extension manager can offer them. Only for the real app source; never precached (see below).
+  if (root === join(projectRoot, "app") && (await exists(join(projectRoot, "extensions", "catalog.json")))) {
+    await mkdir(join(out, "extensions"), { recursive: true });
+    await cp(join(projectRoot, "extensions", "catalog.json"), join(out, "extensions", "catalog.json"));
+    if (await exists(join(projectRoot, "extensions", "packages"))) await cp(join(projectRoot, "extensions", "packages"), join(out, "extensions", "packages"), { recursive: true });
+  }
+
   // 2. Find what index.html references ----------------------------------------
   const indexPath = join(out, "index.html");
   const html = await readFile(indexPath, "utf8");
@@ -381,6 +389,7 @@ export async function build({
   const precacheExcluded = (rel) =>
     rel === "sw.js" ||
     rel === "build-info.json" ||
+    rel.startsWith("extensions/") || // bundled extensions are fetched on demand when the user installs one
     /\.map$/.test(rel) ||
     /^vendor\/(pdfjs|katex)\//.test(rel) || // large and on demand: the service worker caches them on first use
     /^(LICENSE|COPYING|NOTICE)/i.test(basename(rel)) ||
