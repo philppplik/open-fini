@@ -48,7 +48,8 @@ export function stage(dir) {
   const files = {};
   for (const [path, bytes] of Object.entries(all)) {
     if (path.startsWith("src/") || path.startsWith("tests/") || path === "build-manifest.mjs") continue;
-    files[path] = bytes;
+    // Line endings must not change the package (Windows checkouts may use CRLF): normalize text files to LF.
+    files[path] = /\.(js|json|html|css|md|svg|txt)$/i.test(path) ? enc.encode(dec.decode(bytes).replace(/\r\n/g, "\n")) : bytes;
   }
   const read = (p) => (all[p] ? dec.decode(all[p]) : null);
   const libFiles = Object.keys(all).filter((p) => /^src\/lib[^/]*\.js$/.test(p)).sort();

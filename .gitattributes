@@ -5,3 +5,4 @@
 *.ico binary
 *.icns binary
 app/vendor/** linguist-vendored
+*.ofext binary
