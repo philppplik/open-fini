@@ -64,6 +64,7 @@ tested against recorded protocol fixtures and fake servers.
   element inspection and insertion, class-based style edits with breakpoints, page meta, problem check.
 - **System and files**: `get_platform_info` (OS, desktop or browser, version, which file types OpenFini opens and how to
   make it the default) and `list_recent_files`, both read-only.
+- **Customization**: `get_settings`, `set_setting`, `list_shortcuts`, `set_shortcut` (approval), `export_profile` (settings and shortcuts only, never secrets; see [customization.md](customization.md)).
 - **Appearance and help**: `list_themes`, `set_theme` (theme, mode and accent of the interface), `start_tour` and
   `list_commands` (every command that can run now, with its shortcut; the assistant can tell you where things are but
   cannot run commands itself). The built-in skill `help-me-use-openfini` ties them together.
