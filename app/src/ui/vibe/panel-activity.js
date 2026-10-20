@@ -179,7 +179,7 @@ export function createActivityPanel(vs) {
     app.toast(ok ? "Log copied." : "Could not copy to the clipboard.", ok ? "success" : "warning", 1400);
   });
   clearBtn.addEventListener("click", () => timeline.clear());
-  // a chat can be undone only while its edits are on top of the document history (docs/adr/0007-vibe-hub.md)
+  // a chat can be undone only while its edits are on top of the document history (docs/adr/0008-vibe-hub.md)
 
   let off = timeline.onChange(schedule);
   session.on("runs", schedule);

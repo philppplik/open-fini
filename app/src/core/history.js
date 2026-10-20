@@ -12,7 +12,7 @@ export class History extends Emitter {
     this.limitEntries = limitEntries;
     this.bytes = 0;
     // Optional ambient tag stamped on every entry pushed while it is set (e.g. { chat, run } of the Vibe chat that
-    // holds the document write lock). Entries with different tags never coalesce. See docs/adr/0007-vibe-hub.md.
+    // holds the document write lock). Entries with different tags never coalesce. See docs/adr/0008-vibe-hub.md.
     this.tag = null;
   }
 

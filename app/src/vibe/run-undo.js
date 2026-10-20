@@ -4,9 +4,9 @@
 // entries a run created carry its run id (sub-agents use their parent's run id). "Undo this run" then means: undo the
 // applied entries tagged with that run. Because History is a linear stack, this is only correct while those entries
 // are on TOP of the stack. If another chat (or the user) edited the document afterwards, undoing would also revert
-// (or reorder) their work, so we refuse and explain instead of guessing. See docs/adr/0007-vibe-hub.md.
+// (or reorder) their work, so we refuse and explain instead of guessing. See docs/adr/0008-vibe-hub.md.
 //
-// Public API: runSteps(history, runId), undoRunCheck(history, runId), undoRun(doc, runId), mergeTagged(...)
+// Public API: runSteps(history, runId), undoRunCheck(history, runId), undoRun(doc, runId)
 
 /** Number of applied entries of `runId` that are still in the history. */
 export function runSteps(history, runId) {

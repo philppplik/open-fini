@@ -13,6 +13,14 @@ All notable changes to OpenFini are documented here. The format follows
 
 ### Added
 
+**Vibe engine: concurrent chats, sub-agents, power tools, skills v2** (docs/vibe-studio.md, docs/vibe-skills.md, ADR 0008)
+- **Several chats at once:** chats keep running in the background with status badges (running, needs approval, done, failed), a "Stop all" kill switch, per-chat model and approval mode, queued approvals that never steal focus, a fair document write lock and per-run undo that stays correct (or explains why not) when chats share a document.
+- **Sub-agents:** `spawn_agent`, `wait_agent`, `list_agents`, `cancel_agent` delegate focused tasks to parallel child runs with restricted tools, budgets and a depth limit; live nested cards with cancel; optional cheaper sub-agent model.
+- **Power tools:** `run_plan` (many calls in one turn with step references, one approval, one undo), `query_layers`, `describe_page` / `describe_selection` (compact scene text, revision cache), `apply_to_many`, `evaluate` (sandboxed JS), `screenshot_layers`, `compare_screenshots`, `grid_layout`, `distribute_layers`, `snap_layers`, `make_component`.
+- **Attachments:** `list_attachments` and `open_attachment` open a file attached in the chat as a new document.
+- **Skills v2:** parameters with a form, composition (`requires`), reference files, triggers with a "Use skill X?" chip, optional enforced tool restrictions, versions, studio filters, usage stats, editor with live preview and validation, `.skill.md` / `.skillpack` import and export, Demo test runs, "Create from this chat" (`create_skill` drafts) and 16 new built-in workflow skills.
+- **AI progress pill:** a floating "AI is …" status with progress, Stop and open-chat in every studio.
+
 **Pop-out windows and recent files** (docs/multi-window.md)
 - **Pop-out windows:** move or copy a document tab, or open a studio, in its own window (tab and studio-button right-click, File ▸ New Window, Detach Current Studio, Return to Main Window). Documents are handed over through IndexedDB and a BroadcastChannel; the source closes its copy only after the new window confirmed. Preferences stay in sync across windows. Desktop uses real Tauri windows; the browser uses a popup window.
 - **Recent files:** Clear recent on the start page with a 6-second Undo, a remove button per entry, File ▸ Open Recent ▸ Clear Recent, and settings for showing the list and how many files to remember (0-50).
