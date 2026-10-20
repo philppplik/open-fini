@@ -8,6 +8,9 @@ All notable changes to OpenFini are documented here. The format follows
 
 ### Added
 
+**Pop-out windows and recent files** (docs/multi-window.md)
+- **Pop-out windows:** move or copy a document tab, or open a studio, in its own window (tab and studio-button right-click, File ▸ New Window, Detach Current Studio, Return to Main Window). Documents are handed over through IndexedDB and a BroadcastChannel; the source closes its copy only after the new window confirmed. Preferences stay in sync across windows. Desktop uses real Tauri windows; the browser uses a popup window.
+- **Recent files:** Clear recent on the start page with a 6-second Undo, a remove button per entry, File ▸ Open Recent ▸ Clear Recent, and settings for showing the list and how many files to remember (0-50).
 **Customization everywhere** (docs/customization.md)
 - **Keyboard shortcut editor:** click to record, conflict detection (swap / unassign / use for both), two shortcuts per command, search and filters, reset one or all, import / export JSON, presets Default, Classic, Compact and Editor-style. Menus, tooltips and the palette show the effective shortcut.
 - **Toolbox and menus:** show, hide, reorder and ungroup tools per studio, hide menus and menu items, choose the header's quick actions. Hidden tools stay in the command palette ("Tool: …").

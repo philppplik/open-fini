@@ -35,6 +35,8 @@ const defaultPrefs = () => ({
   restoreSession: true,
   autosave: true,
   autosaveSeconds: 4,
+  showRecent: true, // recent files on the start page
+  recentLimit: 12, // recent files remembered (0-50)
   confirmClose: true,
   // canvas and performance
   lowPower: "auto", // auto | on | off

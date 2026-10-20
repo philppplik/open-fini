@@ -2,6 +2,7 @@
 import { platform } from "./platform/index.js";
 import { registerServiceWorker } from "./platform/pwa.js";
 import { log } from "./core/log.js";
+import { parsePopoutParams } from "./platform/popout.js";
 import { hasStudio } from "./studios/registry.js";
 
 export async function boot(app) {
@@ -17,7 +18,11 @@ export async function boot(app) {
   }
   if (app.safeMode) import("./ui/error-indicator.js").then((m) => m.installSafeBanner(app));
   const studio = params.get("studio");
-  if (studio && hasStudio(studio)) app.setStudio(studio);
+  const popout = parsePopoutParams(location.search);
+  const windowing = await import("./ui/popout.js"); // pop-out windows, document handoff, shared prefs (docs/multi-window.md)
+  windowing.installWindowing(app);
+  if (popout) await windowing.bootPopout(app, popout);
+  else if (studio && hasStudio(studio)) app.setStudio(studio);
   if (studio === "export") app.run("file.export"); // legacy launcher shortcut: Export is a popup now
 
   // returning from "Sign in with OpenRouter"
@@ -55,6 +60,7 @@ export async function boot(app) {
   }
 
   if (!app.docs.length && !params.has("fresh") && app.prefs.restoreSession !== false && !app.safeMode) await app.restoreSession?.();
+  if (!popout) windowing.recoverPopouts(app).catch(() => {});
 
   platform.setTitle?.("OpenFini");
   if (!platform.isDesktop && "serviceWorker" in navigator && location.protocol.startsWith("http") && location.hostname !== "localhost" && !app.safeMode && app.network.allowed("update")) {

@@ -7,7 +7,7 @@ const DESIGN = ["vector", "pixel", "layout"];
 export const MENUS = [
   {
     label: "File",
-    items: ["file.new", "file.open", "file.openFolder", { label: "Open Recent", dynamic: "recent" }, "-", "file.save", "file.saveAs", "file.saveAll", "-", "file.export", { label: "Quick Export", items: ["file.exportPNG", "file.exportJPG", "file.exportWEBP", "file.exportSVG", "file.exportPDF"] }, "-", "file.place", "file.insertPdf", "file.extractPages", "file.importReport", "file.docSetup", "-", "file.close"],
+    items: ["file.new", "window.new", "file.open", "file.openFolder", { label: "Open Recent", dynamic: "recent" }, "-", "file.save", "file.saveAs", "file.saveAll", "-", "file.export", { label: "Quick Export", items: ["file.exportPNG", "file.exportJPG", "file.exportWEBP", "file.exportSVG", "file.exportPDF"] }, "-", "file.place", "file.insertPdf", "file.extractPages", "file.importReport", "file.docSetup", "-", "window.popoutStudio", "window.returnToMain", "-", "file.close"],
   },
   {
     label: "Edit",
@@ -53,7 +53,7 @@ export const MENUS = [
   {
     label: "View",
     studios: DESIGN,
-    items: ["view.zoomIn", "view.zoomOut", "view.zoom100", "view.fit", "view.fitAll", "view.fitSelection", "-", "view.rulers", "view.grid", "view.guides", "view.snapping", "view.snapGrid", "view.clipContent", "-", "view.clipShadows", "view.clipHighlights", "-", "view.theme", "view.lowPower"],
+    items: ["view.zoomIn", "view.zoomOut", "view.zoom100", "view.fit", "view.fitAll", "view.fitSelection", "-", "view.rulers", "view.grid", "view.guides", "view.snapping", "view.snapGrid", "view.clipContent", "-", "view.clipShadows", "view.clipHighlights", "-", "view.theme", "view.lowPower", "-", "window.popoutStudio"],
   },
   // ---- Code studio
   {

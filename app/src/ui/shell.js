@@ -8,6 +8,7 @@ import { createContextBar } from "./contextbar.js";
 import { createDock } from "./dock.js";
 import { createStatusBar } from "./statusbar.js";
 import { createDocTabs } from "./tabs.js";
+import { visibleRecents } from "../core/recents.js";
 import { iconButton } from "./controls.js";
 import { STUDIOS, listStudios, onStudioRegistered, studioIconSpec } from "../studios/registry.js";
 import { createStudioBar } from "./studio-bar.js";
@@ -220,10 +221,25 @@ function createWelcome(app) {
       h("p.of-hint", "Tip: drop an image or SVG anywhere to start. Everything stays on your device."),
     ),
   );
-  app.on("recents", (list) => {
+  // recent files: Clear recent (with Undo, command file.clearRecent) and a remove button per entry
+  let recents = [];
+  const renderRecent = () => {
     recent.replaceChildren();
-    if (!list?.length) return;
-    recent.append(h("h3", "Recent"), ...list.slice(0, 6).map((r) => markContext(h("button.of-welcome__recent-item", { type: "button", onclick: () => app.run("file.openRecent", r) }, h("sl-icon", { name: "file-earmark-image" }), h("span", r.name), h("small", new Date(r.time).toLocaleDateString("en-US"))), "welcome-recent", { recent: r })));
+    const list = visibleRecents(recents, app.prefs.showRecent);
+    if (!list.length) return;
+    const clear = h("button.of-welcome__clear", { type: "button", onclick: () => app.run("file.clearRecent") }, "Clear recent");
+    const row = (r) => {
+      const open = h("button.of-welcome__recent-item", { type: "button", onclick: () => app.run("file.openRecent", r) }, h("sl-icon", { name: "file-earmark-image" }), h("span", r.name), h("small", new Date(r.time).toLocaleDateString("en-US")));
+      const x = h("button.of-welcome__recent-x", { type: "button", "aria-label": `Remove ${r.name} from recent files`, title: "Remove from recent files" }, h("sl-icon", { name: "x-lg" }));
+      x.addEventListener("click", async () => app.emit("recents", await (await import("../core/storage.js")).removeRecent(r.id)));
+      return markContext(h("div.of-welcome__recent-row", open, x), "welcome-recent", { recent: r });
+    };
+    recent.append(h("div.of-welcome__recent-head", h("h3", "Recent"), clear), ...list.map(row));
+  };
+  app.on("recents", (list) => {
+    recents = list || [];
+    renderRecent();
   });
+  app.on("prefs", (k) => (k === "showRecent" || k === "*") && renderRecent());
   return { el };
 }
