@@ -13,6 +13,14 @@ All notable changes to OpenFini are documented here. The format follows
 - **macOS DMG:** styled window with background, arrow and fixed icon positions.
 - Artwork is generated from SVG sources in `src-tauri/installer/` with `npm run installer:assets`.
 - **New app icon:** near-black mark on an off-white tile (desktop, PWA, maskable, apple-touch, favicon and document icons); installer artwork follows. The Windows installer picks English or German from the Windows display language.
+**Vibe Studio UI polish** (docs/vibe-studio.md)
+- Redesigned tool cards (compact line, collapsible JSON, image thumbnails, groups, inline approvals), text shimmer for running work, collapsible thinking blocks with elapsed time, follow-the-bottom auto-scroll with a "Jump to latest" pill, message copy and retry, slimmer themed scrollbars.
+- **Activity tab is a real run log:** plan, tool calls with timing, approvals, errors, tokens, filters, per-run undo order, click-to-reveal, copy and clear.
+- The OpenFini mark replaces the generic icon in the assistant avatar, empty state and send button.
+
+### Fixed
+
+- Vibe tool cards were broken by a class name clash with the toolbox styles; the side panel no longer covers the composer on windows up to 1180 px wide; the Canvas panel no longer prints "null" or a broken image.
 
 ## [0.4.0] — Extensions, Git, tables and charts, PDF, themes
 
