@@ -68,7 +68,7 @@ function loadPrefs() {
   }
 }
 
-export const STUDIO_ORDER = ["vector", "pixel", "layout", "code", "vibe"];
+export const STUDIO_ORDER = ["vector", "pixel", "layout", "code", "vibe", "office"];
 
 export class App extends Emitter {
   constructor() {

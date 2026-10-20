@@ -257,6 +257,8 @@ export function normalizeDoc(input) {
     if (b.type === "paragraph") blocks.push(normParagraph(b, ctx));
     else if (b.type === "table") {
       const t = normTable(b, ctx);
+      // two tables in a row would merge into one in Word: keep an empty paragraph between them
+      if (t && blocks[blocks.length - 1]?.type === "table") blocks.push(para(""));
       if (t) blocks.push(t);
     } else if (b.type === "pageBreak" || b.type === "rule") blocks.push({ type: b.type });
   }
@@ -759,6 +761,9 @@ export function insertBlocksAt(doc, pos, blocks) {
 function ensureTrailingParagraph(doc, after) {
   let blocks = doc.blocks;
   if (!blocks.length || blocks[blocks.length - 1].type !== "paragraph") blocks = [...blocks, para("")];
+  if (blocks.some((b, k) => k && b.type === "table" && blocks[k - 1].type === "table")) {
+    blocks = blocks.flatMap((b, k) => (k && b.type === "table" && blocks[k - 1].type === "table" ? [para(""), b] : [b]));
+  }
   doc = { ...doc, blocks };
   // caret goes into the first paragraph at or after `after`
   let k = Math.min(after, blocks.length - 1);
@@ -768,6 +773,27 @@ function ensureTrailingParagraph(doc, after) {
 }
 
 // ------------------------------------------------------------------------------------------------ queries
+
+/** Label of a list item: bullets per level, or 1. / a. / i. numbering by level. */
+const ROMAN = [["m", 1000], ["cm", 900], ["d", 500], ["cd", 400], ["c", 100], ["xc", 90], ["l", 50], ["xl", 40], ["x", 10], ["ix", 9], ["v", 5], ["iv", 4], ["i", 1]];
+export function listLabel(kind, level, n) {
+  if (kind === "bullet") return ["•", "◦", "▪"][level % 3];
+  const k = level % 3;
+  if (k === 1) {
+    let s = "";
+    for (let v = n; v > 0; v = Math.floor((v - 1) / 26)) s = String.fromCharCode(97 + ((v - 1) % 26)) + s;
+    return `${s}.`;
+  }
+  if (k === 2) {
+    let s = "";
+    let v = n;
+    for (const [r, val] of ROMAN) while (v >= val) (s += r), (v -= val);
+    return `${s}.`;
+  }
+  return `${n}.`;
+}
+
+
 
 /** Headings for the outline / navigation panel. */
 export function outline(doc) {

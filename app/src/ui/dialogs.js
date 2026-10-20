@@ -159,9 +159,15 @@ export function newDocumentDialog(app, { studio = app.studio === "code" ? "vecto
   const bg = colorField({ value: "#ffffff", alpha: false, label: "Background", onChange: (c) => (state.bg = c) });
   const transparent = switchField({ label: "Transparent background", value: false, onChange: (v) => (state.transparent = v) });
   const studioSeg = segmented(
-    ["vector", "pixel", "layout", "code"].map((id) => ({ value: id, label: `${STUDIOS[id].label} studio — ${STUDIOS[id].blurb}`, text: STUDIOS[id].label })),
+    ["vector", "pixel", "layout", "code", "office"].map((id) => ({ value: id, label: `${STUDIOS[id].label} studio — ${STUDIOS[id].blurb}`, text: id === "office" ? "Document" : STUDIOS[id].label })),
     state.studio,
     (v) => {
+      if (v === "office") {
+        // text documents start from page presets and templates (ui/office/dialogs.js)
+        dialogRef?.close();
+        import("./office/dialogs.js").then((m) => m.newOfficeDocumentDialog(app));
+        return;
+      }
       if (v === "code") {
         // websites start from a template gallery instead of a canvas size
         dialogRef?.close();

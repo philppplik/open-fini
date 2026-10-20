@@ -6,30 +6,14 @@
 // as "?"), table rows do not split across pages, footnotes are printed as endnotes, links are not clickable.
 import { layoutStory, approxMeasurer } from "../layout/text-layout.js";
 import { createPDF } from "../backends/pdf.js";
-import { normalizeDoc, effectivePara, effectiveRun, tableGrid, isText, headingLevel } from "./model.js";
+import { normalizeDoc, effectivePara, effectiveRun, tableGrid, isText, headingLevel, listLabel } from "./model.js";
+
+export { listLabel };
 import { imageSize } from "./media.js";
 
 const BLACK = (c) => ({ type: "solid", color: c || "#000000", alpha: 1 });
 const IDENT = [1, 0, 0, 1, 0, 0];
 const rect = (x, y, w, h) => [["M", x, y], ["L", x + w, y], ["L", x + w, y + h], ["L", x, y + h], ["Z"]];
-const ROMAN = [["m", 1000], ["cm", 900], ["d", 500], ["cd", 400], ["c", 100], ["xc", 90], ["l", 50], ["xl", 40], ["x", 10], ["ix", 9], ["v", 5], ["iv", 4], ["i", 1]];
-export function listLabel(kind, level, n) {
-  if (kind === "bullet") return ["•", "◦", "▪"][level % 3];
-  const k = level % 3;
-  if (k === 1) {
-    let s = "";
-    for (let v = n; v > 0; v = Math.floor((v - 1) / 26)) s = String.fromCharCode(97 + ((v - 1) % 26)) + s;
-    return `${s}.`;
-  }
-  if (k === 2) {
-    let s = "";
-    let v = n;
-    for (const [r, val] of ROMAN) while (v >= val) (s += r), (v -= val);
-    return `${s}.`;
-  }
-  return `${n}.`;
-}
-
 /**
  * Lays the document out on pages.
  * @param {object} input office model

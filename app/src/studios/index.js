@@ -81,6 +81,11 @@ export const STUDIOS = {
   },
 };
 
+// ---- Office Studio registration (one block; see studios/office.js) -----------------------------------------------
+import { OFFICE_STUDIO } from "./office.js";
+STUDIOS.office = OFFICE_STUDIO;
+// ---- end Office Studio registration ----------------------------------------------------------------------------
+
 export function registerAllTools(app) {
   for (const C of CORE_TOOLS) app.registerTool(C);
   for (const set of TOOL_SETS) for (const C of set) app.registerTool(C);

@@ -84,6 +84,18 @@ export function createShell(app, root) {
   }
   app.on("studio", syncVibe);
 
+  // Office Studio (word processor, ui/office/) is also loaded on first use
+  const officeArea = h("div.of-officearea");
+  canvasArea.append(officeArea);
+  const syncOffice = () => {
+    if (app.studio !== "office" && !app.officeUI) return;
+    import("./office/workspace.js").then((m) => m.syncOffice(app, officeArea)).catch((err) => {
+      console.error(err);
+      app.toast(`Office Studio could not be loaded: ${err.message}`, "danger", 6000);
+    });
+  };
+  for (const ev of ["studio", "doc", "docs"]) app.on(ev, syncOffice);
+
   let codeModule = null;
   let mountedCode = null;
   async function syncCode() {
@@ -170,6 +182,7 @@ export function createShell(app, root) {
       case "new":
         if (d.studio === "vibe") return app.setStudio("vibe");
         if ((d.studio || app.studio) === "code") return import("./code/start.js").then((m) => m.newWebsiteDialog(app));
+        if ((d.studio || app.studio) === "office") return import("./office/dialogs.js").then((m) => m.newOfficeDocumentDialog(app));
         return newDocumentDialog(app, d);
       case "preferences":
         return preferencesDialog(app, d.section);
@@ -222,7 +235,7 @@ function createWelcome(app) {
       h("img", { src: "./icons/icon.svg", alt: "", width: 84, height: 84 }),
       h("h1", "OpenFini"),
       h("p", "Design, code and publish — in one lightweight app."),
-      h("div.of-welcome__cards", card("vector", "Curves, shapes, type and effects"), card("pixel", "Photo editing, painting and retouching"), card("layout", "Pages, text flow, styles and print"), card("code", "HTML, CSS and JavaScript with a visual designer"), card("vibe", "Describe it — an AI builds it for you")),
+      h("div.of-welcome__cards", card("vector", "Curves, shapes, type and effects"), card("pixel", "Photo editing, painting and retouching"), card("layout", "Pages, text flow, styles and print"), card("code", "HTML, CSS and JavaScript with a visual designer"), card("vibe", "Describe it — an AI builds it for you"), card("office", "Write, format and export Word documents")),
       h("div.of-welcome__actions",
         h("sl-button", { variant: "primary", onclick: () => app.run("file.new") }, h("sl-icon", { slot: "prefix", name: "plus-lg" }), "New Document"),
         h("sl-button", { onclick: () => app.run("file.open") }, h("sl-icon", { slot: "prefix", name: "folder2-open" }), "Open…")),

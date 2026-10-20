@@ -1,5 +1,6 @@
 // Menubar and context menus, rendered from the command registry with Shoelace menus.
 import { h, prettyShortcut, empty } from "../core/util.js";
+import { OFFICE_MENUS } from "../studios/office.js";
 
 const DESIGN = ["vector", "pixel", "layout"];
 
@@ -86,7 +87,8 @@ export const MENUS = [
     studios: ["vibe"],
     items: ["vibe.tabCanvas", "vibe.tabActivity", "vibe.tabModels", "vibe.tabTools", "vibe.tabSkills", "vibe.tabKnowledge", "-", "view.theme"],
   },
-  { label: "Studio", items: ["studio.vector", "studio.pixel", "studio.layout", "studio.code", "studio.vibe", "-", "ext.manage", { label: "Extension Commands", dynamic: "extCommands" }] },
+  ...OFFICE_MENUS,
+  { label: "Studio", items: ["studio.vector", "studio.pixel", "studio.layout", "studio.code", "studio.vibe", "studio.office", "-", "ext.manage", { label: "Extension Commands", dynamic: "extCommands" }] },
   { label: "Help", items: ["help.palette", "help.tour", "help.studioTour", "help.whatsThis", "-", "help.shortcuts", "help.whatsNew", "help.docs", "help.issues", "help.troubleshoot", "help.security", "-", "help.about"] },
 ];
 

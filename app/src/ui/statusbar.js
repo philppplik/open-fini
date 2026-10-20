@@ -36,6 +36,11 @@ export function createStatusBar(app) {
       perf.textContent = app.perf.low ? "Low-power" : "";
       return;
     }
+    if (app.studio === "office") {
+      info.textContent = app.officeUI?.statusText?.() || "Office Studio";
+      perf.textContent = app.perf.low ? "Low-power" : "";
+      return;
+    }
     if (app.studio === "code") {
       info.textContent = app.codeUI?.doc === app.doc ? app.codeUI.statusText() : "Code studio";
       perf.textContent = app.perf.low ? "Low-power" : "";
@@ -53,7 +58,7 @@ export function createStatusBar(app) {
     info.textContent = p ? `${STUDIOS[app.studio].label} · ${p.name} · ${Math.round(p.w)} × ${Math.round(p.h)} px · ${app.doc.pages.length} page${app.doc.pages.length > 1 ? "s" : ""}` : "";
     perf.textContent = app.perf.low ? "Low-power" : "";
   }
-  for (const ev of ["view", "doc", "page", "studio", "prefs", "docchange", "codestatus", "codeui"]) app.on(ev, update);
+  for (const ev of ["view", "doc", "page", "studio", "prefs", "docchange", "codestatus", "codeui", "officestatus"]) app.on(ev, update);
   // hint for the current tool
   app.on("tool", () => {
     const C = app.toolClasses.get(app.tool?.id);

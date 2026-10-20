@@ -140,7 +140,7 @@ export function registerEditCommands(app) {
   def("view.theme", "Toggle Light / Dark", (a) => a.setPref("theme", a.prefs.theme === "dark" ? "light" : "dark"));
   def("view.lowPower", "Low-power Mode", (a) => a.setPref("lowPower", a.perf.low ? "off" : "on"), { checked: (a) => a.perf.low });
 
-  for (const [i, id] of ["vector", "pixel", "layout", "code", "vibe"].entries()) {
+  for (const [i, id] of ["vector", "pixel", "layout", "code", "vibe", "office"].entries()) {
     def(`studio.${id}`, `${id[0].toUpperCase()}${id.slice(1)} Studio`, (a) => a.setStudio(id), { shortcut: `Alt+${i + 1}`, checked: (a) => a.studio === id });
   }
 }
