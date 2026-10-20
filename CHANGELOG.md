@@ -8,6 +8,13 @@ All notable changes to OpenFini are documented here. The format follows
 
 ### Added
 
+**More native file formats** (docs/file-format-research.md, docs/file-compat.md)
+- Research with sources and a legal / technical verdict per format (Affinity, Adobe, Figma, Krita, GIMP, TIFF, HEIC, fonts, palettes ...). Affinity (including the new single-app `.af`), InDesign, Figma and XD stay export routes; the guidance dialogs have updated steps and link to the research.
+- Open **TIFF** (multi-page, LZW / PackBits / Deflate, 1 to 16 bit, CMYK), **animated GIF** (frames as layers), **OpenRaster** (read and write with layers and blend modes), **Krita** (flattened), **ICO / CUR**, and the preview image of DOS **EPS** files, each with an import report.
+- Color palettes: import and export **GPL, ASE and ACO** through File > Swatches.
+- Fonts: WOFF is unwrapped, TrueType collections (.ttc) are split, WOFF2 works on screen (PDF export falls back).
+- Vibe tools `list_supported_formats`, `import_palette_from_text`, `export_palette`.
+
 **Customization everywhere** (docs/customization.md)
 - **Keyboard shortcut editor:** click to record, conflict detection (swap / unassign / use for both), two shortcuts per command, search and filters, reset one or all, import / export JSON, presets Default, Classic, Compact and Editor-style. Menus, tooltips and the palette show the effective shortcut.
 - **Toolbox and menus:** show, hide, reorder and ungroup tools per studio, hide menus and menu items, choose the header's quick actions. Hidden tools stay in the command palette ("Tool: …").
