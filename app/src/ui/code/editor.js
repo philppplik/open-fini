@@ -7,7 +7,8 @@ import { languageOf, parseHtml, parseCss, formatCss, resolveRef, dirname } from 
 import { expandHtml, expandCss, abbreviationBefore } from "../../engine/web/emmet.js";
 import { tailwindClasses, BOOTSTRAP_CLASSES, TAILWIND_VARIANTS, splitVariant, attributeOptions, htmxValues } from "../../engine/web/index.js";
 import { fileIcon, fuzzyScore, trimmedChange } from "./util.js";
-import { showContextMenu } from "../menus.js";
+import { markContext } from "../context-menu/index.js";
+import { registerCodeContext, openEditorMenu } from "./context.js";
 
 const SNIPPETS_HTML = [
   { label: "html5", detail: "HTML document", template: `<!doctype html>\n<html lang="en-US">\n  <head>\n    <meta charset="utf-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1" />\n    <title>\${Title}</title>\n    <link rel="stylesheet" href="css/style.css" />\n  </head>\n  <body>\n    \${}\n    <script src="js/main.js"></script>\n  </body>\n</html>\n` },
@@ -97,6 +98,7 @@ export class CodeEditors extends Emitter {
       if (ev.kind === "remove") for (const p of ev.paths) this.close(p, true);
       else if (ev.kind === "rename") for (const [from, to] of ev.pairs) this.#renamed(from, to);
     });
+    registerCodeContext(this);
     this.#renderTabs();
   }
 
@@ -160,29 +162,10 @@ export class CodeEditors extends Emitter {
       }),
       CM.EditorView.domEventHandlers({
         contextmenu(e, view) {
+          // Shift + right-click keeps the browser's own menu
+          if (e.shiftKey) return false;
           e.preventDefault();
-          const sel = view.state.selection.main;
-          const has = !sel.empty;
-          const items = [
-            { label: "Cut", icon: "scissors", disabled: !has, run: () => (view.focus(), document.execCommand("cut")) },
-            { label: "Copy", icon: "clipboard", disabled: !has, run: () => (view.focus(), document.execCommand("copy")) },
-            { label: "Paste", icon: "clipboard-plus", run: async () => { const t = await navigator.clipboard.readText().catch(() => ""); if (t) view.dispatch(view.state.replaceSelection(t)); } },
-            { label: "Select all", run: () => CM.selectAll(view) },
-            "-",
-            { label: "Format document", icon: "text-indent-left", run: () => self.format() },
-            { label: "Toggle comment", run: () => CM.toggleComment(view) },
-          ];
-          const ctx = () => {
-            const d = view.state.doc;
-            const s = view.state.selection.main;
-            const a = d.lineAt(s.from);
-            const b = d.lineAt(s.to);
-            const whole = s.empty;
-            return { path: self.active, fromLine: a.number, toLine: b.number, text: whole ? d.sliceString(a.from, a.to) : d.sliceString(s.from, s.to) };
-          };
-          const ai = self.app.aiQuick?.codeAiItems(self.app, ctx) || [];
-          if (ai.length) items.push("-", { label: "AI", icon: "stars", items: ai });
-          showContextMenu(self.app, e.clientX, e.clientY, items);
+          openEditorMenu(self, e, view); // providers: ./context.js (Cut/Copy/Paste, Transform, AI, extensions)
           return true;
         },
       }),
@@ -483,6 +466,7 @@ export class CodeEditors extends Emitter {
           this.close(path);
         } }, h("sl-icon", { name: "x-lg" })),
       );
+      markContext(tab, "editor-tab", { path, editors: this });
       tab.addEventListener("click", () => this.openFile(path, { focus: true }));
       tab.addEventListener("auxclick", (e) => e.button === 1 && this.close(path));
       tab.addEventListener("dragstart", (e) => {
