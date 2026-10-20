@@ -1,7 +1,8 @@
 // Application shell: assembles header, tabs, context bar, toolbox, canvas, dock and status bar.
 import { h } from "../core/util.js";
 import { CanvasView } from "./canvas-view.js";
-import { createMenubar, showContextMenu, buildMenu } from "./menus.js";
+import { createMenubar, buildMenu } from "./menus.js";
+import { initContextMenus, markContext } from "./context-menu/index.js";
 import { createToolbox, iconEl } from "./toolbox.js";
 import { createContextBar } from "./contextbar.js";
 import { createDock } from "./dock.js";
@@ -48,6 +49,9 @@ export function createShell(app, root) {
   const toolbox = createToolbox(app);
   const dock = createDock(app);
   const status = createStatusBar(app);
+  markContext(status.el, "status-bar");
+  markContext(cv.hRuler, "ruler", { cv, axis: "h" });
+  markContext(cv.vRuler, "ruler", { cv, axis: "v" });
   const welcome = createWelcome(app);
 
   // Code studio: its sidebar and workbench are mounted lazily (the module is loaded the first time it is needed)
@@ -182,26 +186,8 @@ export function createShell(app, root) {
     }
   });
 
-  app.on("contextmenu", ({ x, y, layers, event }) => {
-    if (!app.doc) return;
-    const items = [
-      "edit.cut", "edit.copy", "edit.paste", "edit.pasteInPlace", "edit.duplicate", "edit.delete", "-",
-      "arrange.group", "arrange.ungroup", "-",
-      { label: "Arrange", items: ["arrange.front", "arrange.forward", "arrange.backward", "arrange.back"] },
-      { label: "Align", items: ["align.left", "align.centerH", "align.right", "-", "align.top", "align.centerV", "align.bottom"] },
-      "-", "shape.convert", "shape.expandStroke", "-", "arrange.lock", "arrange.hide",
-    ];
-    if (layers) items.push("-", "layer.addMask", "layer.rasterize", "layer.mergeDown");
-    const ai = app.aiQuick?.canvasAiItems(app) || [];
-    if (ai.length) items.push("-", { label: "AI", icon: "stars", items: ai });
-    items.push(...(app.extMenuItems?.("context:canvas", app.studio) || []));
-    // table / chart specific items (commands/data.js)
-    for (const p of app.contextItemProviders || []) {
-      const extra = p(app, event);
-      if (extra?.length) items.unshift(...extra, "-");
-    }
-    showContextMenu(app, x, y, items);
-  });
+  // right-click menus: one service decides the menu from the target (ui/context-menu/, docs/context-menus.md)
+  initContextMenus(app);
 
   return { cv, toolbox, dock, context, status, welcome, sync };
 }
@@ -233,7 +219,7 @@ function createWelcome(app) {
   app.on("recents", (list) => {
     recent.replaceChildren();
     if (!list?.length) return;
-    recent.append(h("h3", "Recent"), ...list.slice(0, 6).map((r) => h("button.of-welcome__recent-item", { type: "button", onclick: () => app.run("file.openRecent", r) }, h("sl-icon", { name: "file-earmark-image" }), h("span", r.name), h("small", new Date(r.time).toLocaleDateString("en-US")))));
+    recent.append(h("h3", "Recent"), ...list.slice(0, 6).map((r) => markContext(h("button.of-welcome__recent-item", { type: "button", onclick: () => app.run("file.openRecent", r) }, h("sl-icon", { name: "file-earmark-image" }), h("span", r.name), h("small", new Date(r.time).toLocaleDateString("en-US"))), "welcome-recent", { recent: r })));
   });
   return { el };
 }
