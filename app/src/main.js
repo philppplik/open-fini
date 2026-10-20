@@ -14,6 +14,7 @@ import { ensureFont } from "./core/fonts.js";
 import { installLogCapture } from "./core/log-capture.js";
 import { redact } from "./core/log.js";
 import { markBootOk } from "./core/bootguard.js";
+import { initI18n, t, translateDom } from "./i18n/index.js";
 
 // Central logging first, so everything that goes wrong while starting is recorded (see docs/troubleshooting.md).
 installLogCapture();
@@ -32,6 +33,15 @@ setBasePath(new URL("../vendor/shoelace", import.meta.url).href);
 registerIconLibrary("of", { resolver: (name) => new URL(`../assets/icons/${name}.svg`, import.meta.url).href });
 
 const app = new App();
+// Language first: everything rendered below is translated. The OS locale (desktop) is only asked when the preference is "auto".
+await initI18n({
+  pref: app.prefs.language,
+  osLocale: async () => {
+    if (app.prefs.language !== "auto") return undefined;
+    const { platform } = await import("./platform/index.js");
+    return platform.osLocale?.();
+  },
+});
 window.openfini = app; // handy for debugging and automated tests
 
 registerAllTools(app);
@@ -50,13 +60,14 @@ const reportError = (message) => {
   const now = Date.now();
   if (now - lastErrorToast < 5000) return;
   lastErrorToast = now;
-  app.toast(`Something went wrong: ${redact(message).slice(0, 140)}. Your work is autosaved on this device.`, "danger", 7000, { label: "Details", run: () => app.run("help.troubleshoot") });
+  app.toast(t("Something went wrong: {message}. Your work is autosaved on this device.", { message: redact(message).slice(0, 140) }), "danger", 7000, { label: t("Details"), run: () => app.run("help.troubleshoot") });
 };
 window.addEventListener("error", (e) => reportError(e.message));
 window.addEventListener("unhandledrejection", (e) => reportError(e.reason?.message || String(e.reason)));
 
 createShell(app, document.getElementById("app"));
 applyTheme(app); // again, now that the layout exists (dock side and width)
+app.on("locale", () => translateDom(document)); // static chrome tagged with data-i18n-* follows a live language switch
 app.setTool("move");
 ensureFont("Inter", 400);
 ensureFont("Inter", 700);

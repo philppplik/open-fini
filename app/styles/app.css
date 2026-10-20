@@ -669,8 +669,9 @@ sl-dropdown[open] > .of-menubtn {
 }
 .of-layer:hover { background: var(--of-hover); }
 .of-layer.selected { background: var(--of-accent-soft); }
-.of-layer.hidden .of-layer__name,
-.of-layer.hidden .of-thumb { opacity: 0.4; }
+.of-layer.is-hidden .of-layer__name,
+.of-layer.is-hidden .of-thumb { opacity: 0.4; }
+.of-layer.is-hidden .of-layer__toggle { opacity: 1; color: var(--of-accent); } /* a hidden layer stays visible in the list, with its eye lit, so it can be shown again */
 .of-layer__twist { width: 16px; height: 16px; display: grid; place-items: center; color: var(--of-text-faint); transition: transform 0.1s; flex: none; }
 .of-layer__twist.empty { visibility: hidden; }
 .of-layer__twist.open { transform: rotate(90deg); }
@@ -891,6 +892,7 @@ sl-dialog::part(title) { font-size: 15px; font-weight: 650; }
 /* brand menu and settings dialog */
 button.of-brand { cursor: pointer; border-radius: var(--of-radius-sm); height: 28px; color: var(--of-text); }
 button.of-brand:hover, sl-dropdown[open] > button.of-brand { background: var(--of-hover); }
+.of-brand__logo { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: var(--of-accent); flex: none; } /* the white mark always sits on the accent color, in every theme */
 .of-brand__caret { font-size: 10px; opacity: 0.6; margin-left: -2px; }
 sl-dialog.of-settings { --width: min(980px, 94vw); --body-spacing: 0; }
 sl-dialog.of-settings::part(panel) { height: min(660px, 90vh); }

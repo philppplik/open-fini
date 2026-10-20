@@ -101,7 +101,7 @@ export function writeMarkdown(input) {
         const rows = b.rows.map((row, r) => b.cols.map((_, c) => {
           const g = grid[r][c];
           if (!g || !g.origin) return "";
-          return row.cells[g.ci].blocks.map((p) => inlineMd(doc, p.runs, notes)).join("<br>").replace(/\|/g, "\\|").replace(/\n/g, " ");
+          return row.cells[g.ci].blocks.map((p) => inlineMd(doc, p.runs, notes)).join("<br>").replace(/\|/g, "&#124;").replace(/\n/g, " ");
         }));
         const line = (cells) => `| ${cells.join(" | ")} |`;
         out.push(line(rows[0]), line(b.cols.map(() => "---")), ...rows.slice(1).map(line), "");

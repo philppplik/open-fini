@@ -1,6 +1,8 @@
 // Vibe Studio chat: transcript (messages, tool cards, approvals, questions) and the composer.
 import { h, empty } from "../../core/util.js";
 import { iconButton } from "../controls.js";
+import { t } from "../../i18n/index.js";
+import { ta, tspan } from "../../i18n/dom.js";
 import { iconEl } from "../toolbox.js";
 import { renderMarkdown } from "./markdown.js";
 import { vibeStore } from "../../vibe/store.js";
@@ -14,11 +16,11 @@ const textOfMessage = (m) => (typeof m.content === "string" ? m.content : (m.con
 
 export function createChat(vs) {
   const { app, session } = vs;
-  const scroller = h("div.of-vchat__scroll", { role: "log", "aria-label": "Conversation", tabindex: "0" });
+  const scroller = h("div.of-vchat__scroll", { role: "log", ...ta({ "aria-label": "Conversation" }), tabindex: "0" });
   const thread = h("div.of-vchat__thread");
   const pending = h("div.of-vchat__tail.hidden", h("div.of-vmsg.of-vmsg--assistant", h("div.of-vmsg__avatar", markEl()), h("span.of-vpending.of-shimmer", "Thinking…")));
   scroller.append(thread, pending);
-  const jump = h("button.of-vjump.hidden", { type: "button", "aria-label": "Jump to latest message" }, iconEl("arrow-down"), h("span", "Jump to latest"));
+  const jump = h("button.of-vjump.hidden", { type: "button", ...ta({ "aria-label": "Jump to latest message" }) }, iconEl("arrow-down"), tspan("Jump to latest"));
   const main = h("div.of-vchat__main", scroller, jump);
 
   // ---- follow the bottom while the assistant streams; stop when the user scrolls up
@@ -133,7 +135,7 @@ export function createChat(vs) {
     const row = h("div.of-vmsg__actions", text ? copyButton(() => text, "Copy answer") : null);
     if (last) {
       thread.querySelectorAll(".of-vact--retry").forEach((x) => x.remove());
-      const retry = h("button.of-vact.of-vact--retry", { type: "button", "aria-label": "Retry: send the last message again", title: "Send the last message again" }, iconEl("arrow-repeat"), h("span", "Retry"));
+      const retry = h("button.of-vact.of-vact--retry", { type: "button", ...ta({ "aria-label": "Retry: send the last message again", title: "Send the last message again" }) }, iconEl("arrow-repeat"), tspan("Retry"));
       retry.addEventListener("click", () => retryLast());
       row.append(retry);
     }
@@ -209,7 +211,7 @@ export function createChat(vs) {
     const b = assistantBubble();
     endText();
     breakTools(b);
-    const input = h("input.of-ask__in", { type: "text", placeholder: "Your answer…", "aria-label": q.question });
+    const input = h("input.of-ask__in", { type: "text", ...ta({ placeholder: "Your answer…" }), "aria-label": q.question });
     const answer = (v) => {
       if (!v) return;
       card.classList.add("resolved");
@@ -220,7 +222,7 @@ export function createChat(vs) {
       e.stopPropagation();
       if (e.key === "Enter") answer(input.value.trim());
     });
-    const card = h("div.of-ask", { role: "group", "aria-label": "Question from Vibe" }, h("div.of-ask__q", iconEl("question-circle"), h("span", q.question)), h("div.of-ask__row", ...(q.options || []).map((o) => h("button.of-btn", { type: "button", onclick: () => answer(o) }, o)), input, h("button.of-btn.of-btn--primary", { type: "button", onclick: () => answer(input.value.trim()) }, "Send")));
+    const card = h("div.of-ask", { role: "group", ...ta({ "aria-label": "Question from Vibe" }) }, h("div.of-ask__q", iconEl("question-circle"), h("span", q.question)), h("div.of-ask__row", ...(q.options || []).map((o) => h("button.of-btn", { type: "button", onclick: () => answer(o) }, o)), input, h("button.of-btn.of-btn--primary", { type: "button", onclick: () => answer(input.value.trim()) }, "Send")));
     b.body.append(card);
     follow();
     setTimeout(() => input.focus({ preventScroll: true }), 50);
@@ -243,13 +245,13 @@ export function createChat(vs) {
   }
 
   // ------------------------------------------------------------ composer
-  const input = h("textarea.of-composer__in", { rows: 1, placeholder: "Ask Vibe to design, edit or build something…  (/ for skills, @selection for the selected layers)", "aria-label": "Message Vibe" });
+  const input = h("textarea.of-composer__in", { rows: 1, ...ta({ placeholder: "Ask Vibe to design, edit or build something…  (/ for skills, @selection for the selected layers)", "aria-label": "Message Vibe" }) });
   const chips = h("div.of-composer__chips");
   let files = [];
   const fileInput = h("input", { type: "file", multiple: true, style: { display: "none" }, accept: "image/*,.pdf,.ai,.psd,.psb,.idml,.sketch,.txt,.md,.csv,.json,.html,.css,.js,.svg,.xml,.yml,.yaml,.ts,.py,.sql" });
   const attach = iconButton({ icon: "paperclip", label: "Attach files or images", onClick: () => fileInput.click() });
   const mic = iconButton({ icon: "mic", label: "Dictate", onClick: () => dictate() });
-  const sendBtn = h("button.of-composer__send", { type: "button", "aria-label": "Send" }, iconEl("arrow-up"));
+  const sendBtn = h("button.of-composer__send", { type: "button", ...ta({ "aria-label": "Send" }) }, iconEl("arrow-up"));
   const paintSend = () => {
     const running = session.running;
     const can = running || !!input.value.trim() || files.length > 0;
@@ -258,12 +260,12 @@ export function createChat(vs) {
     sendBtn.classList.toggle("running", running);
     sendBtn.classList.toggle("idle", !can);
     sendBtn.setAttribute("aria-disabled", String(!can));
-    sendBtn.setAttribute("aria-label", running ? "Stop" : "Send");
+    sendBtn.setAttribute("aria-label", running ? t("Stop") : t("Send"));
     sendBtn.title = running ? "Stop (Esc)" : "Send (Enter)";
   };
   const modelPill = h("button.of-pill-btn", { type: "button", "aria-haspopup": "dialog" });
-  const modePill = h("button.of-pill-btn", { type: "button", "data-tip": "How much Vibe may do without asking" });
-  const thinkPill = h("button.of-pill-btn", { type: "button", "data-tip": "Reasoning effort (models that support it)" });
+  const modePill = h("button.of-pill-btn", { type: "button", ...ta({ tip: "How much Vibe may do without asking" }) });
+  const thinkPill = h("button.of-pill-btn", { type: "button", ...ta({ tip: "Reasoning effort (models that support it)" }) });
   const slash = h("div.of-slash.hidden", { role: "listbox" });
   const box = h("div.of-composer", chips, input, h("div.of-composer__bar", attach, mic, modelPill, modePill, thinkPill, h("span.of-composer__spacer"), sendBtn), slash);
   const root = h("div.of-vchat", main, h("div.of-vchat__dock", box, h("p.of-composer__hint", "Vibe can make mistakes. Changes can be undone in the Activity tab or with Ctrl+Z. Keys and chats stay on this device.")));

@@ -120,6 +120,11 @@ Any tool can be set to *Always allow*. The approval card shows the exact argumen
 only touches OpenFini documents: it has no access to your files, shell or network except through the connections and
 MCP servers you add.
 
+## Language
+
+Replies follow the interface language (Settings ▸ General ▸ Language) unless you write in another language. The built-in skills,
+tool descriptions and system instructions stay English: they are instructions to the model, not UI text. See [i18n.md](i18n.md).
+
 ## Skills
 
 A skill is a Markdown file (`SKILL.md` style): a name, a description, optional `allowed-tools`, and instructions. The

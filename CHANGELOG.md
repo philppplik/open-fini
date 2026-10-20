@@ -6,6 +6,11 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+**Small improvements**
+- **Update checker** (Settings, About): "Check for updates" asks GitHub for the latest release, compares versions and offers the installer for your platform plus the release notes; optional automatic check once a day (off by default); honors offline mode. Nothing is installed automatically.
+- **Hidden layers** stay in the Layers panel (dimmed, with a highlighted eye) instead of disappearing, so they can be shown again.
+- **Header logo**: the white OpenFini mark on an accent-colored tile, in every theme (`app/icons/mark-white.svg`).
+
 ### Added
 
 **More native file formats** (docs/file-format-research.md, docs/file-compat.md)
@@ -15,6 +20,10 @@ All notable changes to OpenFini are documented here. The format follows
 - Fonts: WOFF is unwrapped, TrueType collections (.ttc) are split, WOFF2 works on screen (PDF export falls back).
 - Vibe tools `list_supported_formats`, `import_palette_from_text`, `export_palette`.
 
+**Internationalization, German first** (docs/i18n.md, ADR 0007)
+- The interface follows the system language automatically (`navigator.languages`, `de-AT`/`de-CH` match German) and ships in US English and **German**; Settings ▸ General ▸ Language switches live without a reload and shows the detected language. Menus, command labels, the palette, settings, new document / about / shortcuts dialogs, welcome screen, status bar, studio bar, title bar, tours, What's new, context menus, common toasts and the Vibe composer are translated; the rest falls back to English (known gaps are listed in docs/i18n.md).
+- Core in `app/src/i18n/` (`t()` with the English text as key, ICU-lite plurals and placeholders, lazy locale files, `<html lang>`/`dir`, `Intl` helpers); `npm run i18n:extract` and `i18n:check` keep the catalog and translations consistent in CI. Adding a language is one `LOCALES` entry plus a JSON file.
+- Extensions can use `%key%` placeholders resolved from `locales/<code>.json`; Vibe replies follow the UI language; the offline page has a German variant.
 **Customization everywhere** (docs/customization.md)
 - **Keyboard shortcut editor:** click to record, conflict detection (swap / unassign / use for both), two shortcuts per command, search and filters, reset one or all, import / export JSON, presets Default, Classic, Compact and Editor-style. Menus, tooltips and the palette show the effective shortcut.
 - **Toolbox and menus:** show, hide, reorder and ungroup tools per studio, hide menus and menu items, choose the header's quick actions. Hidden tools stay in the command palette ("Tool: …").

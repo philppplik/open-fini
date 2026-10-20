@@ -1,5 +1,8 @@
 // Application shell: assembles header, tabs, context bar, toolbox, canvas, dock and status bar.
 import { h } from "../core/util.js";
+import { t } from "../i18n/index.js";
+import { ta, tspan } from "../i18n/dom.js";
+import { formatDate } from "../i18n/index.js";
 import { CanvasView } from "./canvas-view.js";
 import { createMenubar, buildMenu } from "./menus.js";
 import { initContextMenus, markContext } from "./context-menu/index.js";
@@ -26,7 +29,7 @@ export function createShell(app, root) {
 
   // ---- header: brand, menus, studio switcher, quick actions
   // The brand opens the application menu: settings, save all, shortcuts, about …
-  const brandBtn = h("button.of-brand", { type: "button", slot: "trigger", "aria-label": "OpenFini menu", "aria-haspopup": "menu" }, h("img", { src: "./icons/mark.svg", alt: "", width: 22, height: 22 }), h("span", "OpenFini"), h("sl-icon.of-brand__caret", { name: "chevron-down" }));
+  const brandBtn = h("button.of-brand", { type: "button", slot: "trigger", ...ta({ "aria-label": "OpenFini menu" }), "aria-haspopup": "menu" }, h("span.of-brand__logo", h("img", { src: "./icons/mark-white.svg", alt: "", width: 16, height: 16 })), h("span", "OpenFini"), h("sl-icon.of-brand__caret", { name: "chevron-down" }));
   const brand = h("sl-dropdown.of-brandmenu", { distance: 4, hoist: true }, brandBtn);
   brand.addEventListener("sl-show", (e) => {
     if (e.target !== brand) return;
@@ -39,7 +42,7 @@ export function createShell(app, root) {
   const theme = iconButton({ icon: "circle-half", label: "Toggle light / dark", onClick: () => app.run("view.theme") });
   const dockToggle = iconButton({ icon: "layout-sidebar-inset-reverse", label: "Show / hide panels", cls: "of-dock-toggle", onClick: () => root.classList.toggle("dock-open") });
   // Export is a popup (formats, slices, website) available from every studio — not a studio of its own.
-  const exportBtn = h("button.of-export-btn", { type: "button", "data-tip": "Export… (formats, slices, website)", "data-shortcut": "Mod+Shift+E", "aria-label": "Export" }, iconEl("box-arrow-up"), h("span", "Export"));
+  const exportBtn = h("button.of-export-btn", { type: "button", ...ta({ tip: "Export… (formats, slices, website)", "aria-label": "Export" }), "data-shortcut": "Mod+Shift+E" }, iconEl("box-arrow-up"), tspan("Export"));
   exportBtn.addEventListener("click", () => app.run("file.export"));
   const header = h("header.of-header", brand, createMenubar(app), studioBar.el, h("div.of-header__actions", undo, redo, theme, exportBtn, dockToggle));
 
@@ -84,7 +87,7 @@ export function createShell(app, root) {
       v.activate();
     } catch (err) {
       console.error(err);
-      app.toast(`Vibe Studio could not be loaded: ${err.message}`, "danger", 6000);
+      app.toast(t("Vibe Studio could not be loaded: {message}", { message: err.message }), "danger", 6000);
     }
   }
   app.on("studio", syncVibe);
@@ -112,7 +115,7 @@ export function createShell(app, root) {
       mod = await codeModule;
     } catch (err) {
       console.error(err);
-      app.toast(`The Code studio could not be loaded: ${err.message}`, "danger", 6000);
+      app.toast(t("The Code studio could not be loaded: {message}", { message: err.message }), "danger", 6000);
       return;
     }
     if (app.studio !== "code" || app.doc !== doc) return;
@@ -159,14 +162,14 @@ export function createShell(app, root) {
     const d = app.doc;
     document.title = d ? `${d.saved ? "" : "• "}${d.name} — OpenFini` : "OpenFini";
   }
-  for (const ev of ["studio", "doc", "docs", "docchange", "saved"]) app.on(ev, sync);
+  for (const ev of ["studio", "doc", "docs", "docchange", "saved", "locale"]) app.on(ev, sync);
   sync();
 
   app.on("toast", ({ message, variant, duration, action }) => {
     const icon = { primary: "info-circle", success: "check2-circle", warning: "exclamation-triangle", danger: "exclamation-octagon", neutral: "gear" }[variant] || "info-circle";
     const a = h("sl-alert", { variant, closable: true, duration }, h("sl-icon", { slot: "icon", name: icon }), message);
     if (action?.run) {
-      const b = h("button.of-toast-action", { type: "button" }, action.label || "Details");
+      const b = h("button.of-toast-action", { type: "button" }, action.label || t("Details"));
       b.addEventListener("click", () => {
         a.hide?.();
         action.run();
@@ -212,30 +215,40 @@ function createWelcome(app) {
   const recent = h("div.of-welcome__recent");
   // one card per registered studio (a studio registered later adds its card)
   const card = (s) => {
-    const b = h("button.of-welcome__card", { type: "button" }, h("span.of-welcome__icon", iconEl(studioIconSpec(s))), h("strong", `${s.label} Studio`), h("span", s.blurb));
+    const b = h("button.of-welcome__card", { type: "button" }, h("span.of-welcome__icon", iconEl(studioIconSpec(s))), h("strong", t("{studio} Studio", { studio: s.label })), h("span", t(s.blurb)));
     b.addEventListener("click", () => app.emit("dialog", { id: "new", studio: s.id }));
     return b;
   };
   const cards = h("div.of-welcome__cards", listStudios().map(card));
   onStudioRegistered(() => cards.replaceChildren(...listStudios().map(card)));
+  app.on("locale", () => {
+    cards.replaceChildren(...listStudios().map(card));
+    renderRecent();
+  });
   const el = h(
     "div.of-welcome",
     h("div.of-welcome__inner",
       h("img", { src: "./icons/icon.svg", alt: "", width: 84, height: 84 }),
       h("h1", "OpenFini"),
-      h("p", "Design, code and publish — in one lightweight app."),
+      h("p", { "data-i18n": "Design, code and publish — in one lightweight app." }, t("Design, code and publish — in one lightweight app.")),
       cards,
       h("div.of-welcome__actions",
-        h("sl-button", { variant: "primary", onclick: () => app.run("file.new") }, h("sl-icon", { slot: "prefix", name: "plus-lg" }), "New Document"),
-        h("sl-button", { onclick: () => app.run("file.open") }, h("sl-icon", { slot: "prefix", name: "folder2-open" }), "Open…")),
+        h("sl-button", { variant: "primary", onclick: () => app.run("file.new") }, h("sl-icon", { slot: "prefix", name: "plus-lg" }), tspan("New Document")),
+        h("sl-button", { onclick: () => app.run("file.open") }, h("sl-icon", { slot: "prefix", name: "folder2-open" }), tspan("Open…"))),
       recent,
-      h("p.of-hint", "Tip: drop an image or SVG anywhere to start. Everything stays on your device."),
+      h("p.of-hint", { "data-i18n": "Tip: drop an image or SVG anywhere to start. Everything stays on your device." }, t("Tip: drop an image or SVG anywhere to start. Everything stays on your device.")),
     ),
   );
+  let lastRecents = [];
   app.on("recents", (list) => {
+    lastRecents = list || [];
+    renderRecent();
+  });
+  function renderRecent() {
+    const list = lastRecents;
     recent.replaceChildren();
     if (!list?.length) return;
-    recent.append(h("h3", "Recent"), ...list.slice(0, 6).map((r) => markContext(h("button.of-welcome__recent-item", { type: "button", onclick: () => app.run("file.openRecent", r) }, h("sl-icon", { name: "file-earmark-image" }), h("span", r.name), h("small", new Date(r.time).toLocaleDateString("en-US"))), "welcome-recent", { recent: r })));
-  });
+    recent.append(h("h3", { "data-i18n": "Recent" }, t("Recent")), ...list.slice(0, 6).map((r) => markContext(h("button.of-welcome__recent-item", { type: "button", onclick: () => app.run("file.openRecent", r) }, h("sl-icon", { name: "file-earmark-image" }), h("span", r.name), h("small", formatDate(r.time))), "welcome-recent", { recent: r })));
+  }
   return { el };
 }
