@@ -8,7 +8,9 @@ import { confirmDialog } from "../dialogs.js";
 import { vibeStore } from "../../vibe/store.js";
 import { VibeSession } from "../../vibe/session.js";
 import { createChat } from "./chat.js";
-import { createCanvasPanel, createActivityPanel } from "./panel-canvas.js";
+import { createCanvasPanel } from "./panel-canvas.js";
+import { createActivityPanel } from "./panel-activity.js";
+import { createRunLog } from "./run-log.js";
 import { createModelsPanel } from "./panel-models.js";
 import { createToolsPanel } from "./panel-tools.js";
 import { createSkillsPanel, createKnowledgePanel } from "./panel-knowledge.js";
@@ -29,6 +31,7 @@ export function vibeStudio(app) {
   if (instance) return instance;
   const session = new VibeSession(app);
   const vs = { app, session, tab: "canvas", sideOpen: true, listOpen: true };
+  vs.timeline = createRunLog(session); // records the Activity log from the first message on, even while the tab is closed
   vs.skills = () => session.ctx?.skills || [];
   vs.openTab = (id) => {
     vs.tab = id;
