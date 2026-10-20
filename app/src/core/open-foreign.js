@@ -36,7 +36,8 @@ export async function openPdfFile(app, file, { format = "PDF", offset = 0 } = {}
   } finally {
     app.status("");
   }
-  const options = await dialogs.pdfImportDialog({ name: file.name, pages: src.pages, encrypted: src.encrypted });
+  // `file.importOptions` (Vibe's open_attachment tool): import with the defaults plus these options, without the dialog
+  const options = file.importOptions ? { ...imp.PDF_DEFAULTS, ...file.importOptions } : await dialogs.pdfImportDialog({ name: file.name, pages: src.pages, encrypted: src.encrypted });
   if (!options) {
     src.destroy();
     return null;
