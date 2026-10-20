@@ -45,7 +45,9 @@ workload tests and **production** build for start-up. Your numbers will differ; 
 | First contentful paint | 208 ms |
 | JavaScript heap after start | 6.1 MB |
 | JavaScript requested during start-up | 73 files, 832 KB uncompressed (Shoelace components included) |
-| Application JavaScript (gzip, all chunks incl. the lazily loaded Code studio, web engine and Vibe Studio AI runtime) | 483 KiB (budget 520 KiB) |
+| Application JavaScript (gzip, all chunks incl. the lazily loaded studios, engines and the Vibe Studio AI runtime) | 839 KiB (budget 900 KiB) |
+| JavaScript needed to start (gzip, static import closure) | 317 KiB (budget 340 KiB) |
+| PDF import (pdf.js and wasm, gzip, loaded when you open a PDF) | about 610 KiB, not precached |
 | Total download incl. all lazily loaded Shoelace files (gzip, no fonts) | 701 KiB (budget 2 MiB) |
 
 ### Code studio (production build, local server, cold)
@@ -100,5 +102,5 @@ Reproduce with `node tests/pixel/bench.mjs`.
 
 ## Budgets in CI
 
-`npm run check:size` fails the build when the gzip size of the application JavaScript exceeds 520 KiB or the
+`npm run check:size` fails the build when the gzip size of the application JavaScript exceeds 900 KiB, the JavaScript needed to start exceeds 340 KiB, or the
 total download exceeds 2 MiB (see [`scripts/size-budget.json`](../scripts/size-budget.json)).

@@ -3,7 +3,7 @@
 The Code studio builds **websites** inside an OpenFini document. It combines two ways of working on the same
 files:
 
-* a **code editor** (HTML, CSS, JavaScript, JSON, Markdown, SVG) with an explorer, tabs, search, a command
+* a **code editor** (HTML, CSS, JavaScript and TypeScript, JSON, YAML, TOML, Markdown, LaTeX, SVG, plain text) with an explorer, tabs, search, a command
   palette, Emmet and completions that know your project — the everyday workflow of a desktop code editor;
 * a **visual designer**: a live canvas at real breakpoints, an element navigator, an element palette, and a style
   panel with classes, breakpoints and inheritance — the workflow of a visual site builder.
@@ -17,7 +17,11 @@ Open it with the **Code** button in the header, **Alt+4**, *Studio ▸ Code Stud
 ## Getting started
 
 * **New website** (*File ▸ New*, choose *Code*): pick a template — *Blank*, *Landing page*, *Portfolio*, *Blog*,
-  *Documentation* or *Link in bio* — all responsive, accessible and free of external requests and web fonts.
+  *Documentation* or *Link in bio* (responsive, accessible, no external requests), or a **framework starter** that runs
+  without a build step: Tailwind CSS, Bootstrap, Alpine.js, htmx, Vue, Preact, React, Lit, web components, Three.js, a
+  Markdown blog, a Markdown docs site and a PWA. See [frameworks.md](frameworks.md).
+* **Open a file or folder**: Markdown, LaTeX, JSON, YAML and other text files open from *File ▸ Open*, drag and drop and
+  *Open Folder* as a one-file project (Markdown and LaTeX get a live preview). See [frameworks.md](frameworks.md#markdown).
 * **Import**: *Import a folder…* or *Import files…* on the start screen, or drag a folder onto the Explorer.
 * The project is stored **inside the `.ofini` document** (`web/files/…`) next to your design pages, so one file
   holds the artwork *and* the site. Autosave and *Save* cover both.
@@ -26,7 +30,7 @@ Open it with the **Code** button in the header, **Alt+4**, *Studio ▸ Code Stud
 
 | Area | What it does |
 | --- | --- |
-| **Activity bar** (left) | Explorer · Add elements · Navigator · Search · Assets · Settings |
+| **Activity bar** (left) | Explorer · Add elements · Navigator · Search · Source Control · Assets · Libraries · Settings |
 | **Explorer** | Create, rename (`F2`), move (drag), duplicate, delete, upload, download; drop files or folders from your computer; set the home page. Renaming or moving a file updates links to it in HTML and CSS. |
 | **Editor** | One editor tab per file, each with its own undo history. Syntax highlighting, bracket matching, folding, multiple cursors, find and replace, completions (tags, attributes, CSS properties, your class names, `var(--…)`, file paths), snippets, diagnostics. |
 | **Canvas** | The live preview of the selected page in a sandboxed frame. *Design mode* selects and edits; *live preview* lets the page behave normally. |
@@ -89,6 +93,16 @@ click the dot to reset it. Values you have not set show the computed default, di
 | Design mode ↔ live preview | `Mod+Alt+P` |
 | Word wrap | `Alt+Z` |
 
+### Libraries, Markdown and LaTeX
+
+* **Libraries** (activity bar, *Libraries…* in the palette): add, update and remove CDN libraries and import-map entries,
+  search npm and cdnjs, and *Download into project* (`vendor/`) so the exported site works offline.
+* **Markdown and LaTeX files** show a live document preview instead of the canvas, with a formatting toolbar above the
+  editor, a heading outline in the Navigator, and export to an HTML page or print / PDF. The LaTeX preview is a subset
+  converter, **not a TeX engine**; unsupported commands are marked.
+* **Completions** for Tailwind and Bootstrap classes, Alpine and htmx attributes; Add-panel snippets for Bootstrap,
+  Tailwind and htmx.
+
 ## Preview and security
 
 The canvas is an `<iframe sandbox="allow-scripts …">` **without** `allow-same-origin`. Your page's scripts run, but
@@ -100,6 +114,8 @@ part of an export.
   (the app's Content-Security-Policy forbids inline scripts, and the preview inherits it). ES modules that import
   other project files work; circular imports are reported.
 * Inline event handler attributes (`onclick="…"`) are converted to equivalent assignments in the preview.
+* Inline import maps are blocked by the desktop CSP, so the preview resolves bare module specifiers through the page's
+  import map itself (see [frameworks.md](frameworks.md#the-content-security-policy)).
 * The desktop app's CSP allows `https:` images, fonts, stylesheets and embeds and scripts from `cdn.jsdelivr.net`,
   `cdnjs.cloudflare.com` and `unpkg.com`. `fetch` / `XMLHttpRequest` to other servers are blocked in the **desktop
   preview**; the web version has no such restriction. Forms are not submitted in the preview.
@@ -127,8 +143,17 @@ edits as `Change[]`, the style-panel schema, the preview and site builders, temp
 its inspector bridge, the explorer, navigator, panels and palette. The module is loaded lazily the first time the
 studio is opened, so it adds nothing to application start-up.
 
+## Source Control and one-click publishing
+
+The **Source Control** pane (activity bar) gives the project real Git: commits, branches, merging, tags, history with a
+graph, diffs, restore from any commit and Git status in the Explorer and the editor gutter. The history is stored
+inside the `.ofini` document and can be exported as a ZIP with a real `.git` folder. GitHub sync works through its API;
+other servers need a CORS proxy. The **Publish** button (and *Export ▸ Publish*) deploys to Netlify, Vercel, GitHub
+Pages and WebDAV, or to FTP/SFTP/rsync/SMTP through a small local helper (`npm run publish:helper`), after pre-publish
+checks and a confirmation. Details, storage format and honest limits: [git-and-publishing.md](git-and-publishing.md).
+
 ## Limitations
 
 See [roadmap.md](roadmap.md#code-studio). In short: no CMS, symbols/components, interactions editor, multi-page
-shared layouts (partials) or real-time collaboration; no Git; no terminal or language servers; the visual designer
+shared layouts (partials) or real-time collaboration; no stash/rebase in Source Control; no terminal or language servers; the visual designer
 edits one page at a time.

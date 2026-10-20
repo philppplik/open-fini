@@ -159,3 +159,36 @@ export function createInstallPrompt({ onChange } = {}) {
     },
   };
 }
+
+/** Cache that sw.js fills when another app shares files with OpenFini (Web Share Target). */
+export const SHARE_CACHE = "ofshare-v1";
+
+/**
+ * Takes the files stored for one share (see sw.js) out of the cache and returns them as platform files.
+ * The cache entries are deleted, so a reload does not open them again.
+ * @param {string} id the `share` value of the launch URL
+ * @returns {Promise<{ name: string, bytes: Uint8Array, mime: string }[]>}
+ */
+export async function takeSharedFiles(id) {
+  if (typeof caches === "undefined" || !/^[a-z0-9]+$/i.test(String(id))) return [];
+  const cache = await caches.open(SHARE_CACHE);
+  const marker = `/share-files/${id}/`;
+  const entries = [];
+  for (const request of await cache.keys()) {
+    const path = new URL(request.url).pathname;
+    const at = path.indexOf(marker);
+    if (at < 0) continue;
+    const [index, ...name] = path.slice(at + marker.length).split("/");
+    entries.push({ request, index: Number(index) || 0, name: decodeURIComponent(name.join("/")) || "shared-file" });
+  }
+  entries.sort((x, y) => x.index - y.index);
+  const files = [];
+  for (const entry of entries) {
+    const response = await cache.match(entry.request);
+    if (response) {
+      files.push({ name: entry.name, bytes: new Uint8Array(await response.arrayBuffer()), mime: response.headers.get("content-type") || "application/octet-stream" });
+    }
+    await cache.delete(entry.request);
+  }
+  return files;
+}

@@ -28,7 +28,7 @@
     "security": {
       "csp": {
         "default-src": "'self'",
-        "script-src": "'self' data: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com",
+        "script-src": "'self' 'wasm-unsafe-eval' data: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com",
         "style-src": "'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://fonts.googleapis.com",
         "style-src-attr": "'unsafe-inline'",
         "img-src": "'self' data: blob: https:",
@@ -71,7 +71,7 @@
           "ofini"
         ],
         "name": "OpenFini Document",
-        "description": "OpenFini document",
+        "description": "OpenFini Document",
         "mimeType": "application/x-openfini",
         "role": "Editor",
         "rank": "Owner",
@@ -84,10 +84,56 @@
       },
       {
         "ext": [
+          "ofext"
+        ],
+        "name": "OpenFini Extension",
+        "description": "OpenFini Extension",
+        "mimeType": "application/x-openfini-extension",
+        "role": "Editor",
+        "rank": "Owner",
+        "exportedType": {
+          "identifier": "io.github.philppplik.openfini.extension",
+          "conformsTo": [
+            "public.data"
+          ]
+        }
+      },
+      {
+        "ext": [
+          "psd"
+        ],
+        "name": "Photoshop Document",
+        "description": "Photoshop Document",
+        "mimeType": "image/vnd.adobe.photoshop",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "psb"
+        ],
+        "name": "Photoshop Large Document",
+        "description": "Photoshop Large Document",
+        "mimeType": "image/vnd.adobe.photoshop-large",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "idml"
+        ],
+        "name": "InDesign Markup",
+        "description": "InDesign Markup",
+        "mimeType": "application/vnd.adobe.indesign-idml-package",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
           "svg"
         ],
         "name": "SVG Image",
-        "description": "SVG vector image",
+        "description": "SVG Image",
         "mimeType": "image/svg+xml",
         "role": "Editor",
         "rank": "Alternate"
@@ -97,7 +143,7 @@
           "png"
         ],
         "name": "PNG Image",
-        "description": "PNG image",
+        "description": "PNG Image",
         "mimeType": "image/png",
         "role": "Editor",
         "rank": "Alternate"
@@ -108,7 +154,7 @@
           "jpeg"
         ],
         "name": "JPEG Image",
-        "description": "JPEG image",
+        "description": "JPEG Image",
         "mimeType": "image/jpeg",
         "role": "Editor",
         "rank": "Alternate"
@@ -118,9 +164,173 @@
           "webp"
         ],
         "name": "WebP Image",
-        "description": "WebP image",
+        "description": "WebP Image",
         "mimeType": "image/webp",
         "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "gif"
+        ],
+        "name": "GIF Image",
+        "description": "GIF Image",
+        "mimeType": "image/gif",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "bmp"
+        ],
+        "name": "BMP Image",
+        "description": "BMP Image",
+        "mimeType": "image/bmp",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "avif"
+        ],
+        "name": "AVIF Image",
+        "description": "AVIF Image",
+        "mimeType": "image/avif",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "pdf"
+        ],
+        "name": "PDF Document",
+        "description": "PDF Document",
+        "mimeType": "application/pdf",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "ai"
+        ],
+        "name": "Illustrator Artwork",
+        "description": "Illustrator Artwork",
+        "mimeType": "application/vnd.adobe.illustrator",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "afdesign"
+        ],
+        "name": "Affinity Designer Document",
+        "description": "Affinity Designer Document",
+        "mimeType": "application/x-affinity-designer",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "afphoto"
+        ],
+        "name": "Affinity Photo Document",
+        "description": "Affinity Photo Document",
+        "mimeType": "application/x-affinity-photo",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "afpub"
+        ],
+        "name": "Affinity Publisher Document",
+        "description": "Affinity Publisher Document",
+        "mimeType": "application/x-affinity-publisher",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "md",
+          "markdown"
+        ],
+        "name": "Markdown Document",
+        "description": "Markdown Document",
+        "mimeType": "text/markdown",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "tex",
+          "latex"
+        ],
+        "name": "LaTeX Document",
+        "description": "LaTeX Document",
+        "mimeType": "text/x-tex",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "html",
+          "htm"
+        ],
+        "name": "HTML Document",
+        "description": "HTML Document",
+        "mimeType": "text/html",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "css"
+        ],
+        "name": "CSS Stylesheet",
+        "description": "CSS Stylesheet",
+        "mimeType": "text/css",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "js",
+          "mjs"
+        ],
+        "name": "JavaScript File",
+        "description": "JavaScript File",
+        "mimeType": "text/javascript",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "json"
+        ],
+        "name": "JSON File",
+        "description": "JSON File",
+        "mimeType": "application/json",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "txt"
+        ],
+        "name": "Text File",
+        "description": "Text File",
+        "mimeType": "text/plain",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "csv"
+        ],
+        "name": "CSV File",
+        "description": "CSV File",
+        "mimeType": "text/csv",
+        "role": "Viewer",
         "rank": "Alternate"
       }
     ],
@@ -134,7 +344,8 @@
           "English"
         ],
         "displayLanguageSelector": false,
-        "compression": "lzma"
+        "compression": "lzma",
+        "installerHooks": "windows/open-with.nsh"
       }
     },
     "macOS": {
@@ -145,17 +356,25 @@
         "section": "graphics",
         "priority": "optional",
         "files": {
-          "/usr/share/mime/packages/io.github.philppplik.openfini.xml": "linux/openfini-mime.xml"
-        }
+          "/usr/share/mime/packages/io.github.philppplik.openfini.xml": "linux/openfini-mime.xml",
+          "/usr/share/icons/hicolor/scalable/mimetypes/application-x-openfini.svg": "linux/application-x-openfini.svg",
+          "/usr/share/icons/hicolor/256x256/mimetypes/application-x-openfini.png": "linux/application-x-openfini.png"
+        },
+        "desktopTemplate": "linux/openfini.desktop"
       },
       "rpm": {
         "files": {
-          "/usr/share/mime/packages/io.github.philppplik.openfini.xml": "linux/openfini-mime.xml"
-        }
+          "/usr/share/mime/packages/io.github.philppplik.openfini.xml": "linux/openfini-mime.xml",
+          "/usr/share/icons/hicolor/scalable/mimetypes/application-x-openfini.svg": "linux/application-x-openfini.svg",
+          "/usr/share/icons/hicolor/256x256/mimetypes/application-x-openfini.png": "linux/application-x-openfini.png"
+        },
+        "desktopTemplate": "linux/openfini.desktop"
       },
       "appimage": {
         "files": {
-          "/usr/share/mime/packages/io.github.philppplik.openfini.xml": "linux/openfini-mime.xml"
+          "/usr/share/mime/packages/io.github.philppplik.openfini.xml": "linux/openfini-mime.xml",
+          "/usr/share/icons/hicolor/scalable/mimetypes/application-x-openfini.svg": "linux/application-x-openfini.svg",
+          "/usr/share/icons/hicolor/256x256/mimetypes/application-x-openfini.png": "linux/application-x-openfini.png"
         }
       }
     }

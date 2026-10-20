@@ -11,6 +11,15 @@ export function dataMergeDialog(app) {
   const doc = app.doc;
   const st = { table: null, index: 0, delimiter: "auto" };
   const originals = new Map(); // storyId → original story (to restore after previews/exports)
+  const tableOriginals = new Map(); // table node → original cell texts (tables merge their cell text too)
+  const MARK = /<<s*([^<>]+?)s*>>/g;
+  const tables = () => {
+    const out = [];
+    doc.walkAll((n) => {
+      if (n.type === "table") out.push(n);
+    }, { masters: true });
+    return out;
+  };
 
   function collectStories() {
     const ids = new Set();
@@ -20,6 +29,7 @@ export function dataMergeDialog(app) {
   function docFields() {
     const out = new Set();
     for (const id of collectStories()) for (const f of listFields(doc.stories[id].story)) out.add(f);
+    for (const t of tables()) for (const row of t.cells) for (const c of row) for (const m of c.v.matchAll(MARK)) out.add(m[1]);
     return [...out];
   }
 
@@ -29,6 +39,12 @@ export function dataMergeDialog(app) {
       if (!originals.has(id)) originals.set(id, entry.story);
       entry.story = mergeFields(originals.get(id), rec, { missing: "keep" });
       for (const f of doc.framesOfStory(id)) doc.touch(f);
+    }
+    for (const t of tables()) {
+      if (!tableOriginals.has(t)) tableOriginals.set(t, t.cells.map((r) => r.map((c) => c.v)));
+      const orig = tableOriginals.get(t);
+      t.cells.forEach((row, r) => row.forEach((c, i) => (c.v = orig[r][i].replace(MARK, (all, f) => (rec[f] !== undefined ? rec[f] : all)))));
+      doc.touch(t);
     }
     app.requestRender();
   }
@@ -40,6 +56,11 @@ export function dataMergeDialog(app) {
       }
     }
     originals.clear();
+    for (const [t, texts] of tableOriginals) {
+      t.cells.forEach((row, r) => row.forEach((c, i) => texts[r] && (c.v = texts[r][i])));
+      doc.touch(t);
+    }
+    tableOriginals.clear();
     app.requestRender();
   }
 

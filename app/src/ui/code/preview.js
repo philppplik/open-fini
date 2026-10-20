@@ -4,6 +4,9 @@
 import { Emitter, h } from "../../core/util.js";
 import { buildPreview, hotCss, BREAKPOINTS } from "../../engine/web/index.js";
 import { bridgeSource } from "./bridge.js";
+import { scriptsBlocked } from "../../core/security.js";
+import { withOfflinePreviewCsp } from "../../core/network.js";
+import { protectedBanner } from "../protected-banner.js";
 
 const dataUrlCache = new WeakMap();
 
@@ -47,6 +50,7 @@ export class PreviewPane extends Emitter {
     this.stage = h("div.of-prev__stage", this.device);
     this.empty = h("div.of-prev__empty.hidden", h("sl-icon", { name: "window" }), h("p", "This project has no pages yet."), h("p.of-hint", "Create an HTML file in the Explorer."));
     this.el = h("div.of-prev", this.label, this.stage, this.empty);
+    this.el.prepend(protectedBanner(this)); // protected mode: "Enable scripts"
 
     this.onMessage = (e) => this.#message(e);
     window.addEventListener("message", this.onMessage);
@@ -157,7 +161,7 @@ export class PreviewPane extends Emitter {
   }
 
   rebuild() {
-    if (!this.web.has(this.page)) this.page = this.web.pages()[0] || null;
+    if (!this.web.has(this.page) || !/\.html?$/i.test(this.page)) this.page = this.web.pages()[0] || null; // Markdown or LaTeX documents have no canvas page
     const empty = !this.page;
     this.empty.classList.toggle("hidden", !empty);
     this.device.classList.toggle("hidden", empty);
@@ -168,7 +172,7 @@ export class PreviewPane extends Emitter {
         bridge: bridgeSource,
         config: { mode: this.edit ? "edit" : "preview", accent: "#4f8cff", spacing: true },
         // with "Run JavaScript in the preview" off, only the inspector runs: page scripts become empty
-        makeScriptUrl: (code, info) => scriptUrl(this.app.prefs.previewScripts === false && info?.file !== "openfini-bridge.js" ? "" : code),
+        makeScriptUrl: (code, info) => scriptUrl(scriptsBlocked(this.app.prefs, this.ws.doc) && info?.file !== "openfini-bridge.js" ? "" : code),
         makeAssetUrl: toDataUrl,
         annotate: true,
       });
@@ -190,7 +194,7 @@ export class PreviewPane extends Emitter {
     this.pending = { frame, started: performance.now() };
     this.device.append(frame);
     this.layout();
-    frame.srcdoc = res.html;
+    frame.srcdoc = withOfflinePreviewCsp(res.html, this.app.network?.offline); // offline mode: no remote scripts, fonts or requests
     // fall back to swapping anyway if the bridge never reports (scripts blocked, page crashed …)
     this.pending.timer = setTimeout(() => this.#swap(frame), 2500);
   }

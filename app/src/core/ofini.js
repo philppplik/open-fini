@@ -56,6 +56,7 @@ export async function saveOfini(doc) {
   );
   await Promise.all(jobs);
   if (doc.web) for (const [name, bytes] of Object.entries(doc.web.entries())) files[name] = [bytes, { level: bytes.length > 512 ? 6 : 0 }];
+  if (doc.web?.gitFiles) for (const [name, bytes] of Object.entries(doc.web.gitEntries())) files[name] = [bytes, { level: 0 }]; // history travels with the file; objects are already zlib-compressed
   try {
     const page = doc.pages[0];
     const s = Math.min(1, 256 / Math.max(page.w, page.h));
@@ -103,6 +104,9 @@ export async function loadOfini(bytes) {
   if (json.web) {
     doc.web = WebProject.fromManifest(json.web, (path) => entries[`web/files/${path}`]);
     attachWeb(doc);
+    const git = new Map();
+    for (const [name, bytes] of Object.entries(entries)) if (name.startsWith("web/git/")) git.set(name.slice(8), bytes);
+    if (git.has("HEAD")) doc.web.gitFiles = git;
   }
   dlState.version++;
   doc.history.clear();

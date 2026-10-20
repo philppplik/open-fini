@@ -6,6 +6,7 @@ import { mul, invert, translate, scaleAbout, apply, ident, rectUnion, rectTransf
 import { pageBounds, pageBoundsOf, nudge } from "./transform.js";
 import { booleanPaths, expandStroke } from "../engine/vector/boolean.js";
 import { transformPath, pathToData } from "../engine/vector/path.js";
+import { remapLinks } from "./data-nodes.js";
 
 export const LABELS = { rect: "Rectangle", ellipse: "Ellipse", polygon: "Polygon", star: "Star", path: "Curve", text: "Text", image: "Image", pixel: "Pixel Layer", group: "Group", adjust: "Adjustment" };
 
@@ -69,6 +70,7 @@ export function duplicateSelection(app, { offset = 0 } = {}) {
       doc.insert(c, n._parent, n._parent.children.indexOf(n) + 1);
       copies.push(c);
     }
+    remapLinks(nodes, copies);
   });
   app.select(copies);
   return copies;
@@ -412,6 +414,7 @@ export function pasteClipboard(app, { inPlace = false } = {}) {
       doc.insert(c, app.context, app.context.children.length);
       created.push(c);
     }
+    remapLinks(clip.nodes, created);
   });
   app.select(created);
   return true;

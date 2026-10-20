@@ -1,15 +1,13 @@
 // Layout-studio commands: pages, linked text frames, fields, tables, table of contents.
 import { h, clone, uid } from "../core/util.js";
-import { createNode, solid, defaultStroke, walk } from "../core/nodes.js";
-import { translate } from "../core/math.js";
+import { createNode, walk } from "../core/nodes.js";
 import { addNodes } from "../core/ops.js";
 import * as T from "../engine/layout/text-model.js";
 import { getStoryLayout } from "../engine/dl.js";
 import { addTextNode } from "../core/text-ops.js";
-import { openDialog } from "../ui/dialogs.js";
-import { numField, switchField } from "../ui/controls.js";
 import { installSliceOverlay } from "../studios/tools/layout.js";
 import { dataMergeDialog } from "../ui/data-merge.js";
+import { remapLinks } from "../core/data-nodes.js";
 
 const hasDoc = (a) => !!a.doc;
 const textFrames = (a) => a.selection.filter((n) => n.type === "text" && a.doc.stories[n.storyId]);
@@ -39,6 +37,7 @@ export function duplicatePage(app, page = app.page) {
       });
       doc.insert(c, np.root, np.root.children.length);
     }
+    remapLinks(page.root.children, np.root.children);
     doc.relayoutPages(doc.settings.facing);
   });
   return np;
@@ -180,65 +179,13 @@ export function registerLayoutCommands(app) {
   def("text.insertPageCount", "Insert Page Count", insertField("pageCount", "Page Count"), { enabled: hasDoc });
   def("text.insertDate", "Insert Date", insertField("date", "Date"), { enabled: hasDoc });
 
-  // ---- tables
-  def("layout.insertTable", "Insert Table…", (a) => tableDialog(a), { enabled: hasDoc });
+  // tables and charts: see commands/data.js
 
   // ---- table of contents
   def("layout.toc", "Generate Table of Contents", (a) => generateToc(a), { enabled: hasDoc });
 
   // ---- data merge
   def("layout.dataMerge", "Data Merge…", (a) => dataMergeDialog(a), { enabled: hasDoc });
-}
-
-function tableDialog(app) {
-  const st = { rows: 4, cols: 3, w: Math.min(app.page.w - 80, 600), rowH: 36, header: true };
-  const rows = numField({ label: "Rows", value: st.rows, min: 1, max: 60, precision: 0, wide: true, onChange: (v) => (st.rows = Math.round(v)) });
-  const cols = numField({ label: "Columns", value: st.cols, min: 1, max: 20, precision: 0, wide: true, onChange: (v) => (st.cols = Math.round(v)) });
-  const w = numField({ label: "Width", value: st.w, min: 40, unit: "px", precision: 0, wide: true, onChange: (v) => (st.w = v) });
-  const rh = numField({ label: "Row height", value: st.rowH, min: 12, unit: "px", precision: 0, wide: true, onChange: (v) => (st.rowH = v) });
-  const header = switchField({ label: "Header row", value: true, onChange: (v) => (st.header = v) });
-  openDialog({
-    title: "Insert Table",
-    body: h("div.of-form", h("div.of-row", rows.el, cols.el), h("div.of-row", w.el, rh.el), header.el, h("p.of-hint", "Creates a grid of cells (rectangles with editable text frames) grouped as one object.")),
-    width: 420,
-    buttons: [
-      { label: "Cancel", onClick: (c) => c() },
-      {
-        label: "Insert",
-        variant: "primary",
-        onClick: (close) => {
-          close();
-          buildTable(app, st);
-        },
-      },
-    ],
-  });
-}
-
-function buildTable(app, st) {
-  const doc = app.doc;
-  const page = app.page;
-  const cw = st.w / st.cols;
-  const x0 = (page.w - st.w) / 2;
-  const y0 = Math.max(20, (page.h - st.rows * st.rowH) / 2);
-  const group = createNode("group", { name: "Table" });
-  doc.tx("Insert Table", () => {
-    for (let r = 0; r < st.rows; r++) {
-      for (let c = 0; c < st.cols; c++) {
-        const isHead = st.header && r === 0;
-        const cell = createNode("rect", { name: `Cell ${r + 1}.${c + 1}`, w: cw, h: st.rowH, r: [0, 0, 0, 0], m: translate(c * cw, r * st.rowH), fill: solid(isHead ? "#e5e7eb" : "#ffffff"), stroke: defaultStroke("#9ca3af", 1) });
-        group.children.push(cell);
-        const story = T.storyFromPlain(isHead ? `Heading ${c + 1}` : "");
-        const sid = doc.createStory(story);
-        doc.stories[sid].defaults = { char: { fontFamily: "Inter", fontSize: 14, fontWeight: isHead ? 700 : 400 }, para: { align: "left", lineHeight: 1.25 } };
-        const t = createNode("text", { name: "Cell text", storyId: sid, w: cw, h: st.rowH, mode: "frame", insets: { top: 6, right: 8, bottom: 6, left: 8 }, vAlign: "center", m: translate(c * cw, r * st.rowH), fill: solid("#111827"), flowIndex: 0 });
-        group.children.push(t);
-      }
-    }
-    group.m = translate(x0, y0);
-    doc.insert(group, app.context, app.context.children.length);
-  });
-  app.select([group]);
 }
 
 function generateToc(app) {

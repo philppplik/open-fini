@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Merged by Tauri into the generated Info.plist of the macOS app (macOS only).
+
+  tauri.conf.json (bundle.fileAssociations) already declares the document types. The only thing Tauri cannot
+  express there is the icon of a type, so the two types OpenFini owns are declared here again, with
+  UTTypeIconFile pointing at Contents/Resources/ofini-doc.icns (bundled by tauri.macos.conf.json).
+  Keep identifiers, extensions and MIME types in sync with tauri.conf.json; tests/packaging/os-integration.test.js
+  checks it.
+-->
+<plist version="1.0">
+<dict>
+  <key>UTExportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>io.github.philppplik.openfini.document</string>
+      <key>UTTypeDescription</key>
+      <string>OpenFini Document</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.data</string>
+      </array>
+      <key>UTTypeIconFile</key>
+      <string>ofini-doc.icns</string>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>ofini</string>
+        </array>
+        <key>public.mime-type</key>
+        <string>application/x-openfini</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>io.github.philppplik.openfini.extension</string>
+      <key>UTTypeDescription</key>
+      <string>OpenFini Extension</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.data</string>
+      </array>
+      <key>UTTypeIconFile</key>
+      <string>ofini-doc.icns</string>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>ofext</string>
+        </array>
+        <key>public.mime-type</key>
+        <string>application/x-openfini-extension</string>
+      </dict>
+    </dict>
+  </array>
+</dict>
+</plist>

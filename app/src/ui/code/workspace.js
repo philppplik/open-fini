@@ -21,7 +21,11 @@ import { iconEl } from "../toolbox.js";
 import { openCommandPalette } from "./palette.js";
 import { updateReferences } from "./refs.js";
 import { importInto } from "./import.js";
+import { gitServiceFor } from "./git-service.js";
+import { gitGutter, refreshGutter } from "./git-gutter.js";
 import { platform } from "../../platform/index.js";
+import { DocPreview, docKind } from "./docpreview.js";
+import { createDocTools } from "./doctools.js";
 
 const workspaces = new WeakMap();
 
@@ -46,7 +50,9 @@ const ACTIVITY = [
   { id: "add", icon: "plus-square", label: "Add elements", shortcut: "" },
   { id: "outline", icon: "diagram-3", label: "Navigator", shortcut: "" },
   { id: "search", icon: "search", label: "Search (Ctrl+Shift+F)", shortcut: "" },
+  { id: "git", icon: "signpost-split", label: "Source Control", shortcut: "" },
   { id: "assets", icon: "images", label: "Assets", shortcut: "" },
+  { id: "libs", icon: "stack", label: "Libraries", shortcut: "" },
 ];
 
 export class CodeWorkspace extends Emitter {
@@ -106,7 +112,20 @@ export class CodeWorkspace extends Emitter {
     this.model = createModel(web);
     this.view = web.settings.view || "split";
     this.editors = new CodeEditors({ app: this.app, web, model: this.model, keys: this.#editorKeys() });
+    // Source Control: the service is cheap; the engine and the panel load when a repository exists or the pane opens
+    this.git = gitServiceFor(this.app, web);
+    this.editors.extraExtensions = (path) => gitGutter(path, (p) => this.git.baseText(p));
+    this.git.on("change", () => this.editors.view?.dispatch({ effects: refreshGutter.of(null) }));
+    if (this.git.exists) this.git.refresh();
+    const gitEl = h("div.of-side__pane.of-gitpane");
+    let gitMounted = false;
+    this.gitPane = { el: gitEl, show: () => !gitMounted && ((gitMounted = true), import("./git-panel.js").then((m) => m.mountGit(this, gitEl))) };
     this.preview = new PreviewPane(this);
+    // Markdown / LaTeX / BibTeX files get a document preview instead of the canvas (docpreview.js)
+    this.docPreview = new DocPreview(this);
+    const libsEl = h("div.of-side__pane.of-libspane");
+    let libsMounted = false;
+    this.libsPane = { el: libsEl, show: () => !libsMounted && ((libsMounted = true), import("./libraries-ui.js").then((m) => m.mountLibraries(this, libsEl))) };
     this.explorer = createExplorer(this);
     this.outline = createOutline(this);
     this.elementsPanel = createElementsPanel(this);
@@ -118,7 +137,7 @@ export class CodeWorkspace extends Emitter {
     // ---- sidebar: activity bar + active pane
     this.activity = h("div.of-activity", { role: "tablist", "aria-label": "Sidebar", "aria-orientation": "vertical" });
     this.paneHost = h("div.of-side__panes");
-    this.panes = { explorer: this.explorer, add: this.elementsPanel, outline: this.outline, search: this.searchPanel, assets: this.assetsPanel };
+    this.panes = { explorer: this.explorer, add: this.elementsPanel, outline: this.outline, search: this.searchPanel, git: this.gitPane, assets: this.assetsPanel, libs: this.libsPane };
     empty(this.side);
     this.side.append(this.activity, this.paneHost);
     this.#renderSide();
@@ -128,7 +147,7 @@ export class CodeWorkspace extends Emitter {
       "div.of-split",
       h("div.of-split__code", this.editors.el),
       h("div.of-split__bar", { role: "separator", "aria-orientation": "vertical", title: "Drag to resize" }),
-      h("div.of-split__preview", this.preview.el),
+      h("div.of-split__preview", this.preview.el, this.docPreview.el),
     );
     this.#wireSplitter();
     empty(this.main);
@@ -139,11 +158,17 @@ export class CodeWorkspace extends Emitter {
 
     // ---- reactions
     this.web.on("text", () => this.#onText());
+    // Markdown sites (content/ + layouts/): regenerate the HTML pages when a source file changes
+    this.web.on("text", ({ path, origin }) => origin !== "api" && /^(content|layouts)\/|^site\.json$/.test(path) && import("./mdsite.js").then((m) => m.scheduleBuild(this)));
     this.web.on("tree", () => this.#onText());
     this.editors.on("cursor", (c) => this.#onCursor(c));
     this.on("cursor", () => this.app.emit("codestatus"));
     this.preview.on("breakpoint", () => this.app.emit("codestatus"));
-    this.editors.on("active", () => this.emit("active"));
+    this.editors.on("active", () => {
+      this.#syncDocMode();
+      this.emit("active");
+    });
+    createDocTools(this);
     this.model.web.on("tree", () => this.emit("files"));
     this.preview.on("swap", () => this.emit("swap"));
 
@@ -154,9 +179,31 @@ export class CodeWorkspace extends Emitter {
     }
     this.preview.rebuild();
     this.preview.layout();
+    if (web.settings.kind === "document") this.sideOpen = false; // a single opened file: editor and preview only
+    this.#renderSide();
+    this.#syncDocMode();
     this.preview.on("built", () => this.problemsSoon());
     this.computeProblems();
     this.emit("built");
+  }
+
+  /** Shows the document preview (Markdown, LaTeX, BibTeX) instead of the canvas while such a file is active. */
+  #syncDocMode() {
+    const path = this.editors.active;
+    const kind = docKind(path);
+    const doc = !!kind;
+    this.main.toggleAttribute("data-doc", doc);
+    this.toolbar.toggleAttribute("data-doc", doc);
+    // a one-file text project without a preview (JSON, YAML …): the editor takes the whole width
+    this.main.toggleAttribute("data-solo", !doc && this.web.settings.kind === "document");
+    this.preview.el.classList.toggle("hidden", doc);
+    if (doc) this.docPreview.show(path);
+    else this.docPreview.hide();
+    if (!doc) requestAnimationFrame(() => this.preview.layout());
+    this.emit("docmode", { path, kind });
+  }
+  get documentKind() {
+    return docKind(this.editors?.active);
   }
 
   #renderSide() {
@@ -280,11 +327,7 @@ export class CodeWorkspace extends Emitter {
   openExternal(href) {
     // only web links, mail and phone links leave the app; anything else is ignored
     if (!/^(https?:|mailto:|tel:)/i.test(href) && !href.startsWith("//")) return;
-    if (this.app.prefs.confirmExternal !== false) {
-      confirmDialog({ title: "Open link", message: `Open ${href.length > 120 ? href.slice(0, 120) + "…" : href} in your browser?`, ok: "Open" }).then((ok) => ok && platform.openExternal(href.startsWith("//") ? `https:${href}` : href).catch(() => {}));
-      return;
-    }
-    platform.openExternal(href.startsWith("//") ? `https:${href}` : href).catch(() => {});
+    import("../links.js").then((m) => m.openLink(href, { app: this.app })); // honors "ask before opening links"
   }
   afterRename(pairs) {
     try {
@@ -872,7 +915,7 @@ export class CodeWorkspace extends Emitter {
     const c = this.editors.cursorInfo();
     const parts = [];
     if (c) parts.push(`Ln ${c.line}, Col ${c.col}${c.selected ? ` (${c.selected} selected)` : ""}`);
-    if (c) parts.push(({ html: "HTML", css: "CSS", javascript: "JavaScript", json: "JSON", markdown: "Markdown", xml: "XML", text: "Plain text" })[E.languageOf(c.path)] || "Plain text");
+    if (c) parts.push(({ html: "HTML", css: "CSS", javascript: "JavaScript", json: "JSON", markdown: "Markdown", xml: "XML", latex: "LaTeX", yaml: "YAML", toml: "TOML", properties: "INI", text: "Plain text" })[E.languageOf(c.path)] || "Plain text");
     parts.push(`Spaces: ${this.web.settings.tabSize || 2}`, "UTF-8");
     parts.push(`${this.preview.bp.label} ${this.preview.bp.width}px`);
     return parts.join("   ·   ");
@@ -889,6 +932,7 @@ export class CodeWorkspace extends Emitter {
   dispose() {
     if (!this.built) return;
     this.preview.destroy();
+    this.docPreview?.destroy();
     this.editors.destroy();
   }
 }

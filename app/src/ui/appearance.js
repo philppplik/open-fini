@@ -1,8 +1,10 @@
 // Applies the appearance and accessibility preferences to the document: theme, accent color, density,
 // interface scale, reduced motion, high contrast, focus rings and tooltips. Called on start-up and on every change.
 
+import { applyTheme, onThemesChanged } from "./themes.js";
+
 export const ACCENTS = [
-  { id: "violet", label: "Violet", color: null }, // the built-in accent of each theme
+  { id: "violet", label: "Theme default", color: null }, // each theme brings its own accent
   { id: "blue", label: "Blue", color: "#3b82f6" },
   { id: "teal", label: "Teal", color: "#0d9488" },
   { id: "green", label: "Green", color: "#16a34a" },
@@ -17,34 +19,39 @@ const DENSITY = {
   spacious: { "--of-bar-h": "42px", "--of-tabs-h": "36px", "--of-context-h": "46px", "--of-status-h": "28px" },
 };
 
-function shade(hex, amount) {
-  const n = parseInt(hex.slice(1), 16);
-  const f = (v) => Math.max(0, Math.min(255, Math.round(v + amount * (amount < 0 ? v : 255 - v))));
-  const r = f((n >> 16) & 255);
-  const g = f((n >> 8) & 255);
-  const b = f(n & 255);
-  return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
+let registrySync = false;
+
+/** The accent the user picked as an override, or null to use the theme's own accent. */
+export function accentOverride(p) {
+  const accent = ACCENTS.find((a) => a.id === p.accent) || ACCENTS[0];
+  const custom = /^#[0-9a-f]{6}$/i.test(p.accentCustom || "") && p.accent === "custom" ? p.accentCustom : null;
+  return custom || accent.color;
+}
+
+/** Whether the interface is dark right now (the `theme` preference is the mode: dark, light or auto). */
+export function isDark(p) {
+  return p.theme === "dark" || (p.theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
 }
 
 export function applyAppearance(app) {
   const p = app.prefs;
   const root = document.documentElement;
-  const dark = p.theme === "dark" || (p.theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+  if (!registrySync) {
+    // extensions may add or remove themes at any time: re-apply so a saved theme appears as soon as it is registered
+    registrySync = true;
+    onThemesChanged(() => {
+      applyAppearance(app);
+      app.emit("themes");
+      app.emit("render");
+    });
+  }
+
+  // theme (surfaces, borders, selection, editor), mode and accent override
+  const dark = isDark(p);
+  const applied = applyTheme(p.themeId || "default", dark ? "dark" : "light", { highContrast: !!p.highContrast, accent: accentOverride(p) });
   root.classList.toggle("sl-theme-dark", dark);
   root.classList.toggle("sl-theme-light", !dark);
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#1d1e22" : "#f6f6f8");
-
-  // accent color
-  const accent = ACCENTS.find((a) => a.id === p.accent) || ACCENTS[0];
-  const custom = /^#[0-9a-f]{6}$/i.test(p.accentCustom || "") && p.accent === "custom" ? p.accentCustom : null;
-  const color = custom || accent.color;
-  for (const k of ["--of-accent", "--of-accent-strong", "--of-accent-soft"]) root.style.removeProperty(k);
-  if (color) {
-    root.style.setProperty("--of-accent", color);
-    root.style.setProperty("--of-accent-strong", shade(color, -0.14));
-    const n = parseInt(color.slice(1), 16);
-    root.style.setProperty("--of-accent-soft", `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${dark ? 0.2 : 0.14})`);
-  }
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", applied.vars["--of-bg-bar"]);
 
   // density
   for (const vars of Object.values(DENSITY)) for (const k of Object.keys(vars)) root.style.removeProperty(k);

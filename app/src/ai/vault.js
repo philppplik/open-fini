@@ -77,6 +77,36 @@ export async function decryptJson(blob, passphrase) {
   }
 }
 
+// ---- raw building blocks for other at-rest encryption (app lock): derive once, seal many values
+
+/** Derives the AES-GCM key of a passphrase (same KDF and parameters as {@link encryptJson}). The key is not extractable. */
+export function deriveVaultKey(passphrase, salt, iterations = KDF_ITERATIONS) {
+  if (!passphrase) throw new VaultError("A passphrase is required.", "bad_passphrase");
+  return deriveKey(passphrase, salt, iterations);
+}
+
+/** Fresh random salt for {@link deriveVaultKey}. */
+export const newVaultSalt = () => subtle().getRandomValues(new Uint8Array(16));
+export const VAULT_ITERATIONS = KDF_ITERATIONS;
+
+/** Encrypts bytes with a derived key (AES-GCM, random IV, same associated data as the JSON vault). */
+export async function sealBytes(key, bytes) {
+  const c = subtle();
+  const iv = c.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await c.subtle.encrypt({ name: "AES-GCM", iv, additionalData: AAD }, key, bytes));
+  return { iv, data: ct };
+}
+
+/** Decrypts the result of {@link sealBytes}. Throws VaultError 'bad_passphrase' when the key is wrong or data was changed. */
+export async function openBytes(key, { iv, data }) {
+  try {
+    return new Uint8Array(await subtle().subtle.decrypt({ name: "AES-GCM", iv, additionalData: AAD }, key, data));
+  } catch (e) {
+    if (e instanceof VaultError) throw e;
+    throw new VaultError("Wrong passphrase or damaged data.", "bad_passphrase");
+  }
+}
+
 /**
  * Masks an API key for display, e.g. `sk-o...cdef`. Short keys are fully masked.
  * @param {string} key

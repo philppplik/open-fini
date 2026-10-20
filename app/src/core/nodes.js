@@ -7,10 +7,11 @@
 //   fill, stroke,                 // vector shapes and text
 //   ...type-specific fields
 // }
-// Types: group | rect | ellipse | polygon | star | path | text | image | pixel | adjust
+// Types: group | rect | ellipse | polygon | star | path | text | image | pixel | adjust | table | chart
 import { uid } from "./util.js";
 import { ident, rectUnion, rectTransform, mul } from "./math.js";
 import { rectPath, ellipsePath, polygonPath, starPath, pathBBox } from "../engine/vector/path.js";
+import { createTable, nominalSize } from "../engine/layout/table-model.js";
 
 export const SHAPE_TYPES = ["rect", "ellipse", "polygon", "star", "path"];
 
@@ -55,7 +56,7 @@ export function defaultStroke(color = "#000000", width = 1) {
 
 const NAMES = {
   group: "Group", rect: "Rectangle", ellipse: "Ellipse", polygon: "Polygon", star: "Star", path: "Curve",
-  text: "Text", image: "Image", pixel: "Pixel Layer", adjust: "Adjustment",
+  text: "Text", image: "Image", pixel: "Pixel Layer", adjust: "Adjustment", table: "Table", chart: "Chart",
 };
 
 /** Creates a node with sane defaults. `props` override anything. */
@@ -105,6 +106,13 @@ export function createNode(type, props = {}) {
     case "adjust":
       Object.assign(base, { effect: { group: "adjustment", id: "levels" }, params: {}, name: "Adjustment" });
       break;
+    case "table":
+      Object.assign(base, createTable(), { alt: "" });
+      break;
+    case "chart":
+      // `chart` holds the definition (see engine/layout/chart-data.js); filled in by the creator
+      Object.assign(base, { w: 480, h: 300, chart: null, alt: "" });
+      break;
   }
   const node = Object.assign(base, props);
   if (props.children === undefined && node.children === undefined && type === "group") node.children = [];
@@ -147,6 +155,10 @@ export function ownBounds(n) {
       return pathBBox(shapeGeometry(n));
     case "text":
       return n._bounds || { x: 0, y: 0, w: n.w || 0, h: n.h || 0 };
+    case "chart":
+      return { x: 0, y: 0, w: n.w, h: n.h };
+    case "table":
+      return n._bounds || { x: 0, y: 0, ...nominalSize(n) };
     default:
       return null;
   }

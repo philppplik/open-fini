@@ -1,5 +1,6 @@
 // Assets pane: images, fonts and media of the project, upload, insert, and "use a design page as an asset".
 import { h, empty, formatBytes } from "../../core/util.js";
+import { emptyHint } from "../empty-hint.js";
 import { relativeRef, sanitizeFileName, basename, uniquePath } from "../../engine/web/index.js";
 import { iconButton } from "../controls.js";
 import { confirmDialog } from "../dialogs.js";
@@ -37,7 +38,7 @@ export function createAssetsPanel(ws) {
     empty(grid);
     const files = web.paths.filter((p) => MEDIA.test(p));
     if (!files.length) {
-      grid.append(h("div.of-empty", "No assets yet. Upload images, fonts or media — or add a page of your design."));
+      grid.append(emptyHint(ws.app, { icon: "images", title: "No assets yet", text: "Upload images, fonts or media, or drop files here. They become available to every page.", plain: "No assets yet. Upload images, fonts or media." }));
     }
     for (const path of files) {
       const f = web.get(path);

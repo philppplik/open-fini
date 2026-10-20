@@ -6,22 +6,22 @@ import { translate, mul, rotateAbout } from "./math.js";
 import { storyFromPlain } from "../engine/layout/text-model.js";
 import { dlState } from "../engine/dl.js";
 import { svgDToPath, rectPath } from "../engine/vector/path.js";
+import { ImportReport, attachReport } from "./import-report.js";
+import { announceImport } from "./open-foreign.js";
 
 const BLEND = new Set(["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"]);
 const blendOf = (b) => (BLEND.has(b) ? b : "normal");
 const baseName = (n) => String(n || "Untitled").replace(/\.[^.]+$/, "");
 
-function finish(app, doc, studio, warnings, what) {
+function finish(app, doc, studio, report, what) {
   doc.history.clear();
   doc.saved = true;
   dlState.version++;
+  attachReport(doc, report);
   app.setStudio(studio);
   app.openDoc(doc);
   requestAnimationFrame(() => app.cv?.fitPage());
-  if (warnings?.length) {
-    const uniq = [...new Set(warnings)];
-    app.toast(`${what}: ${uniq.slice(0, 2).join(" ")}${uniq.length > 2 ? ` (+${uniq.length - 2} more notes)` : ""}`, "warning", 7000);
-  }
+  announceImport(app, doc, report, what);
   return doc;
 }
 
@@ -42,6 +42,8 @@ export async function openPsd(app, file) {
   const { readPsd } = await import("../engine/formats/index.js");
   const psd = readPsd(file.bytes);
   const warnings = [...psd.warnings];
+  const report = new ImportReport(psd.version === 2 ? "Photoshop (PSB)" : "Photoshop (PSD)", file.name);
+  const stats = { pixel: 0, text: 0, smart: 0, groups: 0 };
   const doc = new Doc({ name: baseName(file.name), width: psd.width, height: psd.height, dpi: 72, studio: "pixel", bg: null });
   const root = doc.pages[0].root;
   const nodes = new Array(psd.layers.length).fill(null);
@@ -49,17 +51,37 @@ export async function openPsd(app, file) {
   psd.layers.forEach((l, i) => {
     const common = { name: l.name || (l.kind === "group" ? "Group" : "Layer"), visible: l.visible !== false, locked: !!l.locked, opacity: l.opacity ?? 1, blend: blendOf(l.blend) };
     let node = null;
-    if (l.kind === "group") node = createNode("group", { ...common, blend: "normal" });
-    else if (l.rgba && l.width > 0 && l.height > 0) {
+    let textNode = null;
+    if (l.kind === "group") {
+      node = createNode("group", { ...common, blend: "normal" });
+      stats.groups++;
+    } else if (l.rgba && l.width > 0 && l.height > 0) {
       node = createNode("pixel", { ...common, w: l.width, h: l.height, m: translate(l.x, l.y) });
       doc.pixels.set(node.id, layerCanvas(l));
       pixelLayers++;
-    } else if (l.kind === "adjustment") warnings.push(`Adjustment layer “${l.name}” was skipped.`);
-    if (l.clipping && node) warnings.push("Clipping masks were not kept.");
+      if (l.kind === "text" && l.text?.content) {
+        // editable text on top; the original raster stays underneath (hidden) as a reference
+        const content = String(l.text.content);
+        const size = l.text.fontSize > 0 ? l.text.fontSize : 24;
+        const storyId = doc.createStory(storyFromPlain(content));
+        doc.stories[storyId].defaults = { char: { fontFamily: "Inter", fontSize: Math.round(size * 10) / 10, fontWeight: 400, fontStyle: "normal" }, para: { align: "left", lineHeight: 1.2 } };
+        textNode = createNode("text", { ...common, name: l.name || content.slice(0, 24), storyId, w: Math.max(l.width * 1.1, size), h: null, mode: "frame", flowIndex: 0, fill: solid(l.text.color || "#000000"), m: translate(l.x, l.y) });
+        node.visible = false;
+        node.name = `${node.name} (original raster)`;
+        stats.text++;
+      } else if (l.kind === "other") {
+        stats.smart++;
+        report.flattened(`Smart object “${l.name}” is imported as its flattened preview (not live).`);
+      } else stats.pixel++;
+    } else if (l.kind === "adjustment") report.dropped(`Adjustment layer “${l.name}” was not imported.`);
+    if (l.clipping && node) report.dropped("Clipping masks were not kept (the layer is imported unclipped).");
     nodes[i] = node;
     if (!node) return;
     const parent = l.parentIndex >= 0 && nodes[l.parentIndex] ? nodes[l.parentIndex] : root;
-    if (parent.type === "group" || parent === root) parent.children.push(node);
+    if (parent.type === "group" || parent === root) {
+      parent.children.push(node);
+      if (textNode) parent.children.push(textNode);
+    }
   });
   if (!pixelLayers && psd.composite) {
     const node = createNode("pixel", { name: "Background", w: psd.composite.width, h: psd.composite.height });
@@ -67,10 +89,14 @@ export async function openPsd(app, file) {
     ctx2d(c).putImageData(new ImageData(psd.composite.data, node.w, node.h), 0, 0);
     doc.pixels.set(node.id, c);
     root.children.push(node);
-    warnings.push("The file has no layers that could be read; its flattened image was opened instead.");
+    report.flattened("The file has no layers that could be read; its flattened image was opened instead.");
   }
   doc.relink();
-  return finish(app, doc, "pixel", warnings, `“${file.name}”`);
+  if (stats.pixel) report.kept(`${stats.pixel} pixel layer${stats.pixel === 1 ? "" : "s"} with opacity, blend mode and masks.`);
+  if (stats.groups) report.kept(`${stats.groups} group${stats.groups === 1 ? "" : "s"}.`);
+  if (stats.text) report.kept(`${stats.text} text layer${stats.text === 1 ? "" : "s"} as editable text (position and size from the file; the font is replaced by Inter, the original raster is kept hidden).`);
+  for (const w of warnings) (/effects|not rendered|adjustment|smart object/i.test(w) ? report.dropped(w) : report.note(w));
+  return finish(app, doc, "pixel", report, `“${file.name}”`);
 }
 
 // ------------------------------------------------------------------ InDesign (IDML)
@@ -121,6 +147,7 @@ export async function openIdml(app, file) {
   const { readIdml } = await import("../engine/formats/index.js");
   const idml = readIdml(file.bytes);
   const warnings = [...idml.warnings];
+  const report = new ImportReport("InDesign (IDML)", file.name);
   if (!idml.pages.length) throw new Error("That IDML file has no pages.");
   const p0 = idml.pages[0];
   const doc = new Doc({ name: idml.name || baseName(file.name), width: Math.round(p0.width), height: Math.round(p0.height), dpi: 72, studio: "layout", pages: 1, bg: "#ffffff" });
@@ -133,5 +160,7 @@ export async function openIdml(app, file) {
     }
   });
   doc.relink();
-  return finish(app, doc, "layout", warnings, `“${file.name}”`);
+  report.kept(`${idml.pages.length} page${idml.pages.length === 1 ? "" : "s"} with shapes, lines, text frames and colors.`);
+  for (const w of warnings) (/placeholder|skipped|not supported|dropped|off every page/i.test(w) ? report.dropped(w) : report.note(w));
+  return finish(app, doc, "layout", report, `“${file.name}”`);
 }

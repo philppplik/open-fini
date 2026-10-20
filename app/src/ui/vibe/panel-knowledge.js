@@ -26,6 +26,12 @@ export function createSkillsPanel(vs) {
     const bi = h("div.of-vcard", h("strong", "Built in"));
     for (const s of builtin()) bi.append(h("div.of-vtool", h("div", h("code", s.name), h("small", s.description)), h("button.of-btn", { type: "button", onclick: () => { vs.chat.setInput(`/${s.name} `); } }, "Use")));
     el.append(bi);
+    app.extensions?.vibeSkills().then((list) => {
+      if (!list.length || !el.isConnected) return;
+      const ex = h("div.of-vcard", h("strong", "From extensions"));
+      for (const s of list) ex.append(h("div.of-vtool", h("div", h("code", s.name), h("small", `${s.description || ""} — extension “${s.origin.name}”`)), h("button.of-btn", { type: "button", onclick: () => { vs.chat.setInput(`/${s.name} `); } }, "Use")));
+      el.append(ex);
+    }).catch(() => {});
   }
 
   function edit(s) {

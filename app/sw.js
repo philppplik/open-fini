@@ -9,6 +9,9 @@
  *   under a running editing session (see registerServiceWorker in
  *   src/platform/pwa.js).
  * - Old caches are deleted when a new version activates.
+ * - Web Share Target: a POST to <scope>/share (files shared from another app) is stored in the "ofshare-v1"
+ *   cache and answered with a redirect to ./?share=<id>; the page then opens the files and empties the cache.
+ *   That cache does not start with "openfini-", so version clean-up never touches it.
  * - Without injected tokens (the dev server serves this file as is) the worker
  *   does not intercept anything and removes itself, so development is never stale.
  */
@@ -25,6 +28,9 @@ const META = "openfini-cache-meta.json"; // pseudo URL that stores the revisions
 const BATCH = 24; // parallel downloads while precaching
 
 const scoped = (path) => new URL(path, self.registration.scope).href;
+
+const SHARE_CACHE = "ofshare-v1";
+const SHARE_PATH = "share";
 
 self.addEventListener("install", (event) => {
   if (DEV) return;
@@ -49,13 +55,35 @@ self.addEventListener("message", (event) => {
 self.addEventListener("fetch", (event) => {
   if (DEV) return;
   const { request } = event;
-  if (request.method !== "GET") return;
   const url = new URL(request.url);
+  if (request.method === "POST" && url.origin === self.location.origin && url.pathname === new URL(SHARE_PATH, self.registration.scope).pathname) {
+    event.respondWith(receiveShare(request));
+    return;
+  }
+  if (request.method !== "GET") return;
   if (url.origin !== self.location.origin) return;
   // The worker script and the build info must always come from the network.
   if (url.pathname === new URL(self.location.href).pathname || url.pathname.endsWith("/build-info.json")) return;
   event.respondWith(request.mode === "navigate" ? navigation(request) : asset(request));
 });
+
+/** Share target: keep the shared files for the page and send the browser to the app. */
+async function receiveShare(request) {
+  try {
+    const form = await request.formData();
+    const files = form.getAll("files").filter((f) => typeof f === "object" && f.size > 0);
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    const cache = await caches.open(SHARE_CACHE);
+    let n = 0;
+    for (const file of files) {
+      const key = scoped(`share-files/${id}/${n++}/${encodeURIComponent(file.name || "shared-file")}`);
+      await cache.put(key, new Response(file, { headers: { "content-type": file.type || "application/octet-stream" } }));
+    }
+    return Response.redirect(scoped(files.length ? `?share=${id}` : "./"), 303);
+  } catch {
+    return Response.redirect(scoped("./"), 303);
+  }
+}
 
 async function precache() {
   const cache = await caches.open(CACHE_NAME);

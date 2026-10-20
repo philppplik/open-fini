@@ -10,6 +10,12 @@ import { installShortcuts } from "./ui/shortcuts.js";
 import { installTooltips } from "./ui/controls.js";
 import { createShell, applyTheme } from "./ui/shell.js";
 import { ensureFont } from "./core/fonts.js";
+import { installLogCapture } from "./core/log-capture.js";
+import { redact } from "./core/log.js";
+import { markBootOk } from "./core/bootguard.js";
+
+// Central logging first, so everything that goes wrong while starting is recorded (see docs/troubleshooting.md).
+installLogCapture();
 
 // Shoelace 2.20 calls ResizeObserver.unobserve(undefined) when a <sl-range>/<sl-select> is removed before its
 // first render (panels are rebuilt often). The call is harmless but throws; ignore non-element arguments.
@@ -35,15 +41,14 @@ applyTheme(app);
 app.on("prefs", () => applyTheme(app));
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => app.prefs.theme === "auto" && applyTheme(app));
 
-// Unexpected errors: keep working, tell the user once in a while (work is autosaved), log the details.
+// Unexpected errors: keep working, tell the user once in a while (work is autosaved). The details are logged by log-capture.js.
 let lastErrorToast = 0;
 const reportError = (message) => {
   if (!message || /ResizeObserver|unobserve/i.test(message)) return; // benign browser / component noise
-  console.error("[OpenFini]", message);
   const now = Date.now();
   if (now - lastErrorToast < 5000) return;
   lastErrorToast = now;
-  app.toast(`Something went wrong: ${String(message).slice(0, 140)}. Your work is autosaved on this device.`, "danger", 7000);
+  app.toast(`Something went wrong: ${redact(message).slice(0, 140)}. Your work is autosaved on this device.`, "danger", 7000, { label: "Details", run: () => app.run("help.troubleshoot") });
 };
 window.addEventListener("error", (e) => reportError(e.message));
 window.addEventListener("unhandledrejection", (e) => reportError(e.reason?.message || String(e.reason)));
@@ -56,3 +61,8 @@ ensureFont("Inter", 700);
 // feature modules that need the shell to exist
 const { boot } = await import("./boot.js");
 await boot(app);
+try {
+  markBootOk(localStorage);
+} catch {
+  /* storage blocked: no guard */
+} // the crash-loop guard counts a start as failed until this point

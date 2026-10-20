@@ -3,6 +3,8 @@
 // Uses the File System Access API where it exists (Chromium) and falls back to
 // <input type="file"> and download links everywhere else (Safari, Firefox).
 import { isSafeExternalUrl, mimeFromName, normalizeFilters, toBlob, toPngBlob } from "./common.js";
+import { createOpenBuffer } from "./open-paths.js";
+import { takeSharedFiles } from "./pwa.js";
 
 /** @typedef {import("./index.js").PlatformFile} PlatformFile */
 
@@ -70,22 +72,34 @@ function downloadBlob(blob, name) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-const launchListeners = new Set();
+// Files opened from outside: the PWA file handler (launchQueue) and the share target (?share=<id>, filled by sw.js).
+// A buffer keeps them until the app subscribes.
+const launchBuffer = createOpenBuffer();
 let launchConsumerInstalled = false;
 
 function installLaunchConsumer() {
-  if (launchConsumerInstalled || typeof window === "undefined" || !("launchQueue" in window)) return;
+  if (launchConsumerInstalled || typeof window === "undefined") return;
   launchConsumerInstalled = true;
-  window.launchQueue.setConsumer(async (params) => {
-    const handles = params.files ?? [];
-    if (handles.length === 0) return;
-    try {
-      const files = await Promise.all(handles.map(async (handle) => readFile(await handle.getFile())));
-      for (const listener of launchListeners) listener(files);
-    } catch (err) {
-      console.warn("OpenFini: could not read launched files", err);
-    }
-  });
+  if ("launchQueue" in window) {
+    window.launchQueue.setConsumer(async (params) => {
+      const handles = params.files ?? [];
+      if (handles.length === 0) return;
+      try {
+        launchBuffer.deliver(await Promise.all(handles.map(async (handle) => readFile(await handle.getFile()))));
+      } catch (err) {
+        console.warn("OpenFini: could not read launched files", err);
+      }
+    });
+  }
+  const shareId = new URLSearchParams(window.location.search).get("share");
+  if (shareId) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("share");
+    window.history.replaceState(null, "", url);
+    takeSharedFiles(shareId)
+      .then((files) => launchBuffer.deliver(files))
+      .catch((err) => console.warn("OpenFini: could not read shared files", err));
+  }
 }
 
 /** @type {import("./index.js").Platform} */
@@ -147,11 +161,9 @@ export const platform = {
   },
 
   async onOpenFiles(callback) {
-    launchListeners.add(callback);
+    const unsubscribe = launchBuffer.subscribe(callback);
     installLaunchConsumer();
-    return () => {
-      launchListeners.delete(callback);
-    };
+    return unsubscribe;
   },
 
   async clipboardReadImage() {

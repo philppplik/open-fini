@@ -1,0 +1,189 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/philppplik/open-fini/sdk/schema/openfini-extension.schema.json",
+  "title": "OpenFini extension manifest",
+  "description": "openfini-extension.json: describes an OpenFini extension. OpenFini validates the manifest again when it installs and loads the extension.",
+  "type": "object",
+  "required": ["id", "name", "version", "engines"],
+  "additionalProperties": false,
+  "definitions": {
+    "localId": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._-]{0,63}$" },
+    "studio": { "enum": ["vector", "pixel", "layout", "code", "vibe"] },
+    "dockStudio": { "enum": ["vector", "pixel", "layout", "code"] },
+    "path": { "type": "string", "maxLength": 200, "description": "Relative path inside the package (no .. or leading /)." },
+    "iconName": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,40}$", "description": "A Bootstrap Icons name such as puzzle." },
+    "cssVars": {
+      "type": "object",
+      "propertyNames": { "pattern": "^--(of|sl)-[a-z0-9-]{1,60}$" },
+      "additionalProperties": { "type": "string", "maxLength": 200 },
+      "description": "CSS custom properties, for example --of-bg-panel. Values are plain colors, lengths and shadows (no url())."
+    },
+    "handler": {
+      "type": "object",
+      "required": ["id", "title", "command"],
+      "properties": {
+        "id": { "$ref": "#/definitions/localId" },
+        "title": { "type": "string", "maxLength": 60 },
+        "extensions": { "type": "array", "items": { "type": "string", "pattern": "^[a-z0-9]{1,10}$" }, "minItems": 1, "maxItems": 10 },
+        "extension": { "type": "string", "pattern": "^[a-z0-9]{1,10}$" },
+        "command": { "$ref": "#/definitions/localId" }
+      }
+    }
+  },
+  "properties": {
+    "$schema": { "type": "string" },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{1,30}\\.[a-z0-9][a-z0-9-]{1,40}$", "description": "publisher.name, lowercase letters, digits and dashes." },
+    "name": { "type": "string", "minLength": 1, "maxLength": 60 },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" },
+    "description": { "type": "string", "maxLength": 300 },
+    "icon": { "type": "string", "description": "A Bootstrap Icons name or a relative .png/.svg/.webp path." },
+    "homepage": { "type": "string", "format": "uri", "pattern": "^https://" },
+    "license": { "type": "string", "maxLength": 40 },
+    "repository": {},
+    "keywords": { "type": "array", "items": { "type": "string" } },
+    "publisher": { "type": "string" },
+    "engines": {
+      "type": "object",
+      "required": ["openfini"],
+      "properties": { "openfini": { "type": "string", "description": "A semver range of OpenFini versions, e.g. >=0.3.0 or ^0.4.0." } },
+      "additionalProperties": false
+    },
+    "main": { "$ref": "#/definitions/path", "pattern": "\\.js$", "description": "Entry script, run in a sandboxed frame. Required for commands, importers, exporters and Vibe tools." },
+    "activationEvents": {
+      "type": "array",
+      "maxItems": 50,
+      "items": { "type": "string", "pattern": "^(onStartup|onStudio:(vector|pixel|layout|code|vibe)|onCommand:[A-Za-z][A-Za-z0-9._-]{0,63}|onFileType:[a-z0-9]{1,10})$" },
+      "description": "When the entry script starts. Commands and importers add their own events automatically."
+    },
+    "permissions": {
+      "type": "array",
+      "maxItems": 40,
+      "items": { "type": "string", "pattern": "^(document\\.read|document\\.write|ui|storage|files|vibe|commands|network:https?://[^/\\s]+)$" },
+      "description": "Capabilities the user must approve. network:<origin> allows requests to one origin, e.g. network:https://api.example.com."
+    },
+    "contributes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "commands": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "required": ["id", "title"],
+            "properties": {
+              "id": { "$ref": "#/definitions/localId" },
+              "title": { "type": "string", "maxLength": 80 },
+              "category": { "type": "string", "maxLength": 40 },
+              "icon": { "$ref": "#/definitions/iconName" },
+              "studios": { "type": "array", "items": { "$ref": "#/definitions/studio" } },
+              "requires": { "enum": ["document", "selection"] }
+            }
+          }
+        },
+        "menus": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "required": ["menu", "command"],
+            "properties": {
+              "menu": { "enum": ["File", "Edit", "Layer", "Arrange", "Shape", "Select", "Filter", "Text", "Document", "View", "Insert", "Go", "Studio", "Help", "context:canvas"] },
+              "command": { "$ref": "#/definitions/localId" },
+              "studios": { "type": "array", "items": { "$ref": "#/definitions/studio" } },
+              "group": { "type": "string" }
+            }
+          }
+        },
+        "keybindings": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "required": ["command", "key"],
+            "properties": { "command": { "$ref": "#/definitions/localId" }, "key": { "type": "string", "examples": ["Mod+Alt+G"] }, "studios": { "type": "array", "items": { "$ref": "#/definitions/studio" } } }
+          }
+        },
+        "panels": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "required": ["id", "title", "html"],
+            "properties": {
+              "id": { "$ref": "#/definitions/localId" },
+              "title": { "type": "string", "maxLength": 30 },
+              "html": { "$ref": "#/definitions/path" },
+              "icon": { "$ref": "#/definitions/iconName" },
+              "studios": { "type": "array", "items": { "$ref": "#/definitions/dockStudio" } },
+              "location": { "enum": ["top", "bottom"] }
+            }
+          }
+        },
+        "themes": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "required": ["id", "label", "dark", "light"],
+            "properties": { "id": { "$ref": "#/definitions/localId" }, "label": { "type": "string", "maxLength": 40 }, "dark": { "$ref": "#/definitions/cssVars" }, "light": { "$ref": "#/definitions/cssVars" } }
+          }
+        },
+        "templates": {
+          "type": "array",
+          "maxItems": 50,
+          "items": {
+            "type": "object",
+            "required": ["id", "label"],
+            "properties": {
+              "id": { "$ref": "#/definitions/localId" },
+              "label": { "type": "string", "maxLength": 60 },
+              "description": { "type": "string", "maxLength": 200 },
+              "kind": { "enum": ["design", "website"], "default": "design" },
+              "studio": { "enum": ["vector", "pixel", "layout"] },
+              "width": { "type": "number" },
+              "height": { "type": "number" },
+              "steps": { "type": "array", "maxItems": 200, "items": { "type": "object", "required": ["tool"], "properties": { "tool": { "type": "string" }, "args": { "type": "object" } } }, "description": "Design templates: Vibe tool calls that build the document." },
+              "files": { "type": "object", "additionalProperties": { "$ref": "#/definitions/path" }, "description": "Website templates: project path -> package file." }
+            }
+          }
+        },
+        "importers": { "type": "array", "maxItems": 20, "items": { "$ref": "#/definitions/handler" } },
+        "exporters": { "type": "array", "maxItems": 20, "items": { "$ref": "#/definitions/handler" } },
+        "vibeTools": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "required": ["name", "description"],
+            "properties": { "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,40}$" }, "description": { "type": "string", "minLength": 10, "maxLength": 600 }, "inputSchema": { "type": "object" } }
+          }
+        },
+        "vibeSkills": {
+          "type": "array",
+          "maxItems": 20,
+          "items": { "type": "object", "properties": { "file": { "$ref": "#/definitions/path" }, "name": { "type": "string" }, "description": { "type": "string" }, "body": { "type": "string", "maxLength": 20000 } } }
+        },
+        "settings": {
+          "type": "object",
+          "required": ["properties"],
+          "properties": {
+            "properties": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "required": ["type"],
+                "properties": { "type": { "enum": ["boolean", "string", "number"] }, "title": { "type": "string" }, "description": { "type": "string" }, "default": {}, "enum": { "type": "array" }, "min": { "type": "number" }, "max": { "type": "number" } }
+              }
+            }
+          }
+        },
+        "snippets": {
+          "type": "array",
+          "maxItems": 300,
+          "items": { "type": "object", "required": ["language", "label", "body"], "properties": { "language": { "enum": ["html", "css", "javascript"] }, "label": { "type": "string", "maxLength": 60 }, "detail": { "type": "string", "maxLength": 80 }, "body": { "type": "string", "maxLength": 8000, "description": "CodeMirror snippet template; ${1:placeholder} marks tab stops." } } }
+        }
+      }
+    }
+  }
+}

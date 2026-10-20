@@ -42,3 +42,24 @@ await build({
 });
 await copyFile(join(root, "node_modules", "@codemirror", "view", "LICENSE"), join(cmOut, "LICENSE"));
 console.log("vendor: CodeMirror bundled ->", cmOut);
+
+// KaTeX (math in the Markdown and LaTeX previews, loaded only when a document contains formulas): one minified ESM
+// bundle, the stylesheet reduced to woff2 fonts, the fonts and the license.
+import { readFile, writeFile, readdir } from "node:fs/promises";
+const kxIn = join(root, "node_modules", "katex", "dist");
+const kxOut = join(root, "app", "vendor", "katex");
+await mkdir(join(kxOut, "fonts"), { recursive: true });
+await build({
+  entryPoints: [join(kxIn, "katex.mjs")],
+  outfile: join(kxOut, "katex.mjs"),
+  bundle: true,
+  format: "esm",
+  minify: true,
+  legalComments: "none",
+  target: "es2020",
+});
+const kxCss = (await readFile(join(kxIn, "katex.min.css"), "utf8")).replace(/,url\(fonts\/[^)]+\.woff\) format\("woff"\),url\(fonts\/[^)]+\.ttf\) format\("truetype"\)/g, "");
+await writeFile(join(kxOut, "katex.min.css"), kxCss);
+for (const f of await readdir(join(kxIn, "fonts"))) if (f.endsWith(".woff2")) await copyFile(join(kxIn, "fonts", f), join(kxOut, "fonts", f));
+await copyFile(join(root, "node_modules", "katex", "LICENSE"), join(kxOut, "LICENSE"));
+console.log("vendor: KaTeX bundled ->", kxOut);

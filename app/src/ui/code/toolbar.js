@@ -1,7 +1,7 @@
 // Toolbar of the Code studio (shown in the context bar): view switch, page, breakpoints, zoom, preview mode.
 import { h, empty } from "../../core/util.js";
 import { BREAKPOINTS, sanitizeFileName } from "../../engine/web/index.js";
-import { iconButton, segmented } from "../controls.js";
+import { iconButton, segmented, button } from "../controls.js";
 import { promptDialog } from "../dialogs.js";
 import { starterContent } from "../../core/web.js";
 
@@ -56,19 +56,20 @@ export function createToolbar(ws) {
   const format = iconButton({ icon: "text-indent-left", label: "Format document (Shift+Alt+F)", onClick: () => ws.editors.format() });
   const palette = iconButton({ icon: "terminal", label: "Command palette (Ctrl+Shift+P)", onClick: () => ws.palette() });
   const bottomBtn = iconButton({ icon: "layout-text-window-reverse", label: "Console and problems (Ctrl+J)", onClick: () => ws.bottom.toggle() });
+  const publish = button("Publish", () => import("../export-dialog.js").then((m) => m.exportDialog(ws.app, { tab: "publish" })), { variant: "primary", icon: "upload", title: "Publish the website to Netlify, Vercel, GitHub Pages, WebDAV or your own server" });
   const badge = h("span.of-codebar__badge.hidden");
   const bottomWrap = h("span.of-codebar__withbadge", bottomBtn, badge);
 
   el.append(
     h("div.of-codebar__group", view.el),
     h("span.of-sep"),
-    h("div.of-codebar__group", pageSel, addPage),
+    h("div.of-codebar__group.of-codebar__design", pageSel, addPage),
     h("span.of-sep"),
-    h("div.of-codebar__group", bps.el, bpLabel, zoomSel),
+    h("div.of-codebar__group.of-codebar__design", bps.el, bpLabel, zoomSel),
     h("span.of-sep"),
-    h("div.of-codebar__group", mode, reload),
+    h("div.of-codebar__group.of-codebar__design", mode, reload),
     h("span.of-codebar__spacer"),
-    h("div.of-codebar__group", format, bottomWrap, palette),
+    h("div.of-codebar__group", format, bottomWrap, palette, publish),
   );
 
   function renderPages() {

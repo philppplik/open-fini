@@ -108,6 +108,14 @@ export function planForPrompt(prompt, ctx = { ids: [], called: new Set() }) {
       { text: "Let me check how it looks.", calls: [{ name: "screenshot", input: {} }] },
     ];
   }
+  if (/\b(report|table|chart|graph|dashboard)\b/.test(p)) {
+    return [
+      { text: "I will start a landscape page for the report.", calls: [{ name: "new_document", input: { name: "Report", width: 1240, height: 880, studio: "layout" } }] },
+      { text: "Adding a table with a total row.", calls: [{ name: "add_table", input: { data: [["Region", "Q1", "Q2"], ["North", 120, 150], ["South", 90, 110], ["Total", "=SUM(B2:B3)", "=SUM(C2:C3)"]], headerCols: 1, style: "striped", x: 80, y: 120, w: 480 } }] },
+      { text: "And a chart linked to it.", calls: [{ name: "add_chart", input: { type: "column", title: "Sales by region", tableId: ctx.lastId || "n1", x: 620, y: 120, w: 520, h: 330 } }] },
+      { text: "Let me check how it looks.", calls: [{ name: "screenshot", input: {} }] },
+    ];
+  }
   if (/\bwebsite\b|\blanding\b|\bweb ?page\b|\bportfolio\b|\bblog\b/.test(p)) {
     const template = /\bportfolio\b/.test(p) ? "portfolio" : /\bblog\b/.test(p) ? "blog" : "landing";
     const title = q || "Welcome";

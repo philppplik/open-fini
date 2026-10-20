@@ -7,6 +7,7 @@ import { cssColor, parseColor, toHex6, DEFAULT_SWATCHES } from "../core/color.js
 
 let tipEl = null;
 let tipTimer = 0;
+let helpMod = null; // help-content.js, loaded on the first tooltip (one-line "what it does" under the name)
 function ensureTip() {
   if (tipEl) return tipEl;
   tipEl = h("div.of-tip", { role: "tooltip" });
@@ -22,12 +23,14 @@ export function installTooltips() {
     const t = e.target.closest?.("[data-tip]");
     if (!t) return hide();
     clearTimeout(tipTimer);
+    if (!helpMod && !document.documentElement.classList.contains("of-no-tips")) import("./help-content.js").then((m) => (helpMod = m)).catch(() => {});
     tipTimer = setTimeout(() => {
       if (document.documentElement.classList.contains("of-no-tips")) return;
       const el = ensureTip();
       const text = t.getAttribute("data-tip");
       const sc = t.getAttribute("data-shortcut");
-      el.replaceChildren(text, sc ? h("kbd", prettyShortcut(sc)) : "");
+      const desc = helpMod?.tipDescription(t);
+      el.replaceChildren(text, sc ? h("kbd", prettyShortcut(sc)) : "", desc ? h("span.of-tip__desc", desc) : "");
       const r = t.getBoundingClientRect();
       el.classList.add("show");
       const w = el.offsetWidth;

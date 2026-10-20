@@ -26,8 +26,15 @@ export function templateGallery({ onPick, onCreate, selected = "landing-page" } 
     for (const [id, c] of cards) c.classList.toggle("selected", id === t.id);
     onPick?.(t);
   };
+  let lastGroup = "";
   for (const t of TEMPLATES) {
-    const c = h("button.of-tpl", { type: "button", "aria-pressed": "false" }, thumb(t), h("strong", t.name), h("span", t.description));
+    // plain HTML templates first, then framework, Markdown and PWA starters
+    const group = t.framework ? "Frameworks, Markdown and PWA" : "Basic websites";
+    if (group !== lastGroup) {
+      grid.append(h("h3.of-tpls__group", group));
+      lastGroup = group;
+    }
+    const c = h("button.of-tpl", { type: "button", "aria-pressed": "false" }, thumb(t), h("strong", t.name), h("span", t.description), t.libs?.length ? h("em.of-tpl__libs", `Uses ${t.libs.join(", ")}`) : null);
     c.addEventListener("click", () => select(t));
     c.addEventListener("dblclick", () => onCreate?.(t));
     cards.set(t.id, c);

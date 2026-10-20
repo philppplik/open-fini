@@ -35,7 +35,7 @@ export function createModelsPanel(vs) {
       keyLink.style.display = p.keyUrl ? "" : "none";
       keyLink.onclick = (e) => {
         e.preventDefault();
-        platform.openExternal(p.keyUrl);
+        import("../links.js").then((m) => m.openLink(p.keyUrl));
       };
       note.textContent = p.note || "";
     };
@@ -68,6 +68,7 @@ export function createModelsPanel(vs) {
     if (preset0.id === "openrouter" || !existing) {
       if (!platform.isDesktop) {
         rows.push(h("button.of-btn", { type: "button", onclick: async () => {
+          if (!app.network.allowed("oauth")) return app.toast(app.network.message("oauth"), "warning", 5000);
           const pk = await createPkce();
           sessionStorage.setItem("vibe.pkce", JSON.stringify(pk));
           location.href = openRouterAuthUrl({ callbackUrl: `${location.origin}${location.pathname}?vibe_oauth=openrouter`, challenge: pk.challenge });

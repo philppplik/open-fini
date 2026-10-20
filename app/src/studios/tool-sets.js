@@ -7,5 +7,7 @@ import { PIXEL_PAINT_TOOLS } from "./tools/pixel-paint.js";
 import { PIXEL_RETOUCH_TOOLS } from "./tools/pixel-retouch.js";
 import { PIXEL_MISC_TOOLS } from "./tools/pixel-misc.js";
 import { LAYOUT_TOOLS } from "./tools/layout.js";
+import { DATA_TOOLS } from "./tools/data.js";
+import { AdjustPickerTool } from "../ui/histogram/picker-tool.js";
 
-export const TOOL_SETS = [[TextTool, FrameTextTool, GradientTool, FillTool], PIXEL_SELECT_TOOLS, PIXEL_PAINT_TOOLS, PIXEL_RETOUCH_TOOLS, PIXEL_MISC_TOOLS, LAYOUT_TOOLS];
+export const TOOL_SETS = [[TextTool, FrameTextTool, GradientTool, FillTool], PIXEL_SELECT_TOOLS, PIXEL_PAINT_TOOLS, PIXEL_RETOUCH_TOOLS, PIXEL_MISC_TOOLS, LAYOUT_TOOLS, DATA_TOOLS, [AdjustPickerTool]];

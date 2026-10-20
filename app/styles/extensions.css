@@ -1,0 +1,58 @@
+/* Extensions: manager dialog, consent dialog, contributed dock panels. Uses the --of-* tokens, so it follows every theme. */
+
+.of-ext { display: flex; flex-direction: column; gap: 10px; height: min(640px, 70vh); }
+.of-ext-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.of-ext-toolbar__sp { flex: 1; }
+.of-ext-body { display: grid; grid-template-columns: 270px 1fr; gap: 12px; min-height: 0; flex: 1; }
+.of-ext-list { display: flex; flex-direction: column; gap: 4px; overflow: auto; padding-right: 4px; border-right: 1px solid var(--of-border-soft); }
+.of-ext-item { position: relative; display: grid; gap: 2px; text-align: left; padding: 8px 10px; padding-right: 74px; background: transparent; border: 1px solid transparent; border-radius: var(--of-radius); color: var(--of-text); cursor: pointer; font: inherit; }
+.of-ext-item:hover { background: var(--of-hover); }
+.of-ext-item.active { background: var(--of-accent-soft); border-color: var(--of-accent); }
+.of-ext-item:focus-visible { outline: 2px solid var(--of-accent); outline-offset: 1px; }
+.of-ext-item small { color: var(--of-text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.of-ext-item .of-ext-badge { position: absolute; top: 8px; right: 8px; }
+.of-ext-pane { overflow: auto; padding: 0 4px 12px 2px; min-width: 0; }
+.of-ext-detail h2 { margin: 0; font-size: 16px; }
+.of-ext-detail h3 { margin: 18px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--of-text-dim); }
+.of-ext-detail__head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.of-ext-detail__head small { color: var(--of-text-dim); }
+.of-ext-detail__ctl { display: flex; align-items: center; gap: 10px; flex: none; }
+.of-ext-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 10px 0 0; }
+.of-ext-badge { font-size: 11px; line-height: 1; padding: 3px 7px; border-radius: 999px; border: 1px solid var(--of-border); color: var(--of-text-dim); background: var(--of-bg-input); }
+.of-ext-badge.ok { color: var(--of-ok); border-color: var(--of-ok); }
+.of-ext-badge.bad { color: var(--of-danger); border-color: var(--of-danger); }
+.of-ext-permrow { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--of-border-soft); }
+.of-ext-permrow small { display: block; color: var(--of-text-dim); }
+.of-ext-adds { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; }
+.of-ext-adds dt { color: var(--of-text-dim); }
+.of-ext-adds dd { margin: 0; }
+.of-ext-error, .of-ext-log, .of-ext-src pre { margin: 6px 0; padding: 8px 10px; max-height: 220px; overflow: auto; font: 11.5px/1.45 var(--of-mono); background: var(--of-bg-input); border: 1px solid var(--of-border-soft); border-radius: var(--of-radius-sm); white-space: pre-wrap; word-break: break-word; }
+.of-ext-error { color: var(--of-danger); }
+.of-ext-src summary { cursor: pointer; margin-top: 14px; color: var(--of-text-dim); }
+
+/* consent */
+.of-ext-consent h3 { margin: 0; font-size: 16px; }
+.of-ext-consent h4 { margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--of-text-dim); }
+.of-ext-consent small { color: var(--of-text-dim); }
+.of-ext-consent__src { color: var(--of-text-dim); font-size: 12px; word-break: break-all; }
+.of-ext-consent__warn, .of-ext-warn { padding: 8px 10px; border-radius: var(--of-radius-sm); background: var(--of-bg-input); border: 1px solid var(--of-border-soft); font-size: 12px; }
+.of-ext-perms { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.of-ext-perm { display: grid; grid-template-columns: 62px 1fr; gap: 10px; align-items: start; }
+.of-ext-perm small { display: block; }
+.of-ext-perm__risk { text-align: center; font-size: 11px; padding: 2px 0; border-radius: 4px; border: 1px solid var(--of-border); color: var(--of-text-dim); }
+.of-ext-perm.risk-high .of-ext-perm__risk { color: var(--of-danger); border-color: var(--of-danger); }
+.of-ext-perm.risk-medium .of-ext-perm__risk { color: var(--of-accent); border-color: var(--of-accent); }
+.of-ext-form { display: grid; gap: 12px; }
+
+/* contributed dock panels */
+.of-extpanel { height: 100%; min-height: 160px; display: flex; }
+.of-extpanel__frame { flex: 1; width: 100%; border: 0; background: var(--of-bg-panel); color-scheme: normal; }
+
+@media (max-width: 720px) {
+  .of-ext-body { grid-template-columns: 1fr; }
+  .of-ext-list { max-height: 180px; border-right: 0; border-bottom: 1px solid var(--of-border-soft); }
+}
+
+/* sl-dialog width (openDialog's inline --width does not reach the custom property) */
+.of-ext-manager { --width: min(980px, 94vw); }
+.of-ext-dialog { --width: min(560px, 94vw); }

@@ -6,6 +6,7 @@ import { normalizePath, resolveRef, joinPath } from "./paths.js";
 import { utf8Bytes, lineOf } from "./bytes.js";
 import { applyChanges } from "./edit.js";
 import { buildPreview } from "./preview.js";
+import { usesMarkdownSite, isSiteSource } from "./ssg.js";
 
 /**
  * @typedef {{ list(): string[], readText(path: string): string|null, readBytes(path: string): Uint8Array|null }} FileSourceLike
@@ -142,7 +143,9 @@ const xmlEscape = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(
  * @returns {{ files: { path: string, bytes: Uint8Array }[], warnings: string[], stats: { files: number, bytes: number } }}
  */
 export function buildSite(files, options = {}) {
-  const include = options.include || defaultInclude;
+  // Markdown sites: the sources (content/, layouts/, site.json) are not published, only the generated pages
+  const generated = !options.include && usesMarkdownSite(files);
+  const include = options.include || (generated ? (p) => defaultInclude(p) && !isSiteSource(p) : defaultInclude);
   const entry = normalizePath(options.entry || "index.html");
   const paths = [...new Set(files.list().map(normalizePath).filter((p) => p && include(p)))].sort();
   const have = new Set(paths);

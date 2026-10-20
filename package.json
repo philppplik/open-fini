@@ -1,6 +1,6 @@
 {
   "name": "openfini",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "OpenFini — a lightweight, open-source creative suite with Vector, Pixel, Layout and Export studios. Runs as a PWA and as a tiny native app on Windows (x64/ARM64), macOS (Intel/Apple Silicon) and Linux (x64/ARM64).",
   "type": "module",
   "license": "MIT",
@@ -34,7 +34,10 @@
     "vendor": "node scripts/vendor.mjs",
     "check:size": "node scripts/check-size.mjs",
     "icons": "node scripts/icons.mjs",
+    "ext:create": "node sdk/create-extension.mjs",
+    "ext:pack": "node sdk/pack.mjs",
     "mcp:gateway": "node scripts/mcp-gateway.mjs",
+    "publish:helper": "node scripts/publish-helper.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
@@ -49,6 +52,7 @@
     "@codemirror/lang-markdown": "^6.5.2",
     "@codemirror/lang-xml": "^6.1.0",
     "@codemirror/language": "^6.13.1",
+    "@codemirror/legacy-modes": "6.5.5",
     "@codemirror/lint": "^6.9.7",
     "@codemirror/search": "^6.7.2",
     "@codemirror/state": "^6.7.6",
@@ -56,6 +60,7 @@
     "@lezer/highlight": "^1.2.5",
     "@tauri-apps/cli": "^2.12.2",
     "esbuild": "^0.28.2",
+    "katex": "0.19.0",
     "polygon-clipping": "^0.15.7"
   }
 }

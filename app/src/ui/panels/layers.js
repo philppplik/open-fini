@@ -1,5 +1,6 @@
 // Layers panel: tree of the active page with drag & drop, visibility/lock toggles and layer controls.
 import { h, empty, frameScheduler } from "../../core/util.js";
+import { emptyHint } from "../empty-hint.js";
 import { BLEND_MODES } from "../../core/effects.js";
 import { reparent, setProp, topLevelSelection } from "../../core/ops.js";
 import { iconButton, selectField, sliderField } from "../controls.js";
@@ -219,7 +220,7 @@ export function createLayersPanel(app) {
     const page = app.page;
     if (app.state?.group) rows.push(h("div.of-layers__crumb", h("button.of-btn", { onclick: () => app.exitGroup() }, "← ", app.state.group.name)));
     walkRows(page.root, 0, rows);
-    if (!rows.length) rows.push(h("div.of-empty", "No layers yet. Draw a shape or add a layer."));
+    if (!rows.length) rows.push(emptyHint(app, { icon: "layers", title: "No layers yet", text: "Draw a shape, type some text or drop an image on the canvas. Each object appears here.", plain: "No layers yet. Draw a shape or add a layer." }));
     list.append(...rows);
     syncControls();
   }

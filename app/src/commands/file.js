@@ -9,6 +9,9 @@ import { OPEN_FILTERS, PLACE_FILTERS, sniffMime, placeFile, placeSvg, openImageA
 import { addRecent, getRecents, getRecentBytes, saveSession, loadSession } from "../core/storage.js";
 import { pick } from "../engine/hit.js";
 import { foreignFormatInfo } from "../core/foreign.js";
+import { isTextDocumentName } from "../core/text-docs.js";
+import { markUntrusted } from "../core/security.js";
+import { log } from "../core/log.js";
 
 const SAVE_FILTERS = [{ name: "OpenFini document", extensions: ["ofini"] }];
 
@@ -19,6 +22,7 @@ export function registerFileCommands(app) {
   def("file.new", "New…", (a) => a.emit("dialog", { id: "new" }), { shortcut: "Mod+N", icon: "file-earmark-plus" });
 
   async function openFile(file) {
+    if (await app.importWithExtension?.(file)) return null; // a file type an installed extension imports
     // Photoshop and InDesign files have public specifications: PSD / PSB and IDML open as documents
     if (/.(psd|psb|idml)$/i.test(file.name) || (file.bytes[0] === 0x38 && file.bytes[1] === 0x42 && file.bytes[2] === 0x50 && file.bytes[3] === 0x53)) {
       const { sniffFormat } = await import("../engine/formats/index.js");
@@ -27,17 +31,26 @@ export function registerFileCommands(app) {
       if (kind === "psd" || kind === "psb") return imp.openPsd(app, file);
       if (kind === "idml") return imp.openIdml(app, file);
     }
+    // PDF, Illustrator, Sketch and the "convert this first" guidance for Affinity, InDesign, Figma, XD ... (core/open-foreign.js)
+    const fb = file.bytes;
+    if (/\.(pdf|ai|eps|sketch|afdesign|afphoto|afpub|aftemplate|afpackage|indd|indt|fig|xd|cdr|pxd|kra|xcf)$/i.test(file.name) || (fb[0] === 0x25 && fb[1] === 0x50 && fb[2] === 0x44 && fb[3] === 0x46)) {
+      const r = await (await import("../core/open-foreign.js")).openForeign(app, file);
+      if (r !== undefined) return r;
+    }
     const foreign = foreignFormatInfo(file.name);
     if (foreign) {
       openDialog({ title: foreign.title, body: h("p.of-dialog__text", foreign.message), width: 480, buttons: [{ label: "OK", variant: "primary", onClick: (c) => c() }] });
       return null;
     }
+    // Markdown, LaTeX, JSON, YAML, TypeScript … open as a one-file project in the Code studio
+    if (isTextDocumentName(file.name)) return (await import("../ui/code/open-document.js")).openTextDocument(app, file);
     const mime = sniffMime(file.bytes, file.name);
     if (mime === OFINI_MIME || /\.ofini$/i.test(file.name)) {
       const doc = await loadOfini(file.bytes);
       if (!doc.name || doc.name === "Untitled") doc.name = file.name.replace(/\.ofini$/i, "");
       doc.path = file.path || null;
       doc.saved = true;
+      markUntrusted(app.prefs, doc); // protected mode: website scripts stay off in the preview until enabled
       app.setStudio(["pixel", "layout", "code"].includes(doc.studio) ? doc.studio : "vector");
       app.openDoc(doc);
       requestAnimationFrame(() => app.cv?.fitPage());
@@ -138,7 +151,7 @@ export function registerFileCommands(app) {
         const bytes = new Uint8Array(await f.arrayBuffer());
         const named = { name: f.name, bytes, mime: f.type };
         if (!a.doc) await openFile(named);
-        else if (/\.ofini$/i.test(f.name)) await openFile(named);
+        else if (/\.(ofini|pdf|ai|psd|psb|idml|sketch|afdesign|afphoto|afpub|indd|fig|xd)$/i.test(f.name)) await openFile(named); // documents of other apps open as documents; they are not placed
         else {
           // dropping onto an image frame fills that frame
           const hit = x != null ? pick(a.context, x, y, 4 / a.view.zoom, { deep: true }) : null;
@@ -161,6 +174,10 @@ export function registerFileCommands(app) {
       }
       const text = await navigator.clipboard?.readText?.();
       if (text && text.trim().startsWith("<svg")) return placeSvg(a, text, "Pasted SVG");
+      if (text && a.doc && a.studio === "layout") {
+        const { pasteTextAsTable } = await import("./data.js");
+        if (pasteTextAsTable(a, text)) return;
+      }
       if (text && a.doc) {
         const { addTextNode } = await import("../core/text-ops.js");
         return addTextNode(a, { text, x: a.page.w / 2 - 100, y: a.page.h / 2 - 20, w: 400 });
@@ -200,10 +217,23 @@ export function registerFileCommands(app) {
   def("file.docSetup", "Document Setup…", (a) => documentSetupDialog(a), { enabled: hasDoc });
 
   // ---- help
-  def("help.shortcuts", "Keyboard Shortcuts", (a) => a.emit("dialog", { id: "shortcuts" }), { shortcut: "F1" });
+  def("help.shortcuts", "Keyboard Shortcuts", (a) => a.emit("dialog", { id: "shortcuts" }), { shortcut: "Mod+/" });
   def("help.about", "About OpenFini", (a) => a.emit("dialog", { id: "about" }));
-  def("help.issues", "Report an Issue…", () => platform.openExternal("https://github.com/philppplik/open-fini/issues/new"));
-  def("help.docs", "Documentation", () => platform.openExternal("https://github.com/philppplik/open-fini#readme"));
+  def("help.issues", "Report an Issue…", async (a) => (await import("../ui/diagnostics-dialog.js")).reportIssueDialog(a));
+  def("help.docs", "Documentation", async (a) => (await import("../ui/links.js")).openLink("https://github.com/philppplik/open-fini#readme", { app: a }));
+  // troubleshooting and security (docs/troubleshooting.md, docs/security.md)
+  def("help.troubleshoot", "Troubleshooting…", async (a, o) => (await import("../ui/diagnostics-dialog.js")).troubleshootingDialog(a, o?.tab), { shortcut: "Mod+Shift+F1", icon: "bug" });
+  def("help.copyReport", "Copy Diagnostic Report", async (a) => (await import("../ui/diagnostics-dialog.js")).copyReport(a));
+  def("help.saveBundle", "Save Diagnostic Bundle…", async (a) => (await import("../ui/diagnostics-dialog.js")).saveBundle(a));
+  def("help.safeMode", "Restart in Safe Mode…", async (a) => {
+    if (a.docs.some((d) => !d.saved) && !(await confirmDialog({ title: "Restart in safe mode", message: "Unsaved changes stay in the autosaved copy on this device but will not be restored in safe mode. Restart now?", ok: "Restart" }))) return;
+    if (a.prefs.autosave) await a.autosaveNow?.();
+    (await import("../ui/diagnostics-dialog.js")).restartInSafeMode();
+  });
+  def("help.resetData", "Reset App Data…", async (a) => (await import("../ui/diagnostics-dialog.js")).resetAppDataDialog(a));
+  def("help.security", "Security Check…", (a) => a.emit("dialog", { id: "preferences", section: "security" }), { icon: "shield-lock" });
+  def("file.lock", "Lock OpenFini", async (a) => (await import("../ui/app-lock.js")).lockNow(a), { shortcut: "Mod+Alt+L", icon: "lock" });
+  def("security.offline", "Offline Mode", (a) => a.setPref("offlineMode", !a.prefs.offlineMode), { checked: (a) => !!a.prefs.offlineMode, icon: "wifi-off" });
 
   // ---- recent files menu
   let recents = [];
@@ -226,10 +256,10 @@ export function registerFileCommands(app) {
     if (!app.docs.length) return;
     try {
       const entries = [];
-      for (const d of app.docs) entries.push({ name: d.name, studio: d.studio, saved: d.saved, path: d.path || null, bytes: await saveOfini(d) });
+      for (const d of app.docs) entries.push({ name: d.name, studio: d.studio, saved: d.saved, path: d.path || null, untrusted: !!d.untrusted && !d.scriptsOk, bytes: await saveOfini(d) });
       await saveSession(entries, app.docs.indexOf(app.doc));
     } catch (err) {
-      console.warn("Autosave failed", err);
+      log.warn("storage", "Autosave failed", err);
     }
   }
   app.autosaveNow = autosave;
@@ -244,6 +274,7 @@ export function registerFileCommands(app) {
         const doc = await loadOfini(e.bytes);
         doc.path = e.path;
         doc.saved = e.saved;
+        if (e.untrusted) doc.untrusted = true; // still protected: the user has not enabled its scripts
         app.openDoc(doc, { activate: false });
         n++;
       } catch {

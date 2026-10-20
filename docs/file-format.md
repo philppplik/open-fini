@@ -53,6 +53,8 @@ Every node has `id`, `type`, `name`, `visible`, `locked`, `opacity` (0–1), `bl
 | `text` | `storyId`, `w`/`h` (`null` = artistic text), `columns`, `gutter`, `insets`, `vAlign`, `flowIndex`, `linked`, `fill`, `stroke` |
 | `image` | `assetId`, `w`, `h`, `smooth` |
 | `pixel` | `w`, `h` — pixels live in `pixels/<id>.png` |
+| `table` | `cols` (widths), `rows` (minimum heights), `cells` (rows × cols of `{v, rs?, cs?, m?, bold?, align?, fill?, fmt?, borders?, …}`), `headerRows`, `headerCols`, `tstyle` (resolved table style), `styleId?`, `colFmt`, `autoHeight`, `repeatHeader?`, `alt?` |
+| `chart` | `w`, `h`, `chart` (`{type, title, subtitle, data:{categories, series:[{name, values, color?}]}, source:{tableId, range?, seriesIn, header, labelCol}|null, options}`), `alt?` |
 | `adjust` | `effect` (`{group, id}` — group is `adjustment`, `filter` or `develop`), `params` |
 
 **Paint** (`fill`, stroke `fill`): `{"type":"solid","color":"#rrggbb","alpha":1}` or a gradient
@@ -73,6 +75,10 @@ A story is a list of paragraphs, each with `runs` (`{text, attrs}`) and optional
 `styleId`. Run attributes include `fontFamily`, `fontSize`, `fontWeight`, `fontStyle`, `color`,
 `underline`, `strike`, `tracking`, `baselineShift`, `caps` and `field` (`pageNumber`, `pageCount`,
 `date`). The exact schema is in [engine-contracts.md](engine-contracts.md#3-text-model).
+
+### Tables and charts
+
+A `table` node stores its whole model (see [layout-tables-charts.md](layout-tables-charts.md)); cell text starting with `=` is a formula, evaluated at render time. Merged cells: the origin cell has `rs` / `cs`, covered cells have `m: [row, col]`. A `chart` node stores its definition, never generated geometry; with `source` set the data comes from the table node with that id in the same document (the stored `data` is a cache). Document-level `tableStyles` is `{ id: { name, style } }`. Readers that do not know these types render nothing for them.
 
 ## Compatibility
 

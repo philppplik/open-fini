@@ -1,14 +1,16 @@
 // Opening whole project folders (File ▸ Open Folder…, or dropping a folder anywhere on the window) and the
 // window-wide "drop to open" handling for files.
 import { h } from "../core/util.js";
+import { markUntrusted } from "../core/security.js";
+import { pickDocumentEntry } from "../core/text-docs.js";
 import { Doc } from "../core/doc.js";
 import { ensureWeb } from "../core/web.js";
 import { confirmDialog } from "./dialogs.js";
 import { pickFiles, entriesFromPicked, entriesFromDrop, MAX_IMPORT_BYTES } from "./code/import.js";
 import { isTextPath, normalizePath } from "../engine/web/paths.js";
 
-const WEB = /\.(html?|css|m?js|json|svg|webmanifest|txt|md|xml)$/i;
-export const OPENABLE = /\.(ofini|svg|png|jpe?g|gif|webp|avif|bmp|psd|psb|idml)$/i;
+const WEB = /\.(html?|css|m?js|json|svg|webmanifest|txt|md|markdown|mdx|tex|latex|bib|ya?ml|xml|csv|toml|ini|tsx?|jsx)$/i;
+export const OPENABLE = /\.(ofini|svg|png|jpe?g|gif|webp|avif|bmp|psd|psb|idml|pdf|ai)$/i;
 
 /**
  * Opens a folder given as [{ path, file }] (paths relative to the folder or including its name).
@@ -29,6 +31,8 @@ export async function openFolderEntries(app, entries, hintName = "") {
   const html = entries.filter((e) => /\.html?$/i.test(e.path));
   const design = entries.filter((e) => OPENABLE.test(e.path) && !/\.svg$/i.test(e.path) && !/^(assets|images|img|static|public)\//i.test(e.path));
   if (html.length) return openAsWebsite(app, entries, name);
+  // a folder of Markdown or LaTeX documents (with images, bibliographies …) is a project, not a pile of images
+  if (entries.some((e) => /\.(md|markdown|mdx|tex|latex)$/i.test(e.path))) return openAsWebsite(app, entries, name);
   const open = entries.filter((e) => OPENABLE.test(e.path));
   if (!open.length) {
     if (entries.some((e) => WEB.test(e.path))) return openAsWebsite(app, entries, name);
@@ -67,6 +71,12 @@ async function openAsWebsite(app, entries, name) {
     }
     const doc = new Doc({ name, width: 1280, height: 800, studio: "code" });
     ensureWeb(doc, files);
+    if (!doc.web.pages().length) {
+      // a folder of Markdown, LaTeX or other text files: open the main document first
+      const entry = pickDocumentEntry(Object.keys(files));
+      if (entry) Object.assign(doc.web.settings, { openFiles: [entry], activeFile: entry }), (doc.web.entry = entry);
+    }
+    markUntrusted(app.prefs, doc); // protected mode: preview scripts stay off until the user enables them
     doc.history.clear();
     doc.saved = false;
     app.openDoc(doc);

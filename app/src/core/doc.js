@@ -61,6 +61,7 @@ export class Doc extends Emitter {
     this.styles = { paragraph: {}, character: {} };
     this.swatches = DEFAULT_SWATCHES.map((c, i) => ({ id: `sw${i}`, name: c, color: c }));
     this.slices = []; // export slices {id,name,page,x,y,w,h}
+    this.tableStyles = {}; // saved table styles {id: {name, style}} (engine/layout/table-styles.js)
     this.web = null; // website project of the Code studio (core/web.js), stored next to the design data
     this.settings = { snap: true, snapObjects: true, snapGrid: false, grid: { size: 32, subdivisions: 4, visible: false }, guidesVisible: true };
     this.history = new History();
@@ -760,6 +761,7 @@ export class Doc extends Emitter {
           styles: this.styles,
           swatches: this.swatches,
           slices: this.slices,
+          tableStyles: this.tableStyles,
           settings: this.settings,
           web: this.web ? this.web.manifest() : undefined,
         },
@@ -780,6 +782,7 @@ export class Doc extends Emitter {
     d.styles = json.styles || { paragraph: {}, character: {} };
     d.swatches = json.swatches || d.swatches;
     d.slices = json.slices || [];
+    d.tableStyles = json.tableStyles && typeof json.tableStyles === "object" ? json.tableStyles : {};
     d.settings = { ...d.settings, ...(json.settings || {}) };
     d.assets = {};
     for (const a of json.assets || []) d.assets[a.id] = { ...a };

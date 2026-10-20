@@ -19,8 +19,10 @@ No proprietary code was used.
 | Photoshop PSB (version 2) | yes | no | 8-byte lengths, 4-byte RLE counts |
 | InDesign IDML | yes | no | pages, shapes, text stories, swatches |
 | InDesign INDD | no | no | proprietary binary format, no public specification |
-| Affinity `.afdesign` `.afphoto` `.afpub` | no | no | proprietary containers, no public specification; only detected |
-| Illustrator AI / PDF vector import | no | no | not part of this engine; `sniffFormat` only reports the kind |
+| Affinity `.afdesign` `.afphoto` `.afpub` | no | no | proprietary, no public specification; detected by extension, the app explains how to export PSD / PDF / SVG and can open a plain PNG / JPEG preview if one is stored as an ordinary image stream |
+| PDF, Illustrator AI (PDF compatible), EPS with PDF | yes (editable Layout document) | export only | through pdf.js in `core/import-pdf.js`, see [pdf-import.md](pdf-import.md) |
+| Sketch `.sketch` | best effort | no | documented ZIP + JSON, `engine/formats/sketch.js`, verified with synthetic files |
+| Figma `.fig`, Adobe XD `.xd` | no | no | proprietary; the app shows how to export PDF / SVG instead |
 
 ## `sniffFormat(bytes, name?)`
 
@@ -139,6 +141,21 @@ only the child elements, `text` the concatenated direct text. Handles quotes of 
 standard and numeric entities (unknown ones stay literal), CDATA, comments, processing instructions, DOCTYPE with
 an internal subset, a BOM, unclosed tags and stray close tags. Throws `Error` when there is no root element or the
 nesting exceeds 1000 levels.
+
+## PDF, Illustrator, Sketch and the import report
+
+- **PDF / AI / EPS with PDF:** see [pdf-import.md](pdf-import.md). `sniffFormat` returns `pdf` or `ai`; `findPdfStart(bytes)` locates the `%PDF-` header inside AI and EPS wrappers (DOS EPS headers included).
+- **Sketch:** `readSketch(zipBytes)` returns `{ pages: [{ name, artboards: [{ name, x, y, width, height, background, items }] }], images, warnings }`. Items are `group`, `rect`, `ellipse`, `path` (from the layer's points), `text` (first text style of the layer), `image`. Solid and linear / radial gradient fills, borders (width, position, dashes), corner radius, rotation, opacity and visibility are read. Not read: symbol instances, boolean operations (the shapes stay separate), shadows, blurs, pattern fills, text with several styles, flips, shared styles and text styles. Verified with synthetic files built from the public file format reference only.
+- **Embedded preview scan (Affinity):** `findEmbeddedPreview(bytes)` looks for complete PNG (chunk CRCs checked) and JPEG streams by their public signatures and returns the largest. It does not parse or interpret the Affinity container; it finds nothing when the file stores its preview in a compressed or private form. Verified with synthetic files only.
+- **Import report:** every importer fills an `ImportReport` (`core/import-report.js`) with *kept*, *flattened*, *dropped* and *note* entries; File ▸ Import Report… shows it for the active document and Vibe can read it with `get_import_report`.
+- **Photoshop in the app:** text layers whose text content could be read become editable text frames (position and size from the file, font Inter; the original raster stays as a hidden layer), smart objects are imported as their flattened preview and reported, adjustment layers and layer effects are listed as not imported.
+
+## Text and code files
+
+Markdown (`.md`, `.markdown`, `.mdx`), LaTeX (`.tex`, `.latex`, `.bib`, `.sty`, `.cls`) and plain text formats (`.txt`, `.json`,
+`.yaml`/`.yml`, `.xml`, `.csv`, `.tsv`, `.toml`, `.ini`, `.conf`, `.properties`, `.log`, `.ts`, `.tsx`, `.jsx`, `.js`, `.css`, `.html`) open in the Code studio as a one-file
+project (File ▸ Open, drag and drop; folders keep their structure). SVG still opens as a vector document. Files that contain
+NUL bytes are refused. See [frameworks.md](frameworks.md).
 
 ## Warnings
 

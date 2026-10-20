@@ -45,7 +45,7 @@ login for third-party apps, only API keys (billed separately). Tool calling and 
 model list shows what each model reports. Real providers could not be exercised in CI without keys: the engine is
 tested against recorded protocol fixtures and fake servers.
 
-## What the assistant can do (52 tools)
+## What the assistant can do (100 tools)
 
 *Tools* ▸ lists them all; you can switch off any single tool.
 
@@ -53,9 +53,26 @@ tested against recorded protocol fixtures and fake servers.
 - **Layers and vector**: list layers, selection, screenshots, shapes, text, paths, SVG import, styles, transforms,
   grouping, ordering, alignment, boolean operations, duplicate, delete.
 - **Pixel**: effect catalog, pixel layers, adjustment and live filter layers, selections, image generation and image
-  editing with the image model you configure.
+  editing with the image model you configure, plus the read-only `get_histogram` (statistics, 64-bin data and a
+  plain-language assessment) and `auto_correct_suggestion` (ready-made Levels / Curves / Exposure parameters); see the
+  [Histogram guide](pixel-histogram.md).
+- **Git and publishing**: `git_init`, `git_status`, `git_diff`, `git_log`, `git_commit`, `git_branch`, `git_checkout`, `git_restore`,
+  `git_push`, `git_pull`, `list_publish_targets`, `add_publish_target`, `preflight_site`, `publish_site` (pushes and publishing ask for
+  approval; tokens are never shared with the assistant; see [git-and-publishing.md](git-and-publishing.md)).
+- **Frameworks, libraries and documents**: `list_templates`, `list_libraries`, `search_packages` and `add_library` (network, ask first), `render_markdown`, `convert_latex_preview`, `create_markdown_document`.
 - **Code and websites**: create a website from a template, read, write, edit, rename and delete files, page outline,
   element inspection and insertion, class-based style edits with breakpoints, page meta, problem check.
+- **System and files**: `get_platform_info` (OS, desktop or browser, version, which file types OpenFini opens and how to
+  make it the default) and `list_recent_files`, both read-only.
+- **Appearance and help**: `list_themes`, `set_theme` (theme, mode and accent of the interface), `start_tour` and
+  `list_commands` (every command that can run now, with its shortcut; the assistant can tell you where things are but
+  cannot run commands itself). The built-in skill `help-me-use-openfini` ties them together.
+- **Diagnostics and security**: `get_app_logs` (redacted, filterable), `get_diagnostics` (environment and grouped problems) and
+  `get_security_status`, all read-only; the assistant should call them only when you ask about errors or your setup
+  (see [troubleshooting](troubleshooting.md), [security](security.md)). Offline mode blocks provider and MCP requests.
+- **Imported documents**: `get_import_report` (what an import kept, flattened or dropped), `list_pdf_pages`, `describe_document_pages` and `extract_pdf_text` (page text in reading order, for summarizing or translating a PDF). The assistant has no file access: attach a PDF, AI, PSD, IDML or Sketch file in the composer and click *Open as document* on the chip first. See [pdf-import.md](pdf-import.md).
+- **Tables and charts**: `add_table`, `edit_table`, `read_table`, `list_tables`, `import_csv_to_table`, `add_chart`, `edit_chart`, `read_chart` build and edit real table / chart objects (formulas, merges, number formats, sorting, charts linked to a table). The built-in skill `report-with-charts` assembles a report page. See [layout-tables-charts.md](layout-tables-charts.md).
+- **Extensions**: list installed extensions, run an extension command, install an extension from a URL (you confirm its permissions), and write a small local extension from a description (`create_extension`). Tools that extensions add appear as `ext_<id>_<tool>`, always ask for approval and show their origin; see [extensions.md](extensions.md).
 - **Assistant**: knowledge search (RAG), remember, use a skill, ask you a question, update the visible plan, create a
   tool.
 
@@ -78,7 +95,7 @@ MCP servers you add.
 
 A skill is a Markdown file (`SKILL.md` style): a name, a description, optional `allowed-tools`, and instructions. The
 assistant sees only the catalog and loads a skill when a task matches (the `use_skill` tool), so skills cost almost
-no context. Eight are built in (`logo-design`, `social-post`, `photo-retouch`, `landing-page`, `poster-layout`, `brand-kit`,
+no context. Nine are built in (`help-me-use-openfini` and `logo-design`, `social-post`, `photo-retouch`, `landing-page`, `poster-layout`, `brand-kit`,
 `accessibility-audit`, `copywriting`). Create your own under *Skills ▸ New* or import a `.md` file.
 
 ## Knowledge (RAG)
@@ -136,7 +153,7 @@ appears afterwards, or with `Ctrl+Z`.
 | Part | Location |
 | --- | --- |
 | Pure AI runtime (providers, agent loop, MCP, RAG, skills, vault) | `app/src/ai/` — see [ai-engine.md](ai-engine.md) |
-| OpenFini tools (52) | `app/src/vibe/tools/` |
+| OpenFini tools (100) | `app/src/vibe/tools/` |
 | Session, store, custom tools, quick actions, OAuth return | `app/src/vibe/` |
 | Studio UI | `app/src/ui/vibe/`, `app/styles/vibe.css` |
 | MCP gateway | `scripts/mcp-gateway.mjs` |

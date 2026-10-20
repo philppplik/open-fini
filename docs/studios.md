@@ -59,7 +59,7 @@ Divide**, **Trace Image to Vector…**.
 | --- | --- | --- |
 | Marquee (rect / ellipse) | `M` | Shift / Alt / Shift+Alt combine with the existing selection. |
 | Lasso (freehand / polygonal) | `L` | Polygonal: click points, click the first point or `Enter` to close, `Backspace` removes a point. |
-| Magic wand / Color range | `W` | Tolerance, contiguous, sample the layer or all layers. |
+| Magic wand / Color range | `W` | Tolerance, contiguous, sample the layer or all layers; Color Range adds softness, sample size and invert. |
 | Crop | `C` | Ratios, optional deletion of cropped pixels. |
 | Brush / Pencil | `B` | `[` and `]` change the size. Pressure-sensitive. Painting on a mask: light colors reveal, dark colors hide. |
 | Eraser | `E` | |
@@ -80,6 +80,8 @@ Layer menu: New pixel layer (`Mod+Shift+N`), group, **adjustments**, **live filt
 mask, duplicate, **Merge Down** (`Mod+E`; also bakes an adjustment into the layer below), Rasterize,
 Flatten.
 
+Panels: **Histogram** (live, with source and channel choice, statistics, clipping overlay, compact mode), **Info** (color under the pointer) and **Adjust** (interactive Levels and Curves with histogram backdrop and eyedroppers, before / after histograms). See the [Histogram guide](pixel-histogram.md).
+
 Adjustments and live filters are **non-destructive layers** you can reorder, mask, hide and re-edit.
 Enable *Apply to the selected layer only* in the Adjust panel to nest them under a layer instead of
 affecting everything below.
@@ -96,7 +98,7 @@ affecting everything below.
 * **Styles panel** — paragraph and character styles (Body, Heading 1–3, Caption, Quote can be added with one
   click). Click to apply, ↻ to redefine from the current formatting.
 * **Text ▸ Generate Table of Contents** builds a contents page from paragraphs styled *Heading 1–3*.
-* **Text ▸ Insert Table…** creates a grid of cells (rectangles with editable frames).
+* **Tables and charts** are real objects: the **Table tool** (`B`), **Chart tool** (`H`), *Text ▸ Insert Table… / Insert Chart…*, the **Data panel** and the *Table* menu. Click into cells to type, use `Tab` / arrows, drag borders, merge cells, number formats, formulas (`=SUM(B2:B5)`), CSV / spreadsheet paste and import, charts with a data grid or linked to a table, ~20 chart presets. See [Tables and charts](layout-tables-charts.md).
 * **Image frame** (`I`) — drop or place an image onto a frame to crop-fill it.
 * **Text ▸ Data Merge…** — load a CSV, use `<<Column Name>>` markers in your text, preview records and export
   one merged PDF.

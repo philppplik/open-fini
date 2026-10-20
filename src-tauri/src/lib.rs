@@ -9,11 +9,15 @@
 //! and two small commands (`take_launch_files`, `quit_app`); see
 //! `app/src/platform/tauri.js`.
 
-use std::path::{Path, PathBuf};
+mod cli;
+
+use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_fs::FsExt;
+
+use cli::{paths_from_args, Action};
 
 /// Event sent to the frontend when the OS asks OpenFini to open files.
 /// The payload is a `string[]` of absolute paths.
@@ -39,41 +43,6 @@ impl OpenQueue {
     fn lock(&self) -> MutexGuard<'_, QueueState> {
         self.0.lock().unwrap_or_else(PoisonError::into_inner)
     }
-}
-
-/// Turns command-line arguments (without the executable name) into file paths.
-///
-/// Plain paths and `file://` URLs are accepted, because some Linux desktops
-/// pass URLs. Relative paths are resolved against `cwd` when it is given.
-/// Anything that is not an existing file is ignored.
-fn paths_from_args<I>(args: I, cwd: Option<&Path>) -> Vec<PathBuf>
-where
-    I: IntoIterator<Item = String>,
-{
-    let mut paths = Vec::new();
-    for arg in args {
-        if arg.starts_with('-') {
-            continue;
-        }
-        if let Some(path) = resolve_arg(&arg, cwd) {
-            paths.push(path);
-        }
-    }
-    paths
-}
-
-fn resolve_arg(arg: &str, cwd: Option<&Path>) -> Option<PathBuf> {
-    let path = if arg.starts_with("file://") {
-        tauri::Url::parse(arg).ok()?.to_file_path().ok()?
-    } else {
-        PathBuf::from(arg)
-    };
-    let path = match cwd {
-        Some(cwd) if path.is_relative() => cwd.join(path),
-        _ => path,
-    };
-    let path = std::path::absolute(path).ok()?;
-    path.is_file().then_some(path)
 }
 
 /// Brings the main window to the front.
@@ -133,6 +102,13 @@ fn quit_app(app: AppHandle) {
 
 /// Builds and runs the application.
 pub fn run() {
+    // `--version` and `--help` are answered before anything else starts (also before the single-instance
+    // check, so they never reach a running instance).
+    if let Action::Print(text) = cli::action_for(std::env::args().skip(1), env!("CARGO_PKG_VERSION")) {
+        cli::print(&text);
+        return;
+    }
+
     let mut builder = tauri::Builder::default();
 
     // A second launch (for example opening another file through the OS) hands

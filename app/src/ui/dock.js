@@ -67,6 +67,13 @@ export function createDock(app) {
   });
 
   app.on("studio", render);
+  app.on("revealpanel", (id) => {
+    const s = STUDIOS[app.studio];
+    if (s.top.includes(id)) active.top = id;
+    else if (s.bottom.includes(id)) active.bottom = id;
+    else return;
+    render();
+  });
   render();
   return {
     el,

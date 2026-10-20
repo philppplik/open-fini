@@ -199,7 +199,7 @@ export function createChat(vs) {
   const input = h("textarea.of-composer__in", { rows: 1, placeholder: "Ask Vibe to design, edit or build something…  (/ for skills, @selection for the selected layers)", "aria-label": "Message Vibe" });
   const chips = h("div.of-composer__chips");
   let files = [];
-  const fileInput = h("input", { type: "file", multiple: true, style: { display: "none" }, accept: "image/*,.txt,.md,.csv,.json,.html,.css,.js,.svg,.xml,.yml,.yaml,.ts,.py,.sql" });
+  const fileInput = h("input", { type: "file", multiple: true, style: { display: "none" }, accept: "image/*,.pdf,.ai,.psd,.psb,.idml,.sketch,.txt,.md,.csv,.json,.html,.css,.js,.svg,.xml,.yml,.yaml,.ts,.py,.sql" });
   const attach = iconButton({ icon: "paperclip", label: "Attach files or images", onClick: () => fileInput.click() });
   const mic = iconButton({ icon: "mic", label: "Dictate", onClick: () => dictate() });
   const sendBtn = h("button.of-composer__send", { type: "button", "aria-label": "Send" }, iconEl("arrow-up"));
@@ -221,7 +221,7 @@ export function createChat(vs) {
 
   function renderChips() {
     empty(chips);
-    files.forEach((f, i) => chips.append(h("span.of-chip2", /^image\//.test(f.type) ? h("img", { src: URL.createObjectURL(f), alt: "" }) : iconEl("file-earmark"), f.name, h("button", { type: "button", "aria-label": `Remove ${f.name}`, onclick: () => { files.splice(i, 1); renderChips(); } }, "×"))));
+    files.forEach((f, i) => chips.append(h("span.of-chip2", /^image\//.test(f.type) ? h("img", { src: URL.createObjectURL(f), alt: "" }) : iconEl("file-earmark"), f.name, /\.(pdf|ai|psd|psb|idml|sketch)$/i.test(f.name) ? h("button", { type: "button", class: "of-chip2__open", title: "Import this file into OpenFini so the assistant can work with it", onclick: async () => { try { await app.openFile({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()), mime: f.type }); } catch (err) { app.toast(err.message, "danger", 5000); } } }, "Open as document") : null, h("button", { type: "button", "aria-label": `Remove ${f.name}`, onclick: () => { files.splice(i, 1); renderChips(); } }, "×"))));
   }
   function addFiles(list) {
     for (const f of list) if (files.length < 8) files.push(f);

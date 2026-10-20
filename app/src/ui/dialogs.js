@@ -5,7 +5,8 @@ import { numField, selectField, segmented, colorField, switchField, button } fro
 import { STUDIOS } from "../studios/index.js";
 
 export function openDialog({ title, body, buttons = [], width = 520, cls = "", onClose } = {}) {
-  const dlg = h("sl-dialog", { label: title, class: `of-dialog ${cls}`, style: { "--width": `${width}px` } });
+  const dlg = h("sl-dialog", { label: title, class: `of-dialog ${cls}` });
+  dlg.style.setProperty("--width", `${width}px`); // custom properties need setProperty, not style["--x"]
   dlg.append(body);
   const footer = h("div", { slot: "footer", class: "of-dialog__footer" });
   const close = () => dlg.hide();
@@ -261,7 +262,7 @@ export function aboutDialog() {
       h("p", "A lightweight, open-source creative suite with Vector, Pixel, Layout and Code studios."),
       version,
       h("p.of-hint", "OpenFini is an independent project. It is not affiliated with, endorsed by or derived from any commercial product. All product names are trademarks of their respective owners."),
-      h("p", h("a", { href: "https://github.com/philppplik/open-fini", target: "_blank", rel: "noopener" }, "github.com/philppplik/open-fini")),
+      h("p", h("a", { href: "https://github.com/philppplik/open-fini", rel: "noopener", onclick: (e) => { e.preventDefault(); import("./links.js").then((m) => m.openLink("https://github.com/philppplik/open-fini")); } }, "github.com/philppplik/open-fini")),
     ),
     buttons: [{ label: "Close", variant: "primary", onClick: (c) => c() }],
   });

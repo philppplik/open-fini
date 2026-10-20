@@ -45,15 +45,15 @@ export const STUDIOS = {
       "zoom",
     ],
     top: ["color", "brush", "adjustments", "transform"],
-    bottom: ["layers", "history", "histogram", "navigator"],
+    bottom: ["layers", "history", "histogram", "info", "navigator"],
   },
   layout: {
     id: "layout",
     label: "Layout",
     icon: "layout",
     blurb: "Pages, text flow, styles and print",
-    tools: ["move", "node", ["frame-text", "text"], ["rect", "ellipse", "polygon", "star", "shapes", "line"], "image-frame", ["pen", "pencil"], "slice", "eyedropper", "hand", "zoom"],
-    top: ["appearance", "transform", "type", "color"],
+    tools: ["move", "node", ["frame-text", "text"], ["rect", "ellipse", "polygon", "star", "shapes", "line"], "image-frame", "table", "chart", ["pen", "pencil"], "slice", "eyedropper", "hand", "zoom"],
+    top: ["appearance", "transform", "type", "data", "color"],
     bottom: ["pages", "layers", "styles", "history"],
   },
   // The Code studio is a website workbench (code editor + visual designer). Its left sidebar, center stage and

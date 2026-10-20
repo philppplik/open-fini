@@ -1,5 +1,6 @@
 // History and Navigator panels.
 import { h, empty, frameScheduler, debounce } from "../../core/util.js";
+import { emptyHint } from "../empty-hint.js";
 import { buildPageDL } from "../../engine/dl.js";
 import { renderToCanvas } from "../../engine/backends/canvas.js";
 import { iconButton } from "../controls.js";
@@ -19,6 +20,7 @@ export function createHistoryPanel(app) {
     if (!doc) return;
     const hst = doc.history;
     list.append(historyRow("Open document", hst.index === 0, () => hst.goto(0), doc));
+    if (!hst.entries.length) list.append(emptyHint(app, { icon: "clock-history", title: "Nothing to undo yet", text: "Every change you make is listed here. Click a step to go back to it.", plain: "No steps yet." }));
     hst.entries.forEach((e, i) => list.append(historyRow(e.label, hst.index === i + 1, () => hst.goto(i + 1), doc, i + 1 > hst.index)));
     const active = list.querySelector(".active");
     active?.scrollIntoView({ block: "nearest" });

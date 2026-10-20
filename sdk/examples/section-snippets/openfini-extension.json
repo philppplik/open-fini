@@ -1,0 +1,19 @@
+{
+  "$schema": "../../schema/openfini-extension.schema.json",
+  "id": "openfini-examples.section-snippets",
+  "name": "Section Snippets",
+  "version": "1.0.0",
+  "description": "Code studio: HTML and CSS snippets for the editor plus an Insert Section panel with ready-made page sections.",
+  "engines": { "openfini": ">=0.3.0" },
+  "permissions": ["document.write", "ui"],
+  "contributes": {
+    "panels": [
+      { "id": "sections", "title": "Sections", "icon": "layout-text-window", "html": "panel/index.html", "studios": ["code"], "location": "top" }
+    ],
+    "snippets": [
+      { "language": "html", "label": "section-hero", "detail": "Hero section", "body": "<section class=\"hero\">\n  <h1>${1:Headline}</h1>\n  <p>${2:A short supporting sentence.}</p>\n  <a class=\"button\" href=\"${3:#}\">${4:Get started}</a>\n</section>" },
+      { "language": "html", "label": "section-features", "detail": "Three feature cards", "body": "<section class=\"features\">\n  <article><h3>${1:One}</h3><p>${2:Describe it.}</p></article>\n  <article><h3>${3:Two}</h3><p>${4:Describe it.}</p></article>\n  <article><h3>${5:Three}</h3><p>${6:Describe it.}</p></article>\n</section>" },
+      { "language": "css", "label": "section-grid", "detail": "Responsive card grid", "body": "display: grid;\ngap: ${1:24px};\ngrid-template-columns: repeat(auto-fit, minmax(${2:220px}, 1fr));" }
+    ]
+  }
+}

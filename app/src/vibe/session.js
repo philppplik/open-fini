@@ -4,6 +4,7 @@ import { Emitter, uid } from "../core/util.js";
 import { vibeStore } from "./store.js";
 import { createOpenFiniTools } from "./tools/index.js";
 import { customToolDefs } from "./custom-tools.js";
+import { log } from "../core/log.js";
 
 const MAX_TEXT_ATTACHMENT = 60_000;
 const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 24) || "mcp";
@@ -55,6 +56,7 @@ export class VibeSession extends Emitter {
     if (!id || id === "demo") return ai.createMockProvider();
     const rec = vibeStore.provider(id);
     if (!rec) throw new Error("The selected provider no longer exists. Pick another one in the model menu.");
+    this.app.network?.assert("ai", rec.baseUrl); // offline mode (Settings ▸ Security and privacy); local servers stay allowed
     if (vibeStore.locked) throw new Error("Your API keys are locked. Unlock them with your passphrase (Models tab).");
     const key = vibeStore.getKey(id);
     const preset = ai.PROVIDER_PRESETS.find((p) => p.id === rec.preset);
@@ -112,6 +114,7 @@ export class VibeSession extends Emitter {
       }
       try {
         if (!entry.tools) {
+          this.app.network?.assert("ai", srv.url);
           await entry.client.connect();
           entry.tools = await ai.mcpToolsToAgentTools(entry.client, { prefix: `mcp_${slug(srv.name)}`, serverName: srv.name });
           entry.error = null;
@@ -126,6 +129,7 @@ export class VibeSession extends Emitter {
     return out;
   }
   async mcpStatus(srv) {
+    this.app.network?.assert("ai", srv.url);
     const ai = await this.#ai();
     const client = new ai.McpClient({ url: srv.url, headers: srv.headers || {}, version: "0.3.0" });
     await client.connect();
@@ -140,7 +144,8 @@ export class VibeSession extends Emitter {
     const app = this.app;
     const ai = await this.#ai();
     const s = vibeStore.settings;
-    const skills = [...ai.BUILTIN_SKILLS.map((x) => (typeof x === "string" ? ai.parseSkill(x) : x)), ...vibeStore.skills.filter((x) => x.enabled !== false)];
+    await app.extensionsReady?.catch(() => {});
+    const skills = [...ai.BUILTIN_SKILLS.map((x) => (typeof x === "string" ? ai.parseSkill(x) : x)), ...vibeStore.skills.filter((x) => x.enabled !== false), ...((await app.extensions?.vibeSkills().catch(() => [])) || [])];
     const index = await this.#knowledgeIndex();
     await this.#syncProject(index);
     const ctx = {
@@ -166,7 +171,8 @@ export class VibeSession extends Emitter {
     };
     const custom = customToolDefs(vibeStore.customTools, callTool, (text) => this.emit("notice", { kind: "log", text }));
     const mcp = await this.#mcpTools();
-    let all = [...base, ...custom, ...mcp];
+    const ext = (await app.extensions?.vibeToolDefs().catch(() => [])) || []; // tools of extensions (ext_<id>_<tool>)
+    let all = [...base, ...custom, ...mcp, ...ext];
     all = all.filter((t) => !s.disabledTools.includes(t.name) && !(t.name === "screenshot" && s.sendScreenshots === false));
     // approval policy
     const mode = s.approval;
@@ -175,7 +181,7 @@ export class VibeSession extends Emitter {
       needsApproval: (input) => {
         if (s.autoAllow.includes(t.name)) return false;
         const own = t.needsApproval?.(input);
-        if (mode === "auto") return t.name === "create_tool" || t.name.startsWith("mcp_") ? own || `Run ${t.name}?` : false;
+        if (mode === "auto") return t.name === "create_tool" || t.name.startsWith("mcp_") || t.name.startsWith("ext_") || t.name === "install_extension_from_url" || t.name === "create_extension" || t.name === "run_extension_command" ? own || `Run ${t.name}?` : false;
         if (mode === "careful" && !t.readOnly && t.name !== "update_plan" && t.name !== "ask_user") return own || `Allow “${t.name}”?`;
         return own || false;
       },
@@ -201,6 +207,8 @@ export class VibeSession extends Emitter {
         const cut = text.length > MAX_TEXT_ATTACHMENT;
         if (cut) text = text.slice(0, MAX_TEXT_ATTACHMENT);
         blocks.push({ type: "text", text: `[Attached file: ${f.name}${cut ? " (truncated)" : ""}]\n\`\`\`\n${text}\n\`\`\`` });
+      } else if (/\.(pdf|ai|psd|psb|idml|sketch)$/i.test(f.name)) {
+        blocks.push({ type: "text", text: `[Attached document “${f.name}” (${f.size} bytes). You cannot read the file itself. If the user opened it as a document (chip button “Open as document”) it is the active or an open document: use get_document_info, describe_document_pages, extract_pdf_text and get_import_report. Otherwise ask them to click “Open as document”.]` });
       } else blocks.push({ type: "text", text: `[Attached file “${f.name}” (${f.type || "unknown type"}, ${f.size} bytes) could not be read as text or image.]` });
     }
     return blocks;
@@ -256,6 +264,7 @@ export class VibeSession extends Emitter {
       for (const m of res.messages) this.chat.messages.push(m);
       this.emit("done", res);
     } catch (err) {
+      log.warn("ai", "The assistant run failed", err);
       this.emit("error", err);
     } finally {
       this.running = false;

@@ -1,6 +1,6 @@
 // A small, safe Markdown renderer for assistant messages (builds DOM nodes, never injects HTML).
 import { h } from "../../core/util.js";
-import { platform } from "../../platform/index.js";
+import { openLink } from "../links.js";
 
 function inline(text) {
   const out = [];
@@ -24,7 +24,7 @@ function link(label, href) {
   const a = h("a", { href, rel: "noopener noreferrer", title: href }, label);
   a.addEventListener("click", (e) => {
     e.preventDefault();
-    platform.openExternal(href).catch(() => {});
+    openLink(href); // asks first (Settings ▸ Security and privacy); chat links may come from the model
   });
   return a;
 }

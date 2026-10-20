@@ -47,6 +47,8 @@ export class WebProject extends Emitter {
     this.files = new Map();
     this.settings = { ...DEFAULT_WEB_SETTINGS(), ...(opts.settings || {}) };
     this.rev = 0;
+    /** The `.git` folder of the project (Source Control): Map<path under .git, bytes>, or null without a repository. Stored as web/git/<path> in the archive. */
+    this.gitFiles = null;
     this.onDirty = null; // set by ensureWeb: marks the owning document as modified
     this._dirtySoon = debounce(() => this.onDirty?.(), 400);
     const self = this;
@@ -243,6 +245,13 @@ export class WebProject extends Emitter {
   entries() {
     const out = {};
     for (const [p, f] of this.files) out[`web/files/${p}`] = f.bytes ?? strToU8(f.text);
+    return out;
+  }
+
+  /** Archive entries of the Git repository: { "web/git/<path>": Uint8Array } (already compressed objects). */
+  gitEntries() {
+    const out = {};
+    if (this.gitFiles) for (const [p, b] of this.gitFiles) out[`web/git/${p}`] = b;
     return out;
   }
 

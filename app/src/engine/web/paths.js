@@ -133,12 +133,13 @@ const MIME = {
   xml: "application/xml", webmanifest: "application/manifest+json", csv: "text/csv", mp4: "video/mp4", webm: "video/webm",
   ogv: "video/ogg", mov: "video/quicktime", mp3: "audio/mpeg", wav: "audio/wav", ogg: "audio/ogg", m4a: "audio/mp4", flac: "audio/flac",
   pdf: "application/pdf", zip: "application/zip", wasm: "application/wasm", ts: "text/typescript", tsx: "text/typescript",
-  jsx: "text/javascript", vtt: "text/vtt", rss: "application/rss+xml", atom: "application/atom+xml",
+  jsx: "text/javascript", vtt: "text/vtt", tex: "application/x-tex", latex: "application/x-tex", bib: "application/x-bibtex", mdx: "text/markdown", yaml: "application/yaml", yml: "application/yaml", toml: "application/toml", tsv: "text/tab-separated-values", rss: "application/rss+xml", atom: "application/atom+xml",
 };
 
 const TEXT_EXT = new Set([
   "html", "htm", "css", "js", "mjs", "cjs", "jsx", "ts", "tsx", "json", "map", "svg", "txt", "md", "markdown", "xml", "webmanifest",
   "csv", "vtt", "rss", "atom", "yml", "yaml", "toml", "ini", "conf", "log",
+  "tex", "latex", "sty", "cls", "bib", "mdx", "tmpl", "tsv", "jsonc", "vue", "svelte", "properties", "env",
 ]);
 
 const extOf = (path) => extname(path).slice(1).toLowerCase();
@@ -166,15 +167,19 @@ export function isTextPath(path) {
 /**
  * Editor language id for a path.
  * @param {string} path
- * @returns {'html'|'css'|'javascript'|'json'|'markdown'|'xml'|'text'}
+ * @returns {'html'|'css'|'javascript'|'json'|'markdown'|'xml'|'latex'|'yaml'|'toml'|'properties'|'text'}
  */
 export function languageOf(path) {
   switch (extOf(path)) {
-    case "html": case "htm": return "html";
+    case "html": case "htm": case "tmpl": return "html";
     case "css": return "css";
     case "js": case "mjs": case "cjs": case "jsx": case "ts": case "tsx": return "javascript";
     case "json": case "map": case "webmanifest": return "json";
-    case "md": case "markdown": return "markdown";
+    case "md": case "markdown": case "mdx": return "markdown";
+    case "tex": case "latex": case "sty": case "cls": case "bib": return "latex";
+    case "yml": case "yaml": return "yaml";
+    case "toml": return "toml";
+    case "ini": case "conf": case "properties": return "properties";
     case "xml": case "svg": case "rss": case "atom": return "xml";
     default: return "text";
   }

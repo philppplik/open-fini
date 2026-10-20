@@ -9,6 +9,7 @@ import { platform } from "../platform/index.js";
 import { pageBoundsOf } from "../core/transform.js";
 import { createSlicesTab } from "./export-slices.js";
 import { createWebsiteTab } from "./export-website.js";
+import { createPublishTab } from "./export-publish.js";
 
 const FORMATS = [
   { value: "png", label: "PNG — lossless, transparency" },
@@ -73,7 +74,7 @@ export function exportDialog(app, preset = {}) {
     { id: "image", label: "Image & PDF", action: "Export", el: imageTab, run: () => runExport(app, st) },
     { id: "slices", label: "Slices", action: "Export slices", el: slicesTab.el, run: () => slicesTab.run() },
   ];
-  if (doc.web) tabs.push(createWebsiteTab(app, doc.web)); // website projects of the Code studio
+  if (doc.web) tabs.push(createWebsiteTab(app, doc.web), createPublishTab(app, doc.web)); // website projects of the Code studio
   let active = tabs.find((t) => t.id === preset.tab) || (app.studio === "code" && tabs.find((t) => t.id === "website")) || tabs[0];
 
   const group = h(

@@ -5,8 +5,12 @@ import { openDialog, confirmDialog, shortcutsContent } from "./dialogs.js";
 import { segmented, numField, button } from "./controls.js";
 import { iconEl } from "./toolbox.js";
 import { ACCENTS } from "./appearance.js";
+import { themeGallery } from "./theme-gallery.js";
 import { platform } from "../platform/index.js";
+import { FILE_TYPES, defaultAppsInstructions } from "../platform/file-types.js";
 import { kvGet, kvDelete, getRecents, clearSession } from "../core/storage.js";
+import { securitySection, troubleshootingSection } from "./security-center.js";
+import { openLink } from "./links.js";
 
 const sw = (key, label, hint, extra = {}) => ({ type: "switch", key, label, hint, ...extra });
 const seg = (key, label, options, hint, extra = {}) => ({ type: "segmented", key, label, options, hint, ...extra });
@@ -44,6 +48,13 @@ export function settingsSections(app) {
             { type: "action", label: "Open a folder", hint: "Opens a whole project folder: a website becomes a Code studio project, design files open as documents.", button: "Open Folder…", run: () => app.run("file.openFolder") },
           ],
         },
+        {
+          title: "Open with OpenFini",
+          items: [
+            { type: "info", label: "File types", text: `OpenFini can open ${FILE_TYPES.flatMap((t) => t.ext.map((e) => "." + e)).join(" ")} from your system's Open with menu${platform.isDesktop ? " (offered by the installer; .ofini and .ofext open on double click, other types are never taken over)" : " once it is installed as an app in a Chromium based browser"}.` },
+            { type: "info", label: "Make OpenFini the default", text: defaultAppsInstructions(platform.os) },
+          ],
+        },
       ],
     },
     {
@@ -56,10 +67,11 @@ export function settingsSections(app) {
         {
           title: "Theme",
           items: [
-            seg("theme", "Color theme", [{ value: "dark", label: "Dark", text: "Dark" }, { value: "light", label: "Light", text: "Light" }, { value: "auto", label: "Match system", text: "System" }]),
-            { type: "accent", label: "Accent color", hint: "Highlights, selections and primary buttons." },
+            seg("theme", "Mode", [{ value: "dark", label: "Dark", text: "Dark" }, { value: "light", label: "Light", text: "Light" }, { value: "auto", label: "Match system", text: "System" }], "Every color theme has a dark and a light variant."),
+            { type: "accent", label: "Accent color", hint: "Overrides the accent of the theme. The first swatch uses the theme's own accent." },
           ],
         },
+        { title: "Color theme", items: [{ type: "themes" }] },
         {
           title: "Layout",
           items: [
@@ -94,6 +106,32 @@ export function settingsSections(app) {
         {
           title: "Assistive technology",
           items: [{ type: "info", label: "Screen readers", text: "Menus, dialogs, panels and the code editor are keyboard operable and labeled. The drawing canvas itself is pointer-driven: use the Layers panel, the Navigator in the Code studio and the Settings panel for keyboard-only work. See docs/roadmap.md for the known gaps." }],
+        },
+      ],
+    },
+    {
+      id: "onboarding",
+      label: "Onboarding and help",
+      icon: "mortarboard",
+      lead: "Tours, hints and the command palette.",
+      keywords: "tour welcome hints tips tutorial help whats new command palette reset",
+      groups: [
+        {
+          title: "Tours and hints",
+          items: [
+            sw("tours", "Offer tours", "Shows a small invitation the first time you start OpenFini and the first time you open each studio."),
+            sw("contextHints", "Show hints in empty panels", "Short explanations where a panel has nothing to show yet."),
+            { type: "action", label: "Welcome tour", hint: "A one-minute walk through the interface.", button: "Take the tour", run: () => app.run("help.tour") },
+            { type: "action", label: "Studio tour", hint: "A short tour of the studio you are in.", button: "Tour this studio", run: () => app.run("help.studioTour") },
+            { type: "action", label: "Reset tours", hint: "Makes every tour and the What's new notice appear again.", button: "Reset", run: () => app.run("help.resetTours") },
+          ],
+        },
+        {
+          title: "Finding things",
+          items: [
+            { type: "info", label: "Command palette", text: "Press Ctrl+K (Cmd+K on macOS) or F1 to search every command. Shift+F1 turns on What's this?: click anything to see what it does." },
+            { type: "action", label: "What's new", hint: "Highlights of this version.", button: "Show", run: () => app.run("help.whatsNew") },
+          ],
         },
       ],
     },
@@ -137,6 +175,14 @@ export function settingsSections(app) {
           ],
         },
         {
+          title: "Source control and publishing",
+          items: [
+            { type: "text", key: "gitName", label: "Commit author name", placeholder: "Your name", hint: "Used for commits made in Source Control. Stored on this device, not in the document." },
+            { type: "text", key: "gitEmail", label: "Commit author email", placeholder: "you@example.com", inputType: "email", hint: "Part of every commit; use a no-reply address if you will publish the history." },
+            { type: "info", label: "Tokens and passwords", text: "Remote and publish tokens are stored privately on this device (sealed with your key vault passphrase when the vault is on) and sent only to the service you configured — never saved in documents." },
+          ],
+        },
+        {
           title: "Website preview",
           items: [
             sw("previewScripts", "Run JavaScript in the preview", "Off shows the page without its scripts (safer for projects you did not write). Navigation and editing keep working."),
@@ -164,35 +210,8 @@ export function settingsSections(app) {
         },
       ],
     },
-    {
-      id: "security",
-      label: "Security and privacy",
-      icon: "shield-lock",
-      lead: "What leaves the app, and what stays on this device.",
-      keywords: "privacy security external links clear data storage recent fonts reset telemetry",
-      groups: [
-        {
-          title: "Safety",
-          items: [
-            sw("confirmExternal", "Ask before opening links in your browser", "Applies to links clicked in the website preview and to help links."),
-            { type: "info", label: "Telemetry", text: "OpenFini collects no analytics or crash reports and has no accounts." },
-          ],
-        },
-        {
-          title: "Data on this device",
-          items: [
-            { type: "storage" },
-            { type: "action", label: "Recent files", hint: "Forgets the recent-files list and the stored copies behind it.", button: "Clear", run: async () => { for (const r of await getRecents()) await kvDelete(`recent:${r.id}`); await kvDelete("recents"); app.emit("recents", []); app.toast("Recent files cleared.", "success", 1800); } },
-            { type: "action", label: "Autosaved session", hint: "Deletes the recovery copy of your open documents.", button: "Delete", run: async () => { await clearSession(); app.toast("Autosaved session deleted.", "success", 1800); } },
-            { type: "action", label: "Added fonts", hint: "Removes font files you added through the Type panel.", button: "Remove", run: async () => { await kvDelete("fonts"); app.fonts.clear(); app.toast("Added fonts removed. Reload to unload them from this session.", "success", 2600); } },
-          ],
-        },
-        {
-          title: "Reset",
-          items: [{ type: "action", label: "Reset all settings", hint: "Restores every setting in this dialog to its default. Your documents are not touched.", button: "Reset…", danger: true, run: async () => { if (await confirmDialog({ title: "Reset settings", message: "Restore all settings to their defaults?", ok: "Reset", danger: true })) { app.resetPrefs(); app.toast("Settings reset.", "success", 1800); } } }],
-        },
-      ],
-    },
+    securitySection(app),
+    troubleshootingSection(app),
     {
       id: "shortcuts",
       label: "Keyboard shortcuts",
@@ -201,6 +220,19 @@ export function settingsSections(app) {
       keywords: "keys shortcut hotkey keyboard",
       custom: () => shortcutsContent(app),
       groups: [],
+    },
+    {
+      id: "extensions",
+      label: "Extensions",
+      icon: "puzzle",
+      lead: "Add-ons that extend OpenFini in every studio. They run in sandboxes with only the permissions you approve.",
+      keywords: "extension plugin add-on sdk developer sandbox permissions",
+      groups: [],
+      custom: () => {
+        const host = h("div");
+        import("./extensions/manager.js").then((m) => host.replaceChildren(m.extensionsSettingsPane(app)));
+        return host;
+      },
     },
     {
       id: "about",
@@ -221,8 +253,8 @@ function aboutPane() {
     "div.of-set__group",
     h("div.of-set__row", h("div.of-set__label", "Version"), h("div.of-set__ctl", version)),
     h("div.of-set__row", h("div.of-set__label", "License"), h("div.of-set__ctl", "MIT")),
-    h("div.of-set__row", h("div.of-set__label", "Source code"), h("div.of-set__ctl", button("github.com/philppplik/open-fini", () => platform.openExternal("https://github.com/philppplik/open-fini")))),
-    h("div.of-set__row", h("div.of-set__label", "Documentation"), h("div.of-set__ctl", button("Open", () => platform.openExternal("https://github.com/philppplik/open-fini#readme")))),
+    h("div.of-set__row", h("div.of-set__label", "Source code"), h("div.of-set__ctl", button("github.com/philppplik/open-fini", () => openLink("https://github.com/philppplik/open-fini")))),
+    h("div.of-set__row", h("div.of-set__label", "Documentation"), h("div.of-set__ctl", button("Open", () => openLink("https://github.com/philppplik/open-fini#readme")))),
     h("p.of-set__hint", "OpenFini is an independent project. It is not affiliated with, endorsed by or derived from any commercial product. Product names are trademarks of their owners."),
   );
 }
@@ -244,6 +276,11 @@ function control(app, item, rerender) {
     }
     case "segmented":
       return segmented(item.options, get(), (v) => { set(v); rerender(); }).el;
+    case "text": {
+      const t = h("sl-input", { size: "small", value: String(get() ?? ""), placeholder: item.placeholder || "", type: item.inputType || "text", "aria-label": item.label });
+      t.addEventListener("sl-change", () => set(t.value.trim()));
+      return t;
+    }
     case "number": {
       const f = numField({ value: Number(get()), min: item.min, max: item.max, step: item.step, precision: 0, unit: item.unit, wide: true, onChange: (v) => set(Math.round(v)) });
       return f.el;
@@ -252,7 +289,7 @@ function control(app, item, rerender) {
       const wrap = h("div.of-set__swatches");
       const cur = app.prefs.accent || "violet";
       for (const a of ACCENTS) {
-        const b = h("button.of-set__swatch", { type: "button", title: a.label, "aria-label": a.label, "aria-pressed": String(cur === a.id), style: { background: a.color || "linear-gradient(135deg,#8b7cf6,#6b58e8)" } });
+        const b = h("button.of-set__swatch", { type: "button", title: a.label, "aria-label": a.label, "aria-pressed": String(cur === a.id), style: { background: a.color || "linear-gradient(135deg, var(--of-accent), var(--of-accent-strong))" } });
         b.addEventListener("click", () => {
           app.setPref("accent", a.id);
           for (const x of wrap.children) x.setAttribute("aria-pressed", String(x === b));
@@ -273,6 +310,8 @@ function control(app, item, rerender) {
 
 function row(app, item, rerender) {
   if (item.type === "note") return h("div.of-set__note", item.text);
+  if (item.type === "custom") return item.render(app, rerender); // self-contained block (security center)
+  if (item.type === "themes") return themeGallery(app);
   if (item.type === "info") return h("div.of-set__row", h("div", h("div.of-set__label", item.label), h("div.of-set__hint", item.text)));
   if (item.type === "storage") {
     const v = h("span", "…");

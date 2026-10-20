@@ -20,13 +20,14 @@ OpenFini is a design and photo-editing suite built around **studios** — focuse
 | Studio | For | Highlights |
 | --- | --- | --- |
 | **Vector** | Logos, icons, illustration, UI | Bézier pen, node editing, shapes, booleans, gradients, live effects, SVG import/export |
-| **Pixel** | Photo editing and painting | Layers and masks, brushes, selections, retouching, live adjustments and filters, Develop and Liquify |
-| **Layout** | Brochures, books, print | Pages and master pages, text frames that flow across pages, styles, tables, PDF with bleed |
-| **Code** | Websites | Code editor and visual designer over the same HTML / CSS / JS files: explorer, Emmet, live canvas with breakpoints, class-based style panel, static-site export |
+| **Pixel** | Photo editing and painting | Layers and masks, brushes, selections, retouching, live adjustments and filters, Develop and Liquify, a live histogram with interactive Levels and Curves |
+| **Layout** | Brochures, books, print | Pages and master pages, text frames that flow across pages, styles, editable tables with formulas, linked charts, PDF import and export with bleed |
+| **Code** | Websites | Code editor and visual designer over the same HTML / CSS / JS files: explorer, Emmet, live canvas with breakpoints, class-based style panel, 13 framework starters, Git, one-click publishing, Markdown and LaTeX, static-site export |
+| **Vibe** | Describe it, an AI builds it | Chat assistant with 100 tools that works natively in every studio; bring your own model; skills, MCP, RAG, right-click AI. Off by default |
 
 Switch studios at any time: a document can mix vector shapes, pixel layers, flowing text and a website project. **Export** is a button in the header (PNG / JPEG / WebP / SVG / PDF, slices, websites), not a studio of its own.
 
-> **Status: v0.1 alpha.** OpenFini is a real, working application, but it is young. Read [what is not there yet](docs/roadmap.md) before you plan production work around it. File format and APIs may still change.
+> **Status: alpha.** OpenFini is a real, working application, but it is young. Read [what is not there yet](docs/roadmap.md) before you plan production work around it. File format and APIs may still change.
 
 > **Not affiliated with any commercial product.** OpenFini is an independent, clean-room implementation. It contains no code, assets, icons or file formats from other products. Product names mentioned anywhere are trademarks of their owners. See [docs/clean-room.md](docs/clean-room.md).
 
@@ -83,7 +84,7 @@ Installers are produced by the [release workflow](.github/workflows/release.yml)
 
 ### Vibe (AI)
 
-- **Tell it what you want.** A chat like Claude Code or Cowork, with attachments, skills, memory and a plan view. The assistant uses OpenFini's own 52 tools: it draws shapes and text, adjusts photos, lays out pages and builds websites in the other studios, and every run can be undone in one click.
+- **Tell it what you want.** A chat like Claude Code or Cowork, with attachments, skills, memory and a plan view. The assistant uses OpenFini's own 100 tools: it draws shapes and text, adjusts photos, lays out pages and builds websites in the other studios, and every run can be undone in one click.
 - **Not locked in.** Bring your own account: OpenRouter (with sign-in), OpenAI, Anthropic, DeepSeek, xAI (Grok), Mistral, Groq, Together, Gemini, local models (Ollama, LM Studio) or any OpenAI-compatible server. Keys stay on your device, optionally encrypted with a passphrase.
 - **Modern AI plumbing.** Tool use with permission modes, MCP servers (plus a localhost gateway for stdio servers), RAG over your own documents, skills (`SKILL.md` style), custom tools the assistant can write, image generation and editing.
 - **Right-click AI** in the canvas, the code editor and the website designer. **Off by default**: nothing is sent anywhere until you switch it on. An offline *Demo* assistant shows how it works without a key. See the [Vibe Studio guide](docs/vibe-studio.md).
@@ -91,6 +92,14 @@ Installers are produced by the [release workflow](.github/workflows/release.yml)
 ### Export (popup)
 
 The **Export** button in the header opens a popup from any studio: PNG / JPEG / WebP / SVG / PDF with scale, quality, bleed and crop marks; **slices** (draw them with the Slice tool or create them from layers, one file each or one ZIP); and, for documents with a website project, the **website**.
+
+## Beyond the studios
+
+- **Extensions with an SDK.** Add commands, menu items, dock panels, themes, templates and Vibe tools with sandboxed `.ofext` extensions. Every extension declares permissions, runs in its own sandbox and is undoable. See [docs/extensions.md](docs/extensions.md) and the [`sdk/`](sdk) folder.
+- **Themes.** Twelve themes, each with a light and a dark variant, plus accent colors, high contrast and thin themed scrollbars. See [docs/themes.md](docs/themes.md).
+- **Guided, not guessed.** A welcome tour, a mini tour per studio, tooltips that explain, *What's this?* (`Shift+F1`), a global command palette (`Ctrl+K`) and a What's new page.
+- **Open what you have.** PSD / PSB, IDML, PDF and Illustrator (`.ai` with PDF content) open as editable documents with an import report; Markdown, LaTeX and plain text open in the Code studio; folders open as projects; drop files anywhere; **Open with OpenFini** works from Windows, macOS and Linux (desktop) and the installed PWA. Affinity, InDesign, Figma and XD files are proprietary: OpenFini tells you how to export them to an open format. See [docs/file-compat.md](docs/file-compat.md) and [docs/os-integration.md](docs/os-integration.md).
+- **Security and troubleshooting tools.** App lock (encrypts local data at rest), offline mode, safe mode, protected mode for untrusted projects, a stored-data inventory, redacted logs and a Troubleshooting dialog. See [docs/security.md](docs/security.md) and [docs/troubleshooting.md](docs/troubleshooting.md).
 
 ## Why it is light
 
@@ -128,6 +137,10 @@ The application itself has **no build step** in development: `app/` is served as
 | [Studios guide](docs/studios.md) | Tools, panels and shortcuts per studio |
 | [Code studio](docs/code-studio.md) · [Web engine](docs/web-engine.md) | Website workbench and its pure engine |
 | [Vibe Studio](docs/vibe-studio.md) · [AI engine](docs/ai-engine.md) | The AI studio, providers, tools, MCP, RAG, skills |
+| [Extensions](docs/extensions.md) · [Themes](docs/themes.md) | Extension SDK, manifest and API; theme registry |
+| [Frameworks](docs/frameworks.md) · [Git and publishing](docs/git-and-publishing.md) | Code studio frameworks, Markdown/LaTeX, Git, deploy targets |
+| [Layout tables and charts](docs/layout-tables-charts.md) · [Pixel histogram](docs/pixel-histogram.md) · [PDF import](docs/pdf-import.md) | Studio features in depth |
+| [Security](docs/security.md) · [Troubleshooting](docs/troubleshooting.md) · [OS integration](docs/os-integration.md) | Security tools, diagnostics, file associations |
 | [File format](docs/file-format.md) | The `.ofini` container |
 | [Design system](docs/design-system.md) | Shoelace, tokens, theming, icons |
 | [Performance](docs/performance.md) | Measurements and low-power design |

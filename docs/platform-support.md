@@ -38,11 +38,12 @@ Notes
 | Feature | Desktop app | Browser / PWA |
 | --- | --- | --- |
 | Open and save files | native dialogs, real paths, "Save" can rewrite the same file | File System Access API in Chromium; file chooser and download elsewhere |
-| File associations | `.ofini` everywhere; images are offered under "Open With" (not on Windows) | `.ofini`, `.svg`, `.png`, `.jpg`, `.webp` through the PWA file handler (Chromium) |
+| File associations | `.ofini` and `.ofext` open on double click everywhere; 23 other types are offered under "Open with" and never become the default (see [os-integration.md](os-integration.md)) | the same types through the PWA file handler (Chromium), plus the Web Share Target |
 | Offline | always (the app is inside the binary) | after the first visit (service worker) |
 | Updates | install a new version (no auto-update yet) | automatic, applied when you choose |
 | Clipboard images | native clipboard | async Clipboard API; needs a user gesture, Chromium and Safari |
-| Several windows / tabs | one window per app instance; a second launch focuses it | normal browser tabs |
+| Command line | `openfini [--help] [--version] [FILE...]` | not applicable |
+| Several windows / tabs | one window per app instance; a second launch focuses it and opens the files in a new tab | normal browser tabs |
 
 ## Browser / PWA
 

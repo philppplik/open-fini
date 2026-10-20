@@ -33,6 +33,12 @@ Conventions (same as `docs/engine-contracts.md`)
 | `site.js` | builds the published site (copy, optional minify, single-file mode, sitemap) |
 | `templates.js` | starter projects (the file contents live in `tpl/*.js`) |
 | `elements.js` | catalog of insertable elements and sections |
+| `highlight.js` | tiny syntax highlighter for rendered code blocks (`tok-*` classes) |
+| `markdown.js` | CommonMark + GFM renderer with sanitizer, footnotes, front matter, math placeholders ([frameworks.md](frameworks.md#markdown)) |
+| `latex.js` | LaTeX-subset → HTML preview converter and BibTeX parser (not a TeX engine) |
+| `libs.js` | CDN URLs, library catalog, import-map and tag edit producers, package API parsers, vendoring planner |
+| `frameworks.js` | framework detection, Tailwind / Bootstrap class lists, Alpine and htmx attributes, Add-panel snippets |
+| `ssg.js` | Markdown site generator (`content/` + `layouts/` → pages) |
 | `index.js` | re-exports everything above with `export *` (111 names, no duplicates). `emmet.js` is owned by the UI and is not re-exported |
 
 Every module is importable on its own (`tests/web/purity.test.js` loads each one and scans the sources for DOM,
@@ -403,7 +409,9 @@ hotCss(files, cssFile, options?): string          // the rewritten CSS text for 
 scanModuleSpecifiers(code): { start, end, specifier, dynamic }[]   // (extension) the import scanner
 ```
 
-There is **no `<base>` tag and no import map** in the generated document: hash links must keep working natively in
+There is **no `<base>` tag** in the generated document. A page's import map is kept as written, and additionally applied by
+the builder: bare specifiers of project modules are rewritten to the mapped URL or project file (inline import maps are
+blocked by the desktop CSP). Hash links must keep working natively in `about:srcdoc`: hash links must keep working natively in
 `about:srcdoc`, and inline scripts are blocked by the CSP. (`baseHref` was removed from the options.)
 
 Behavior

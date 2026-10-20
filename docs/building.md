@@ -81,8 +81,9 @@ Rules the app code has to follow so the build can do this safely:
 
 | Budget | Default | Covers |
 | --- | --- | --- |
-| `shellJsGzipKiB` | 520 | all JavaScript outside `vendor/` (the app shell and the service worker) |
-| `totalGzipKiB` | 2048 | everything the browser downloads, except fonts and license texts |
+| `shellJsGzipKiB` | 900 | all JavaScript outside `vendor/` (the app, its lazily loaded studios, panels and engines, and the service worker) |
+| `startupJsGzipKiB` | 340 | JavaScript needed to start: the `index.html` modules and everything they import statically |
+| `totalGzipKiB` | 2048 | everything the browser downloads, except fonts, license texts and the on-demand libraries (PDF import and KaTeX under `vendor/pdfjs` and `vendor/katex`, which are not precached and are cached on first use) |
 
 CI runs it on every push. Raise a budget only deliberately, in its own commit.
 

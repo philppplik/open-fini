@@ -161,8 +161,10 @@ function emitGroup(ctx, g, out) {
     attrs.push(`mask="url(#${id})"`);
   }
   const inner = [];
+  if (g.alt) inner.push(`${g.alt.title ? `<title>${esc(g.alt.title)}</title>` : ""}${g.alt.desc ? `<desc>${esc(g.alt.desc)}</desc>` : ""}`);
+  const altCount = inner.length;
   for (const it of g.items) emitItem(ctx, it, inner);
-  if (!inner.length) return;
+  if (inner.length <= altCount) return;
   let body = `<g${attrs.length ? " " + attrs.join(" ") : ""}>${inner.join("")}</g>`;
   if (g.clip) {
     const id = ctx.id("cp");

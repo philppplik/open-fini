@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { parseSkill, serializeSkill, skillsCatalog, buildSystemPrompt, BUILTIN_SKILLS, BUILTIN_SKILL_LIST } from "../../app/src/ai/skills.js";
 
 const TOOL_NAMES = new Set(
-  "get_document_info list_layers get_selection select_layers screenshot add_shape add_text add_path import_svg set_style transform_layers group_layers delete_layers reorder_layers align_layers add_pixel_layer apply_adjustment list_effects generate_image edit_image add_page write_file read_file list_files edit_file insert_element set_element_style set_page_meta search_knowledge remember ask_user use_skill".split(" "),
+  "get_document_info list_layers get_selection select_layers screenshot add_shape add_text add_path import_svg set_style transform_layers group_layers delete_layers reorder_layers align_layers add_pixel_layer apply_adjustment list_effects generate_image edit_image add_page write_file read_file list_files edit_file insert_element set_element_style set_page_meta search_knowledge remember ask_user use_skill list_commands list_themes set_theme start_tour get_platform_info set_studio get_histogram auto_correct_suggestion new_document add_table edit_table read_table list_tables import_csv_to_table add_chart edit_chart read_chart".split(" "),
 );
 
 test("parseSkill: frontmatter with inline lists, comma lists, quotes", () => {
@@ -72,12 +72,13 @@ test("skillsCatalog is compact", () => {
   assert.ok(cat.length < 500);
 });
 
-test("built-in skills: eight useful, well formed skills", () => {
-  assert.equal(BUILTIN_SKILLS.length, 8);
+test("built-in skills: useful, well formed skills", () => {
+  assert.ok(BUILTIN_SKILLS.length >= 9);
   assert.deepEqual(
-    BUILTIN_SKILL_LIST.map((s) => s.id),
+    BUILTIN_SKILL_LIST.slice(0, 8).map((s) => s.id),
     ["logo-design", "social-post", "photo-retouch", "landing-page", "poster-layout", "brand-kit", "accessibility-audit", "copywriting"],
   );
+  assert.ok(BUILTIN_SKILL_LIST.some((s) => s.id === "help-me-use-openfini"));
   for (const s of BUILTIN_SKILL_LIST) {
     assert.ok(s.description.length > 40 && !s.description.includes("\n"), s.id);
     assert.ok(s.body.length > 1200, `${s.id} body is substantial`);

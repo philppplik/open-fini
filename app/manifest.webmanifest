@@ -10,13 +10,38 @@
   "orientation": "any",
   "background_color": "#1c1d21",
   "theme_color": "#1c1d21",
-  "categories": ["graphics", "design", "productivity", "photo"],
+  "categories": [
+    "graphics",
+    "design",
+    "productivity",
+    "photo"
+  ],
   "prefer_related_applications": false,
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
-    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
   ],
   "launch_handler": {
     "client_mode": "focus-existing"
@@ -26,42 +51,186 @@
       "action": "./",
       "launch_type": "single-client",
       "accept": {
-        "application/x-openfini": [".ofini"],
-        "image/svg+xml": [".svg"],
-        "image/png": [".png"],
-        "image/jpeg": [".jpg", ".jpeg"],
-        "image/webp": [".webp"]
-      }
+        "application/x-openfini": [
+          ".ofini"
+        ],
+        "application/x-openfini-extension": [
+          ".ofext"
+        ],
+        "image/vnd.adobe.photoshop": [
+          ".psd"
+        ],
+        "image/vnd.adobe.photoshop-large": [
+          ".psb"
+        ],
+        "application/vnd.adobe.indesign-idml-package": [
+          ".idml"
+        ],
+        "image/svg+xml": [
+          ".svg"
+        ],
+        "image/png": [
+          ".png"
+        ],
+        "image/jpeg": [
+          ".jpg",
+          ".jpeg"
+        ],
+        "image/webp": [
+          ".webp"
+        ],
+        "image/gif": [
+          ".gif"
+        ],
+        "image/bmp": [
+          ".bmp"
+        ],
+        "image/avif": [
+          ".avif"
+        ],
+        "application/pdf": [
+          ".pdf"
+        ],
+        "application/vnd.adobe.illustrator": [
+          ".ai"
+        ],
+        "application/x-affinity-designer": [
+          ".afdesign"
+        ],
+        "application/x-affinity-photo": [
+          ".afphoto"
+        ],
+        "application/x-affinity-publisher": [
+          ".afpub"
+        ],
+        "text/markdown": [
+          ".md",
+          ".markdown"
+        ],
+        "text/x-tex": [
+          ".tex",
+          ".latex"
+        ],
+        "text/html": [
+          ".html",
+          ".htm"
+        ],
+        "text/css": [
+          ".css"
+        ],
+        "text/javascript": [
+          ".js",
+          ".mjs"
+        ],
+        "application/json": [
+          ".json"
+        ],
+        "text/plain": [
+          ".txt"
+        ],
+        "text/csv": [
+          ".csv"
+        ]
+      },
+      "icons": [
+        {
+          "src": "icons/doc-icon.svg",
+          "sizes": "any",
+          "type": "image/svg+xml"
+        }
+      ]
     }
   ],
+  "share_target": {
+    "action": "./share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "files": [
+        {
+          "name": "files",
+          "accept": [
+            "image/png",
+            "image/jpeg",
+            "image/webp",
+            "image/gif",
+            "image/bmp",
+            "image/avif",
+            "image/svg+xml",
+            ".ofini",
+            ".svg",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".webp",
+            ".gif",
+            ".bmp",
+            ".avif",
+            ".psd",
+            ".md",
+            ".txt",
+            ".html",
+            ".css",
+            ".js",
+            ".json",
+            ".csv"
+          ]
+        }
+      ]
+    }
+  },
   "shortcuts": [
     {
       "name": "New Vector document",
       "short_name": "Vector",
       "description": "Start a new vector illustration",
       "url": "./?studio=vector",
-      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "New Pixel image",
       "short_name": "Pixel",
       "description": "Start a new raster image or edit a photo",
       "url": "./?studio=pixel",
-      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "New Layout document",
       "short_name": "Layout",
       "description": "Start a new multi-page layout",
       "url": "./?studio=layout",
-      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     },
     {
       "name": "New website",
       "short_name": "Website",
       "description": "Build a website with the code editor and visual designer",
       "url": "./?studio=code",
-      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [
+        {
+          "src": "icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }

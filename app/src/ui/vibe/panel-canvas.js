@@ -1,5 +1,7 @@
 // Vibe Studio side panels: Canvas (live view of the document the assistant works on) and Activity (plan, undo).
 import { h, empty, debounce } from "../../core/util.js";
+import { scriptsBlocked } from "../../core/security.js";
+import { withOfflinePreviewCsp } from "../../core/network.js";
 import { exportRaster } from "../../core/io.js";
 import { iconEl } from "../toolbox.js";
 
@@ -39,10 +41,10 @@ export function createCanvasPanel(vs) {
         const entry = doc.web.settings?.page && doc.web.has(doc.web.settings.page) ? doc.web.settings.page : doc.web.entry;
         const res = buildPreview(doc.web.source, entry, {
           config: { mode: "preview" },
-          makeScriptUrl: (code) => `data:text/javascript;charset=utf-8,${encodeURIComponent(app.prefs.previewScripts === false ? "" : code)}`,
+          makeScriptUrl: (code) => `data:text/javascript;charset=utf-8,${encodeURIComponent(scriptsBlocked(app.prefs, doc) ? "" : code)}`,
           makeAssetUrl: toDataUrl,
         });
-        site.srcdoc = res.html;
+        site.srcdoc = withOfflinePreviewCsp(res.html, app.network?.offline);
         frame.classList.add("web");
         return;
       }

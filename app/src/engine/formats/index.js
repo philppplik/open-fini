@@ -1,6 +1,8 @@
 // File-format engines: Photoshop PSD/PSB, InDesign IDML, and format sniffing.
 export { readPsd, writePsd } from './psd.js';
 export { readIdml, parseXml } from './idml.js';
+export { readSketch, isSketch } from './sketch.js';
+export { findPdfStart, findEmbeddedPreview } from './embedded.js';
 
 const INDD_MAGIC = [0x06, 0x06, 0xed, 0xf5, 0xd8, 0x1d, 0x46, 0xe5, 0xbd, 0x31, 0xef, 0xe7, 0xfe, 0x74, 0xb7, 0x1d];
 
@@ -28,7 +30,7 @@ function findAscii(bytes, needle, from, to) {
  * Detects a document format from magic bytes and, where there is no magic, from the file name.
  * @param {Uint8Array} bytes
  * @param {string} [name] file name (only the extension is used)
- * @returns {'psd'|'psb'|'idml'|'ai'|'indd'|'afdesign'|'afphoto'|'afpub'|'pdf'|'svg'|'unknown'}
+ * @returns {'psd'|'psb'|'idml'|'ai'|'indd'|'afdesign'|'afphoto'|'afpub'|'sketch'|'fig'|'xd'|'pdf'|'svg'|'unknown'}
  */
 export function sniffFormat(bytes, name = '') {
   const ext = (/\.([a-z0-9]+)$/i.exec(String(name || '')) || [, ''])[1].toLowerCase();
@@ -51,9 +53,11 @@ export function sniffFormat(bytes, name = '') {
       const mime = 'application/vnd.adobe.indesign-idml-package';
       if (startsWith(bytes, 'mimetype', 30) && startsWith(bytes, mime, 38)) return 'idml';
       if (findAscii(bytes, 'designmap.xml', 0, 65536) >= 0 || findAscii(bytes, 'designmap.xml', bytes.length - 262144, bytes.length) >= 0) return 'idml';
+      if (ext === 'sketch' || (findAscii(bytes, 'document.json', 0, 65536) >= 0 && findAscii(bytes, 'pages/', 0, 65536) >= 0)) return 'sketch';
     }
   }
   if (ext === 'afdesign' || ext === 'afphoto' || ext === 'afpub') return ext;
+  if (ext === 'sketch' || ext === 'fig' || ext === 'xd') return ext;
   if (ext === 'svg') return 'svg';
   if (bytes && bytes.length >= 4) {
     // text sniffing for SVG

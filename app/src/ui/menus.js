@@ -7,7 +7,7 @@ const DESIGN = ["vector", "pixel", "layout"];
 export const MENUS = [
   {
     label: "File",
-    items: ["file.new", "file.open", "file.openFolder", { label: "Open Recent", dynamic: "recent" }, "-", "file.save", "file.saveAs", "file.saveAll", "-", "file.export", { label: "Quick Export", items: ["file.exportPNG", "file.exportJPG", "file.exportWEBP", "file.exportSVG", "file.exportPDF"] }, "-", "file.place", "file.docSetup", "-", "file.close"],
+    items: ["file.new", "file.open", "file.openFolder", { label: "Open Recent", dynamic: "recent" }, "-", "file.save", "file.saveAs", "file.saveAll", "-", "file.export", { label: "Quick Export", items: ["file.exportPNG", "file.exportJPG", "file.exportWEBP", "file.exportSVG", "file.exportPDF"] }, "-", "file.place", "file.insertPdf", "file.extractPages", "file.importReport", "file.docSetup", "-", "file.close"],
   },
   {
     label: "Edit",
@@ -38,7 +38,12 @@ export const MENUS = [
   {
     label: "Text",
     studios: DESIGN,
-    items: ["text.insertPageNumber", "text.insertPageCount", "text.insertDate", "-", "layout.linkFrames", "layout.unlinkFrames", "layout.addFlowFrame", "layout.autoflow", "-", "layout.insertTable", "layout.toc", "layout.dataMerge"],
+    items: ["text.insertPageNumber", "text.insertPageCount", "text.insertDate", "-", "layout.linkFrames", "layout.unlinkFrames", "layout.addFlowFrame", "layout.autoflow", "-", "layout.insertTable", "layout.insertChart", "layout.toc", "layout.dataMerge"],
+  },
+  {
+    label: "Table",
+    studios: ["layout"],
+    items: ["layout.insertTable", "layout.insertChart", "layout.importTable", "-", "table.rowAbove", "table.rowBelow", "table.colLeft", "table.colRight", "table.deleteRows", "table.deleteCols", "-", "table.merge", "table.split", "table.distributeCols", "table.distributeRows", "table.fit", "-", "table.sortAsc", "table.sortDesc", "-", "table.exportCSV", "table.flow", "-", "chart.editData", "chart.gallery"],
   },
   {
     label: "Document",
@@ -48,7 +53,7 @@ export const MENUS = [
   {
     label: "View",
     studios: DESIGN,
-    items: ["view.zoomIn", "view.zoomOut", "view.zoom100", "view.fit", "view.fitAll", "view.fitSelection", "-", "view.rulers", "view.grid", "view.guides", "view.snapping", "view.snapGrid", "view.clipContent", "-", "view.theme", "view.lowPower"],
+    items: ["view.zoomIn", "view.zoomOut", "view.zoom100", "view.fit", "view.fitAll", "view.fitSelection", "-", "view.rulers", "view.grid", "view.guides", "view.snapping", "view.snapGrid", "view.clipContent", "-", "view.clipShadows", "view.clipHighlights", "-", "view.theme", "view.lowPower"],
   },
   // ---- Code studio
   {
@@ -81,8 +86,8 @@ export const MENUS = [
     studios: ["vibe"],
     items: ["vibe.tabCanvas", "vibe.tabActivity", "vibe.tabModels", "vibe.tabTools", "vibe.tabSkills", "vibe.tabKnowledge", "-", "view.theme"],
   },
-  { label: "Studio", items: ["studio.vector", "studio.pixel", "studio.layout", "studio.code", "studio.vibe"] },
-  { label: "Help", items: ["help.shortcuts", "help.docs", "help.issues", "-", "help.about"] },
+  { label: "Studio", items: ["studio.vector", "studio.pixel", "studio.layout", "studio.code", "studio.vibe", "-", "ext.manage", { label: "Extension Commands", dynamic: "extCommands" }] },
+  { label: "Help", items: ["help.palette", "help.tour", "help.studioTour", "help.whatsThis", "-", "help.shortcuts", "help.whatsNew", "help.docs", "help.issues", "help.troubleshoot", "help.security", "-", "help.about"] },
 ];
 
 function itemFor(app, cmdId) {
@@ -185,7 +190,7 @@ export function createMenubar(app) {
       if (e.target !== dd) return;
       openDd = dd;
       for (const c of [...dd.children]) if (c.tagName === "SL-MENU") c.remove();
-      dd.append(buildMenu(app, m.items));
+      dd.append(buildMenu(app, app.extMenuItems ? m.items.concat(app.extMenuItems(m.label, app.studio)) : m.items));
     });
     dd.addEventListener("sl-after-hide", (e) => {
       if (e.target !== dd) return;

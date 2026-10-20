@@ -49,6 +49,17 @@ export function registerCodeCommands(app) {
   def("code.setHome", "Set Current Page as Home Page", () => ws().web.setEntry(ws().page), { enabled: (a) => live(a) && !!a.codeUI.page && a.codeUI.page !== a.codeUI.web.entry });
   def("code.publish", "Export Website…", (a) => exportDialog(a, { tab: "website" }), { icon: "globe2" });
 
+  // ---- libraries, documents (Markdown, LaTeX) and Markdown sites
+  def("code.libraries", "Libraries…", () => import("../ui/code/libraries-ui.js").then((m) => m.openLibrariesDialog(ws())), { icon: "stack" });
+  def("code.showLibraries", "Show Libraries", () => ws().showSide("libs"), { icon: "stack" });
+  const docKind = (a) => live(a) && !!a.codeUI.documentKind;
+  def("code.docExportHtml", "Document: Export Preview as HTML Page", () => ws().docPreview.exportToProject(), { enabled: docKind, icon: "code-slash" });
+  def("code.docPrint", "Document: Print or Save Preview as PDF", () => ws().docPreview.print(), { enabled: docKind, icon: "file-earmark-text" });
+  def("code.docSave", "Document: Save This File to Your Computer…", () => ws().docPreview.saveSource(), { enabled: docKind, icon: "download" });
+  def("code.buildMarkdownSite", "Build Pages from Markdown (content/ and layouts/)", () => import("../ui/code/mdsite.js").then((m) => m.buildNow(ws(), { toast: true })), { icon: "journal-text", enabled: (a) => live(a) && a.codeUI.web.paths.some((p) => p.startsWith("content/")) });
+  def("code.newMarkdown", "New Markdown Document", () => import("../ui/code/mdsite.js").then((m) => m.newDocument(ws(), "md")), { icon: "filetype-md" });
+  def("code.newLatex", "New LaTeX Document", () => import("../ui/code/mdsite.js").then((m) => m.newDocument(ws(), "tex")), { icon: "file-earmark-text" });
+
   // ---- editing
   def("code.format", "Format Document", () => ws().editors.format(), { shortcut: "Shift+Alt+F", icon: "text-indent-left" });
   def("code.toggleComment", "Toggle Line Comment", () => ws().editors.toggleComment(), { shortcut: "Mod+/" });

@@ -10,13 +10,19 @@ import { importSVG } from "../engine/vector/svg-import.js";
 import { addNodes } from "./ops.js";
 import { addImportedText } from "./text-ops.js";
 import { canvasToBytes } from "./ofini.js";
+import { ImportReport, attachReport } from "./import-report.js";
+
+import { TEXT_DOC_EXTS } from "./text-docs.js";
 
 export const IMAGE_EXTS = ["png", "jpg", "jpeg", "webp", "gif", "bmp", "avif"];
 export const OPEN_FILTERS = [
-  { name: "All supported files", extensions: ["ofini", "psd", "psb", "idml", "svg", ...IMAGE_EXTS] },
+  { name: "All supported files", extensions: ["ofini", "pdf", "ai", "psd", "psb", "idml", "sketch", "svg", ...IMAGE_EXTS, ...TEXT_DOC_EXTS] },
+  { name: "Text and code (Markdown, LaTeX, JSON, YAML, …)", extensions: TEXT_DOC_EXTS },
   { name: "OpenFini documents", extensions: ["ofini"] },
   { name: "Photoshop (PSD, PSB)", extensions: ["psd", "psb"] },
   { name: "InDesign (IDML)", extensions: ["idml"] },
+  { name: "PDF and Illustrator (PDF, AI)", extensions: ["pdf", "ai"] },
+  { name: "Sketch", extensions: ["sketch"] },
   { name: "Images", extensions: IMAGE_EXTS },
   { name: "SVG graphics", extensions: ["svg"] },
 ];
@@ -147,7 +153,12 @@ export function placeSvg(app, text, name = "SVG", { x, y, asNewDoc = false } = {
     doc.touch(group);
   }
   app.select([group]);
-  if (res.warnings.length) app.toast(`SVG imported with notes: ${res.warnings.join(" ")}`, "warning", 6000);
+  if (asNewDoc) {
+    const report = new ImportReport("SVG", name).kept("Shapes, paths, text and gradients as editable objects.");
+    for (const w of res.warnings) report.dropped(w);
+    attachReport(doc, report);
+  }
+  if (res.warnings.length) app.toast(`SVG imported with notes: ${res.warnings.join(" ")} File ▸ Import Report… lists them.`, "warning", 6000);
   return group;
 }
 

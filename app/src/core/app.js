@@ -4,12 +4,16 @@ import { Emitter, clone } from "./util.js";
 import { Doc } from "./doc.js";
 import { Viewport } from "./viewport.js";
 import { solid } from "./nodes.js";
+import { log } from "./log.js";
+import { createNetwork } from "./network.js";
+import { isSafeMode } from "./bootguard.js";
 
 const PREF_KEY = "openfini.prefs.v1";
 
 const defaultPrefs = () => ({
   // appearance and accessibility
-  theme: "dark", // dark | light | auto
+  theme: "dark", // mode: dark | light | auto
+  themeId: "default", // color theme (ui/themes.js); every theme has a light and a dark variant
   accent: "violet",
   density: "default", // compact | default | spacious
   uiScale: 100, // percent
@@ -17,6 +21,12 @@ const defaultPrefs = () => ({
   highContrast: false,
   focusRings: false,
   showHints: true, // tooltips
+  // onboarding (ui/onboarding.js)
+  tours: true, // offer the welcome tour and the per-studio tours
+  contextHints: true, // empty-state hints in panels
+  toursSeen: {}, // tour id → true
+  whatsNewSeen: "", // version whose "What's new" was shown
+  recentCommands: [], // command palette history (ids)
   // general
   restoreSession: true,
   autosave: true,
@@ -32,13 +42,25 @@ const defaultPrefs = () => ({
   codeWordWrap: false,
   codeFontSize: 13,
   codeFormatOnSave: false,
+  gitName: "", // author of commits in Source Control
+  gitEmail: "",
   previewScripts: true,
   // security and AI
   confirmExternal: true,
   aiEnabled: false,
+  offlineMode: false, // network kill-switch (core/network.js)
+  appLock: false, // mirror of the lock record; the lock itself is in storage (ui/app-lock.js)
+  appLockIdleMinutes: 10, // 0 = never lock on idle
+  appLockOnHide: false, // lock when the window is hidden or minimized
+  protectedMode: true, // website projects from files/folders open with preview scripts off until enabled
+  verboseLogging: false, // also record debug-level log entries
 });
 
+const safeMode = () => isSafeMode(globalThis.location?.search);
+
 function loadPrefs() {
+  // Safe mode: saved settings stay untouched on disk but are not applied in this session.
+  if (safeMode()) return defaultPrefs();
   try {
     return { ...defaultPrefs(), ...JSON.parse(localStorage.getItem(PREF_KEY) || "{}") };
   } catch {
@@ -62,6 +84,12 @@ export class App extends Emitter {
     this.prevTool = null;
     this.commands = new Map();
     this.prefs = loadPrefs();
+    /** True when started with ?safe=1: no session restore, extensions off, AI off, saved settings not applied. Extensions and other loaders must honor it. */
+    this.safeMode = safeMode();
+    this.log = log; // central logger (core/log.js)
+    log.minLevel = this.prefs.verboseLogging ? "debug" : "info";
+    /** Offline mode / network kill-switch: `app.network.allowed(kind)` and `app.network.assert(kind)` (core/network.js). */
+    this.network = createNetwork(() => this.prefs.offlineMode, { onBlocked: ({ kind, url }) => log.info("network", `Blocked by offline mode: ${kind}${url ? ` (${url.split(/[?#]/)[0]})` : ""}`) });
     this._toolOpts = {};
     // current drawing style shared by shape tools and panels
     this.style = {
@@ -101,7 +129,7 @@ export class App extends Emitter {
   resetPrefs() {
     this.prefs = defaultPrefs();
     try {
-      localStorage.removeItem(PREF_KEY);
+      if (!this.safeMode) localStorage.removeItem(PREF_KEY);
     } catch {
       /* private mode */
     }
@@ -113,8 +141,11 @@ export class App extends Emitter {
 
   setPref(key, value) {
     this.prefs[key] = value;
+    if (key === "verboseLogging") log.minLevel = value ? "debug" : "info";
     try {
-      localStorage.setItem(PREF_KEY, JSON.stringify(this.prefs));
+      // Safe mode applies defaults, so only the changed key is merged into the stored settings
+      const stored = this.safeMode ? { ...JSON.parse(localStorage.getItem(PREF_KEY) || "{}"), [key]: value } : this.prefs;
+      localStorage.setItem(PREF_KEY, JSON.stringify(stored));
     } catch {
       /* private mode */
     }
@@ -327,11 +358,17 @@ export class App extends Emitter {
     const c = this.commands.get(id);
     if (!c) return false;
     if (c.enabled && !c.enabled(this)) return false;
+    const fail = (err) => {
+      log.error("command", `Command ${id} failed`, err);
+      this.toast(err?.message || `“${c.label || id}” failed.`, "danger", 5000, { label: "Details", run: () => this.run("help.troubleshoot") });
+    };
     try {
-      return c.run(this, args) ?? true;
+      const r = c.run(this, args);
+      // async commands report their failures here too (callers that await the result still see the rejection)
+      if (r && typeof r.then === "function") r.catch((err) => (err?.name === "AbortError" ? undefined : fail(err)));
+      return r ?? true;
     } catch (err) {
-      console.error(`Command ${id} failed`, err);
-      this.toast(err?.message || `“${c.label || id}” failed.`, "danger");
+      fail(err);
       return false;
     }
   }
@@ -343,8 +380,9 @@ export class App extends Emitter {
 
   // ------------------------------------------------------------ feedback
 
-  toast(message, variant = "primary", duration = 3200) {
-    this.emit("toast", { message, variant, duration });
+  /** Shows a message. `action` ({label, run}) adds a button to the toast, for example "Details". */
+  toast(message, variant = "primary", duration = 3200, action) {
+    this.emit("toast", { message, variant, duration, action });
   }
   status(text) {
     this.emit("status", text);

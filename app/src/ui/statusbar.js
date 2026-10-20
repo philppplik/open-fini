@@ -2,6 +2,7 @@
 import { h } from "../core/util.js";
 import { iconButton } from "./controls.js";
 import { STUDIOS } from "../studios/index.js";
+import { createErrorIndicator } from "./error-indicator.js";
 
 export function createStatusBar(app) {
   const msg = h("span.of-status__msg");
@@ -11,7 +12,7 @@ export function createStatusBar(app) {
   const zoomOut = iconButton({ icon: "dash-lg", label: "Zoom out", onClick: () => app.run("view.zoomOut") });
   const zoomLabel = h("button.of-status__zoom", { type: "button", "data-tip": "Fit page", onclick: () => app.run("view.fit") }, "100%");
   const range = h("sl-range", { min: 0, max: 100, step: 0.1, tooltip: "none", class: "of-status__range", "aria-label": "Zoom" });
-  const el = h("footer.of-status", h("div.of-status__left", msg), h("div.of-status__mid", info), h("div.of-status__right", perf, zoomOut, range, zoomIn, zoomLabel));
+  const el = h("footer.of-status", h("div.of-status__left", msg), h("div.of-status__mid", info), h("div.of-status__right", createErrorIndicator(app), perf, zoomOut, range, zoomIn, zoomLabel));
 
   // logarithmic zoom slider: 2% … 6400%
   const lo = Math.log(0.02);

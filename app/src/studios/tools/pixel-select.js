@@ -53,6 +53,12 @@ class SelectTool extends Tool {
   finish(app, e, mask) {
     if (this.opts.feather > 0) mask.feather(this.opts.feather);
     combineMask(app, mask, opFrom(e, this.opts.mode), "Selection");
+    const m = getMask(app);
+    if (m && (this.constructor.id === "wand" || this.constructor.id === "color-range")) {
+      let n = 0;
+      for (let i = 0; i < m.data.length; i++) if (m.data[i] > 127) n++;
+      app.status(`${n.toLocaleString("en-US")} px selected (${((n / m.data.length) * 100).toFixed(1)}%)`);
+    }
   }
 }
 
@@ -280,6 +286,7 @@ export class WandTool extends SelectTool {
   ];
   pointerDown(e) {
     const app = this.app;
+    if (this.opts.sample !== "merged" && !(app.activeNode && app.doc.pixels.get(app.activeNode.id))) return app.toast("The Magic Wand needs a pixel layer here. Select one, or set Sample to All layers.", "warning");
     const img = pageImage(app, { merged: this.opts.sample === "merged" });
     const mask = magicWand(img, e.x, e.y, { tolerance: this.opts.tolerance, contiguous: this.opts.contiguous, antialias: true });
     if (mask.isEmpty() && this.opts.mode === "replace") return setMask(app, null, "Deselect");
@@ -296,16 +303,28 @@ export class ColorRangeTool extends SelectTool {
     MODE_OPTION,
     { key: "tolerance", label: "Range", type: "int", min: 0, max: 255, step: 1, default: 40 },
     { key: "fuzziness", label: "Softness", type: "range", min: 0, max: 100, step: 1, unit: "%", default: 30 },
+    { key: "size", label: "Sample Size", type: "select", default: "1", options: [{ value: "1", label: "Point" }, { value: "3", label: "3 × 3 average" }, { value: "5", label: "5 × 5 average" }, { value: "11", label: "11 × 11 average" }] },
+    { key: "sample", label: "Sample", type: "select", default: "merged", options: [{ value: "merged", label: "All layers" }, { value: "layer", label: "Active layer" }] },
+    { key: "invert", label: "Invert", type: "bool", default: false },
     FEATHER_OPTION,
   ];
   pointerDown(e) {
     const app = this.app;
-    const img = pageImage(app, { merged: true });
+    const img = pageImage(app, { merged: this.opts.sample !== "layer" });
     const x = Math.max(0, Math.min(img.width - 1, Math.floor(e.x)));
     const y = Math.max(0, Math.min(img.height - 1, Math.floor(e.y)));
-    const i = (y * img.width + x) * 4;
-    const color = `#${[img.data[i], img.data[i + 1], img.data[i + 2]].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
-    const mask = colorRange(img, color, { tolerance: this.opts.tolerance, fuzziness: this.opts.fuzziness / 100 });
+    const half = Math.floor((parseInt(this.opts.size, 10) || 1) / 2);
+    let r = 0, g = 0, b = 0, n = 0;
+    for (let yy = Math.max(0, y - half); yy <= Math.min(img.height - 1, y + half); yy++) {
+      for (let xx = Math.max(0, x - half); xx <= Math.min(img.width - 1, x + half); xx++) {
+        const i = (yy * img.width + xx) * 4;
+        r += img.data[i]; g += img.data[i + 1]; b += img.data[i + 2]; n++;
+      }
+    }
+    const color = `#${[r, g, b].map((v) => Math.round(v / n).toString(16).padStart(2, "0")).join("")}`;
+    // the engine takes tolerance and softness in color-distance units (0-255); the slider is a percentage
+    const mask = colorRange(img, color, { tolerance: this.opts.tolerance, fuzziness: (this.opts.fuzziness / 100) * 255 });
+    if (this.opts.invert) mask.invert();
     this.finish(app, e, mask);
   }
 }

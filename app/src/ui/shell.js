@@ -28,7 +28,7 @@ export function createShell(app, root) {
   brand.addEventListener("sl-show", (e) => {
     if (e.target !== brand) return;
     for (const c of [...brand.children]) if (c.tagName === "SL-MENU") c.remove();
-    brand.append(buildMenu(app, ["help.about", "-", "edit.preferences", "file.saveAll", "file.openFolder", "-", "help.shortcuts", "help.docs", "help.issues"]));
+    brand.append(buildMenu(app, ["help.about", "-", "edit.preferences", "file.saveAll", "file.openFolder", "-", "file.lock", "-", "help.palette", "help.shortcuts", "help.tour", "help.docs", "help.issues", "help.troubleshoot"]));
   });
   const studioBtns = STUDIO_ORDER.map((id) => {
     const s = STUDIOS[id];
@@ -149,9 +149,17 @@ export function createShell(app, root) {
   for (const ev of ["studio", "doc", "docs", "docchange", "saved"]) app.on(ev, sync);
   sync();
 
-  app.on("toast", ({ message, variant, duration }) => {
+  app.on("toast", ({ message, variant, duration, action }) => {
     const icon = { primary: "info-circle", success: "check2-circle", warning: "exclamation-triangle", danger: "exclamation-octagon", neutral: "gear" }[variant] || "info-circle";
     const a = h("sl-alert", { variant, closable: true, duration }, h("sl-icon", { slot: "icon", name: icon }), message);
+    if (action?.run) {
+      const b = h("button.of-toast-action", { type: "button" }, action.label || "Details");
+      b.addEventListener("click", () => {
+        a.hide?.();
+        action.run();
+      });
+      a.append(" ", b);
+    }
     document.body.append(a);
     // <sl-alert> is registered lazily by the Shoelace autoloader; toast() exists once it is defined
     customElements.whenDefined("sl-alert").then(() => a.toast());
@@ -164,7 +172,7 @@ export function createShell(app, root) {
         if ((d.studio || app.studio) === "code") return import("./code/start.js").then((m) => m.newWebsiteDialog(app));
         return newDocumentDialog(app, d);
       case "preferences":
-        return preferencesDialog(app);
+        return preferencesDialog(app, d.section);
       case "about":
         return aboutDialog(app);
       case "shortcuts":
@@ -176,7 +184,7 @@ export function createShell(app, root) {
     }
   });
 
-  app.on("contextmenu", ({ x, y, layers }) => {
+  app.on("contextmenu", ({ x, y, layers, event }) => {
     if (!app.doc) return;
     const items = [
       "edit.cut", "edit.copy", "edit.paste", "edit.pasteInPlace", "edit.duplicate", "edit.delete", "-",
@@ -188,6 +196,12 @@ export function createShell(app, root) {
     if (layers) items.push("-", "layer.addMask", "layer.rasterize", "layer.mergeDown");
     const ai = app.aiQuick?.canvasAiItems(app) || [];
     if (ai.length) items.push("-", { label: "AI", icon: "stars", items: ai });
+    items.push(...(app.extMenuItems?.("context:canvas", app.studio) || []));
+    // table / chart specific items (commands/data.js)
+    for (const p of app.contextItemProviders || []) {
+      const extra = p(app, event);
+      if (extra?.length) items.unshift(...extra, "-");
+    }
     showContextMenu(app, x, y, items);
   });
 

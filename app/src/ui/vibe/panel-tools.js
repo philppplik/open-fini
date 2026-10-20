@@ -35,6 +35,19 @@ export function createToolsPanel(vs) {
     }
     el.append(builtin);
 
+    // ---- tools added by extensions (always ask for approval; the origin is shown)
+    const extTools = app.extensions?.vibeToolInfos() || [];
+    if (extTools.length) {
+      const card = h("div.of-vcard", h("div.of-vcard__head", h("strong", `Extension tools (${extTools.length})`)), h("p.of-hint", "Added by installed extensions. Each one asks for your approval before it runs. Manage extensions under Studio ▸ Extensions."));
+      for (const t of extTools) {
+        const sw = h("sl-switch", { size: "small", "aria-label": t.name });
+        sw.checked = !s.disabledTools.includes(t.name);
+        sw.addEventListener("sl-change", () => vibeStore.saveSettings({ disabledTools: sw.checked ? s.disabledTools.filter((x) => x !== t.name) : [...s.disabledTools, t.name] }));
+        card.append(h("div.of-vtool", h("div", h("code", t.name), h("small", `From extension “${t.extName}” (${t.ext}) — ${(t.description || "").slice(0, 90)}`)), sw));
+      }
+      el.append(card);
+    }
+
     // ---- custom tools
     const custom = h("div.of-vcard", h("div.of-vcard__head", h("strong", "Your tools"), h("button.of-btn", { type: "button", onclick: () => editTool(null) }, iconEl("plus-lg"), "New tool")), h("p.of-hint", "Small JavaScript functions that can call OpenFini's tools. They run in a sandbox and ask before each run. Vibe can also write them for you."));
     for (const t of vibeStore.customTools) {
