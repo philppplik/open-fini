@@ -88,6 +88,29 @@
         "image/avif": [
           ".avif"
         ],
+        "image/tiff": [
+          ".tif",
+          ".tiff"
+        ],
+        "image/vnd.microsoft.icon": [
+          ".ico",
+          ".cur"
+        ],
+        "image/openraster": [
+          ".ora"
+        ],
+        "application/x-krita": [
+          ".kra"
+        ],
+        "application/x-gimp-palette": [
+          ".gpl"
+        ],
+        "application/vnd.adobe.ase": [
+          ".ase"
+        ],
+        "application/vnd.adobe.aco": [
+          ".aco"
+        ],
         "application/pdf": [
           ".pdf"
         ],
