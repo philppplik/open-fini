@@ -180,31 +180,11 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 ; Installer pages, must be ordered as they appear
 ; 1. Welcome Page
 ; OPENFINI: custom welcome text (the sidebar bitmap comes from bundle.windows.nsis.sidebarImage).
-!define MUI_WELCOMEPAGE_TITLE "Welcome to ${PRODUCTNAME}"
+!define MUI_WELCOMEPAGE_TITLE "$(welcomeTitle)"
 !if "${INSTALLMODE}" == "currentUser"
-  !define MUI_WELCOMEPAGE_TEXT "This wizard installs ${PRODUCTNAME} ${VERSION} on your computer.$
-$
-$
-$
-${PRODUCTNAME} is a lightweight, open-source creative suite for vector, pixel, layout and code work. It runs offline and keeps your documents on your device.$
-$
-$
-$
-It installs for your account only and does not need administrator rights.$
-$
-$
-$
-Click Next to continue."
+  !define MUI_WELCOMEPAGE_TEXT "$(welcomeTextUser)"
 !else
-  !define MUI_WELCOMEPAGE_TEXT "This wizard installs ${PRODUCTNAME} ${VERSION} on your computer.$
-$
-$
-$
-${PRODUCTNAME} is a lightweight, open-source creative suite for vector, pixel, layout and code work. It runs offline and keeps your documents on your device.$
-$
-$
-$
-Click Next to continue."
+  !define MUI_WELCOMEPAGE_TEXT "$(welcomeText)"
 !endif
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
 !insertmacro MUI_PAGE_WELCOME
@@ -446,28 +426,28 @@ Function PageIntegration
   ${OrIf} $UpdateMode = 1
     Abort
   ${EndIf}
-  !insertmacro MUI_HEADER_TEXT "Windows integration" "Choose how ${PRODUCTNAME} fits into Windows."
+  !insertmacro MUI_HEADER_TEXT "$(integrationTitle)" "$(integrationSubtitle)"
   nsDialogs::Create 1018
   Pop $0
   ${IfThen} $0 == error ${|} Abort ${|}
   ${IfThen} $(^RTL) = 1 ${|} nsDialogs::SetRTL $(^RTL) ${|}
 
-  ${NSD_CreateLabel} 0 0 100% 24u "These choices can be changed later by running the installer again. Nothing here changes the default program of your existing images, PDFs or text files."
+  ${NSD_CreateLabel} 0 0 100% 24u "$(integrationIntro)"
   Pop $0
 
-  ${NSD_CreateCheckbox} 0 34u 100% 12u "Associate ${PRODUCTNAME} documents (.ofini, .ofext) - recommended"
+  ${NSD_CreateCheckbox} 0 34u 100% 12u "$(optAssoc)"
   Pop $OptAssocCtl
   ${If} $AssocChoice = 1
     ${NSD_SetState} $OptAssocCtl ${BST_CHECKED}
   ${EndIf}
 
-  ${NSD_CreateCheckbox} 0 52u 100% 12u "Offer ${PRODUCTNAME} in Open with for images, PDF and code files"
+  ${NSD_CreateCheckbox} 0 52u 100% 12u "$(optOpenWith)"
   Pop $OptOpenWithCtl
   ${If} $OpenWithChoice = 1
     ${NSD_SetState} $OptOpenWithCtl ${BST_CHECKED}
   ${EndIf}
 
-  ${NSD_CreateCheckbox} 0 70u 100% 12u "Create a desktop shortcut"
+  ${NSD_CreateCheckbox} 0 70u 100% 12u "$(optDesktop)"
   Pop $OptDesktopCtl
   ${If} $DesktopChoice = 1
     ${NSD_SetState} $OptDesktopCtl ${BST_CHECKED}
@@ -492,8 +472,8 @@ FunctionEnd
 !define MUI_FINISHPAGE_NOAUTOCLOSE
 ; OPENFINI: the stock template uses the "show readme" checkbox for the desktop shortcut. That choice moved
 ; to the integration page above; here the checkbox opens the online quick-start guide (unchecked by default).
-!define MUI_FINISHPAGE_TITLE "${PRODUCTNAME} is ready"
-!define MUI_FINISHPAGE_TEXT "${PRODUCTNAME} ${VERSION} was installed.$
+!define MUI_FINISHPAGE_TITLE "$(finishTitle)"
+!define MUI_FINISHPAGE_TEXT "$(finishText)"
 $
 $
 $
@@ -501,7 +481,7 @@ Click Finish to close this wizard."
 !if "${HOMEPAGE}" != ""
   !define MUI_FINISHPAGE_SHOWREADME
   !define MUI_FINISHPAGE_SHOWREADME_NOTCHECKED
-  !define MUI_FINISHPAGE_SHOWREADME_TEXT "Open the quick-start guide (online)"
+  !define MUI_FINISHPAGE_SHOWREADME_TEXT "$(quickStart)"
   !define MUI_FINISHPAGE_SHOWREADME_FUNCTION OpenQuickStart
 !endif
 ; Show run app after installation.
@@ -573,6 +553,61 @@ FunctionEnd
 {{#each language_files}}
   !include "{{this}}"
 {{/each}}
+
+; OPENFINI: strings of the custom pages. The installer language is chosen automatically from the Windows
+; display language (displayLanguageSelector is false, so NSIS picks the best match among the languages listed
+; in tauri.conf.json and falls back to the first one, English). To add a language: add it to
+; `bundle.windows.nsis.languages` (it must be one the Tauri bundler ships strings for) and copy the German block below.
+LangString welcomeTitle ${LANG_ENGLISH} "Welcome to ${PRODUCTNAME}"
+LangString welcomeText ${LANG_ENGLISH} "This wizard installs ${PRODUCTNAME} ${VERSION} on your computer.$$
+$$
+${PRODUCTNAME} is a lightweight, open-source creative suite for vector, pixel, layout and code work. It runs offline and keeps your documents on your device.$$
+$$
+Click Next to continue."
+LangString welcomeTextUser ${LANG_ENGLISH} "This wizard installs ${PRODUCTNAME} ${VERSION} on your computer.$$
+$$
+${PRODUCTNAME} is a lightweight, open-source creative suite for vector, pixel, layout and code work. It runs offline and keeps your documents on your device.$$
+$$
+It installs for your account only and does not need administrator rights.$$
+$$
+Click Next to continue."
+LangString integrationTitle ${LANG_ENGLISH} "Windows integration"
+LangString integrationSubtitle ${LANG_ENGLISH} "Choose how ${PRODUCTNAME} fits into Windows."
+LangString integrationIntro ${LANG_ENGLISH} "These choices can be changed later by running the installer again. Nothing here changes the default program of your existing images, PDFs or text files."
+LangString optAssoc ${LANG_ENGLISH} "Associate ${PRODUCTNAME} documents (.ofini, .ofext) - recommended"
+LangString optOpenWith ${LANG_ENGLISH} "Offer ${PRODUCTNAME} in Open with for images, PDF and code files"
+LangString optDesktop ${LANG_ENGLISH} "Create a desktop shortcut"
+LangString finishTitle ${LANG_ENGLISH} "${PRODUCTNAME} is ready"
+LangString finishText ${LANG_ENGLISH} "${PRODUCTNAME} ${VERSION} was installed.$$
+$$
+Click Finish to close this wizard."
+LangString quickStart ${LANG_ENGLISH} "Open the quick-start guide (online)"
+!ifdef LANG_GERMAN
+LangString welcomeTitle ${LANG_GERMAN} "Willkommen bei ${PRODUCTNAME}"
+LangString welcomeText ${LANG_GERMAN} "Dieser Assistent installiert ${PRODUCTNAME} ${VERSION} auf Ihrem Computer.$$
+$$
+${PRODUCTNAME} ist eine leichtgewichtige Open-Source-Kreativsuite für Vektor-, Pixel-, Layout- und Code-Arbeit. Sie läuft offline und behält Ihre Dokumente auf Ihrem Gerät.$$
+$$
+Klicken Sie auf Weiter, um fortzufahren."
+LangString welcomeTextUser ${LANG_GERMAN} "Dieser Assistent installiert ${PRODUCTNAME} ${VERSION} auf Ihrem Computer.$$
+$$
+${PRODUCTNAME} ist eine leichtgewichtige Open-Source-Kreativsuite für Vektor-, Pixel-, Layout- und Code-Arbeit. Sie läuft offline und behält Ihre Dokumente auf Ihrem Gerät.$$
+$$
+Die Installation gilt nur für Ihr Benutzerkonto und benötigt keine Administratorrechte.$$
+$$
+Klicken Sie auf Weiter, um fortzufahren."
+LangString integrationTitle ${LANG_GERMAN} "Windows-Integration"
+LangString integrationSubtitle ${LANG_GERMAN} "Legen Sie fest, wie sich ${PRODUCTNAME} in Windows einfügt."
+LangString integrationIntro ${LANG_GERMAN} "Diese Einstellungen können Sie später ändern, indem Sie das Installationsprogramm erneut ausführen. Das Standardprogramm für Ihre vorhandenen Bilder, PDFs oder Textdateien wird dadurch nicht geändert."
+LangString optAssoc ${LANG_GERMAN} "${PRODUCTNAME}-Dokumente (.ofini, .ofext) zuordnen - empfohlen"
+LangString optOpenWith ${LANG_GERMAN} "${PRODUCTNAME} unter Öffnen mit für Bilder, PDF und Code-Dateien anbieten"
+LangString optDesktop ${LANG_GERMAN} "Desktop-Verknüpfung erstellen"
+LangString finishTitle ${LANG_GERMAN} "${PRODUCTNAME} ist bereit"
+LangString finishText ${LANG_GERMAN} "${PRODUCTNAME} ${VERSION} wurde installiert.$$
+$$
+Klicken Sie auf Fertigstellen, um den Assistenten zu schließen."
+LangString quickStart ${LANG_GERMAN} "Kurzanleitung öffnen (online)"
+!endif
 
 Function .onInit
   ${GetOptions} $CMDLINE "/P" $PassiveMode

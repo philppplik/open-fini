@@ -7,15 +7,16 @@ the Rust crates are `tauri` 2.12 and `tauri-build` 2.7 (`src-tauri/Cargo.toml`).
 
 ## App icon
 
-The icon is the OpenFini mark on a rounded gradient tile (`app/icons/icon.svg`, full-bleed variant
-`icon-maskable.svg`). The source artwork `app/icons/ofini-app-icon.png` (750x750, black mark, transparent
-background) was compared pixel by pixel with the vector master `app/icons/mark-black.svg`: rendered at the
-same scale the two overlap by 99.5 % (the rest is anti-aliasing). The vector path therefore already is the new
-mark and is used unchanged; the PNG stays in the repository as the original.
+The icon is the near-black OpenFini mark on an off-white rounded tile (`app/icons/icon.svg`, full-bleed
+variant `icon-maskable.svg`, document icon `doc-icon.svg`). The earlier gradient tile with a white mark was
+retired; the gradient mark `app/icons/mark.svg` remains only for the in-app brand button on the dark UI.
+The source artwork `app/icons/ofini-app-icon.png` (750x750, black mark, transparent background) was compared
+pixel by pixel with the vector master `app/icons/mark-black.svg`: rendered at the same scale the two overlap
+by 99.5 % (the rest is anti-aliasing), so the vector path is the new mark and is used unchanged.
 
 `npm run icons` regenerates every raster (`src-tauri/icons/*`, PWA icons, apple-touch icon, document icons)
-from the SVGs with the Tauri CLI. An alternative variant, a near-black mark on an off-white tile, is
-`app/icons/icon-light.svg`; to ship it, point `scripts/icons.mjs` at that file instead of `icon.svg`.
+from the SVGs with the Tauri CLI. The installer artwork follows the light look (off-white sidebar and DMG
+background, dark mark).
 
 ## What the Tauri bundler supports (v2, bundler 2.10.2)
 
@@ -86,12 +87,16 @@ license (the MIT `LICENSE`) -> install folder -> **Windows integration** -> inst
   `%APPDATA%\io.github.philppplik.openfini` and `%LOCALAPPDATA%\io.github.philppplik.openfini` (the WebView2
   profile, i.e. settings and local storage) and the installer's registry values. The folder name is the
   bundle identifier, so it is reliable. Documents are never touched. Not checked on updates.
-- Texts are English only (`languages: ["English"]`); the installer strings added by the template are not
-  localized.
+- **Language:** English and German. `displayLanguageSelector` is false, so there is no dialog: NSIS picks the
+  language from the Windows display language and falls back to English (the first entry). The strings of our
+  custom pages are `LangString`s in `installer.nsi` (English block and a German block); the bundler ships the
+  translations of its own strings. To add a language, add it to `bundle.windows.nsis.languages` (it must be one
+  the bundler has strings for) and copy the German block with the new `${LANG_<NAME>}`. The DMG and Linux
+  packages stay English.
 
 Limits and honest status: MUI2 cannot restyle the inner pages, so the look is "branded sidebar and header on a
-standard Windows wizard", not a fully dark installer. A dark welcome/finish page via `MUI_BGCOLOR` was
-considered and left out because it cannot be checked without running the wizard. `makensis` is not installed
+standard Windows wizard", not a fully dark installer. Colored welcome/finish pages via `MUI_BGCOLOR` were
+considered and left out because they cannot be checked without running the wizard. `makensis` is not installed
 on the development machine and the installer was **not built or run locally**; the unit tests in
 `tests/packaging/installer.test.js` check image formats, config references, placeholders and balanced block
 directives only. The first real validation is the release workflow on `windows-latest`.
@@ -99,8 +104,8 @@ directives only. The first real validation is the release workflow on `windows-l
 ### macOS (DMG)
 
 `bundle.macOS.dmg` sets the background, the 660x400 window and the positions of the app (180,170) and the
-Applications link (480,170); the arrow in the background sits between them. The background is deliberately
-light: Finder draws icon labels in the system label color, so a dark background can make them unreadable (not
+Applications link (480,170); the arrow in the background sits between them. The background is light, matching
+the icon: Finder draws icon labels in the system label color, so dark mode may show white labels on it (not
 verified on hardware). Finder shows the single PNG unscaled on Retina displays.
 
 ### Linux

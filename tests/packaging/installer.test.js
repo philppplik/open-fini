@@ -115,6 +115,26 @@ describe("custom NSIS template", () => {
     assert.equal(count(/^\$\{If(Not)?\}/), count(/^\$\{EndIf\}/), "If / EndIf");
   });
 
+  it("installer language follows Windows: English and German, no language dialog, every custom string translated", () => {
+    assert.deepEqual(nsis.languages, ["English", "German"]);
+    assert.equal(nsis.displayLanguageSelector, false);
+    const names = (lang) => [...tpl.matchAll(/^LangString (\w+) \$\{LANG_(\w+)\}/gm)].filter((m) => m[2] === lang).map((m) => m[1]).sort();
+    const en = names("ENGLISH");
+    assert.ok(en.length >= 10, "custom strings exist");
+    assert.deepEqual(names("GERMAN"), en, "German covers every English string");
+    // No hard-coded English left in the custom pages: they use $(name) lookups.
+    for (const n of en) assert.ok(tpl.includes(`$(${n})`), `$(${n}) is used`);
+  });
+
+  it("the app icon is the light tile with a dark mark everywhere", () => {
+    for (const f of ["icon.svg", "icon-maskable.svg", "doc-icon.svg"]) {
+      const svg = read(`app/icons/${f}`);
+      assert.ok(svg.includes("#111114"), `${f} has the dark mark`);
+      assert.ok(!svg.includes("linearGradient"), `${f} has no gradient`);
+    }
+    assert.ok(!existsSync(join(root, "app/icons/icon-light.svg")));
+  });
+
   it("the hook honours the open-with choice and still removes everything on uninstall", () => {
     const hook = read("src-tauri/windows/open-with.nsh");
     assert.match(hook, /\$\{If\} \$OpenWithChoice = 1/);

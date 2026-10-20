@@ -213,6 +213,6 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
       console.log(`installer-assets: src-tauri/installer/${asset.out} ${img.width}x${img.height} (${data.length} B)`);
     }
   } finally {
-    await rm(work, { recursive: true, force: true });
+    await rm(work, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 }).catch(() => {}); // Edge may still hold its profile lock
   }
 }

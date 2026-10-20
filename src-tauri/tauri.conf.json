@@ -341,7 +341,8 @@
       "nsis": {
         "installMode": "currentUser",
         "languages": [
-          "English"
+          "English",
+          "German"
         ],
         "displayLanguageSelector": false,
         "compression": "lzma",
