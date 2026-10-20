@@ -5,6 +5,7 @@ import { Doc } from "./doc.js";
 import { Viewport } from "./viewport.js";
 import { solid } from "./nodes.js";
 import { log } from "./log.js";
+import { t, locale as i18nLocale, setLocale as setI18nLocale, onLocaleChange } from "../i18n/index.js";
 import { createNetwork } from "./network.js";
 import { isSafeMode } from "./bootguard.js";
 import { customizationDefaults } from "../customize/schema.js";
@@ -32,6 +33,7 @@ const defaultPrefs = () => ({
   // studios shown in the header, in order (max 5; every other registered studio is in the More menu)
   visibleStudios: [...DEFAULT_VISIBLE_STUDIOS],
   // general
+  language: "auto", // "auto" (system language) or a code from i18n/locales.js
   restoreSession: true,
   autosave: true,
   autosaveSeconds: 4,
@@ -112,6 +114,13 @@ export class App extends Emitter {
     this.clip = null; // internal clipboard
     this.perf = this.#resolvePerf();
     this.fonts = new Map(); // user supplied fonts
+    /** Interface language: `app.i18n.locale()`, `app.i18n.t(...)`, `app.i18n.set("de" | "auto")`. */
+    this.i18n = { t, locale: i18nLocale, set: setI18nLocale };
+    onLocaleChange(() => {
+      this.emit("locale", i18nLocale());
+      this.emit("menuschanged");
+      this.emit("render");
+    });
   }
 
   /** Raw bytes of a user-supplied font for PDF embedding (null for system fonts → standard PDF fonts). */
@@ -152,6 +161,7 @@ export class App extends Emitter {
   setPref(key, value) {
     this.prefs[key] = value;
     if (key === "verboseLogging") log.minLevel = value ? "debug" : "info";
+    if (key === "language") setI18nLocale(value);
     try {
       // Safe mode applies defaults, so only the changed key is merged into the stored settings
       const stored = this.safeMode ? { ...JSON.parse(localStorage.getItem(PREF_KEY) || "{}"), [key]: value } : this.prefs;
@@ -375,7 +385,13 @@ export class App extends Emitter {
   registerCommand(id, def) {
     // A command id has exactly one owner; a second registration is a bug (it would silently replace the first).
     if (this.commands.has(id)) log.warn("command", `Command ${id} is registered twice; the later definition wins.`);
-    this.commands.set(id, { id, ...def });
+    const cmd = { id, ...def };
+    if (typeof def.label === "string") {
+      // The label is translated when it is READ, so a language switch updates menus, palette and hints without re-registering.
+      let source = def.label;
+      Object.defineProperty(cmd, "label", { enumerable: true, configurable: true, get: () => t(source), set: (v) => (source = v) });
+    }
+    this.commands.set(id, cmd);
   }
 
   run(id, args) {
@@ -384,7 +400,7 @@ export class App extends Emitter {
     if (c.enabled && !c.enabled(this)) return false;
     const fail = (err) => {
       log.error("command", `Command ${id} failed`, err);
-      this.toast(err?.message || `“${c.label || id}” failed.`, "danger", 5000, { label: "Details", run: () => this.run("help.troubleshoot") });
+      this.toast(err?.message || t("“{name}” failed.", { name: c.label || id }), "danger", 5000, { label: t("Details"), run: () => this.run("help.troubleshoot") });
     };
     try {
       const r = c.run(this, args);
@@ -406,7 +422,7 @@ export class App extends Emitter {
 
   /** Shows a message. `action` ({label, run}) adds a button to the toast, for example "Details". */
   toast(message, variant = "primary", duration = 3200, action) {
-    this.emit("toast", { message, variant, duration, action });
+    this.emit("toast", { message: t(message), variant, duration, action }); // literal messages are in the catalog; others stay as written
   }
   status(text) {
     this.emit("status", text);

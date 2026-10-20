@@ -3,6 +3,7 @@ import { confirmDialog, openDialog, toPx, fromPx, UNITS } from "../ui/dialogs.js
 import { exportDialog, runExport } from "../ui/export-dialog.js";
 import { numField, selectField } from "../ui/controls.js";
 import { h, downloadName } from "../core/util.js";
+import { t, N_ } from "../i18n/index.js";
 import { platform } from "../platform/index.js";
 import { saveOfini, loadOfini, OFINI_MIME } from "../core/ofini.js";
 import { OPEN_FILTERS, PLACE_FILTERS, sniffMime, placeFile, placeSvg, openImageAsDocument } from "../core/io.js";
@@ -132,13 +133,13 @@ export function registerFileCommands(app) {
       if (d.saved) n++;
     }
     if (keep && a.docs.includes(keep)) a.activateDoc(keep);
-    a.toast(n ? `Saved ${n} document${n === 1 ? "" : "s"}.` : "Everything is already saved.", n ? "success" : "primary", 1800);
+    a.toast(n ? t("Saved {n, plural, one {# document} other {# documents}}.", { n }) : t("Everything is already saved."), n ? "success" : "primary", 1800);
   }, { shortcut: "Mod+Alt+S", enabled: (a) => a.docs.length > 0, icon: "save2" });
   def("file.saveAs", "Save As…", (a) => save(a, true), { shortcut: "Mod+Shift+S", enabled: hasDoc });
 
   def("file.export", "Export…", (a) => (a.studio === "office" && a.doc?.office ? a.run("office.export") : exportDialog(a)), { shortcut: "Mod+Shift+E", enabled: hasDoc, icon: "box-arrow-up" });
-  for (const [fmt, label] of [["png", "PNG"], ["jpeg", "JPEG"], ["webp", "WebP"], ["svg", "SVG"], ["pdf", "PDF"]]) {
-    def(`file.export${fmt === "jpeg" ? "JPG" : fmt.toUpperCase()}`, `Export as ${label}`, (a) => runExport(a, { format: fmt, scope: "page", scale: 1, quality: 0.9, transparent: false, bleed: false, marks: false, rasterDpi: 200 }).catch((e) => a.toast(e.message, "danger", 6000)), { enabled: hasDoc });
+  for (const [fmt, label] of [["png", N_("Export as PNG")], ["jpeg", N_("Export as JPEG")], ["webp", N_("Export as WebP")], ["svg", N_("Export as SVG")], ["pdf", N_("Export as PDF")]]) {
+    def(`file.export${fmt === "jpeg" ? "JPG" : fmt.toUpperCase()}`, label, (a) => runExport(a, { format: fmt, scope: "page", scale: 1, quality: 0.9, transparent: false, bleed: false, marks: false, rasterDpi: 200 }).catch((e) => a.toast(e.message, "danger", 6000)), { enabled: hasDoc });
   }
 
   def("file.openFolder", "Open Folder…", async (a) => (await import("../ui/open-folder.js")).openFolderDialog(a), { shortcut: "Mod+Shift+O", icon: "folder-symlink" });
@@ -264,7 +265,7 @@ export function registerFileCommands(app) {
   });
   app.on("recents", (r) => (recents = r));
   app.menuProviders = app.menuProviders || {};
-  app.menuProviders.recent = () => (recents.length ? recents.slice(0, 8).map((r) => ({ label: r.name, run: () => app.run("file.openRecent", r) })) : [{ label: "No recent files", disabled: true, run() {} }]);
+  app.menuProviders.recent = () => (recents.length ? recents.slice(0, 8).map((r) => ({ label: r.name, run: () => app.run("file.openRecent", r) })) : [{ label: t("No recent files"), disabled: true, run() {} }]);
 
   // ---- autosave + restore
   let saveTimer = 0;

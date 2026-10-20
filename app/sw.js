@@ -182,12 +182,21 @@ async function asset(request) {
   }
 }
 
+/** Minimal offline page. Texts are English plus a German variant picked from the browser language (see docs/i18n.md). */
+const OFFLINE_TEXT = {
+  en: { lang: "en-US", title: "OpenFini is offline", body: "The app has not been saved for offline use yet. Connect to the internet once, reload, and it will work without a connection from then on." },
+  de: { lang: "de-DE", title: "OpenFini ist offline", body: "Die App wurde noch nicht für die Offline-Nutzung gespeichert. Verbinde dich einmal mit dem Internet und lade die Seite neu. Danach funktioniert sie auch ohne Verbindung." },
+};
+
 function offlinePage() {
+  const langs = (self.navigator && (self.navigator.languages || [self.navigator.language])) || [];
+  const pick = langs.map((l) => String(l || "").toLowerCase().split(/[-_]/)[0]).find((l) => OFFLINE_TEXT[l]) || "en";
+  const tx = OFFLINE_TEXT[pick];
   const html =
-    '<!doctype html><html lang="en-US"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-    '<meta name="color-scheme" content="dark light"><title>OpenFini is offline</title>' +
+    `<!doctype html><html lang="${tx.lang}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
+    `<meta name="color-scheme" content="dark light"><title>${tx.title}</title>` +
     "<style>body{margin:0;display:grid;min-height:100vh;place-items:center;background:#1c1d21;color:#e6e6ea;font:16px system-ui,sans-serif}" +
     "main{max-width:28rem;padding:1.5rem;text-align:center}h1{font-size:1.25rem}</style>" +
-    "<main><h1>OpenFini is offline</h1><p>The app has not been saved for offline use yet. Connect to the internet once, reload, and it will work without a connection from then on.</p></main></html>";
+    `<main><h1>${tx.title}</h1><p>${tx.body}</p></main></html>`;
   return new Response(html, { status: 503, headers: { "content-type": "text/html; charset=utf-8" } });
 }

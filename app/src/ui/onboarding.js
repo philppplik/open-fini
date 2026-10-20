@@ -1,6 +1,7 @@
 // Onboarding: the welcome and per-studio tour invitations, "What's new", and the "What's this?" help mode.
 // Loaded lazily after start-up (boot.js). Nothing here blocks the UI: invitations are small cards, never modal.
 import { h } from "../core/util.js";
+import { t } from "../i18n/index.js";
 import { startTour, isTourActive, endTour, applicableSteps } from "./tour.js";
 import { TOURS } from "./tour-steps.js";
 import { WHATS_NEW, whatsNewFor, latestVersion } from "./whats-new.js";
@@ -24,8 +25,8 @@ export function closeNudge() {
 function showNudge(app, key, { title, text, action }) {
   closeNudge();
   const start = h("button.of-btn.of-btn--primary", { type: "button" }, action);
-  const later = h("button.of-btn", { type: "button" }, "Not now");
-  const never = h("button.of-coach__link", { type: "button" }, "Don't show tours");
+  const later = h("button.of-btn", { type: "button" }, t("Not now"));
+  const never = h("button.of-coach__link", { type: "button" }, t("Don't show tours"));
   nudge = h("div.of-nudge", { role: "region", "aria-label": title }, h("strong", title), h("p", text), h("div.of-nudge__row", later, start), never);
   start.addEventListener("click", () => {
     closeNudge();
@@ -39,7 +40,7 @@ function showNudge(app, key, { title, text, action }) {
   never.addEventListener("click", () => {
     closeNudge();
     app.setPref("tours", false);
-    app.toast("Tours are off. You can still start one from Help, Take the tour.", "primary", 3600);
+    app.toast(t("Tours are off. You can still start one from Help, Take the tour."), "primary", 3600);
   });
   document.body.append(nudge);
 }
@@ -53,7 +54,7 @@ export async function runTour(app, key) {
   markSeen(app, key);
   if (result === "never") {
     app.setPref("tours", false);
-    app.toast("Tours are off. You can still start one from Help, Take the tour.", "primary", 3600);
+    app.toast(t("Tours are off. You can still start one from Help, Take the tour."), "primary", 3600);
   }
   return result !== "skipped" || applicableSteps(app, key).length > 0;
 }
@@ -82,15 +83,15 @@ export async function showWhatsNew(app, version) {
   const v = version || (await currentVersion());
   const entry = whatsNewFor(v) || WHATS_NEW[0];
   const { openDialog } = await import("./dialogs.js");
-  const list = h("ul.of-whatsnew", entry.items.map((it) => h("li", h("sl-icon", { name: it.icon }), h("div", h("strong", it.title), h("p", it.text)))));
-  const body = h("div", h("p.of-dialog__text", `Version ${entry.version}: ${entry.title}`), list, h("p.of-hint", "The complete list of changes is in the changelog on GitHub."));
+  const list = h("ul.of-whatsnew", entry.items.map((it) => h("li", h("sl-icon", { name: it.icon }), h("div", h("strong", t(it.title)), h("p", t(it.text))))));
+  const body = h("div", h("p.of-dialog__text", t("Version {version}: {title}", { version: entry.version, title: t(entry.title) })), list, h("p.of-hint", t("The complete list of changes is in the changelog on GitHub.")));
   openDialog({
-    title: "What's new in OpenFini",
+    title: t("What's new in OpenFini"),
     body,
     width: 560,
     buttons: [
-      { label: "Take the tour", onClick: (close) => { close(); runTour(app, "welcome"); } },
-      { label: "Got it", variant: "primary", onClick: (c) => c() },
+      { label: t("Take the tour"), onClick: (close) => { close(); runTour(app, "welcome"); } },
+      { label: t("Got it"), variant: "primary", onClick: (c) => c() },
     ],
   });
   app.setPref("whatsNewSeen", entry.version);
@@ -105,7 +106,7 @@ export function toggleWhatsThis(app) {
   endTour();
   const root = document.documentElement;
   root.classList.add("of-whatsthis");
-  const banner = h("div.of-whatsthis__banner", { role: "status" }, h("sl-icon", { name: "question-circle" }), "What's this? Click anything to see what it does. Press Esc to stop.");
+  const banner = h("div.of-whatsthis__banner", { role: "status" }, h("sl-icon", { name: "question-circle" }), t("What's this? Click anything to see what it does. Press Esc to stop."));
   let card = null;
   document.body.append(banner);
 
@@ -119,10 +120,10 @@ export function toggleWhatsThis(app) {
     e.stopPropagation();
     if (e.type !== "click") return;
     const { describeElement } = await import("./help-content.js");
-    const info = describeElement(e.target, app) || { title: "Not much to explain here", text: "Try clicking a tool, a panel tab, a button in the header or the canvas." };
+    const info = describeElement(e.target, app) || { title: t("Not much to explain here"), text: t("Try clicking a tool, a panel tab, a button in the header or the canvas.") };
     clear();
     const sc = info.shortcut ? h("kbd", info.shortcut) : null;
-    card = h("div.of-whatsthis__card", { role: "dialog", "aria-label": info.title || "Help" }, h("strong", info.title || "Help", sc ? h("span", " ") : null, sc), info.text ? h("p", info.text) : null);
+    card = h("div.of-whatsthis__card", { role: "dialog", "aria-label": info.title || t("Help") }, h("strong", info.title || t("Help"), sc ? h("span", " ") : null, sc), info.text ? h("p", info.text) : null);
     document.body.append(card);
     const w = card.offsetWidth;
     const hgt = card.offsetHeight;
@@ -163,13 +164,13 @@ export function installOnboarding(app) {
       if (!app.prefs.tours || nudge || isTourActive() || dialogOpen()) return;
       if (!welcomed()) {
         if (app.studio === "vibe" && !app.doc) return;
-        return showNudge(app, "welcome", { title: "New to OpenFini?", text: "Take a one-minute tour of the interface. You can repeat it any time from Help, Take the tour.", action: "Start the tour" });
+        return showNudge(app, "welcome", { title: t("New to OpenFini?"), text: t("Take a one-minute tour of the interface. You can repeat it any time from Help, Take the tour."), action: t("Start the tour") });
       }
       const key = app.studio;
       if (!TOURS[key] || app.prefs.toursSeen?.[key]) return;
       if (key !== "vibe" && !app.doc) return; // the studio's tools and panels only exist with a document
       if (!applicableSteps(app, key).length) return;
-      showNudge(app, key, { title: `First time in the ${TOURS[key].title}?`, text: "A short tour shows the tools and panels you will use most.", action: "Show me" });
+      showNudge(app, key, { title: t("First time in the {tour}?", { tour: t(TOURS[key].title) }), text: t("A short tour shows the tools and panels you will use most."), action: t("Show me") });
     }, 900);
   }
   for (const ev of ["studio", "doc"]) app.on(ev, maybeInvite);

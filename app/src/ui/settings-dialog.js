@@ -13,6 +13,12 @@ import { securitySection, troubleshootingSection } from "./security-center.js";
 import { openLink } from "./links.js";
 import { withCustomization, resetButton, sectionResetButton } from "./customize/sections.js";
 import { studiosSettings } from "./studio-settings.js";
+import { t, detected } from "../i18n/index.js";
+import { LOCALES, localeInfo } from "../i18n/locales.js";
+
+// Schema texts are English source strings (extracted by scripts/i18n-extract.mjs, see IMPLICIT there) and are translated
+// when the dialog renders, so a language switch re-renders them. Dynamic texts use t() directly.
+const tr = (s) => (typeof s === "string" && s ? t(s) : s);
 
 const sw = (key, label, hint, extra = {}) => ({ type: "switch", key, label, hint, ...extra });
 const seg = (key, label, options, hint, extra = {}) => ({ type: "segmented", key, label, options, hint, ...extra });
@@ -32,7 +38,7 @@ export function settingsSections(app) {
           title: "Start-up",
           items: [
             sw("restoreSession", "Restore my last session", "Reopen the documents you had open when you quit, from the copy autosaved on this device."),
-            { type: "info", label: "Language", text: "English (United States) — the interface is available in US English only for now." },
+            { type: "language" },
           ],
         },
         {
@@ -53,7 +59,7 @@ export function settingsSections(app) {
         {
           title: "Open with OpenFini",
           items: [
-            { type: "info", label: "File types", text: `OpenFini can open ${FILE_TYPES.flatMap((t) => t.ext.map((e) => "." + e)).join(" ")} from your system's Open with menu${platform.isDesktop ? " (offered by the installer; .ofini and .ofext open on double click, other types are never taken over)" : " once it is installed as an app in a Chromium based browser"}.` },
+            { type: "info", label: "File types", text: t("OpenFini can open {types} from your system's Open with menu{where}.", { types: FILE_TYPES.flatMap((ft) => ft.ext.map((e) => "." + e)).join(" "), where: platform.isDesktop ? t(" (offered by the installer; .ofini and .ofext open on double click, other types are never taken over)") : t(" once it is installed as an app in a Chromium based browser") }) },
             { type: "info", label: "Make OpenFini the default", text: defaultAppsInstructions(platform.os) },
           ],
         },
@@ -259,15 +265,29 @@ export function settingsSections(app) {
 
 function aboutPane() {
   const version = h("span", "…");
-  fetch("./build-info.json").then((r) => (r.ok ? r.json() : null)).then((j) => (version.textContent = j ? `${j.version} (build ${String(j.buildId).split("-").pop()})` : "development build")).catch(() => (version.textContent = "development build"));
+  fetch("./build-info.json").then((r) => (r.ok ? r.json() : null)).then((j) => (version.textContent = j ? t("{version} (build {build})", { version: j.version, build: String(j.buildId).split("-").pop() }) : t("development build"))).catch(() => (version.textContent = t("development build")));
   return h(
     "div.of-set__group",
-    h("div.of-set__row", h("div.of-set__label", "Version"), h("div.of-set__ctl", version)),
-    h("div.of-set__row", h("div.of-set__label", "License"), h("div.of-set__ctl", "MIT")),
-    h("div.of-set__row", h("div.of-set__label", "Source code"), h("div.of-set__ctl", button("github.com/philppplik/open-fini", () => openLink("https://github.com/philppplik/open-fini")))),
-    h("div.of-set__row", h("div.of-set__label", "Documentation"), h("div.of-set__ctl", button("Open", () => openLink("https://github.com/philppplik/open-fini#readme")))),
-    h("p.of-set__hint", "OpenFini is an independent project. It is not affiliated with, endorsed by or derived from any commercial product. Product names are trademarks of their owners."),
+    h("div.of-set__row", h("div.of-set__label", t("Version")), h("div.of-set__ctl", version)),
+    h("div.of-set__row", h("div.of-set__label", t("License")), h("div.of-set__ctl", "MIT")),
+    h("div.of-set__row", h("div.of-set__label", t("Source code")), h("div.of-set__ctl", button("github.com/philppplik/open-fini", () => openLink("https://github.com/philppplik/open-fini")))),
+    h("div.of-set__row", h("div.of-set__label", t("Documentation")), h("div.of-set__ctl", button(t("Open"), () => openLink("https://github.com/philppplik/open-fini#readme")))),
+    h("p.of-set__hint", t("OpenFini is an independent project. It is not affiliated with, endorsed by or derived from any commercial product. Product names are trademarks of their owners.")),
   );
+}
+
+// ------------------------------------------------------------------ language
+
+/** Language picker: Automatic + every entry of i18n/locales.js. Switching is live (no reload). */
+function languageRow(app) {
+  const d = detected();
+  const sel = h("sl-select", { size: "small", value: app.prefs.language || "auto", "aria-label": t("Language"), hoist: true });
+  sel.append(h("sl-option", { value: "auto" }, t("Automatic (system language)")));
+  for (const l of LOCALES) sel.append(h("sl-option", { value: l.code }, l.name));
+  sel.addEventListener("sl-change", () => app.setPref("language", sel.value));
+  const how = { override: t("set by the ?lang= address parameter"), pref: t("your choice"), browser: t("from your browser or system"), os: t("from your operating system"), default: t("default") }[d.source];
+  const hint = h("div.of-set__hint", t("Showing {language} ({how}). Texts without a translation stay in English.", { language: localeInfo(d.locale).name, how }), " ", button(t("Help translate"), () => openLink("https://github.com/philppplik/open-fini/blob/main/docs/i18n.md")));
+  return h("div.of-set__row", h("div", h("div.of-set__label", t("Language")), hint), h("div.of-set__ctl", sel));
 }
 
 // ------------------------------------------------------------------ rendering
@@ -277,7 +297,7 @@ function control(app, item, rerender) {
   const set = item.set || ((v) => app.setPref(item.key, v));
   switch (item.type) {
     case "switch": {
-      const s = h("sl-switch", { size: "small", "aria-label": item.label });
+      const s = h("sl-switch", { size: "small", "aria-label": tr(item.label) });
       s.checked = !!get();
       s.addEventListener("sl-change", () => {
         set(s.checked);
@@ -286,11 +306,11 @@ function control(app, item, rerender) {
       return s;
     }
     case "segmented":
-      return segmented(item.options, get(), (v) => { set(v); rerender(); }).el;
+      return segmented(item.options.map((o) => ({ ...o, label: tr(o.label), text: tr(o.text) })), get(), (v) => { set(v); rerender(); }).el;
     case "text": {
-      const t = h("sl-input", { size: "small", value: String(get() ?? ""), placeholder: item.placeholder || "", type: item.inputType || "text", "aria-label": item.label });
-      t.addEventListener("sl-change", () => set(t.value.trim()));
-      return t;
+      const inp = h("sl-input", { size: "small", value: String(get() ?? ""), placeholder: tr(item.placeholder) || "", type: item.inputType || "text", "aria-label": tr(item.label) });
+      inp.addEventListener("sl-change", () => set(inp.value.trim()));
+      return inp;
     }
     case "number": {
       const f = numField({ value: Number(get()), min: item.min, max: item.max, step: item.step, precision: 0, unit: item.unit, wide: true, onChange: (v) => set(Math.round(v)) });
@@ -310,7 +330,7 @@ function control(app, item, rerender) {
       return wrap;
     }
     case "action": {
-      const b = button(item.button, () => item.run(), { variant: item.danger ? "danger" : "default" });
+      const b = button(tr(item.button), () => item.run(), { variant: item.danger ? "danger" : "default" });
       if (item.danger) b.classList.add("of-btn--danger");
       return b;
     }
@@ -320,34 +340,35 @@ function control(app, item, rerender) {
 }
 
 function row(app, item, rerender) {
-  if (item.type === "note") return h("div.of-set__note", item.text);
+  if (item.type === "note") return h("div.of-set__note", tr(item.text));
+  if (item.type === "language") return languageRow(app);
   if (item.type === "custom") return item.render(app, rerender); // self-contained block (security center)
   if (item.type === "themes") return themeGallery(app);
-  if (item.type === "info") return h("div.of-set__row", h("div", h("div.of-set__label", item.label), h("div.of-set__hint", item.text)));
+  if (item.type === "info") return h("div.of-set__row", h("div", h("div.of-set__label", tr(item.label)), h("div.of-set__hint", tr(item.text))));
   if (item.type === "storage") {
     const v = h("span", "…");
-    navigator.storage?.estimate?.().then((e) => (v.textContent = e?.usage != null ? `${formatBytes(e.usage)} used by OpenFini on this device` : "unknown")).catch(() => (v.textContent = "unknown"));
-    return h("div.of-set__row", h("div", h("div.of-set__label", "Storage"), h("div.of-set__hint", "Autosave, recent files and added fonts live in this browser or app profile.")), h("div.of-set__ctl", v));
+    navigator.storage?.estimate?.().then((e) => (v.textContent = e?.usage != null ? t("{size} used by OpenFini on this device", { size: formatBytes(e.usage) }) : t("unknown"))).catch(() => (v.textContent = t("unknown")));
+    return h("div.of-set__row", h("div", h("div.of-set__label", t("Storage")), h("div.of-set__hint", t("Autosave, recent files and added fonts live in this browser or app profile."))), h("div.of-set__ctl", v));
   }
   const ctl = control(app, item, rerender);
-  return h("div.of-set__row", h("div", h("div.of-set__label", item.label), item.hint ? h("div.of-set__hint", item.hint) : null), h("div.of-set__ctl", ctl, resetButton(app, item, rerender)));
+  return h("div.of-set__row", h("div", h("div.of-set__label", tr(item.label)), item.hint ? h("div.of-set__hint", tr(item.hint)) : null), h("div.of-set__ctl", ctl, resetButton(app, item, rerender)));
 }
 
 export function settingsDialog(app, sectionId = "general") {
   const sections = settingsSections(app);
   let current = sections.some((s) => s.id === sectionId) ? sectionId : "general";
-  const nav = h("nav.of-set__nav", { "aria-label": "Settings sections" });
+  const nav = h("nav.of-set__nav", { "aria-label": t("Settings sections") });
   const body = h("div.of-set__body", { role: "region", "aria-live": "polite" });
-  const search = h("input.of-set__search", { type: "search", placeholder: "Search settings", "aria-label": "Search settings", spellcheck: false });
+  const search = h("input.of-set__search", { type: "search", placeholder: t("Search settings"), "aria-label": t("Search settings"), spellcheck: false });
   let query = "";
 
-  const matches = (s) => !query || `${s.label} ${s.keywords || ""} ${s.groups.flatMap((g) => g.items.map((i) => `${i.label || ""} ${i.hint || ""}`)).join(" ")}`.toLowerCase().includes(query);
+  const matches = (s) => !query || `${tr(s.label)} ${s.label} ${s.keywords || ""} ${s.groups.flatMap((g) => g.items.map((i) => `${tr(i.label) || ""} ${tr(i.hint) || ""}`)).join(" ")}`.toLowerCase().includes(query);
 
   function renderNav() {
     empty(nav);
     nav.append(search);
     for (const s of sections.filter(matches)) {
-      const b = h("button.of-set__tab", { type: "button", class: s.id === current ? "active" : "", "aria-current": s.id === current ? "page" : undefined }, iconEl(s.icon), h("span", s.label));
+      const b = h("button.of-set__tab", { type: "button", class: s.id === current ? "active" : "", "aria-current": s.id === current ? "page" : undefined }, iconEl(s.icon), h("span", tr(s.label)));
       b.addEventListener("click", () => {
         current = s.id;
         renderNav();
@@ -360,14 +381,14 @@ export function settingsDialog(app, sectionId = "general") {
     empty(body);
     let s = sections.find((x) => x.id === current);
     if (!s || !matches(s)) s = sections.find(matches);
-    if (!s) return body.append(h("div.of-set__empty", `No settings match “${query}”.`));
+    if (!s) return body.append(h("div.of-set__empty", t("No settings match “{query}”.", { query })));
     current = s.id;
-    body.append(h("div.of-set__head", h("h2", s.label), sectionResetButton(app, s, renderBody)), h("p.of-set__lead", s.lead || ""));
+    body.append(h("div.of-set__head", h("h2", tr(s.label)), sectionResetButton(app, s, renderBody)), h("p.of-set__lead", tr(s.lead) || ""));
     if (s.custom) body.append(s.custom());
     for (const g of s.groups) {
       const items = g.items.filter((i) => !i.when || i.when());
       if (!items.length) continue;
-      body.append(h("section.of-set__group", h("h3", g.title), items.map((i) => row(app, i, renderBody))));
+      body.append(h("section.of-set__group", h("h3", tr(g.title)), items.map((i) => row(app, i, renderBody))));
     }
     body.scrollTop = 0;
   }
@@ -384,5 +405,14 @@ export function settingsDialog(app, sectionId = "general") {
     if (!document.body.contains(body)) return off();
     if (key === "*") renderBody(); // reset to defaults
   });
-  openDialog({ title: "Settings", body: h("div.of-set", nav, body), width: 980, cls: "of-settings", buttons: [{ label: "Done", variant: "primary", onClick: (c) => c() }] });
+  const offLang = app.on("locale", () => {
+    // live language switch: the dialog frame and the sections re-render in the new language
+    if (!document.body.contains(body)) return offLang();
+    search.placeholder = t("Search settings");
+    search.setAttribute("aria-label", t("Search settings"));
+    nav.setAttribute("aria-label", t("Settings sections"));
+    renderNav();
+    renderBody();
+  });
+  openDialog({ title: t("Settings"), body: h("div.of-set", nav, body), width: 980, cls: "of-settings", buttons: [{ label: t("Done"), variant: "primary", onClick: (c) => c() }] });
 }
