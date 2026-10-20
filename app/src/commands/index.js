@@ -3,6 +3,7 @@ import { registerEditCommands } from "./edit.js";
 import { registerStudioCommands } from "./studios.js";
 import { registerFileCommands } from "./file.js";
 import { registerPdfCommands } from "./pdf.js";
+import { registerFormatCommands } from "./formats.js";
 import { registerPixelCommands } from "./pixel.js";
 import { registerLayoutCommands } from "./layout.js";
 import { registerDataCommands } from "./data.js";
@@ -20,6 +21,7 @@ export function registerCommands(app) {
   registerStudioCommands(app);
   registerFileCommands(app);
   registerPdfCommands(app);
+  registerFormatCommands(app);
   registerPixelCommands(app);
   registerLayoutCommands(app);
   registerDataCommands(app);
