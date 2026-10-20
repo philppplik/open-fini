@@ -7,6 +7,7 @@ import { solid } from "./nodes.js";
 import { log } from "./log.js";
 import { createNetwork } from "./network.js";
 import { isSafeMode } from "./bootguard.js";
+import { customizationDefaults } from "../customize/schema.js";
 import { studioIds, hasStudio, resolveVisibleStudios, overflowStudios, DEFAULT_VISIBLE_STUDIOS } from "../studios/registry.js";
 
 const PREF_KEY = "openfini.prefs.v1";
@@ -57,7 +58,12 @@ const defaultPrefs = () => ({
   appLockOnHide: false, // lock when the window is hidden or minimized
   protectedMode: true, // website projects from files/folders open with preview scripts off until enabled
   verboseLogging: false, // also record debug-level log entries
+  // customization (customize/schema.js): fonts, shortcuts, toolbox, layout, workspaces, defaults
+  ...customizationDefaults(),
 });
+
+/** A fresh copy of the default preferences (used by customization reset and profiles). */
+export const getDefaultPrefs = () => defaultPrefs();
 
 const safeMode = () => isSafeMode(globalThis.location?.search);
 

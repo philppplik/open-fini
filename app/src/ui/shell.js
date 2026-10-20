@@ -13,6 +13,7 @@ import { STUDIOS, listStudios, onStudioRegistered, studioIconSpec } from "../stu
 import { createStudioBar } from "./studio-bar.js";
 import { installTitleBar } from "./titlebar.js";
 import { applyAppearance } from "./appearance.js";
+import { mountQuickActions } from "./customize/quick-actions.js";
 import { newDocumentDialog, preferencesDialog, aboutDialog, shortcutsDialog, colorDialog } from "./dialogs.js";
 
 export function applyTheme(app) {
@@ -43,6 +44,9 @@ export function createShell(app, root) {
   const header = h("header.of-header", brand, createMenubar(app), studioBar.el, h("div.of-header__actions", undo, redo, theme, exportBtn, dockToggle));
 
   installTitleBar(app, header); // desktop app: the header is the window's title bar
+
+  // which header buttons show, and in what order, is a setting (Settings > Toolbox and menus > Quick actions)
+  mountQuickActions(app, header.querySelector(".of-header__actions"), { undo, redo, theme, export: exportBtn, panels: dockToggle });
 
   const tabs = createDocTabs(app);
   const context = createContextBar(app);

@@ -3,10 +3,11 @@ import { setBasePath } from "../vendor/shoelace/utilities/base-path.js";
 import { registerIconLibrary } from "../vendor/shoelace/utilities/icon-library.js";
 import "../vendor/shoelace/shoelace-autoloader.js";
 
-import { App } from "./core/app.js";
+import { App, getDefaultPrefs } from "./core/app.js";
 import { registerAllTools } from "./studios/index.js";
 import { registerCommands } from "./commands/index.js";
 import { installShortcuts } from "./ui/shortcuts.js";
+import { installCustomization } from "./customize/index.js";
 import { installTooltips } from "./ui/controls.js";
 import { createShell, applyTheme } from "./ui/shell.js";
 import { ensureFont } from "./core/fonts.js";
@@ -35,6 +36,7 @@ window.openfini = app; // handy for debugging and automated tests
 
 registerAllTools(app);
 registerCommands(app);
+installCustomization(app, { defaults: getDefaultPrefs }); // before the key handler: rebound shortcuts must be in place
 installShortcuts(app);
 installTooltips();
 applyTheme(app);
@@ -54,6 +56,7 @@ window.addEventListener("error", (e) => reportError(e.message));
 window.addEventListener("unhandledrejection", (e) => reportError(e.reason?.message || String(e.reason)));
 
 createShell(app, document.getElementById("app"));
+applyTheme(app); // again, now that the layout exists (dock side and width)
 app.setTool("move");
 ensureFont("Inter", 400);
 ensureFont("Inter", 700);

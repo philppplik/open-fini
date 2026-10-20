@@ -8,6 +8,14 @@ All notable changes to OpenFini are documented here. The format follows
 
 ### Added
 
+**Customization everywhere** (docs/customization.md)
+- **Keyboard shortcut editor:** click to record, conflict detection (swap / unassign / use for both), two shortcuts per command, search and filters, reset one or all, import / export JSON, presets Default, Classic, Compact and Editor-style. Menus, tooltips and the palette show the effective shortcut.
+- **Toolbox and menus:** show, hide, reorder and ungroup tools per studio, hide menus and menu items, choose the header's quick actions. Hidden tools stay in the command palette ("Tool: …").
+- **Layout and workspaces:** panel visibility, dock side and width, built-in and saved workspaces per studio, reset layout.
+- **Look and defaults:** interface text size, interface font, corner radius, animation speed, pointer size, canvas background, checkerboard, grid, guide and selection colors, default new-document, export and text settings. Reset arrow per setting and per section.
+- **Profiles:** export / import `.ofprofile` with a strict validator and a merge / replace preview, named profiles (Work, Presentation, Low power templates), reset everything. Secrets, keys and documents are never included.
+- **Hooks:** `app.customize.registerSetting` and `registerToolboxEntry` for extensions and future studios.
+- Vibe tools `get_settings`, `set_setting`, `list_shortcuts`, `set_shortcut`, `export_profile`.
 **Studio registry, More menu and custom title bar** (docs/studios.md, docs/os-integration.md)
 - Studios come from a registry (`registerStudio`); the header shows at most five (Settings ▸ Studios: choose and reorder), the rest are in a new **More** menu. Alt+1..N follow the header order.
 - Desktop app: the header is the window title bar (drag, double-click maximize, minimize / maximize / close; macOS keeps the traffic lights). Closing the window asks about unsaved documents.
