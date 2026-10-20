@@ -9,7 +9,7 @@ device (`localStorage`); *Security and privacy ▸ Reset all settings* restores 
 
 | Section | What it controls |
 | --- | --- |
-| **General** | Restore the last session on start, autosave and its delay, ask before closing unsaved documents, *Save All*, *Open Folder…* |
+| **General** | Restore the last session on start, autosave and its delay, ask before closing unsaved documents, *Save All*, *Open Folder…* **Language:** Automatic (system language), English (United States) or Deutsch; switches live and shows the detected language. See [i18n.md](i18n.md) |
 | **Appearance** | Mode (dark / light / system), the color theme gallery (see [Themes](themes.md)), accent color override, density (compact / default / spacious), interface scale (80–160 %), interface text size, interface font, corner radius, animation speed, canvas pointer size |
 | **Accessibility** | High contrast, reduced motion (follows the system by default), always-visible focus outlines, tooltips on/off, interface scale |
 | **Onboarding and help** | Offer tours, hints in empty panels, restart the welcome or studio tour, reset tours and What's new, command palette tips |
@@ -26,6 +26,8 @@ device (`localStorage`); *Security and privacy ▸ Reset all settings* restores 
 | **About** | Version, license, source and documentation links |
 
 ## For developers
+
+* The `language` preference (`"auto"` or a code from `app/src/i18n/locales.js`) drives the interface language; see [i18n.md](i18n.md).
 
 * Preferences live in `App.prefs` (`app/src/core/app.js`, `defaultPrefs()`); `setPref(key, value)` persists and emits
   `prefs`, `resetPrefs()` restores defaults.

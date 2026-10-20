@@ -33,6 +33,8 @@
     "build": "node scripts/build.mjs",
     "vendor": "node scripts/vendor.mjs",
     "check:size": "node scripts/check-size.mjs",
+    "i18n:extract": "node scripts/i18n-extract.mjs",
+    "i18n:check": "node scripts/i18n-extract.mjs --check",
     "icons": "node scripts/icons.mjs",
     "installer:assets": "node scripts/installer-assets.mjs",
     "ext:create": "node sdk/create-extension.mjs",

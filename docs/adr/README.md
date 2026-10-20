@@ -11,3 +11,4 @@ in place and are marked as such.
 | [0004](0004-no-framework-no-build.md) | Plain ES modules, no UI framework, no build step in development | Accepted |
 | [0005](0005-display-list.md) | Scene graph compiled into a backend-neutral display list | Accepted |
 | [0006](0006-ofini-format.md) | `.ofini` is a ZIP of JSON plus original assets | Accepted |
+| [0007](0007-i18n-english-as-key.md) | Internationalization: the English text is the key | Accepted |

@@ -209,9 +209,11 @@ function renderDoc(doc) {
  * @param {string} [o.knowledgeHint] one-line description of the knowledge base, when one exists
  * @param {'careful'|'balanced'|'auto'|'ask'|'plan'} [o.mode='balanced'] how much to ask first: careful asks and confirms often, balanced asks only when it matters, auto decides and acts; 'ask' (answers only) and 'plan' (plan first) are also accepted
  * @param {string} [o.extra] free-form user instructions appended at the end
+ * @param {string} [o.language] interface language code ("de"): replies follow it unless the user writes in another language (built-in skills stay English: they are instructions to the model)
  * @returns {string}
  */
-export function buildSystemPrompt({ studio = "vibe", doc, skills, memory, knowledgeHint, mode = "balanced", extra } = {}) {
+const LANGUAGE_NAMES = { en: "English", de: "German" };
+export function buildSystemPrompt({ studio = "vibe", doc, skills, memory, knowledgeHint, mode = "balanced", extra, language } = {}) {
   const parts = [];
   parts.push(
     [
@@ -250,7 +252,10 @@ export function buildSystemPrompt({ studio = "vibe", doc, skills, memory, knowle
   if (knowledgeHint) parts.push(`## Knowledge base\n${knowledgeHint}`);
   const mem = Array.isArray(memory) ? memory.filter(Boolean) : memory ? [String(memory)] : [];
   if (mem.length) parts.push(`## Remembered about this user and project\n${mem.map((m) => `- ${String(m).replace(/\n+/g, " ")}`).join("\n")}`);
-  parts.push("Answer in the language the user writes in. Be concise and warm.");
+  if (language && language !== "en") {
+    const name = LANGUAGE_NAMES[String(language).split("-")[0]] || language;
+    parts.push(`The user's interface language is ${name} (${language}). Reply in the user's language by default (${name}) unless they write in another language; then use theirs. Keep tool names, identifiers, code and file names exactly as they are. Be concise and warm.`);
+  } else parts.push("Answer in the language the user writes in. Be concise and warm.");
   if (extra && String(extra).trim()) parts.push(`## Additional instructions from the user
 ${String(extra).trim()}`);
   return parts.join("\n\n");

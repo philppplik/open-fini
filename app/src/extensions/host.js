@@ -9,6 +9,8 @@ import { registerTheme } from "../ui/themes.js";
 import { PANELS, registerPanel } from "../ui/panels/index.js";
 import { STUDIOS } from "../studios/index.js";
 import { validateManifest, checkPackageFiles, API_VERSION, STUDIO_IDS } from "./manifest.js";
+import { localizeManifest } from "./i18n.js";
+import { localeTag } from "../i18n/index.js";
 import { createDispatcher, RpcError, v } from "./rpc.js";
 import { classifyTool, vibeToolName, findShortcutConflict, hasPermission, originOf } from "./permissions.js";
 import { buildMainDocument, buildPanelDocument } from "./html.js";
@@ -99,7 +101,7 @@ export class ExtensionHost extends Emitter {
 
   /** Validates the stored record again (manifest, files, engine) and creates the runtime entry. */
   #add(rec) {
-    const res = validateManifest(rec.raw, { hostVersion: this.hostVersion });
+    const res = validateManifest(localizeManifest(rec.raw, rec.files, localeTag()), { hostVersion: this.hostVersion }); // %key% placeholders from locales/<code>.json
     const fileErrors = res.ok ? checkPackageFiles(res.manifest, Object.keys(rec.files || {})) : [];
     const errors = [...res.errors.map((e) => e.message), ...fileErrors];
     const manifest = res.manifest;
