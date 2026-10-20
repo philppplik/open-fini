@@ -11,6 +11,7 @@ import { registerVibeCommands } from "./vibe.js";
 import { registerOnboardingCommands } from "./onboarding.js";
 import { registerHistogramCommands } from "./histogram.js";
 import { registerExtensionCommands } from "./extensions.js";
+import { registerOfficeCommands } from "./office.js";
 import { registerTextToolCommands } from "./text-tools.js";
 import { installAnts } from "../studios/tools/pixel-select.js";
 
@@ -28,6 +29,7 @@ export function registerCommands(app) {
   registerOnboardingCommands(app);
   registerHistogramCommands(app);
   registerExtensionCommands(app);
+  registerOfficeCommands(app);
   installAnts(app);
   app.emit("commands");
 }

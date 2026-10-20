@@ -253,6 +253,36 @@
       },
       {
         "ext": [
+          "docx"
+        ],
+        "name": "Word Document",
+        "description": "Word Document",
+        "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "odt"
+        ],
+        "name": "OpenDocument Text",
+        "description": "OpenDocument Text",
+        "mimeType": "application/vnd.oasis.opendocument.text",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "rtf"
+        ],
+        "name": "Rich Text Document",
+        "description": "Rich Text Document",
+        "mimeType": "application/rtf",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
           "md",
           "markdown"
         ],

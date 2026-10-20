@@ -317,6 +317,41 @@ Real data objects beat drawings: add_table and add_chart create editable objects
 ## Verify
 screenshot the page, check that no text is cut off, that totals match read_table and that the chart title matches the table content.`;
 
+const BUSINESS_DOC = `---
+name: write-business-document
+description: Write or restyle a business document in the Office Studio (letter, report, proposal, memo, resume) with named styles, lists, tables, page numbers and a clean page setup, ready to export as Word or PDF.
+allowed-tools: office_new_document, office_read_document, office_find, office_insert_blocks, office_replace_text, office_set_style, office_apply_format, office_insert_table, office_set_page_setup, office_export, ask_user, search_knowledge, remember
+tags: [office, writing, word, business]
+---
+# Business documents in the Office Studio
+
+Office documents are flowing text on pages, not canvases: structure comes from named styles (Title, Heading1-3, Normal, List, Quote), never from manual font changes.
+
+## Workflow
+1. Clarify once with ask_user if the request lacks the essentials: document type, recipient or audience, purpose, key facts, length, language, tone. Never invent facts, figures, names or dates; mark gaps as [placeholder].
+2. Start with office_new_document (template letter, report or resume when it fits; size Letter in the US, otherwise A4) or office_read_document when a document is open. Keep existing content unless asked.
+3. Write with office_insert_blocks. Prefer the \`markdown\` input for longer content: # Title, ## Heading, - bullets, 1. steps, | tables |, **bold** for key terms only.
+4. Tables with office_insert_table (header row on, short cell texts, numbers right where it reads well). Use them for prices, schedules, comparisons.
+5. Page setup with office_set_page_setup: margins 20 to 25 mm, a footer "Page {PAGE} of {PAGES}" for anything longer than two pages, a header with the company or document name for reports and proposals.
+6. Polish: office_set_style to fix headings, office_apply_format only for emphasis or alignment (signature right or left, title centered for reports).
+7. Offer office_export to docx or pdf at the end; exporting asks the user for approval.
+
+## Style guidance by type
+- Letter: sender block, date, recipient block, subject line in bold, salutation, 3 to 5 short paragraphs (purpose first, details, call to action), closing, name. No headings.
+- Report: Title and Subtitle (date or audience), an Executive summary of 3 to 5 sentences first, Heading1 per section, Heading2 sparingly, findings as bullets, data in tables, Next steps at the end.
+- Proposal: problem, proposed solution, scope and deliverables (numbered), timeline table, pricing table with a total row, terms, contact.
+- Memo: To / From / Date / Subject lines, then the decision or request in the first paragraph.
+- Resume: name as Title, contact line as Subtitle, Experience with achievement bullets (verb first, a number when possible), Education, Skills; one page for under ten years of experience.
+- Keep sentences short, active voice, one idea per paragraph. Use the user's language and spelling (US or UK) consistently.
+
+## Rules
+- Headings describe content ("Pricing", not "Section 3"). At most three heading levels.
+- Lists: 3 to 7 items, parallel grammar, no full stops for fragments.
+- Do not paste the whole document again to change a word: use office_replace_text with the exact original text, or office_find first.
+- Never put personal data you were not given into a document.
+
+## Verify
+Call office_read_document and check the outline (title, logical heading order), that no [placeholder] was left unexplained, that tables have header rows, and that the footer shows page numbers. Read it aloud mentally: every paragraph should make one clear point. Then summarize what you wrote in two sentences and suggest the export format.`;
 
 /** Built-in skills as SKILL.md markdown strings (logo-design, social-post, photo-retouch, landing-page, poster-layout, brand-kit, accessibility-audit, copywriting). */
-export const BUILTIN_SKILLS = [LOGO, SOCIAL, PHOTO, LANDING, POSTER, BRAND, A11Y, COPY, HELP, REPORT];
+export const BUILTIN_SKILLS = [LOGO, SOCIAL, PHOTO, LANDING, POSTER, BRAND, A11Y, COPY, HELP, REPORT, BUSINESS_DOC];

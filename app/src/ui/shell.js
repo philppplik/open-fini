@@ -89,6 +89,18 @@ export function createShell(app, root) {
   }
   app.on("studio", syncVibe);
 
+  // Office Studio (word processor, ui/office/) is also loaded on first use
+  const officeArea = h("div.of-officearea");
+  canvasArea.append(officeArea);
+  const syncOffice = () => {
+    if (app.studio !== "office" && !app.officeUI) return;
+    import("./office/workspace.js").then((m) => m.syncOffice(app, officeArea)).catch((err) => {
+      console.error(err);
+      app.toast(`Office Studio could not be loaded: ${err.message}`, "danger", 6000);
+    });
+  };
+  for (const ev of ["studio", "doc", "docs"]) app.on(ev, syncOffice);
+
   let codeModule = null;
   let mountedCode = null;
   async function syncCode() {
