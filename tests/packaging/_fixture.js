@@ -1,7 +1,7 @@
 // Shared test helper: writes a tiny app that exercises every feature of the
 // build script (bundling, code splitting, workers, external Shoelace, CSS) and
 // builds it into a temporary folder.
-import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,7 +18,7 @@ async function write(root, rel, text) {
 }
 
 export async function createFixtureApp() {
-  const dir = await mkdtemp(join(tmpdir(), "openfini-fixture-"));
+  const dir = await mkdtemp(join(await realpath(tmpdir()), "openfini-fixture-")); // realpath: macOS tmp is a symlink and esbuild reports resolved paths
   const app = join(dir, "app");
   await write(app, "index.html", `<!doctype html>
 <html lang="en-US"><head><meta charset="utf-8">

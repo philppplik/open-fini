@@ -51,7 +51,8 @@ describe("scripts/build.mjs", () => {
   it("rewrites the folder of template-literal URLs and allows top-level await", async () => {
     // The source says new URL(`../assets/icons/${name}.svg`, import.meta.url) in src/main.js. The
     // bundle lives in dist/assets/, so the same folder is now reached as "./icons/".
-    const match = bundle.match(/new URL\(`([^`$]*)\$\{/);
+    // other template-literal URLs may exist in the fixture bundle (the order is not guaranteed): pick the icons one
+    const match = [...bundle.matchAll(/new URL\(`([^`$]*)\$\{/g)].find((m) => /icons\/$/.test(m[1]));
     assert.ok(match, "template literal kept");
     assert.equal(match[1], "./icons/");
     assert.ok(await exists(join(fx.out, "assets", "icons", "star.svg")));

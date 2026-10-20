@@ -140,7 +140,8 @@ mod tests {
 
     impl TempDir {
         fn new(name: &str) -> Self {
-            let dir = std::env::temp_dir().join(format!("openfini-cli-{}-{}", std::process::id(), name));
+            let dir =
+                std::env::temp_dir().join(format!("openfini-cli-{}-{}", std::process::id(), name));
             let _ = fs::remove_dir_all(&dir);
             fs::create_dir_all(&dir).unwrap();
             TempDir(dir)
@@ -155,9 +156,18 @@ mod tests {
 
     #[test]
     fn version_and_help_are_handled_before_the_window() {
-        assert_eq!(action_for(args(&["--version"]), "1.2.3"), Action::Print("OpenFini 1.2.3\n".into()));
-        assert_eq!(action_for(args(&["-V"]), "1.2.3"), Action::Print("OpenFini 1.2.3\n".into()));
-        assert_eq!(action_for(args(&["a.png", "--help"]), "1"), Action::Print(USAGE.into()));
+        assert_eq!(
+            action_for(args(&["--version"]), "1.2.3"),
+            Action::Print("OpenFini 1.2.3\n".into())
+        );
+        assert_eq!(
+            action_for(args(&["-V"]), "1.2.3"),
+            Action::Print("OpenFini 1.2.3\n".into())
+        );
+        assert_eq!(
+            action_for(args(&["a.png", "--help"]), "1"),
+            Action::Print(USAGE.into())
+        );
         assert_eq!(action_for(args(&["-h"]), "1"), Action::Print(USAGE.into()));
         assert_eq!(action_for(args(&["a.png"]), "1"), Action::Run);
         assert_eq!(action_for(Vec::<String>::new(), "1"), Action::Run);
@@ -175,9 +185,15 @@ mod tests {
         fs::write(&file, b"x").unwrap();
 
         // plain absolute path
-        assert_eq!(resolve_arg(file.to_str().unwrap(), None), Some(file.clone()));
+        assert_eq!(
+            resolve_arg(file.to_str().unwrap(), None),
+            Some(file.clone())
+        );
         // relative to the working directory that was passed along
-        assert_eq!(resolve_arg("my file \u{e4}.ofini", Some(&dir.0)), Some(file.clone()));
+        assert_eq!(
+            resolve_arg("my file \u{e4}.ofini", Some(&dir.0)),
+            Some(file.clone())
+        );
         // file:// URL with percent-encoded space and umlaut
         let url = tauri::Url::from_file_path(&file).unwrap();
         assert_eq!(resolve_arg(url.as_str(), None), Some(file.clone()));
@@ -201,7 +217,15 @@ mod tests {
         for f in [&a, &b, &dash] {
             fs::write(f, b"x").unwrap();
         }
-        let list = args(&["--new-window", "-psn_0_12345", "b.svg", "a.png", "b.svg", "--", "-odd.png"]);
+        let list = args(&[
+            "--new-window",
+            "-psn_0_12345",
+            "b.svg",
+            "a.png",
+            "b.svg",
+            "--",
+            "-odd.png",
+        ]);
         assert_eq!(paths_from_args(list, Some(&dir.0)), vec![b, a, dash]);
     }
 }

@@ -104,7 +104,9 @@ fn quit_app(app: AppHandle) {
 pub fn run() {
     // `--version` and `--help` are answered before anything else starts (also before the single-instance
     // check, so they never reach a running instance).
-    if let Action::Print(text) = cli::action_for(std::env::args().skip(1), env!("CARGO_PKG_VERSION")) {
+    if let Action::Print(text) =
+        cli::action_for(std::env::args().skip(1), env!("CARGO_PKG_VERSION"))
+    {
         cli::print(&text);
         return;
     }
