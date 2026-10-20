@@ -1,0 +1,88 @@
+/* Studio bar (max five studios + More), custom title bar and window controls. */
+
+/* ------------------------------------------------------------------ More menu */
+.of-studios sl-dropdown { display: inline-flex; }
+.of-studio--more { border: 0; background: transparent; cursor: pointer; }
+.of-studio__caret { font-size: 9px !important; opacity: 0.65; margin-left: -2px; }
+.of-studio--more[aria-pressed="true"] .of-studio__caret { opacity: 0.85; }
+sl-dropdown[open] > .of-studio--more:not(.active) { color: var(--of-text); background: var(--of-hover); }
+.of-studio:focus-visible, .of-wc__btn:focus-visible { outline: 2px solid var(--of-accent); outline-offset: -2px; }
+
+@media (max-width: 1100px) {
+  /* narrow windows: icons only; the studio name stays in the tooltip and the accessible name */
+  .of-studios .of-studio span { display: none; }
+  .of-studios .of-studio { padding: 0 9px; }
+}
+
+/* ------------------------------------------------------------------ title bar (desktop app only) */
+.of-header--titlebar { user-select: none; -webkit-user-select: none; }
+/* the header is the drag area; its buttons and menus must not start a drag */
+.of-header--titlebar button, .of-header--titlebar sl-dropdown { -webkit-app-region: no-drag; }
+
+/* macOS: the system traffic lights float over the top-left corner of the header */
+.of-header--overlay { padding-left: 78px; }
+
+/* Windows and Linux: the app draws minimize / maximize / close, flush with the right edge */
+.of-header--custom { padding-right: 0; }
+.of-wc {
+  display: flex;
+  align-self: stretch;
+  margin-left: 6px;
+}
+.of-wc__btn {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--of-text-dim);
+  cursor: default;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+.of-wc__btn:hover { background: var(--of-hover); color: var(--of-text); }
+.of-wc__btn:active { background: var(--of-active, var(--of-hover)); }
+.of-wc__btn--close:hover, .of-wc__btn--close:active { background: #e81123; color: #fff; }
+.of-wc__btn--close:active { background: #c50f1f; }
+.of-wc__btn svg { display: block; pointer-events: none; }
+
+@media (forced-colors: active) {
+  .of-wc__btn { forced-color-adjust: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .of-wc__btn { transition: none; }
+}
+
+/* ------------------------------------------------------------------ Settings > Studios */
+.of-studiopick__count { margin: 0 0 8px; font-size: 12px; color: var(--of-text-dim); }
+.of-studiopick__list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 4px; }
+.of-studiopick__row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--of-border-soft);
+  border-radius: var(--of-radius-sm);
+  background: var(--of-bg-input);
+}
+.of-studiopick__row[draggable="true"] { cursor: grab; }
+.of-studiopick__row.is-hidden { opacity: 0.8; background: transparent; }
+.of-studiopick__grip { color: var(--of-text-faint); display: grid; place-items: center; }
+.of-studiopick__label { display: flex; align-items: center; gap: 10px; min-width: 0; cursor: pointer; }
+.of-studiopick__label sl-icon { font-size: 18px; flex: none; }
+.of-studiopick__label span { display: grid; min-width: 0; }
+.of-studiopick__label small { color: var(--of-text-dim); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.of-studiopick__order { display: inline-flex; gap: 2px; }
+.of-studiopick__move {
+  width: 24px; height: 24px; display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: var(--of-radius-sm); background: transparent; color: var(--of-text-dim); cursor: pointer;
+}
+.of-studiopick__move:hover:not(:disabled) { background: var(--of-hover); color: var(--of-text); }
+.of-studiopick__move:disabled { opacity: 0.3; cursor: default; }
+.of-studiopick__check input { width: 16px; height: 16px; accent-color: var(--of-accent); cursor: pointer; }
+.of-studiopick__sub { margin: 14px 0 6px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--of-text-faint); }
+.of-studiopick__msg { min-height: 1.4em; margin: 0 0 8px; font-size: 12.5px; }
+.of-studiopick__msg.is-warning { color: var(--of-warning, #e0a030); }

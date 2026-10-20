@@ -2,6 +2,7 @@
 import { platform } from "./platform/index.js";
 import { registerServiceWorker } from "./platform/pwa.js";
 import { log } from "./core/log.js";
+import { hasStudio } from "./studios/registry.js";
 
 export async function boot(app) {
   const params = new URLSearchParams(location.search);
@@ -16,7 +17,7 @@ export async function boot(app) {
   }
   if (app.safeMode) import("./ui/error-indicator.js").then((m) => m.installSafeBanner(app));
   const studio = params.get("studio");
-  if (studio && ["vector", "pixel", "layout", "code", "vibe"].includes(studio)) app.setStudio(studio);
+  if (studio && hasStudio(studio)) app.setStudio(studio);
   if (studio === "export") app.run("file.export"); // legacy launcher shortcut: Export is a popup now
 
   // returning from "Sign in with OpenRouter"

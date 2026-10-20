@@ -82,6 +82,7 @@ export class CanvasView {
     s.addEventListener("wheel", (e) => this.#wheel(e), { passive: false });
     s.addEventListener("dblclick", (e) => this.#dbl(e));
     s.addEventListener("contextmenu", (e) => {
+      if (e.target?.dataset?.ctx) return; // rulers have their own menu (ui/context-menu)
       e.preventDefault();
       this.app.emit("contextmenu", { x: e.clientX, y: e.clientY, event: this.makeEvent(e) });
     });

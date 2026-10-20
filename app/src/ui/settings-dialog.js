@@ -12,6 +12,7 @@ import { kvGet, kvDelete, getRecents, clearSession } from "../core/storage.js";
 import { securitySection, troubleshootingSection } from "./security-center.js";
 import { openLink } from "./links.js";
 import { withCustomization, resetButton, sectionResetButton } from "./customize/sections.js";
+import { studiosSettings } from "./studio-settings.js";
 
 const sw = (key, label, hint, extra = {}) => ({ type: "switch", key, label, hint, ...extra });
 const seg = (key, label, options, hint, extra = {}) => ({ type: "segmented", key, label, options, hint, ...extra });
@@ -57,6 +58,15 @@ export function settingsSections(app) {
           ],
         },
       ],
+    },
+    {
+      id: "studios",
+      label: "Studios",
+      icon: "layout-three-columns",
+      lead: "Choose which studios the header shows (up to five) and their order. The rest stay in the More menu.",
+      keywords: "studios header more order reorder visible show hide vector pixel layout code vibe office shortcut alt",
+      groups: [],
+      custom: () => studiosSettings(app),
     },
     {
       id: "appearance",

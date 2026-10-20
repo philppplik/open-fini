@@ -106,3 +106,26 @@ both read-only.
   the OS are accessible because of the per-file grant above.
 - Packaging tests (`npm test`, `tests/packaging/os-integration.test.js`) cover the pure logic and the consistency of the
   configuration files, not the operating system behavior.
+
+## Custom title bar (desktop app)
+
+The desktop window has no system title bar on Windows and Linux: the app header is the title bar (drag area, double-click
+to maximize, minimize / maximize / close buttons on the right). On macOS the system traffic lights stay and float over the
+header (`titleBarStyle: "Overlay"`). The browser and the PWA keep their own chrome. Code: `app/src/ui/titlebar.js`,
+`app/src/platform/window-controls.js`.
+
+Pitfalls:
+
+- `src-tauri/tauri.conf.json` sets `decorations: false` and `shadow: true` (the shadow keeps the window edge visible on
+  Windows 11). If the setting is not applied, the app asks the window (`isDecorated`) and draws no second title bar.
+- Platform config files are merged with JSON merge patch and **arrays are replaced**, not merged. That is why
+  `tauri.macos.conf.json` repeats the whole `app.windows` entry. Keep it in sync with `tauri.conf.json`.
+- Every window call needs a capability in `src-tauri/capabilities/default.json` (minimize, maximize, toggle-maximize, close,
+  destroy, start-dragging, is-maximized, is-decorated ...). A missing one fails silently in the UI and logs a console warning.
+- `data-tauri-drag-region` only drags from the element that carries it, not from its children. Buttons and menus therefore
+  stay clickable; containers between them carry the attribute too.
+- Closing is intercepted (`onCloseRequested`): unsaved documents go through the usual Save / Don't Save / Cancel prompt
+  (`app.confirmQuit`), then the window is destroyed (needs `allow-destroy`).
+- Not verified here (no Rust toolchain, no desktop run): resize borders of the frameless window on Linux, the exact
+  permission names against the installed Tauri version. CI builds the app; test the window on each OS.
+- No window-state (size/position) plugin is installed, so the window size is not remembered.

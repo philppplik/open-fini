@@ -12,6 +12,7 @@ import { foreignFormatInfo } from "../core/foreign.js";
 import { isTextDocumentName } from "../core/text-docs.js";
 import { markUntrusted } from "../core/security.js";
 import { log } from "../core/log.js";
+import { singleFlight } from "../core/single-flight.js";
 
 const SAVE_FILTERS = [{ name: "OpenFini document", extensions: ["ofini"] }];
 
@@ -90,7 +91,10 @@ export function registerFileCommands(app) {
     }
   });
 
-  async function save(a, forceDialog) {
+  // One save per document at a time: a second trigger while the first is still waiting for its file dialog
+  // (key auto-repeat, shortcut plus click) joins it instead of opening another dialog.
+  const save = singleFlight(saveDoc, (a) => a.doc);
+  async function saveDoc(a, forceDialog) {
     const doc = a.doc;
     if (!doc) return;
     if (a.studio === "code" && a.prefs.codeFormatOnSave && a.codeUI?.built) a.codeUI.editors.format();
@@ -199,7 +203,7 @@ export function registerFileCommands(app) {
     }
   });
 
-  def("file.close", "Close", async (a, doc) => {
+  const closeDoc = singleFlight(async (a, doc) => {
     const d = doc && doc.pages ? doc : a.doc;
     if (!d) return;
     if (!d.saved && app.prefs.confirmClose !== false) {
@@ -212,7 +216,19 @@ export function registerFileCommands(app) {
       }
     }
     a.closeDoc(d);
-  }, { shortcut: "Mod+W", enabled: hasDoc });
+  }, (a, doc) => (doc && doc.pages ? doc : a.doc));
+  // Quitting (desktop window close, Alt+F4, Cmd+Q): every unsaved document goes through the same
+  // "Save / Don't Save / Cancel" confirmation as closing its tab. Resolves false when the user cancels.
+  app.confirmQuit = async () => {
+    if (app.prefs.confirmClose === false) return true;
+    for (const d of [...app.docs]) {
+      if (d.saved) continue;
+      await closeDoc(app, d);
+      if (app.docs.includes(d)) return false; // cancelled (or the save was cancelled)
+    }
+    return true;
+  };
+  def("file.close", "Close", (a, doc) => closeDoc(a, doc), { shortcut: "Mod+W", enabled: hasDoc });
 
   def("file.docSetup", "Document Setup…", (a) => documentSetupDialog(a), { enabled: hasDoc });
 

@@ -4,6 +4,7 @@ import { emptyHint } from "../empty-hint.js";
 import { buildPageDL } from "../../engine/dl.js";
 import { renderToCanvas } from "../../engine/backends/canvas.js";
 import { iconButton } from "../controls.js";
+import { markContext } from "../context-menu/index.js";
 
 export function createHistoryPanel(app) {
   const list = h("div.of-history__list", { role: "listbox", "aria-label": "History" });
@@ -27,6 +28,7 @@ export function createHistoryPanel(app) {
   }
   function historyRow(label, active, go, doc, dim = false) {
     const r = h("button.of-history__row", { type: "button", class: `${active ? "active" : ""} ${dim ? "dim" : ""}`, role: "option", "aria-selected": String(active) }, label);
+    markContext(r, "history-item", { label, go: () => (go(), doc.emit("change", { nodes: new Set(), structure: true, history: true, label: "History" })) });
     r.addEventListener("click", () => {
       go();
       doc.emit("change", { nodes: new Set(), structure: true, history: true, label: "History" });
@@ -45,6 +47,7 @@ export function createNavigatorPanel(app) {
   const wrap = h("div.of-nav__wrap", canvas, box);
   const label = h("span.of-nav__zoom");
   const el = h("div.of-nav", wrap, h("div.of-nav__bar", iconButton({ icon: "zoom-out", label: "Zoom out", onClick: () => app.run("view.zoomOut") }), label, iconButton({ icon: "zoom-in", label: "Zoom in", onClick: () => app.run("view.zoomIn") }), iconButton({ icon: "arrows-angle-contract", label: "Fit page", onClick: () => app.run("view.fit") })));
+  markContext(el, "navigator");
   let info = null;
 
   const draw = debounce(() => {

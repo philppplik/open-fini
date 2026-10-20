@@ -86,7 +86,7 @@ export const MENUS = [
     studios: ["vibe"],
     items: ["vibe.tabCanvas", "vibe.tabActivity", "vibe.tabModels", "vibe.tabTools", "vibe.tabSkills", "vibe.tabKnowledge", "-", "view.theme"],
   },
-  { label: "Studio", items: ["studio.vector", "studio.pixel", "studio.layout", "studio.code", "studio.vibe", "-", "ext.manage", { label: "Extension Commands", dynamic: "extCommands" }] },
+  { label: "Studio", items: [{ dynamic: "studios" }, "-", "ext.manage", { label: "Extension Commands", dynamic: "extCommands" }] },
   { label: "Help", items: ["help.palette", "help.tour", "help.studioTour", "help.whatsThis", "-", "help.shortcuts", "help.whatsNew", "help.docs", "help.issues", "help.troubleshoot", "help.security", "-", "help.about"] },
 ];
 
@@ -95,6 +95,7 @@ function itemFor(app, cmdId) {
   if (!c) return null;
   const type = c.checked ? "checkbox" : undefined;
   const el = h("sl-menu-item", { value: cmdId, type, disabled: c.enabled ? !c.enabled(app) : false });
+  el.dataset.key = cmdId;
   if (c.checked) el.checked = !!c.checked(app);
   const ic = c.icon;
   if (ic) {
@@ -139,18 +140,24 @@ function fill(app, menu, items) {
       } else fill(app, menu, sub);
       continue;
     }
+    if (it.hidden) continue;
     if (it.items) {
-      const parent = h("sl-menu-item", it.label);
+      const parent = h("sl-menu-item", { disabled: !!it.disabled }, it.label);
+      if (it.icon) parent.prepend(h("sl-icon", { slot: "prefix", name: it.icon }));
       const sm = h("sl-menu", { slot: "submenu" });
       fill(app, sm, it.items);
+      trimSeparators(sm);
       if (!sm.children.length) continue;
       parent.append(sm);
       push(parent);
     } else if (it.run) {
-      // ad-hoc item: {label, run, disabled, checked, icon}
+      // ad-hoc item: {label, run, disabled, checked, icon, shortcut, hidden, id, title}
       const el = h("sl-menu-item", { type: it.checked !== undefined ? "checkbox" : undefined, disabled: !!it.disabled }, it.label);
       if (it.checked !== undefined) el.checked = !!it.checked;
       if (it.icon) el.prepend(h("sl-icon", { slot: "prefix", name: it.icon }));
+      if (it.shortcut) el.append(h("span", { slot: "suffix", class: "of-kbd" }, prettyShortcut(it.shortcut)));
+      if (it.title) el.title = it.title;
+      if (it.id) el.dataset.key = it.id;
       el.addEventListener("click", () => it.run());
       el._run = it.run;
       push(el);
@@ -222,28 +229,97 @@ export function createMenubar(app) {
 
 /** Floating context menu at client coordinates. */
 let ctxHost = null;
-export function showContextMenu(app, x, y, items) {
+const LAST_KEY = "openfini.ctx.last";
+function readLast() {
+  try {
+    return JSON.parse(localStorage.getItem(LAST_KEY) || "{}");
+  } catch {
+    return {};
+  }
+}
+
+/** Closes the floating context menu, if one is open. */
+export function closeContextMenu(restoreFocus = true) {
+  if (!ctxHost?.classList.contains("open")) return;
+  ctxHost.classList.remove("open");
+  const back = ctxHost._returnTo;
+  ctxHost._returnTo = null;
+  ctxHost._onClose?.();
+  ctxHost._onClose = null;
+  if (restoreFocus && back?.isConnected) back.focus?.({ preventScroll: true });
+}
+export const isContextMenuOpen = () => !!ctxHost?.classList.contains("open");
+
+/**
+ * Floating context menu at client coordinates. It keeps to the viewport, scrolls when taller than the window,
+ * supports the keyboard (arrows, Home/End, Enter, Escape, type-ahead) and returns focus when it closes.
+ * @param {object} [opts]
+ * @param {string} [opts.label] accessible name of the menu
+ * @param {string} [opts.lastKey] remembers the chosen item under this key and marks it as "last used" next time
+ * @param {() => void} [opts.onClose]
+ */
+export function showContextMenu(app, x, y, items, opts = {}) {
   if (!ctxHost) {
     ctxHost = h("div.of-ctxmenu");
     document.body.append(ctxHost);
-    const close = () => ctxHost.classList.remove("open");
     document.addEventListener("pointerdown", (e) => {
-      if (!ctxHost.contains(e.target)) close();
+      if (!ctxHost.contains(e.target)) closeContextMenu(false);
     }, true);
-    window.addEventListener("blur", close);
-    document.addEventListener("keydown", (e) => e.key === "Escape" && close());
-    ctxHost._close = close;
+    window.addEventListener("blur", () => closeContextMenu(false));
+    window.addEventListener("resize", () => closeContextMenu(false));
+    ctxHost.addEventListener("contextmenu", (e) => e.preventDefault());
+    ctxHost.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" || e.key === "Tab") {
+        e.preventDefault();
+        e.stopPropagation();
+        closeContextMenu(true);
+      }
+    });
+    document.addEventListener("keydown", (e) => e.key === "Escape" && closeContextMenu(true));
   }
+  closeContextMenu(false);
   empty(ctxHost);
   const menu = buildMenu(app, items);
-  menu.addEventListener("sl-select", () => ctxHost._close());
+  menu.setAttribute("aria-label", opts.label || "Context menu");
+  const last = opts.lastKey ? readLast()[opts.lastKey] : null;
+  if (last && menu.querySelectorAll("sl-menu-item").length > 5) {
+    const mark = [...menu.querySelectorAll("sl-menu-item")].find((el) => el.dataset.key === last && !el.querySelector("sl-menu"));
+    if (mark) {
+      mark.classList.add("of-ctx-last");
+      mark.append(h("span", { slot: "suffix", class: "of-ctx-lastbadge", "aria-label": "last used" }, "last"));
+    }
+  }
+  menu.addEventListener("sl-select", (e) => {
+    const key = e.detail.item?.dataset?.key || e.detail.item?.value;
+    if (opts.lastKey && key) {
+      try {
+        localStorage.setItem(LAST_KEY, JSON.stringify({ ...readLast(), [opts.lastKey]: key }));
+      } catch {
+        /* storage may be unavailable */
+      }
+    }
+    closeContextMenu(true);
+  });
+  ctxHost._returnTo = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  ctxHost._onClose = opts.onClose || null;
   ctxHost.append(menu);
+  ctxHost.style.left = `${Math.max(8, Math.min(x, innerWidth - 240))}px`;
+  ctxHost.style.top = `${Math.max(8, Math.min(y, innerHeight - 60))}px`;
+  ctxHost.style.setProperty("--of-ctx-max", `${innerHeight - 16}px`);
   ctxHost.classList.add("open");
-  const w = 230;
-  ctxHost.style.left = `${Math.min(x, innerWidth - w - 8)}px`;
-  ctxHost.style.top = `${Math.min(y, innerHeight - 40)}px`;
   requestAnimationFrame(() => {
     const r = ctxHost.getBoundingClientRect();
-    if (r.bottom > innerHeight - 8) ctxHost.style.top = `${Math.max(8, innerHeight - r.height - 8)}px`;
+    let left = Math.max(8, Math.min(x, innerWidth - r.width - 8));
+    let top = y;
+    if (top + r.height > innerHeight - 8) top = y - r.height >= 8 && y > innerHeight / 2 ? y - r.height : innerHeight - r.height - 8;
+    ctxHost.style.left = `${left}px`;
+    ctxHost.style.top = `${Math.max(8, top)}px`;
+    customElements.whenDefined("sl-menu-item").then(() => {
+      const first = menu.querySelector("sl-menu-item:not([disabled])");
+      if (first && ctxHost.classList.contains("open")) {
+        menu.setCurrentItem?.(first);
+        first.focus({ preventScroll: true });
+      }
+    });
   });
 }

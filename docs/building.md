@@ -157,9 +157,15 @@ Details, prerequisites, cross-compiling notes and troubleshooting are in
 
 ### Icons
 
-`app/icons/icon.svg` (tile with transparent corners) and `app/icons/icon-maskable.svg` (full-bleed
+`app/icons/icon.svg` (off-white tile with a near-black mark, transparent corners) and `app/icons/icon-maskable.svg` (full-bleed
 for adaptive icons) are the sources. `npm run icons` regenerates every PNG, `.ico` and `.icns`
 (desktop in `src-tauri/icons`, PWA in `app/icons`) with the Tauri CLI; no other tool is needed.
+
+### Installer artwork
+
+The Windows installer sidebar and header (BMP) and the macOS DMG background come from the SVGs in
+`src-tauri/installer/`. `npm run installer:assets` regenerates the committed binaries (needs Edge or Chrome).
+The custom NSIS template, the options page and the design decisions are in [installer.md](installer.md).
 
 ## Running unsigned builds
 
