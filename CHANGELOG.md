@@ -8,6 +8,11 @@ All notable changes to OpenFini are documented here. The format follows
 
 ### Added
 
+**Branded installers and new app icon** (docs/installer.md)
+- **Windows installer:** custom NSIS wizard with an OpenFini sidebar and header, custom welcome and finish texts, the MIT license page, and a new *Windows integration* page (associate `.ofini` / `.ofext`, offer OpenFini under Open with for images, PDF and code files, optional desktop shortcut). Finish page can launch OpenFini and open the online quick-start guide. Still per user without an administrator prompt; the uninstaller keeps its optional "Delete the application data" checkbox.
+- **macOS DMG:** styled window with background, arrow and fixed icon positions.
+- Artwork is generated from SVG sources in `src-tauri/installer/` with `npm run installer:assets`.
+- **New app icon:** near-black mark on an off-white tile (desktop, PWA, maskable, apple-touch, favicon and document icons); installer artwork follows. The Windows installer picks English or German from the Windows display language.
 **Vibe Studio UI polish** (docs/vibe-studio.md)
 - Redesigned tool cards (compact line, collapsible JSON, image thumbnails, groups, inline approvals), text shimmer for running work, collapsible thinking blocks with elapsed time, follow-the-bottom auto-scroll with a "Jump to latest" pill, message copy and retry, slimmer themed scrollbars.
 - **Activity tab is a real run log:** plan, tool calls with timing, approvals, errors, tokens, filters, per-run undo order, click-to-reveal, copy and clear.

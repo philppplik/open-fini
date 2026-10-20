@@ -57,6 +57,9 @@ Release
 - [ ] Open the **draft** release. Expect these assets: `OpenFini_<v>_x64-setup.exe`, `.msi` (stable
       releases only), `OpenFini_<v>_arm64-setup.exe`, two `.dmg`, three Linux packages for each of
       x64 and ARM64, `OpenFini-<v>-pwa.zip` and `SHA256SUMS.txt`.
+- [ ] Run the branded Windows installer once (wizard pages render with the sidebar and header, the
+      "Windows integration" page works, finish-page checkboxes, uninstall with and without "Delete the
+      application data") and open the macOS DMG (background, icon positions). See [installer.md](installer.md).
 - [ ] Download and start at least one installer per operating system. On a machine without the
       development tools: install, double-click a `.ofini` file, check the window title and an
       "Open With" from the file manager, then uninstall.
