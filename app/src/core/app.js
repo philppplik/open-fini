@@ -351,6 +351,8 @@ export class App extends Emitter {
   // ------------------------------------------------------------ commands
 
   registerCommand(id, def) {
+    // A command id has exactly one owner; a second registration is a bug (it would silently replace the first).
+    if (this.commands.has(id)) log.warn("command", `Command ${id} is registered twice; the later definition wins.`);
     this.commands.set(id, { id, ...def });
   }
 
