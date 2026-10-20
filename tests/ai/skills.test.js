@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { parseSkill, serializeSkill, skillsCatalog, buildSystemPrompt, BUILTIN_SKILLS, BUILTIN_SKILL_LIST } from "../../app/src/ai/skills.js";
 
 const TOOL_NAMES = new Set(
-  "get_document_info list_layers get_selection select_layers screenshot add_shape add_text add_path import_svg set_style transform_layers group_layers delete_layers reorder_layers align_layers add_pixel_layer apply_adjustment list_effects generate_image edit_image add_page write_file read_file list_files edit_file insert_element set_element_style set_page_meta search_knowledge remember ask_user use_skill list_commands list_themes set_theme start_tour get_platform_info set_studio get_histogram auto_correct_suggestion new_document add_table edit_table read_table list_tables import_csv_to_table add_chart edit_chart read_chart".split(" "),
+  "get_document_info list_layers get_selection select_layers screenshot add_shape add_text add_path import_svg set_style transform_layers group_layers delete_layers reorder_layers align_layers add_pixel_layer apply_adjustment list_effects generate_image edit_image add_page write_file read_file list_files edit_file insert_element set_element_style set_page_meta search_knowledge remember ask_user use_skill list_commands list_themes set_theme start_tour get_platform_info set_studio get_histogram auto_correct_suggestion new_document add_table edit_table read_table list_tables import_csv_to_table add_chart edit_chart read_chart office_new_document office_read_document office_find office_insert_blocks office_replace_text office_set_style office_apply_format office_insert_table office_set_page_setup office_export".split(" "),
 );
 
 test("parseSkill: frontmatter with inline lists, comma lists, quotes", () => {

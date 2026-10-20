@@ -129,6 +129,27 @@ export function codeAiItems(app, getContext) {
   ];
 }
 
+/** Menu items for the Office Studio editor (selected text, or the whole document without a selection). */
+export function officeAiItems(app, getContext) {
+  if (!app.prefs.aiEnabled) return [];
+  const extra = () => {
+    const c = getContext();
+    return c.hasSelection && c.text.trim() ? `Selected text in the Office document:\n"""\n${c.text.slice(0, 8000)}\n"""\nChange only this text: use office_replace_text with the exact original sentences as \`find\`.` : "No text is selected: work on the whole document (read it with office_read_document first).";
+  };
+  const run = (label, prompt, mode) => () => runQuickAction(app, { label, prompt, mode, extra: extra() });
+  const ask = (label, title, field, build) => async () => {
+    const v = await promptDialog({ title, label: field, ok: "Go" });
+    if (v) runQuickAction(app, { label, prompt: build(v), extra: extra() });
+  };
+  return [
+    { label: "Improve writing", run: run("Improve writing", "Improve the writing: clearer, more concise and better flow. Keep the meaning, the language and the formatting.") },
+    { label: "Fix spelling and grammar", run: run("Fix grammar", "Fix spelling, grammar and punctuation without changing the voice or the meaning.") },
+    { label: "Summarize", run: run("Summarize", "Summarize the text in a few bullet points. Do not change the document.", "answer") },
+    { label: "Translate…", run: ask("Translate", "Translate", "Target language", (v) => `Translate the text into ${v}. Keep headings, lists and formatting.`) },
+    { label: "Change tone…", run: ask("Change tone", "Change the tone", "New tone (for example formal, friendly, persuasive)", (v) => `Rewrite the text in a ${v} tone. Keep facts, names and numbers.`) },
+  ];
+}
+
 /** Menu items for an element selected in the website designer. */
 export function elementAiItems(app, ws) {
   if (!app.prefs.aiEnabled) return [];

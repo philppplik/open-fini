@@ -15,8 +15,11 @@ import { ImportReport, attachReport } from "./import-report.js";
 import { TEXT_DOC_EXTS } from "./text-docs.js";
 
 export const IMAGE_EXTS = ["png", "jpg", "jpeg", "webp", "gif", "bmp", "avif"];
+/** Word processor files the Office Studio opens (plus the files it explains: Google Docs shortcuts, .doc, .pages). */
+export const OFFICE_DOC_EXTS = ["docx", "odt", "rtf", "dotx", "ott", "fodt", "doc", "pages", "gdoc"];
 export const OPEN_FILTERS = [
-  { name: "All supported files", extensions: ["ofini", "pdf", "ai", "psd", "psb", "idml", "sketch", "svg", ...IMAGE_EXTS, ...TEXT_DOC_EXTS] },
+  { name: "All supported files", extensions: ["ofini", "pdf", "ai", "psd", "psb", "idml", "sketch", "svg", ...IMAGE_EXTS, ...TEXT_DOC_EXTS, ...OFFICE_DOC_EXTS] },
+  { name: "Word and text documents (DOCX, ODT, RTF)", extensions: OFFICE_DOC_EXTS },
   { name: "Text and code (Markdown, LaTeX, JSON, YAML, …)", extensions: TEXT_DOC_EXTS },
   { name: "OpenFini documents", extensions: ["ofini"] },
   { name: "Photoshop (PSD, PSB)", extensions: ["psd", "psb"] },
