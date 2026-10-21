@@ -3,6 +3,17 @@
 
 export const WHATS_NEW = [
   {
+    version: "0.7.0",
+    title: "Work together, measure pixels, glass surfaces",
+    items: [
+      { icon: "chat-quote", title: "Collaboration", text: "Create a room, share an invite code, and chat, comment, save versions and see each other's cursors, end-to-end encrypted. Studio, Collaborate. Simultaneous editing of one document is not live yet." },
+      { icon: "rulers", title: "Pixel-exact viewport", text: "Set the Code studio preview to any size, drag the edges, jump to breakpoints and test with the width slider." },
+      { icon: "bounding-box", title: "Measure tool", text: "Press M in the Code studio and hover elements to measure them in px, mm, rem and more." },
+      { icon: "layout-split", title: "Split layouts", text: "Put the code left, right, above or below the preview." },
+      { icon: "droplet", title: "Glass surfaces", text: "Glass, Liquid glass and Sea glass styles for the interface, with blur, transparency and background controls under Settings, Appearance." },
+    ],
+  },
+  {
     version: "0.6.0",
     title: "Your files stay yours",
     items: [
