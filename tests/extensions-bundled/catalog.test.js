@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { packAll, catalogText, stage, stripExports } from "../../scripts/pack-extensions.mjs";
+import { packAll, catalogText, stage, stripExports, sameContent } from "../../scripts/pack-extensions.mjs";
 import { unpackExtension } from "../../app/src/extensions/zip.js";
 import { validateManifest, checkPackageFiles, describePermission } from "../../app/src/extensions/manifest.js";
 import { checkPermission } from "../../app/src/extensions/permissions.js";
@@ -30,7 +30,7 @@ test("the committed packages and catalog are up to date (run: npm run ext:pack-a
   assert.equal(readFileSync(join(root, "extensions", "catalog.json"), "utf8"), catalogText(catalog));
   for (const [file, bytes] of Object.entries(packages)) {
     assert.ok(existsSync(join(root, "extensions", file)), file);
-    assert.ok(Buffer.compare(Buffer.from(bytes), readFileSync(join(root, "extensions", file))) === 0, `${file} is stale`);
+    assert.ok(sameContent(bytes, readFileSync(join(root, "extensions", file))), `${file} is stale (run: npm run ext:pack-all)`);
   }
   const onDisk = readdirSync(join(root, "extensions", "packages")).map((f) => `packages/${f}`).sort();
   assert.deepEqual(onDisk, Object.keys(packages).sort(), "no orphaned packages");

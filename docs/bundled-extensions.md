@@ -53,7 +53,7 @@ whole page is rendered. It only returns bytes; saving still needs `files.save` a
 
 ```text
 extensions/
-  catalog.json            generated: id, name, description, version, engines, permissions, studios, icon, file, size
+  catalog.json            generated: id, name, description, version, engines, permissions, studios, icon, file
   packages/*.ofext        generated, committed: what the app installs
   _shared/color.js        code several extensions share (inlined by the packer)
   <folder>/               one extension (source)

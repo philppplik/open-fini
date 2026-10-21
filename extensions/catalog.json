@@ -21,8 +21,7 @@
         "code"
       ],
       "icon": "universal-access",
-      "file": "packages/openfini.a11y-checker-1.0.0.ofext",
-      "size": 24951
+      "file": "packages/openfini.a11y-checker-1.0.0.ofext"
     },
     {
       "id": "openfini.batch-export",
@@ -43,8 +42,7 @@
         "layout"
       ],
       "icon": "images",
-      "file": "packages/openfini.batch-export-1.0.0.ofext",
-      "size": 12949
+      "file": "packages/openfini.batch-export-1.0.0.ofext"
     },
     {
       "id": "openfini.code-tools",
@@ -62,8 +60,7 @@
         "code"
       ],
       "icon": "braces",
-      "file": "packages/openfini.code-tools-1.0.0.ofext",
-      "size": 36697
+      "file": "packages/openfini.code-tools-1.0.0.ofext"
     },
     {
       "id": "openfini.data-filler",
@@ -83,8 +80,7 @@
         "code"
       ],
       "icon": "magic",
-      "file": "packages/openfini.data-filler-1.0.0.ofext",
-      "size": 15637
+      "file": "packages/openfini.data-filler-1.0.0.ofext"
     },
     {
       "id": "openfini.palette-pro",
@@ -105,8 +101,7 @@
         "layout"
       ],
       "icon": "palette",
-      "file": "packages/openfini.palette-pro-1.0.0.ofext",
-      "size": 13554
+      "file": "packages/openfini.palette-pro-1.0.0.ofext"
     }
   ]
 }
