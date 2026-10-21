@@ -73,7 +73,7 @@ export function vibeStudio(app) {
     const live = [...hub.sessions.values()].filter((s) => !s.hidden && !stored.has(s.chat.id) && (s.chat.messages.length || s.running)).map((s) => ({ id: s.chat.id, title: s.chat.title, updated: Date.now() }));
     const chats = [...live, ...vibeStore.chats];
     list.append(
-      chatListHead(vs, iconButton({ icon: "pencil-square", label: "New chat (other chats keep running)", onClick: () => session.newChat() })),
+      chatListHead(vs, iconButton({ icon: "pencil-square", label: "New chat", onClick: () => session.newChat() })),
       h("div.of-vlist__items", chats.length ? chats.map((c) => {
         const st = hub.statusOf(c.id);
         const row = h("button.of-vlist__row", { type: "button", class: c.id === session.chat.id ? "active" : "", "data-chat": c.id, "aria-current": c.id === session.chat.id ? "true" : null }, h("span", c.title), ...chatRowExtras(vs, c, st), h("small", new Date(c.updated).toLocaleDateString("en-US", { month: "short", day: "numeric" })));

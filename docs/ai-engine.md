@@ -175,7 +175,7 @@ Semantics:
 `{type:'retry', attempt, error, status?, delayMs}`, `{type:'done', stopReason, usage, steps, error?}`.
 
 Parallel tools: consecutive `readOnly` calls of one step run concurrently; mutating calls keep their order. The Vibe
-session additionally serializes mutating calls across chats with a FIFO write lock (`app/src/vibe/locks.js`, ADR 0007).
+session additionally serializes mutating calls across chats with a FIFO write lock (`app/src/vibe/locks.js`, ADR 0008).
 
 **Sub-agents** (`app/src/vibe/agents.js`, pure): `new AgentManager({runAgent, provider, model, parentTools, depth,
 settings:{maxConcurrent, maxSteps, budgetSteps, budgetTokens}, signal, onEvent, approve, toolsFor})` runs child loops
