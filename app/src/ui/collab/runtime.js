@@ -236,7 +236,7 @@ class CollabController {
     s.on("removed", ({ rotated } = {}) => {
       this.session = null;
       this.changed("status");
-      app.toast(rotated ? "The room key changed while you were away. Ask the host for a new invite code." : "The host removed you from the room.", "warning", 8000);
+      app.toast(rotated ? t("The room key changed while you were away. Ask the host for a new invite code.") : t("The host removed you from the room."), "warning", 8000);
     });
     s.on("rotated", () => {
       this.changed("status");
@@ -452,7 +452,13 @@ class CollabController {
           return false;
         }
         app.select([n]);
-        requestAnimationFrame(() => app.cv?.fitSelection?.());
+        requestAnimationFrame(() => {
+          try {
+            app.cv?.fitSelection?.();
+          } catch {
+            /* layers without bounds (empty groups) stay where they are */
+          }
+        });
       }
       return true;
     }
@@ -690,7 +696,12 @@ class CollabController {
           return open;
         }
       }
-      if (mode === "copy" || (mode === "linked" && open)) doc.id = `d_${randomB64u(6)}`;
+      if (mode === "linked" && open) {
+        app.activateDoc(open);
+        app.toast("This document is already open. Use “Update my copy” to replace it with the received one.", "primary", 5000);
+        return open;
+      }
+      if (mode === "copy") doc.id = `d_${randomB64u(6)}`;
       if (!doc.name || doc.name === "Untitled") doc.name = transfer.name.replace(/\.ofini$/i, "");
       doc.saved = false;
       markUntrusted(app.prefs, doc);
