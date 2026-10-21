@@ -213,13 +213,14 @@
 }
 
 /* ------------------------------------------------------------------ fallbacks: same tint, no blur */
+:root[data-surface][data-glass-fx="off"] { --of-glass-filter: none; }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
-  :root[data-surface] { --of-glass-blur: 0px !important; --of-glass-sat: 1 !important; --of-glass-alpha: 1 !important; --of-glass-alpha-strong: 1 !important; --of-glass-alpha-editor: 1 !important; }
+  :root[data-surface] { --of-glass-filter: none !important; --of-glass-blur: 0px !important; --of-glass-sat: 1 !important; --of-glass-alpha: 1 !important; --of-glass-alpha-strong: 1 !important; --of-glass-alpha-editor: 1 !important; }
   #of-backdrop { display: none !important; }
   :root[data-surface] body { background: var(--of-bg-app); }
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  :root[data-surface] { --of-glass-blur: 0px !important; --of-glass-sat: 1 !important; --of-glass-alpha: 1 !important; --of-glass-alpha-strong: 1 !important; --of-glass-alpha-editor: 1 !important; }
+  :root[data-surface] { --of-glass-filter: none !important; --of-glass-blur: 0px !important; --of-glass-sat: 1 !important; --of-glass-alpha: 1 !important; --of-glass-alpha-strong: 1 !important; --of-glass-alpha-editor: 1 !important; }
   #of-backdrop { display: none !important; }
   :root[data-surface] body { background: var(--of-bg-app); }
 }
