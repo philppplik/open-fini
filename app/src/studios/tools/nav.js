@@ -103,6 +103,7 @@ export class EyedropperTool extends Tool {
     if (app.studio === "pixel") app.style[secondary ? "secondary" : "primary"] = s.hex;
     else app.style.fill = solid(s.hex);
     app.emit("colors");
+    app.emit("eyedropper", { x: e.x, y: e.y, secondary });
     app.status(s.hex.toUpperCase());
     // vector: also paint the selection when shift is held
     if (app.studio !== "pixel" && e.shift && app.selection.length) {

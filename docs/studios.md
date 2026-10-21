@@ -59,7 +59,7 @@ Divide**, **Trace Image to Vector…**.
 | --- | --- | --- |
 | Marquee (rect / ellipse) | `M` | Shift / Alt / Shift+Alt combine with the existing selection. |
 | Lasso (freehand / polygonal) | `L` | Polygonal: click points, click the first point or `Enter` to close, `Backspace` removes a point. |
-| Magic wand / Color range | `W` | Tolerance, contiguous, sample the layer or all layers. |
+| Magic wand / Color range | `W` | Tolerance, contiguous, sample the layer or all layers; Color Range adds softness, sample size and invert. |
 | Crop | `C` | Ratios, optional deletion of cropped pixels. |
 | Brush / Pencil | `B` | `[` and `]` change the size. Pressure-sensitive. Painting on a mask: light colors reveal, dark colors hide. |
 | Eraser | `E` | |
@@ -80,6 +80,8 @@ Layer menu: New pixel layer (`Mod+Shift+N`), group, **adjustments**, **live filt
 mask, duplicate, **Merge Down** (`Mod+E`; also bakes an adjustment into the layer below), Rasterize,
 Flatten.
 
+Panels: **Histogram** (live, with source and channel choice, statistics, clipping overlay, compact mode), **Info** (color under the pointer) and **Adjust** (interactive Levels and Curves with histogram backdrop and eyedroppers, before / after histograms). See the [Histogram guide](pixel-histogram.md).
+
 Adjustments and live filters are **non-destructive layers** you can reorder, mask, hide and re-edit.
 Enable *Apply to the selected layer only* in the Adjust panel to nest them under a layer instead of
 affecting everything below.
@@ -96,7 +98,7 @@ affecting everything below.
 * **Styles panel** — paragraph and character styles (Body, Heading 1–3, Caption, Quote can be added with one
   click). Click to apply, ↻ to redefine from the current formatting.
 * **Text ▸ Generate Table of Contents** builds a contents page from paragraphs styled *Heading 1–3*.
-* **Text ▸ Insert Table…** creates a grid of cells (rectangles with editable frames).
+* **Tables and charts** are real objects: the **Table tool** (`B`), **Chart tool** (`H`), *Text ▸ Insert Table… / Insert Chart…*, the **Data panel** and the *Table* menu. Click into cells to type, use `Tab` / arrows, drag borders, merge cells, number formats, formulas (`=SUM(B2:B5)`), CSV / spreadsheet paste and import, charts with a data grid or linked to a table, ~20 chart presets. See [Tables and charts](layout-tables-charts.md).
 * **Image frame** (`I`) — drop or place an image onto a frame to crop-fill it.
 * **Text ▸ Data Merge…** — load a CSV, use `<<Column Name>>` markers in your text, preview records and export
   one merged PDF.
@@ -132,6 +134,25 @@ toolbox of its own: a chat with the *Canvas* live view, and panels for *Activity
 
 Right-click menus gain an **AI** submenu (canvas, code editor, website elements) when AI features are on.
 
+## Office studio
+
+A page-based word processor for Word (.docx), OpenDocument (.odt), RTF, HTML, Markdown and text documents, with
+named styles, lists, tables, images, footnotes, headers and footers, find and replace, and export to DOCX, ODT, RTF,
+PDF, HTML, Markdown and text. Its workspace replaces the toolbox and dock: a formatting toolbar, an *Outline* /
+*Styles* sidebar and the pages. Spreadsheets and presentations are planned for a later version. See the
+[Office Studio guide](office-studio.md).
+
+| Key | Action |
+| --- | --- |
+| *More* menu | Open the Office studio (or add it to the header in Settings ▸ Studios; it then gets an `Alt` shortcut) |
+| `Mod+B` / `Mod+I` / `Mod+U` | Bold / italic / underline |
+| `Mod+Alt+1` … `Mod+Alt+3` / `Mod+Alt+0` | Heading 1-3 / Normal text |
+| `Mod+Shift+L` / `Mod+Shift+N` | Bulleted / numbered list |
+| `Tab` / `Shift+Tab` | Indent list item (next / previous cell in a table) |
+| `Mod+Enter` | Page break |
+| `Mod+K` | Link |
+| `Mod+F` / `Mod+H` | Find / replace |
+
 ## Export (popup)
 
 Export is **not a studio** — it is a popup that is available from every studio: press the **Export** button in
@@ -152,3 +173,15 @@ Click into text to edit. Standard navigation applies (arrows, Home/End, `Mod`+ar
 select, double-click selects a word, triple-click a paragraph). `Mod+B`, `Mod+I`, `Mod+U` toggle bold,
 italic and underline; everything else is in the **Type** panel. Copy / paste keeps formatting inside
 OpenFini and falls back to plain text elsewhere. `Esc` leaves text editing.
+
+## Studio registry, the header and the More menu
+
+The studios are defined in `app/src/studios/registry.js`. A new studio is one call:
+`registerStudio({ id, label, icon, blurb, order, workspace?, document?, newDocument?, tools?, top?, bottom? })`
+(`systemIcon` uses a Shoelace icon instead of an `assets/icons` glyph). The header, More menu, Studio menu, `studio.<id>`
+commands, welcome cards, New document dialog and Alt+N shortcuts are all derived from it.
+
+The header shows at most **five** studios (preference `visibleStudios`, default Vector, Pixel, Layout, Code, Vibe). Every
+other registered studio is in the **More** menu; opening one from there shows it in place of the More label until you pick
+another studio. Choose and order the header studios in **Settings ▸ Studios** (drag or arrow buttons, at least one, never
+more than five). Alt+1 to Alt+N follow the header order. The Office studio registers this way and starts in the *More* menu; planned studios (video, motion, render) will too.

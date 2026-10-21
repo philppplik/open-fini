@@ -174,6 +174,38 @@ export function scanModuleSpecifiers(code) {
   return out;
 }
 
+// ------------------------------------------------------------------------------------------------ import maps
+
+/**
+ * Resolves a bare specifier with an import map's `imports` (exact entry, else the longest trailing-slash prefix).
+ * Scopes are not applied. Returns the mapped target or null.
+ * @param {Record<string, string>} imports
+ * @param {string} specifier
+ * @returns {string | null}
+ */
+export function resolveImportMap(imports, specifier) {
+  if (!imports) return null;
+  if (Object.prototype.hasOwnProperty.call(imports, specifier) && typeof imports[specifier] === "string") return imports[specifier];
+  let best = null;
+  for (const key of Object.keys(imports)) {
+    if (key.endsWith("/") && specifier.startsWith(key) && typeof imports[key] === "string" && (!best || key.length > best.length)) best = key;
+  }
+  return best ? imports[best] + specifier.slice(best.length) : null;
+}
+
+/** The `imports` of the first inline `<script type="importmap">` of a page, or null. */
+function readInlineImportMap(parsed) {
+  const el = parsed.elements.find((e) => e.tag === "script" && (getAttr(e, "type") || "").trim().toLowerCase() === "importmap");
+  const text = el && el.children[0]?.type === "text" ? el.children[0].text : "";
+  if (!text.trim()) return null;
+  try {
+    const map = JSON.parse(text);
+    return map && typeof map.imports === "object" && map.imports ? map.imports : null;
+  } catch {
+    return null;
+  }
+}
+
 // ------------------------------------------------------------------------------------------------ helpers
 
 const isJsType = (type) => type === null || /^(|text\/javascript|application\/javascript|application\/x-javascript|text\/ecmascript|application\/ecmascript|text\/jscript)$/i.test(type.split(";")[0].trim());
@@ -347,6 +379,21 @@ export function hotCss(files, cssFile, options = {}) {
 function rewriteModule(ctx, file, code) {
   const changes = [];
   for (const s of scanModuleSpecifiers(code)) {
+    if (ctx.importMap && !/^(\.\.?\/|\/|[a-zA-Z][a-zA-Z0-9+.-]*:)/.test(s.specifier)) {
+      // bare specifier: apply the page's import map here, because inline import maps are blocked by the app's CSP
+      const target = resolveImportMap(ctx.importMap, s.specifier);
+      if (target == null) continue;
+      if (/^([a-zA-Z][a-zA-Z0-9+.-]*:|\/\/)/.test(target)) {
+        changes.push({ from: s.start, to: s.end, insert: jsEscapeUrl(target) });
+        continue;
+      }
+      const mref = resolveRef(ctx.entry || file, target);
+      const mdep = mref ? moduleUrl(ctx, mref.path) : null;
+      if (mdep === null || mdep === CYCLE) {
+        ctx.diag("warning", mdep === CYCLE ? "preview/module-cycle" : "preview/missing-file", mdep === CYCLE ? `Circular import of "${s.specifier}".` : `The import map entry for "${s.specifier}" points to a file that does not exist (${target}).`, file, s.start, s.end);
+      } else changes.push({ from: s.start, to: s.end, insert: jsEscapeUrl(mdep) });
+      continue;
+    }
     if (!/^(\.\.?\/|\/)/.test(s.specifier)) continue;
     const ref = resolveRef(file, s.specifier);
     if (!ref) continue;
@@ -410,6 +457,8 @@ export function buildPreview(files, entry, options = {}) {
     text = `<main><h1>File not found</h1><p>The file ${escapeText(entryPath)} does not exist in this project.</p></main>`;
   }
   const parsed = parseHtml(text);
+  ctx.entry = entryPath;
+  ctx.importMap = readInlineImportMap(parsed);
   const changes = [];
   const handlers = [];
   let linkedIndex = 0;

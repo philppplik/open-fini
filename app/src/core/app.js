@@ -4,24 +4,49 @@ import { Emitter, clone } from "./util.js";
 import { Doc } from "./doc.js";
 import { Viewport } from "./viewport.js";
 import { solid } from "./nodes.js";
+import { log } from "./log.js";
+import { t, locale as i18nLocale, setLocale as setI18nLocale, onLocaleChange } from "../i18n/index.js";
+import { createNetwork } from "./network.js";
+import { isSafeMode } from "./bootguard.js";
+import { customizationDefaults } from "../customize/schema.js";
+import { studioIds, hasStudio, resolveVisibleStudios, overflowStudios, DEFAULT_VISIBLE_STUDIOS } from "../studios/registry.js";
 
 const PREF_KEY = "openfini.prefs.v1";
 
 const defaultPrefs = () => ({
   // appearance and accessibility
-  theme: "dark", // dark | light | auto
+  theme: "dark", // mode: dark | light | auto
+  themeId: "default", // color theme (ui/themes.js); every theme has a light and a dark variant
   accent: "violet",
+  surfaceStyle: "solid", // solid | glass | liquid | sea (ui/glass.js); sits on top of the color theme
+  glassBlur: null, // 0-40 px, null = the style's default
+  glassTransparency: null, // 0-50 %, null = the style's default
+  glassBackdrop: "auto", // auto | aurora | ocean | dusk | seaglass | mono | accent | image
+  glassDim: 0, // 0-80 %, darkens the background layer
+  glassAnimate: false, // slowly drifting mesh gradient
   density: "default", // compact | default | spacious
   uiScale: 100, // percent
   reduceMotion: "auto", // auto | on | off
   highContrast: false,
   focusRings: false,
   showHints: true, // tooltips
+  // onboarding (ui/onboarding.js)
+  tours: true, // offer the welcome tour and the per-studio tours
+  contextHints: true, // empty-state hints in panels
+  toursSeen: {}, // tour id → true
+  whatsNewSeen: "", // version whose "What's new" was shown
+  recentCommands: [], // command palette history (ids)
+  // studios shown in the header, in order (max 5; every other registered studio is in the More menu)
+  visibleStudios: [...DEFAULT_VISIBLE_STUDIOS],
   // general
+  language: "auto", // "auto" (system language) or a code from i18n/locales.js
   restoreSession: true,
   autosave: true,
   autosaveSeconds: 4,
+  showRecent: true, // recent files on the start page
+  recentLimit: 12, // recent files remembered (0-50)
   confirmClose: true,
+  saveOriginalFormat: true, // File ▸ Save writes an opened .txt / .md / .docx / .svg again in that format while it fits (core/source-format.js)
   // canvas and performance
   lowPower: "auto", // auto | on | off
   rulers: true,
@@ -32,13 +57,45 @@ const defaultPrefs = () => ({
   codeWordWrap: false,
   codeFontSize: 13,
   codeFormatOnSave: false,
+  codeLayout: "auto", // split arrangement: auto | codeLeft | codeRight | codeTop | codeBottom
+  codeMeasureUnit: "px", // unit of the measure tool
+  codeMeasurePpi: 96, // pixels per inch behind mm / cm / in / pt (96 = CSS reference)
+  codeMeasureDpr: false, // count device pixels (CSS px x device pixel ratio) for physical units
+  codeViewportSizes: [], // saved preview sizes [{ name, w, h }]
+  gitName: "", // author of commits in Source Control
+  gitEmail: "",
   previewScripts: true,
   // security and AI
   confirmExternal: true,
   aiEnabled: false,
+  updateCheckAuto: false, // check GitHub for a newer release at start-up (once a day); off by default
+  updateLastCheck: 0,
+  updateSeenVersion: "",
+  offlineMode: false, // network kill-switch (core/network.js)
+  appLock: false, // mirror of the lock record; the lock itself is in storage (ui/app-lock.js)
+  appLockIdleMinutes: 10, // 0 = never lock on idle
+  appLockOnHide: false, // lock when the window is hidden or minimized
+  protectedMode: true, // website projects from files/folders open with preview scripts off until enabled
+  verboseLogging: false, // also record debug-level log entries
+  // collaboration (docs/collaboration.md): local identity and options. Never exported in profiles; invite codes are never stored.
+  collabNick: "", // nickname shown to room members ("" = ask on first use)
+  collabColor: "", // presence color ("" = picked from the nickname)
+  collabRelay: "ws://127.0.0.1:8787/", // last relay address used to create a room (not secret)
+  collabActivity: true, // post my edits as activity lines in the room chat
+  collabCursors: "auto", // show other members' cursors: auto (off in low-power mode) | on | off
+  collabNotify: true, // toast + title badge for @mentions and replies
+  // customization (customize/schema.js): fonts, shortcuts, toolbox, layout, workspaces, defaults
+  ...customizationDefaults(),
 });
 
+/** A fresh copy of the default preferences (used by customization reset and profiles). */
+export const getDefaultPrefs = () => defaultPrefs();
+
+const safeMode = () => isSafeMode(globalThis.location?.search);
+
 function loadPrefs() {
+  // Safe mode: saved settings stay untouched on disk but are not applied in this session.
+  if (safeMode()) return defaultPrefs();
   try {
     return { ...defaultPrefs(), ...JSON.parse(localStorage.getItem(PREF_KEY) || "{}") };
   } catch {
@@ -46,7 +103,8 @@ function loadPrefs() {
   }
 }
 
-export const STUDIO_ORDER = ["vector", "pixel", "layout", "code", "vibe"];
+/** @deprecated Use app.visibleStudios; kept for extensions and old imports. */
+export const STUDIO_ORDER = [...DEFAULT_VISIBLE_STUDIOS];
 
 export class App extends Emitter {
   constructor() {
@@ -62,6 +120,12 @@ export class App extends Emitter {
     this.prevTool = null;
     this.commands = new Map();
     this.prefs = loadPrefs();
+    /** True when started with ?safe=1: no session restore, extensions off, AI off, saved settings not applied. Extensions and other loaders must honor it. */
+    this.safeMode = safeMode();
+    this.log = log; // central logger (core/log.js)
+    log.minLevel = this.prefs.verboseLogging ? "debug" : "info";
+    /** Offline mode / network kill-switch: `app.network.allowed(kind)` and `app.network.assert(kind)` (core/network.js). */
+    this.network = createNetwork(() => this.prefs.offlineMode, { onBlocked: ({ kind, url }) => log.info("network", `Blocked by offline mode: ${kind}${url ? ` (${url.split(/[?#]/)[0]})` : ""}`) });
     this._toolOpts = {};
     // current drawing style shared by shape tools and panels
     this.style = {
@@ -74,6 +138,13 @@ export class App extends Emitter {
     this.clip = null; // internal clipboard
     this.perf = this.#resolvePerf();
     this.fonts = new Map(); // user supplied fonts
+    /** Interface language: `app.i18n.locale()`, `app.i18n.t(...)`, `app.i18n.set("de" | "auto")`. */
+    this.i18n = { t, locale: i18nLocale, set: setI18nLocale };
+    onLocaleChange(() => {
+      this.emit("locale", i18nLocale());
+      this.emit("menuschanged");
+      this.emit("render");
+    });
   }
 
   /** Raw bytes of a user-supplied font for PDF embedding (null for system fonts → standard PDF fonts). */
@@ -101,7 +172,7 @@ export class App extends Emitter {
   resetPrefs() {
     this.prefs = defaultPrefs();
     try {
-      localStorage.removeItem(PREF_KEY);
+      if (!this.safeMode) localStorage.removeItem(PREF_KEY);
     } catch {
       /* private mode */
     }
@@ -113,8 +184,12 @@ export class App extends Emitter {
 
   setPref(key, value) {
     this.prefs[key] = value;
+    if (key === "verboseLogging") log.minLevel = value ? "debug" : "info";
+    if (key === "language") setI18nLocale(value);
     try {
-      localStorage.setItem(PREF_KEY, JSON.stringify(this.prefs));
+      // Safe mode applies defaults, so only the changed key is merged into the stored settings
+      const stored = this.safeMode ? { ...JSON.parse(localStorage.getItem(PREF_KEY) || "{}"), [key]: value } : this.prefs;
+      localStorage.setItem(PREF_KEY, JSON.stringify(stored));
     } catch {
       /* private mode */
     }
@@ -266,8 +341,20 @@ export class App extends Emitter {
 
   // ------------------------------------------------------------ studios & tools
 
+  /** Studios shown in the header (at most five, user order). */
+  get visibleStudios() {
+    return resolveVisibleStudios(this.prefs.visibleStudios, studioIds());
+  }
+  /** Registered studios that are not in the header: listed in the "More" menu. */
+  get moreStudios() {
+    return overflowStudios(this.visibleStudios, studioIds());
+  }
+  setVisibleStudios(list) {
+    this.setPref("visibleStudios", resolveVisibleStudios(list, studioIds()));
+  }
+
   setStudio(id) {
-    if (this.studio === id) return;
+    if (this.studio === id || !hasStudio(id)) return;
     this.studio = id;
     const cls = this.tool && this.toolClasses.get(this.tool.id);
     if (!cls || !this.studioHasTool(id, cls)) this.setTool(this.defaultToolFor(id));
@@ -320,18 +407,32 @@ export class App extends Emitter {
   // ------------------------------------------------------------ commands
 
   registerCommand(id, def) {
-    this.commands.set(id, { id, ...def });
+    // A command id has exactly one owner; a second registration is a bug (it would silently replace the first).
+    if (this.commands.has(id)) log.warn("command", `Command ${id} is registered twice; the later definition wins.`);
+    const cmd = { id, ...def };
+    if (typeof def.label === "string") {
+      // The label is translated when it is READ, so a language switch updates menus, palette and hints without re-registering.
+      let source = def.label;
+      Object.defineProperty(cmd, "label", { enumerable: true, configurable: true, get: () => t(source), set: (v) => (source = v) });
+    }
+    this.commands.set(id, cmd);
   }
 
   run(id, args) {
     const c = this.commands.get(id);
     if (!c) return false;
     if (c.enabled && !c.enabled(this)) return false;
+    const fail = (err) => {
+      log.error("command", `Command ${id} failed`, err);
+      this.toast(err?.message || t("“{name}” failed.", { name: c.label || id }), "danger", 5000, { label: t("Details"), run: () => this.run("help.troubleshoot") });
+    };
     try {
-      return c.run(this, args) ?? true;
+      const r = c.run(this, args);
+      // async commands report their failures here too (callers that await the result still see the rejection)
+      if (r && typeof r.then === "function") r.catch((err) => (err?.name === "AbortError" ? undefined : fail(err)));
+      return r ?? true;
     } catch (err) {
-      console.error(`Command ${id} failed`, err);
-      this.toast(err?.message || `“${c.label || id}” failed.`, "danger");
+      fail(err);
       return false;
     }
   }
@@ -343,8 +444,9 @@ export class App extends Emitter {
 
   // ------------------------------------------------------------ feedback
 
-  toast(message, variant = "primary", duration = 3200) {
-    this.emit("toast", { message, variant, duration });
+  /** Shows a message. `action` ({label, run}) adds a button to the toast, for example "Details". */
+  toast(message, variant = "primary", duration = 3200, action) {
+    this.emit("toast", { message: t(message), variant, duration, action }); // literal messages are in the catalog; others stay as written
   }
   status(text) {
     this.emit("status", text);

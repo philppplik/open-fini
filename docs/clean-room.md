@@ -45,7 +45,13 @@ will be closed and removed from history.
 | Website engine (`engine/web`) | Original code written against the HTML, CSS and ECMAScript specifications: offset-preserving HTML / CSS parsers, edit producers, preview and site builders, Emmet subset |
 | Code editor | [CodeMirror 6](https://codemirror.net) and Lezer language grammars (MIT), vendored as one bundle in `app/vendor/codemirror` |
 | User interface | [Shoelace](https://shoelace.style) (MIT), Bootstrap Icons (MIT), Inter (OFL), plus OpenFini's own glyphs |
+| PDF import (`core/pdf-source.js`, `core/import-pdf.js`, `engine/formats/pdf-*.js`) | OpenFini code that converts the drawing operations produced by [pdf.js](https://mozilla.github.io/pdf.js/) (Apache-2.0, vendored in `app/vendor/pdfjs`) |
+| Sketch reader (`engine/formats/sketch.js`) | Original code written from Sketch's public file format reference (documented ZIP + JSON); no Sketch code involved |
 | Desktop shell | [Tauri](https://tauri.app) (MIT / Apache-2.0) |
+
+### Formats we deliberately do not read
+
+Affinity (`.afdesign`, `.afphoto`, `.afpub`), InDesign (`.indd`), Figma (`.fig`) and Adobe XD (`.xd`) are proprietary binary containers without a public specification. OpenFini does not reverse engineer or decompile them. It detects them by extension, shows the steps to export to PSD, PDF, SVG or IDML, and, for Affinity files only, looks for an ordinary PNG or JPEG stream by its public image signature (the same thing any file scanner does); the container itself is never interpreted.
 
 ## Reference research
 

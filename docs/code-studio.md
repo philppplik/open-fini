@@ -3,7 +3,7 @@
 The Code studio builds **websites** inside an OpenFini document. It combines two ways of working on the same
 files:
 
-* a **code editor** (HTML, CSS, JavaScript, JSON, Markdown, SVG) with an explorer, tabs, search, a command
+* a **code editor** (HTML, CSS, JavaScript and TypeScript, JSON, YAML, TOML, Markdown, LaTeX, SVG, plain text) with an explorer, tabs, search, a command
   palette, Emmet and completions that know your project — the everyday workflow of a desktop code editor;
 * a **visual designer**: a live canvas at real breakpoints, an element navigator, an element palette, and a style
   panel with classes, breakpoints and inheritance — the workflow of a visual site builder.
@@ -17,7 +17,11 @@ Open it with the **Code** button in the header, **Alt+4**, *Studio ▸ Code Stud
 ## Getting started
 
 * **New website** (*File ▸ New*, choose *Code*): pick a template — *Blank*, *Landing page*, *Portfolio*, *Blog*,
-  *Documentation* or *Link in bio* — all responsive, accessible and free of external requests and web fonts.
+  *Documentation* or *Link in bio* (responsive, accessible, no external requests), or a **framework starter** that runs
+  without a build step: Tailwind CSS, Bootstrap, Alpine.js, htmx, Vue, Preact, React, Lit, web components, Three.js, a
+  Markdown blog, a Markdown docs site and a PWA. See [frameworks.md](frameworks.md).
+* **Open a file or folder**: Markdown, LaTeX, JSON, YAML and other text files open from *File ▸ Open*, drag and drop and
+  *Open Folder* as a one-file project (Markdown and LaTeX get a live preview). See [frameworks.md](frameworks.md#markdown).
 * **Import**: *Import a folder…* or *Import files…* on the start screen, or drag a folder onto the Explorer.
 * The project is stored **inside the `.ofini` document** (`web/files/…`) next to your design pages, so one file
   holds the artwork *and* the site. Autosave and *Save* cover both.
@@ -26,7 +30,7 @@ Open it with the **Code** button in the header, **Alt+4**, *Studio ▸ Code Stud
 
 | Area | What it does |
 | --- | --- |
-| **Activity bar** (left) | Explorer · Add elements · Navigator · Search · Assets · Settings |
+| **Activity bar** (left) | Explorer · Add elements · Navigator · Search · Source Control · Assets · Libraries · Settings |
 | **Explorer** | Create, rename (`F2`), move (drag), duplicate, delete, upload, download; drop files or folders from your computer; set the home page. Renaming or moving a file updates links to it in HTML and CSS. |
 | **Editor** | One editor tab per file, each with its own undo history. Syntax highlighting, bracket matching, folding, multiple cursors, find and replace, completions (tags, attributes, CSS properties, your class names, `var(--…)`, file paths), snippets, diagnostics. |
 | **Canvas** | The live preview of the selected page in a sandboxed frame. *Design mode* selects and edits; *live preview* lets the page behave normally. |
@@ -70,6 +74,54 @@ Edits at a smaller breakpoint go into the matching `@media` block of the same ru
 cascade order). A **blue dot** marks a value set here, an **orange dot** a value inherited from a larger screen;
 click the dot to reset it. Values you have not set show the computed default, dimmed.
 
+### Viewport, rulers and zoom
+
+The **viewport bar** above the canvas sets the size of the page in CSS pixels:
+
+* **Width / height fields**: type a number (or `834px`) and press `Enter` or leave the field; `↑` / `↓` change it by 1, `Shift` by 10
+  (100 to 4000 px). The **lock** keeps the aspect ratio, **rotate** swaps width and height, and **fill height** lets the frame use the
+  available height again (the default).
+* **Presets**: Desktop 1440 / 1280 / 1024, Tablet 820 / 768 and Phone 390 / 375 / 360 / 320 (generic sizes, no product names). The
+  star saves the current size under a name (*Saved sizes*, up to 12; stored in the project and as a default for new projects).
+* **Zoom**: Fit, or 25 to 400 %. At 100 % the page is drawn on whole pixels.
+* **Width slider** (280 to 2560 px): drag for quick responsive testing. It snaps to a breakpoint marker within 6 px unless you hold `Alt`.
+* **Drag handles** on the right, bottom and corner edges of the frame resize it live with a size badge such as "834 × 612". They are
+  keyboard accessible too (focus a handle, arrow keys ±1, `Shift` ±10). While dragging, the zoom stays fixed.
+* **Rulers** show CSS pixels and adapt their ticks to the zoom. The triangles on the horizontal ruler mark widths where the layout
+  changes: the editor's breakpoints (blue) and the `min-width` / `max-width` conditions of every `@media` rule in your CSS (amber);
+  click one to jump to that width.
+
+The size and breakpoint are remembered per project. The breakpoint of the style panel always follows the width, so styles you edit
+at a custom width are written to the `@media` block of the matching breakpoint, exactly as before.
+
+### Measure tool
+
+Press `M` (or the ruler button in the toolbar, *View ▸ Measure Tool*, command `code.measure`) and hover over the canvas:
+
+| Gesture | Result |
+| --- | --- |
+| Hover | Box model bands (margin orange, border yellow, padding green, content blue), tag and size, lines to the viewport edges |
+| Hold `Alt` | Distance to the pinned element, else the selected one, else the parent (red lines) |
+| Click | Pins the element (click again to unpin) |
+| `Shift`+click | Pins and links to the previous pin with distance lines |
+| `D` | Shows the margin and padding values on the bands |
+| `Ctrl+C` | Copies the size, for example `320×48px` (or click the readout in the viewport bar) |
+| `Esc` | Clears pins, then leaves the tool |
+
+Units: px, mm, cm, in, pt, rem, em and % of the parent. Physical units follow the CSS definition (1 in = 96 px); change the
+**ppi** basis if you want a different density, or turn on **Device pixels** to count CSS px × device pixel ratio. While the tool is on,
+clicks do not select or edit. The overlay is drawn inside the preview, so it scales with the zoom.
+
+### Split layouts
+
+In Split view choose the arrangement with the four buttons in the toolbar, *View ▸ Split Layout* or the commands
+`code.layout.codeLeft`, `codeRight`, `codeTop` and `codeBottom`: code left of the preview (default), code right, code above, or code
+below. *Automatic* keeps code on the left and stacks it above the preview when the workbench is narrower than 760 px; an explicit choice
+is never overridden. Drag the splitter to resize (the ratio is remembered separately for side-by-side and stacked layouts,
+double-click resets to 50/50) or focus it and use the arrow keys (`Shift` for bigger steps; `Home` / `End` for the limits). Both panes
+keep at least 240 px. The layout is stored in the project and as the default for new projects. A detached preview in its own window is
+not offered yet.
+
 ### Code editor shortcuts
 
 | Action | Shortcut |
@@ -87,7 +139,21 @@ click the dot to reset it. Values you have not set show the computed default, di
 | Toggle sidebar / bottom panel | `Mod+B` / `Mod+J` |
 | Design / split / code view | `Mod+Alt+1` / `2` / `3` |
 | Design mode ↔ live preview | `Mod+Alt+P` |
+| Measure tool on / off | `M` (focus in the canvas or workbench, not in a text field) |
+| Viewport width / height field | `Enter` applies · `↑` `↓` ±1 · `Shift+↑↓` ±10 |
+| Resize handle / splitter | Arrow keys (`Shift` for bigger steps) |
+| Split layout | *View ▸ Split Layout* (no default shortcut; assign one in the shortcut editor) |
 | Word wrap | `Alt+Z` |
+
+### Libraries, Markdown and LaTeX
+
+* **Libraries** (activity bar, *Libraries…* in the palette): add, update and remove CDN libraries and import-map entries,
+  search npm and cdnjs, and *Download into project* (`vendor/`) so the exported site works offline.
+* **Markdown and LaTeX files** show a live document preview instead of the canvas, with a formatting toolbar above the
+  editor, a heading outline in the Navigator, and export to an HTML page or print / PDF. The LaTeX preview is a subset
+  converter, **not a TeX engine**; unsupported commands are marked.
+* **Completions** for Tailwind and Bootstrap classes, Alpine and htmx attributes; Add-panel snippets for Bootstrap,
+  Tailwind and htmx.
 
 ## Preview and security
 
@@ -100,6 +166,8 @@ part of an export.
   (the app's Content-Security-Policy forbids inline scripts, and the preview inherits it). ES modules that import
   other project files work; circular imports are reported.
 * Inline event handler attributes (`onclick="…"`) are converted to equivalent assignments in the preview.
+* Inline import maps are blocked by the desktop CSP, so the preview resolves bare module specifiers through the page's
+  import map itself (see [frameworks.md](frameworks.md#the-content-security-policy)).
 * The desktop app's CSP allows `https:` images, fonts, stylesheets and embeds and scripts from `cdn.jsdelivr.net`,
   `cdnjs.cloudflare.com` and `unpkg.com`. `fetch` / `XMLHttpRequest` to other servers are blocked in the **desktop
   preview**; the web version has no such restriction. Forms are not submitted in the preview.
@@ -127,8 +195,39 @@ edits as `Change[]`, the style-panel schema, the preview and site builders, temp
 its inspector bridge, the explorer, navigator, panels and palette. The module is loaded lazily the first time the
 studio is opened, so it adds nothing to application start-up.
 
+## Architecture: viewport, measure and layout
+
+* **Pure logic** (unit-tested, `tests/web/viewport.test.js`, `tests/web/measure.test.js`): `app/src/engine/web/viewport.js` (presets,
+  size parsing and clamping, breakpoint markers parsed from CSS, snapping, ruler ticks, layout resolution, split ratios and splitter
+  keys) and `app/src/engine/web/measure.js` (unit conversion, distance guides, box bands, strict validation of boxes received from the
+  frame). `measureKit()` in `measure.js` is self-contained: `bridge.js` serializes it into the preview frame, so the overlay and the
+  host compute identical numbers.
+* **Preview pane** (`ui/code/preview.js`): owns `vw`/`vh` (CSS px; `vh` null = fill), derives `bp` from the width
+  (`breakpointForWidth`), persists `web.settings.viewport`, `zoom`, `rulers`, and emits `viewport`, `breakpoint`, `measure`. All size
+  changes go through `setSize` / `resizeTo` (snapping and aspect lock) so the style panel, toolbar and rulers stay in sync.
+* **UI** (`ui/code/viewport-ui.js`): bar, rulers (canvas) and handles; styles in `app/styles/code.css`.
+* **Bridge protocol** (additive): host to frame `measure {on, unit, ppi, dprAware, details, accent}` and `measureBox {id, reqId}`;
+  frame to host `measureInfo`, `measureBox`, `measureExit`, `measureCopied`, `measureOpt`. The frame is untrusted (the page's own
+  scripts can post to the parent), so the host validates every box with `sanitizeBox` and ignores anything malformed.
+* **Layout** (`ui/code/workspace.js`): `data-layout` on `.of-split` with CSS flex direction reversal; settings `layout`, `splitH`,
+  `splitV`; prefs `codeLayout`, `codeMeasureUnit`, `codeMeasurePpi`, `codeMeasureDpr`, `codeViewportSizes`.
+* **Commands and Vibe tools**: `code.measure`, `code.rulers`, `code.viewportRotate`, `code.layout.*` in `commands/code.js`;
+  `set_viewport`, `get_viewport`, `measure_element`, `set_code_layout` in `vibe/tools/web-view.js`.
+
+How to extend: add a preset to `DEVICE_PRESETS`, a unit to `UNITS` and the kit's `PER_INCH` / `DECIMALS`, or a bridge message in
+`bridge.js` plus a validated handler in `preview.js`.
+
+## Source Control and one-click publishing
+
+The **Source Control** pane (activity bar) gives the project real Git: commits, branches, merging, tags, history with a
+graph, diffs, restore from any commit and Git status in the Explorer and the editor gutter. The history is stored
+inside the `.ofini` document and can be exported as a ZIP with a real `.git` folder. GitHub sync works through its API;
+other servers need a CORS proxy. The **Publish** button (and *Export ▸ Publish*) deploys to Netlify, Vercel, GitHub
+Pages and WebDAV, or to FTP/SFTP/rsync/SMTP through a small local helper (`npm run publish:helper`), after pre-publish
+checks and a confirmation. Details, storage format and honest limits: [git-and-publishing.md](git-and-publishing.md).
+
 ## Limitations
 
 See [roadmap.md](roadmap.md#code-studio). In short: no CMS, symbols/components, interactions editor, multi-page
-shared layouts (partials) or real-time collaboration; no Git; no terminal or language servers; the visual designer
+shared layouts (partials) or real-time collaboration; no stash/rebase in Source Control; no terminal or language servers; the visual designer
 edits one page at a time.

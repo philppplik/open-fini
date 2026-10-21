@@ -40,13 +40,13 @@ tests/               node:test suites (core, vector, pixel, layout, packaging)
 docs/                documentation and decision records
 ```
 
-Read [docs/architecture.md](docs/architecture.md) first; the shapes shared between engines are in
+Read the [developer guide](docs/development.md) (module map, recipes, Git workflow) and [docs/architecture.md](docs/architecture.md) first; the shapes shared between engines are in
 [docs/engine-contracts.md](docs/engine-contracts.md).
 
 ## Making a change
 
 1. **Open an issue** for anything larger than a small fix, so we can agree on the approach.
-2. Create a branch: `feat/short-name`, `fix/short-name`, `docs/short-name`.
+2. Create a branch: `feat/short-name`, `fix/short-name`, `docs/short-name`. `main` is protected: all changes arrive through pull requests (squash-merged) with passing CI.
 3. Write the code. Conventions:
    * ES modules, 2-space indent, double quotes, semicolons; follow the surrounding style (`.editorconfig`).
    * JSDoc types on exported functions. Comments explain *why*, not *what*.

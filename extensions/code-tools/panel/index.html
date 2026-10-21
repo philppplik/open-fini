@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><link rel="stylesheet" href="panel.css"></head>
+<body>
+  <nav class="tabs" role="tablist" aria-label="Code Tools">
+    <button role="tab" id="t-snip" aria-controls="p-snip" aria-selected="true">Snippets</button>
+    <button role="tab" id="t-fmt" aria-controls="p-fmt" aria-selected="false">Format</button>
+  </nav>
+  <section id="p-snip" role="tabpanel" aria-labelledby="t-snip">
+    <div class="row">
+      <input id="q" type="search" placeholder="Search snippets" aria-label="Search snippets" class="grow">
+      <select id="lang" aria-label="Language"><option value="">All</option><option>html</option><option>css</option><option>javascript</option></select>
+    </div>
+    <div id="list" class="list" role="list"></div>
+    <details>
+      <summary>New snippet</summary>
+      <div class="grid">
+        <label>Trigger <input id="n-label" type="text" placeholder="my-card"></label>
+        <label>Language <select id="n-lang"><option>html</option><option>css</option><option>javascript</option></select></label>
+      </div>
+      <label class="block">Body <textarea id="n-body" rows="5" spellcheck="false" placeholder="Use ${1:placeholder} for tab stops"></textarea></label>
+      <div class="row"><button id="n-save" type="button" class="primary">Save snippet</button></div>
+    </details>
+  </section>
+  <section id="p-fmt" role="tabpanel" aria-labelledby="t-fmt" hidden>
+    <p>Works on a project file. The extension API has no access to the editor selection, so for a snippet of code use the scratchpad below.</p>
+    <div class="row"><select id="file" aria-label="Project file" class="grow"></select><button id="reload" type="button" title="Reload file list">Reload</button></div>
+    <div class="row"><button id="b-format" type="button" class="primary">Format</button><button id="b-sort" type="button">Sort CSS properties</button><button id="b-min" type="button">Minify to .min file</button></div>
+    <h2>Scratchpad</h2>
+    <div class="row"><select id="s-lang" aria-label="Language"><option>html</option><option>css</option><option>js</option><option>json</option></select>
+      <button id="s-format" type="button">Format</button><button id="s-min" type="button">Minify</button><button id="s-sort" type="button">Sort CSS</button><button id="s-copy" type="button">Copy</button></div>
+    <textarea id="scratch" rows="10" spellcheck="false" aria-label="Scratchpad"></textarea>
+  </section>
+  <div id="status" class="status" role="status" aria-live="polite"></div>
+  <script src="panel.js"></script>
+</body>
+</html>

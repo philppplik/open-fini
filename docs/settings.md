@@ -9,21 +9,31 @@ device (`localStorage`); *Security and privacy ▸ Reset all settings* restores 
 
 | Section | What it controls |
 | --- | --- |
-| **General** | Restore the last session on start, autosave and its delay, ask before closing unsaved documents, *Save All*, *Open Folder…* |
-| **Appearance** | Dark / light / system theme, accent color (7 presets), density (compact / default / spacious), interface scale (80–160 %) |
+| **General** | Restore the last session on start, autosave and its delay, ask before closing unsaved documents, **save opened files in their original format when possible** (`saveOriginalFormat`, default on: a `.txt` or `.docx` opened with File ▸ Open is saved as that format; off = always `.ofini`; see [file-compat.md](file-compat.md#saving-back-to-the-original-format)), *Save All*, *Open Folder…* **Language:** Automatic (system language), English (United States) or Deutsch; switches live and shows the detected language. See [i18n.md](i18n.md) |
+| **Appearance** | Mode (dark / light / system), the color theme gallery (see [Themes](themes.md)), the optional surface style (solid / glass / liquid glass / sea glass with blur, transparency, background layer and dim, see [Surface styles](themes.md#surface-styles)), accent color override (20 presets or any color), density (compact / default / spacious), interface scale (80–160 %), interface text size, interface font, corner radius, animation speed, canvas pointer size |
 | **Accessibility** | High contrast, reduced motion (follows the system by default), always-visible focus outlines, tooltips on/off, interface scale |
+| **Onboarding and help** | Offer tours, hints in empty panels, restart the welcome or studio tour, reset tours and What's new, command palette tips |
 | **Canvas and editing** | Rulers, clip content to the page, low-power mode, undo-history memory |
 | **Code studio** | Tab size, word wrap, editor font size, format on save, run JavaScript in the website preview |
 | **Artificial intelligence** | Master switch for AI features (off by default: nothing is sent anywhere and no AI menu items appear), shortcut to open Vibe Studio, and *Delete AI data* (chats, keys, skills, tools, MCP servers, memory, knowledge). Models, keys and permissions are managed inside [Vibe Studio](vibe-studio.md) |
-| **Security and privacy** | Ask before opening external links, storage in use, clear recent files / autosaved session / added fonts, reset settings |
-| **Keyboard shortcuts** | Every shortcut of the current command set |
-| **About** | Version, license, source and documentation links |
+| **Security and privacy** | Security check, offline mode, app lock (passphrase, idle and hidden triggers), protected mode for website projects from files, ask before opening links, privacy tools (clear data, stored-data inventory, delete all), integrity check, reset settings. See [security.md](security.md) |
+| **Troubleshooting** | Open the troubleshooting dialog, verbose logging, copy report, save bundle, report an issue, safe mode, reset app data. See [troubleshooting.md](troubleshooting.md) |
+| **Keyboard shortcuts** | Editable: rebind any command or tool, conflicts, presets, import / export (see [Customization](customization.md)) |
+| **Toolbox and menus** | Show, hide and reorder tools per studio, hide menus and items, choose the header's quick actions |
+| **Layout and workspaces** | Panels, dock side and width, built-in and saved workspaces per studio |
+| **Defaults for new things** | New-document size, unit, resolution and background per studio; export and text defaults |
+| **Profiles and backup** | Export / import `.ofprofile`, named profiles, reset everything |
+| **About** | Version, license, source and documentation links · update checker (manual, optional daily automatic check; see core/updates.js) |
 
 ## For developers
+
+* The `language` preference (`"auto"` or a code from `app/src/i18n/locales.js`) drives the interface language; see [i18n.md](i18n.md).
 
 * Preferences live in `App.prefs` (`app/src/core/app.js`, `defaultPrefs()`); `setPref(key, value)` persists and emits
   `prefs`, `resetPrefs()` restores defaults.
 * The dialog is data-driven (`settingsSections()` in `app/src/ui/settings-dialog.js`): add an item to a section and
   it appears, is searchable and is stored.
+* Themes: the `themeId` pref selects a registered theme (`app/src/ui/themes.js`), the `theme` pref is the mode. Onboarding prefs: `tours`, `contextHints`, `toursSeen`, `whatsNewSeen`, `recentCommands`.
 * Appearance and accessibility preferences are applied by `app/src/ui/appearance.js` (classes on `<html>`, CSS custom
   properties, `zoom` on `#app`); the corresponding CSS is at the end of `app/styles/app.css`.
+* Customization (shortcuts, toolbox, layout, profiles, extension hooks) is described in [customization.md](customization.md). Every portable setting has a reset arrow and each section a *Reset section to defaults* button.

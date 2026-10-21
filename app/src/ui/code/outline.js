@@ -2,6 +2,7 @@
 import { h, empty, debounce } from "../../core/util.js";
 import { classList, getAttr } from "../../engine/web/index.js";
 import { iconButton } from "../controls.js";
+import { documentOutline } from "./doctools.js";
 
 const TAG_ICONS = {
   body: "window",
@@ -99,9 +100,22 @@ export function createOutline(ws) {
   }
 
   let rows = [];
+  /** Markdown / LaTeX: the headings of the open document; click jumps to the line. */
+  function renderDocument() {
+    const path = ws.editors.active;
+    const items = documentOutline(path, ws.web.text(path) || "");
+    if (!items.length) list.append(h("div.of-empty", "No headings yet."));
+    for (const it of items) {
+      const row = h("div.of-tree__row", { role: "treeitem", style: { paddingLeft: `${8 + (it.level - 1) * 14}px` }, tabindex: "-1" }, h("span.of-tree__label", it.title || "(empty heading)"));
+      row.addEventListener("click", () => ws.editors.openFile(path, { line: it.line, focus: true }));
+      list.append(row);
+    }
+  }
+
   function render() {
     empty(list);
     rows = [];
+    if (ws.documentKind) return renderDocument();
     const file = ws.page;
     const parsed = file ? ws.model.html(file) : null;
     if (!parsed) {
@@ -269,6 +283,7 @@ export function createOutline(ws) {
   ws.on("project", sched);
   ws.on("swap", sched);
   ws.on("page", () => render());
+  ws.on("docmode", () => render());
   ws.on("selection", revealSelected);
   ws.on("hover", paintState);
   list.addEventListener("keydown", (e) => {

@@ -1,23 +1,50 @@
 // Modal dialogs built on Shoelace's <sl-dialog>.
 import { h, prettyShortcut } from "../core/util.js";
+import { t } from "../i18n/index.js";
+
+// Dialog texts passed by callers are English source strings: openDialog/confirmDialog/promptDialog translate them with t()
+// (a string without a catalog entry, for example one built from user data, is shown as is).
 import { Doc } from "../core/doc.js";
 import { numField, selectField, segmented, colorField, switchField, button } from "./controls.js";
-import { STUDIOS } from "../studios/index.js";
+import { STUDIOS, listStudios } from "../studios/registry.js";
+import { createOnceRegistry } from "../core/single-flight.js";
 
-export function openDialog({ title, body, buttons = [], width = 520, cls = "", onClose } = {}) {
-  const dlg = h("sl-dialog", { label: title, class: `of-dialog ${cls}`, style: { "--width": `${width}px` } });
+const keyedDialogs = createOnceRegistry();
+
+/** True while a dialog opened with this `key` is showing (callers can skip building an expensive body). */
+export function isDialogOpen(key) {
+  return keyedDialogs.has(key);
+}
+
+/**
+ * Opens a modal dialog. With `key`, the request is idempotent: while a dialog with the same key is open,
+ * the same instance is returned and nothing new is created (one prompt per user request).
+ */
+export function openDialog(options = {}) {
+  return options.key ? keyedDialogs.open(options.key, (release) => buildDialog(options, release)) : buildDialog(options);
+}
+
+function buildDialog({ title, body, buttons = [], width = 520, cls = "", onClose } = {}, release) {
+  const dlg = h("sl-dialog", { label: t(title), class: `of-dialog ${cls}` });
+  dlg.style.setProperty("--width", `${width}px`); // custom properties need setProperty, not style["--x"]
   dlg.append(body);
   const footer = h("div", { slot: "footer", class: "of-dialog__footer" });
   const close = () => dlg.hide();
   for (const b of buttons) {
-    const btn = h("sl-button", { variant: b.variant || "default", size: "medium", outline: b.outline || undefined }, b.label);
+    const btn = h("sl-button", { variant: b.variant || "default", size: "medium", outline: b.outline || undefined }, t(b.label));
     btn.addEventListener("click", () => b.onClick?.(close, dlg));
     footer.append(btn);
   }
   if (buttons.length) dlg.append(footer);
   document.body.append(dlg);
+  if (release) {
+    dlg.addEventListener("sl-hide", (e) => {
+      if (e.target === dlg) release();
+    });
+  }
   dlg.addEventListener("sl-after-hide", (e) => {
     if (e.target !== dlg) return;
+    release?.();
     dlg.remove();
     onClose?.();
   });
@@ -27,6 +54,7 @@ export function openDialog({ title, body, buttons = [], width = 520, cls = "", o
 }
 
 export function confirmDialog({ title = "Confirm", message, ok = "OK", cancel = "Cancel", danger = false, extra } = {}) {
+  message = t(message);
   return new Promise((resolve) => {
     let done = false;
     const finish = (v) => {
@@ -43,6 +71,7 @@ export function confirmDialog({ title = "Confirm", message, ok = "OK", cancel = 
 }
 
 export function promptDialog({ title = "Enter a value", label = "", value = "", ok = "OK", type = "text" } = {}) {
+  label = label ? t(label) : label;
   return new Promise((resolve) => {
     let done = false;
     const input = h("sl-input", { value, label, type, autofocus: true });
@@ -115,7 +144,7 @@ export function fromPx(px, unit, dpi) {
 // ------------------------------------------------------------------ new document
 
 const PRESETS = {
-  Screen: [
+  Screen: [ // preset groups and names are shown through t() (N_ marks them for extraction)
     ["Full HD", 1920, 1080, "px", 96], ["HD", 1280, 720, "px", 96], ["Desktop", 1440, 900, "px", 96],
     ["Mobile", 390, 844, "px", 96], ["Tablet", 1024, 768, "px", 96], ["4K UHD", 3840, 2160, "px", 96],
   ],
@@ -135,14 +164,16 @@ const PRESETS = {
 
 export function newDocumentDialog(app, { studio = app.studio === "code" ? "vector" : app.studio } = {}) {
   const state = { studio, name: "Untitled", w: 1920, h: 1080, unit: "px", dpi: 96, pages: 1, bg: "#ffffff", transparent: false, bleed: 0, facing: false };
+  const dd = app.prefs.newDocDefaults?.[studio]; // Settings > Defaults for new things
+  if (dd) Object.assign(state, { w: dd.width ?? state.w, h: dd.height ?? state.h, unit: dd.unit ?? state.unit, dpi: dd.dpi ?? state.dpi, bg: dd.bg ?? state.bg, transparent: dd.transparent ?? state.transparent });
   const cats = Object.keys(PRESETS);
   let cat = studio === "layout" ? "Print" : studio === "pixel" ? "Photo" : "Screen";
   const grid = h("div.of-presets");
   const customBox = h("div.of-form");
 
-  const fw = numField({ label: "Width", value: state.w, min: 1, max: 100000, precision: 2, wide: true, onChange: (v) => (state.w = v) });
-  const fh = numField({ label: "Height", value: state.h, min: 1, max: 100000, precision: 2, wide: true, onChange: (v) => (state.h = v) });
-  const unit = selectField({ label: "Unit", value: state.unit, options: UNITS, onChange: (u) => {
+  const fw = numField({ label: t("Width"), value: state.w, min: 1, max: 100000, precision: 2, wide: true, onChange: (v) => (state.w = v) });
+  const fh = numField({ label: t("Height"), value: state.h, min: 1, max: 100000, precision: 2, wide: true, onChange: (v) => (state.h = v) });
+  const unit = selectField({ label: t("Unit"), value: state.unit, options: UNITS, onChange: (u) => {
     const px = { w: toPx(state.w, state.unit, state.dpi), h: toPx(state.h, state.unit, state.dpi) };
     state.unit = u;
     state.w = fromPx(px.w, u, state.dpi);
@@ -150,21 +181,21 @@ export function newDocumentDialog(app, { studio = app.studio === "code" ? "vecto
     fw.set(state.w);
     fh.set(state.h);
   } });
-  const dpi = numField({ label: "DPI", value: state.dpi, min: 1, max: 2400, precision: 0, wide: true, onChange: (v) => (state.dpi = v) });
-  const pages = numField({ label: "Pages", value: 1, min: 1, max: 200, precision: 0, wide: true, onChange: (v) => (state.pages = Math.round(v)) });
-  const bleed = numField({ label: "Bleed", value: 0, min: 0, max: 100, precision: 1, unit: "mm", wide: true, onChange: (v) => (state.bleed = v) });
-  const name = h("sl-input", { value: state.name, label: "Name", size: "small" });
+  const dpi = numField({ label: t("DPI"), value: state.dpi, min: 1, max: 2400, precision: 0, wide: true, onChange: (v) => (state.dpi = v) });
+  const pages = numField({ label: t("Pages"), value: 1, min: 1, max: 200, precision: 0, wide: true, onChange: (v) => (state.pages = Math.round(v)) });
+  const bleed = numField({ label: t("Bleed"), value: 0, min: 0, max: 100, precision: 1, unit: "mm", wide: true, onChange: (v) => (state.bleed = v) });
+  const name = h("sl-input", { value: state.name, label: t("Name"), size: "small" });
   name.addEventListener("sl-input", () => (state.name = name.value));
-  const bg = colorField({ value: "#ffffff", alpha: false, label: "Background", onChange: (c) => (state.bg = c) });
-  const transparent = switchField({ label: "Transparent background", value: false, onChange: (v) => (state.transparent = v) });
+  const bg = colorField({ value: "#ffffff", alpha: false, label: t("Background"), onChange: (c) => (state.bg = c) });
+  const transparent = switchField({ label: t("Transparent background"), value: false, onChange: (v) => (state.transparent = v) });
   const studioSeg = segmented(
-    ["vector", "pixel", "layout", "code"].map((id) => ({ value: id, label: `${STUDIOS[id].label} studio — ${STUDIOS[id].blurb}`, text: STUDIOS[id].label })),
+    listStudios().filter((s) => s.document || s.newDocument).map((s) => ({ value: s.id, label: t("{studio} studio — {blurb}", { studio: s.label, blurb: t(s.blurb) }), text: s.label })),
     state.studio,
     (v) => {
-      if (v === "code") {
-        // websites start from a template gallery instead of a canvas size
+      if (STUDIOS[v]?.newDocument) {
+        // a studio with its own start dialog (Code: a template gallery instead of a canvas size)
         dialogRef?.close();
-        import("./code/start.js").then((m) => m.newWebsiteDialog(app));
+        STUDIOS[v].newDocument(app, {});
         return;
       }
       state.studio = v;
@@ -176,8 +207,8 @@ export function newDocumentDialog(app, { studio = app.studio === "code" ? "vecto
     state.h = h2;
     state.unit = u;
     state.dpi = d;
-    state.name = label;
-    name.value = label;
+    state.name = t(label);
+    name.value = t(label);
     fw.set(w);
     fh.set(h2);
     unit.set(u);
@@ -186,10 +217,10 @@ export function newDocumentDialog(app, { studio = app.studio === "code" ? "vecto
 
   function renderPresets() {
     grid.replaceChildren(
-      h("div.of-presets__tabs", cats.map((c) => h("button.of-presets__tab", { type: "button", class: c === cat ? "active" : "", onclick: () => { cat = c; renderPresets(); } }, c))),
+      h("div.of-presets__tabs", cats.map((c) => h("button.of-presets__tab", { type: "button", class: c === cat ? "active" : "", onclick: () => { cat = c; renderPresets(); } }, t(c)))),
       h("div.of-presets__list", PRESETS[cat].map((p) => {
         const [label, w, hh, u] = p;
-        const b = h("button.of-preset", { type: "button" }, h("strong", label), h("span", `${w} × ${hh} ${u}`));
+        const b = h("button.of-preset", { type: "button" }, h("strong", t(label)), h("span", `${w} × ${hh} ${u}`));
         b.addEventListener("click", () => applyPreset(p));
         return b;
       })),
@@ -199,22 +230,22 @@ export function newDocumentDialog(app, { studio = app.studio === "code" ? "vecto
   applyPreset(PRESETS[cat][0]);
   customBox.append(name, h("div.of-row", fw.el, fh.el), h("div.of-row", unit.el, dpi.el), h("div.of-row", pages.el, bleed.el), h("div.of-row", bg.el), transparent.el);
 
-  const body = h("div.of-newdoc", h("div.of-newdoc__studio", h("span.of-slider__label", "Start in"), studioSeg.el), h("div.of-newdoc__cols", grid, customBox));
+  const body = h("div.of-newdoc", h("div.of-newdoc__studio", h("span.of-slider__label", t("Start in")), studioSeg.el), h("div.of-newdoc__cols", grid, customBox));
 
   const dialogRef = openDialog({
-    title: "New Document",
+    title: t("New Document"),
     body,
     width: 760,
     buttons: [
-      { label: "Cancel", onClick: (c) => c() },
+      { label: t("Cancel"), onClick: (c) => c() },
       {
-        label: "Create",
+        label: t("Create"),
         variant: "primary",
         onClick: (close) => {
           const wpx = Math.round(toPx(state.w, state.unit, state.dpi));
           const hpx = Math.round(toPx(state.h, state.unit, state.dpi));
           if (wpx * hpx > 150e6) {
-            app.toast("That canvas is too large (over 150 megapixels).", "warning");
+            app.toast(t("That canvas is too large (over 150 megapixels)."), "warning");
             return;
           }
           const doc = createDocument(app, { ...state, width: wpx, height: hpx });
@@ -249,45 +280,45 @@ export function preferencesDialog(app, section) {
 }
 
 export function aboutDialog() {
-  const version = h("p.of-hint", "MIT License");
-  fetch("./build-info.json").then((r) => (r.ok ? r.json() : null)).then((j) => j && (version.textContent = `Version ${j.version} (build ${String(j.buildId).split("-").pop()}) · MIT License`)).catch(() => {});
+  const version = h("p.of-hint", t("MIT License"));
+  fetch("./build-info.json").then((r) => (r.ok ? r.json() : null)).then((j) => j && (version.textContent = t("Version {version} (build {build}) · MIT License", { version: j.version, build: String(j.buildId).split("-").pop() }))).catch(() => {});
   openDialog({
-    title: "About OpenFini",
+    title: t("About OpenFini"),
     width: 480,
     body: h(
       "div.of-about",
       h("img", { src: "./icons/icon.svg", width: 72, height: 72, alt: "" }),
       h("h2", "OpenFini"),
-      h("p", "A lightweight, open-source creative suite with Vector, Pixel, Layout and Code studios."),
+      h("p", t("A lightweight, open-source creative suite with Vector, Pixel, Layout and Code studios.")),
       version,
-      h("p.of-hint", "OpenFini is an independent project. It is not affiliated with, endorsed by or derived from any commercial product. All product names are trademarks of their respective owners."),
-      h("p", h("a", { href: "https://github.com/philppplik/open-fini", target: "_blank", rel: "noopener" }, "github.com/philppplik/open-fini")),
+      h("p.of-hint", t("OpenFini is an independent project. It is not affiliated with, endorsed by or derived from any commercial product. All product names are trademarks of their respective owners.")),
+      h("p", h("a", { href: "https://github.com/philppplik/open-fini", rel: "noopener", onclick: (e) => { e.preventDefault(); import("./links.js").then((m) => m.openLink("https://github.com/philppplik/open-fini")); } }, "github.com/philppplik/open-fini")),
     ),
-    buttons: [{ label: "Close", variant: "primary", onClick: (c) => c() }],
+    buttons: [{ label: t("Close"), variant: "primary", onClick: (c) => c() }],
   });
 }
 
 export function shortcutsDialog(app) {
-  openDialog({ title: "Keyboard Shortcuts", body: shortcutsContent(app), width: 720, buttons: [{ label: "Close", variant: "primary", onClick: (c) => c() }] });
+  openDialog({ title: t("Keyboard Shortcuts"), body: shortcutsContent(app), width: 720, buttons: [{ label: t("Close"), variant: "primary", onClick: (c) => c() }] });
 }
 
 export function shortcutsContent(app) {
   const groups = new Map();
   const group = (c) => c.id.split(".")[0];
-  const names = { file: "File", edit: "Edit", arrange: "Arrange", align: "Align", view: "View", studio: "Studios", layer: "Layer", select: "Select", doc: "Document", help: "Help", bool: "Shape", shape: "Shape", pixel: "Pixel", filter: "Filter", distribute: "Align" };
+  const names = { file: t("File"), edit: t("Edit"), arrange: t("Arrange"), align: t("Align"), view: t("View"), studio: t("Studios"), layer: t("Layer"), select: t("Select"), doc: t("Document"), help: t("Help"), bool: t("Shape"), shape: t("Shape"), pixel: "Pixel", filter: t("Filter"), distribute: t("Align") };
   for (const c of app.commands.values()) {
     if (!c.shortcut) continue;
-    const g = names[group(c)] || "Other";
+    const g = names[group(c)] || t("Other");
     if (!groups.has(g)) groups.set(g, []);
     groups.get(g).push(c);
   }
   const toolRows = [];
-  for (const C of app.toolClasses.values()) if (C.shortcut) toolRows.push(h("div.of-sc__row", h("span", C.label), h("kbd", C.shortcut)));
+  for (const C of app.toolClasses.values()) if (C.shortcut) toolRows.push(h("div.of-sc__row", h("span", t(C.label)), h("kbd", C.shortcut)));
   return h(
     "div.of-shortcuts",
     ...[...groups].map(([g, cmds]) => h("section", h("h3", g), ...cmds.map((c) => h("div.of-sc__row", h("span", c.label), h("kbd", prettyShortcut(c.shortcut)))))),
-    h("section", h("h3", "Tools"), ...toolRows),
-    h("section", h("h3", "Navigation"), h("div.of-sc__row", h("span", "Pan"), h("kbd", "Space + drag")), h("div.of-sc__row", h("span", "Zoom"), h("kbd", "Ctrl + wheel")), h("div.of-sc__row", h("span", "Constrain / uniform"), h("kbd", "Shift")), h("div.of-sc__row", h("span", "From center / copy"), h("kbd", "Alt"))),
+    h("section", h("h3", t("Tools")), ...toolRows),
+    h("section", h("h3", t("Navigation")), h("div.of-sc__row", h("span", t("Pan")), h("kbd", t("Space + drag"))), h("div.of-sc__row", h("span", t("Zoom")), h("kbd", t("Ctrl + wheel"))), h("div.of-sc__row", h("span", t("Constrain / uniform")), h("kbd", "Shift")), h("div.of-sc__row", h("span", t("From center / copy")), h("kbd", "Alt"))),
   );
 }
 
@@ -297,7 +328,7 @@ export function colorDialog(app, which) {
     app.style[which] = picker.value;
     app.emit("colors");
   });
-  openDialog({ title: which === "primary" ? "Foreground Color" : "Background Color", body: h("div.of-center", picker), width: 360, buttons: [{ label: "Done", variant: "primary", onClick: (c) => c() }] });
+  openDialog({ title: which === "primary" ? t("Foreground Color") : t("Background Color"), body: h("div.of-center", picker), width: 360, buttons: [{ label: t("Done"), variant: "primary", onClick: (c) => c() }] });
 }
 
 export { button };

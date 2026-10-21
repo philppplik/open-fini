@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><link rel="stylesheet" href="panel.css"></head>
+<body>
+  <section aria-labelledby="h-exp">
+    <h2 id="h-exp">Batch export</h2>
+    <div class="row"><label>Export <select id="source"><option value="selection">Selected layers</option><option value="page">Current page</option><option value="pages">All pages</option></select></label></div>
+    <fieldset><legend>Sizes</legend>
+      <label><input type="checkbox" name="scale" value="1" checked> 1x</label>
+      <label><input type="checkbox" name="scale" value="2" checked> 2x</label>
+      <label><input type="checkbox" name="scale" value="3"> 3x</label>
+      <label><input type="checkbox" name="scale" value="0.5"> 0.5x</label>
+    </fieldset>
+    <fieldset><legend>Formats</legend>
+      <label><input type="checkbox" name="format" value="png" checked> PNG</label>
+      <label><input type="checkbox" name="format" value="jpg"> JPG</label>
+      <label><input type="checkbox" name="format" value="webp"> WebP</label>
+      <label><input type="checkbox" name="format" value="svg"> SVG</label>
+    </fieldset>
+    <div class="row"><label class="grow">File name <input id="template" type="text" value="{name}@{scale}x" aria-describedby="tpl-hint"></label></div>
+    <p id="tpl-hint" class="hint">Tokens: {name} {scale} {format} {index} {page}. SVG is always exported once.</p>
+    <div class="row"><label><input id="folders" type="checkbox"> Put each format in its own folder</label></div>
+    <div id="preview" class="list" aria-label="Files that will be created"></div>
+    <div class="row"><button id="export" type="button" class="primary">Export as ZIP…</button></div>
+  </section>
+  <section aria-labelledby="h-ren">
+    <h2 id="h-ren">Rename selected layers</h2>
+    <div class="grid">
+      <label>Find <input id="find" type="text"></label>
+      <label>Replace <input id="replace" type="text"></label>
+      <label>Prefix <input id="prefix" type="text"></label>
+      <label>Suffix <input id="suffix" type="text"></label>
+      <label>Case <select id="caseMode"><option>keep</option><option>lower</option><option>upper</option><option>title</option><option>kebab</option><option>snake</option></select></label>
+      <label>Start at <input id="start" type="number" value="1" min="0"></label>
+    </div>
+    <div class="row"><label><input id="regex" type="checkbox"> Regular expression</label><label><input id="number" type="checkbox"> Add numbers</label><label><input id="numpre" type="checkbox"> Number first</label></div>
+    <div id="renames" class="list" aria-label="Rename preview"></div>
+    <div class="row"><button id="refresh" type="button">Refresh preview</button><button id="rename" type="button" class="primary">Rename</button></div>
+  </section>
+  <div id="status" class="status" role="status" aria-live="polite"></div>
+  <script src="panel.js"></script>
+</body>
+</html>

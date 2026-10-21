@@ -18,6 +18,7 @@ import {
   toUint8Array,
 } from "./common.js";
 import { platform as web } from "./web.js";
+import { createOpenBuffer, normalizeOpenPaths } from "./open-paths.js";
 
 /** @typedef {import("./index.js").PlatformFile} PlatformFile */
 
@@ -91,28 +92,35 @@ async function defaultSavePath(suggestedName) {
 }
 
 // --- "open with" delivery -------------------------------------------------
-// One native listener fans out to every onOpenFiles() subscriber. The first
-// subscription also fetches files that arrived before the UI was ready.
-const openListeners = new Set();
+// One native listener feeds a buffer; every onOpenFiles() subscriber gets the files, and files that arrive while
+// nobody listens are kept until the next subscriber (see open-paths.js). The first subscription also fetches the
+// files that arrived before the UI was ready (the file that launched the app).
+const openBuffer = createOpenBuffer();
 let openFilesStart = null;
 
-function dispatchOpenFiles(files) {
-  if (files.length === 0) return;
-  for (const listener of [...openListeners]) {
-    try {
-      listener(files);
-    } catch (err) {
-      console.error("OpenFini: onOpenFiles callback failed", err);
-    }
+/** Tells the UI that files from the OS are being read (see open-router.js). */
+function announce(detail) {
+  if (typeof window.dispatchEvent === "function" && typeof CustomEvent === "function") window.dispatchEvent(new CustomEvent("openfini:open-progress", { detail }));
+}
+
+/** Reads the paths the OS handed us and delivers them. Announces the work as a DOM event so the UI can show progress. */
+async function receivePaths(rawPaths) {
+  const paths = normalizeOpenPaths(rawPaths);
+  if (paths.length === 0) return;
+  announce({ phase: "start", count: paths.length, names: paths.map(basename) });
+  try {
+    openBuffer.deliver(await readPaths(paths));
+  } finally {
+    announce({ phase: "end", count: paths.length });
   }
 }
 
 function startOpenFiles() {
   openFilesStart ??= (async () => {
     const { event, core } = api();
-    await event.listen(OPEN_FILES_EVENT, async (e) => dispatchOpenFiles(await readPaths(e.payload ?? [])));
+    await event.listen(OPEN_FILES_EVENT, (e) => receivePaths(e.payload));
     // Registering first and asking second means no file can slip through.
-    dispatchOpenFiles(await readPaths(await core.invoke("take_launch_files")));
+    await receivePaths(await core.invoke("take_launch_files"));
   })().catch((err) => {
     openFilesStart = null;
     throw err;
@@ -139,7 +147,7 @@ export const platform = {
     return files;
   },
 
-  async saveFile({ suggestedName = "Untitled", bytes, filters = [] } = {}) {
+  async saveFile({ suggestedName = "Untitled", bytes, bytesFor, filters = [] } = {}) {
     let path;
     try {
       path = await api().dialog.save({
@@ -150,7 +158,7 @@ export const platform = {
       throw asError(err, "Could not open the save dialog");
     }
     if (!path) return null;
-    return writePath(path, bytes);
+    return writePath(path, bytesFor ? await bytesFor(basename(path)) : bytes);
   },
 
   async saveFileTo(path, bytes) {
@@ -177,11 +185,9 @@ export const platform = {
   },
 
   async onOpenFiles(callback) {
-    openListeners.add(callback);
+    const unsubscribe = openBuffer.subscribe(callback);
     await startOpenFiles();
-    return () => {
-      openListeners.delete(callback);
-    };
+    return unsubscribe;
   },
 
   async clipboardReadImage() {

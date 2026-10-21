@@ -19,6 +19,7 @@ export async function finishOAuth(app, params) {
   }
   if (!pk?.verifier) return app.toast("The OpenRouter sign-in expired. Please try again.", "warning", 4000);
   try {
+    app.network?.assert("oauth");
     const { exchangeOpenRouterCode, PROVIDER_PRESETS } = await import("../ai/index.js");
     await vibeStore.load();
     const { key } = await exchangeOpenRouterCode({ code, verifier: pk.verifier });

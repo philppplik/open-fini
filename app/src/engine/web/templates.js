@@ -7,16 +7,22 @@ import { portfolio } from "./tpl/portfolio.js";
 import { blog } from "./tpl/blog.js";
 import { docs } from "./tpl/docs.js";
 import { linkinbio } from "./tpl/linkinbio.js";
+import { tailwind, bootstrap } from "./tpl/fw-css.js";
+import { FRAMEWORK_JS_TEMPLATES } from "./tpl/fw-js.js";
+import { mdBlog, mdDocs } from "./tpl/fw-content.js";
+import { pwa } from "./tpl/fw-pwa.js";
 
 /**
  * @typedef {{
- *   id: string, name: string, description: string, category: 'Starter'|'Business'|'Personal'|'Content',
- *   accent: string, files: Record<string, string>
+ *   id: string, name: string, description: string, category: 'Starter'|'Business'|'Personal'|'Content'|'Framework',
+ *   accent: string, files: Record<string, string>, framework?: boolean, libs?: string[]
  * }} Template
+ * `framework: true` marks the templates that load libraries from a CDN or are generated from Markdown (see docs/frameworks.md);
+ * the first six are plain HTML and CSS without external requests.
  */
 
 /** @type {Template[]} */
-export const TEMPLATES = [blank, landing, portfolio, blog, docs, linkinbio];
+export const TEMPLATES = [blank, landing, portfolio, blog, docs, linkinbio, tailwind, bootstrap, ...FRAMEWORK_JS_TEMPLATES, mdBlog, mdDocs, pwa];
 
 /**
  * The template with the given id (a copy of its file map, so callers can modify it), or null.

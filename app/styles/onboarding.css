@@ -1,0 +1,90 @@
+/* OpenFini onboarding: tours (coach marks), invitations, "What's this?", empty-state hints, command palette extras. */
+
+.of-sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* ---- coach marks */
+.of-coach__ring {
+  position: fixed; z-index: 6000; pointer-events: none; border-radius: 8px;
+  box-shadow: 0 0 0 2px var(--of-accent), 0 0 0 9999px rgba(0, 0, 0, 0.42);
+  transition: left 0.18s ease, top 0.18s ease, width 0.18s ease, height 0.18s ease;
+}
+.of-coach {
+  position: fixed; z-index: 6001; width: min(340px, calc(100vw - 16px)); padding: 14px 16px 12px;
+  background: var(--of-bg-raised); color: var(--of-text); border: 1px solid var(--of-border); border-radius: 12px; box-shadow: var(--of-shadow);
+  -webkit-user-select: text; user-select: text; outline: none;
+}
+.of-coach__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.of-coach__count { font-size: 11px; color: var(--of-text-dim); }
+.of-coach__dots { display: flex; gap: 4px; }
+.of-coach__dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--of-border); }
+.of-coach__dots i.on { background: var(--of-accent); width: 16px; border-radius: 3px; }
+.of-coach__title { font-size: 15px; font-weight: 650; margin: 0 0 4px; }
+.of-coach__body { margin: 0 0 12px; font-size: 12.5px; line-height: 1.5; color: var(--of-text-dim); }
+.of-coach__foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.of-coach__links { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.of-coach__nav { display: flex; gap: 6px; }
+.of-coach__nav .of-btn { height: 28px; padding: 0 14px; }
+.of-btn:disabled { opacity: 0.45; cursor: default; }
+.of-btn--primary:hover { background: var(--of-accent-strong); border-color: var(--of-accent-strong); }
+.of-coach__link { font-size: 11.5px; color: var(--of-text-dim); text-decoration: underline; text-underline-offset: 2px; padding: 2px 0; }
+.of-coach__link:hover { color: var(--of-text); }
+
+/* ---- invitations (never modal) */
+.of-nudge {
+  position: fixed; z-index: 5500; right: 16px; bottom: calc(var(--of-status-h, 26px) + 14px); width: min(320px, calc(100vw - 32px)); padding: 14px 16px 10px;
+  background: var(--of-bg-raised); color: var(--of-text); border: 1px solid var(--of-border); border-left: 3px solid var(--of-accent); border-radius: 10px; box-shadow: var(--of-shadow);
+  animation: of-nudge-in 0.22s ease;
+}
+.of-nudge strong { font-size: 13.5px; }
+.of-nudge p { margin: 4px 0 10px; font-size: 12.5px; line-height: 1.45; color: var(--of-text-dim); }
+.of-nudge__row { display: flex; justify-content: flex-end; gap: 6px; margin-bottom: 6px; }
+@keyframes of-nudge-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ---- What's this? */
+html.of-whatsthis, html.of-whatsthis * { cursor: help !important; }
+.of-whatsthis__banner {
+  position: fixed; z-index: 7000; left: 50%; bottom: calc(var(--of-status-h, 26px) + 14px); transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100vw - 24px);
+  padding: 7px 14px; border-radius: 999px; background: var(--of-accent); color: var(--of-on-accent); font-size: 12.5px; font-weight: 550; box-shadow: var(--of-shadow); pointer-events: none;
+}
+.of-whatsthis__card {
+  position: fixed; z-index: 7001; width: min(300px, calc(100vw - 16px)); padding: 10px 12px; background: var(--of-bg-raised); color: var(--of-text);
+  border: 1px solid var(--of-accent); border-radius: 10px; box-shadow: var(--of-shadow); font-size: 12.5px; line-height: 1.45; -webkit-user-select: text; user-select: text;
+}
+.of-whatsthis__card strong { font-size: 13px; }
+.of-whatsthis__card kbd { margin-left: 6px; padding: 1px 5px; border: 1px solid var(--of-border); border-radius: 4px; }
+.of-whatsthis__card p { margin: 4px 0 0; color: var(--of-text-dim); }
+
+/* ---- empty-state hints */
+.of-emptyhint { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 28px 18px; line-height: 1.45; }
+.of-emptyhint sl-icon { font-size: 26px; opacity: 0.55; }
+.of-emptyhint strong { color: var(--of-text-dim); font-size: 12.5px; font-weight: 600; }
+.of-emptyhint span { max-width: 230px; }
+
+/* ---- tooltips with a second line */
+.of-tip { flex-wrap: wrap; max-width: 260px; }
+.of-tip__desc { flex-basis: 100%; display: block; margin-top: 3px; max-width: 230px; font-size: 11px; line-height: 1.4; opacity: 0.8; white-space: normal; }
+
+/* ---- command palette extras (base styles are in code.css) */
+.of-palette__section { padding: 8px 10px 3px; font: 650 10.5px var(--of-font); letter-spacing: 0.07em; text-transform: uppercase; color: var(--of-text-faint); }
+.of-palette__tag { margin-left: auto; padding: 1px 7px; border-radius: 999px; background: var(--of-hover); color: var(--of-text-dim); font-size: 10.5px; flex: none; }
+.of-palette__tag + .of-palette__hint { margin-left: 0; }
+.of-palette__item.active .of-palette__tag { background: color-mix(in srgb, var(--of-on-accent) 18%, transparent); color: var(--of-on-accent); }
+.of-palette__sp { display: inline-block; width: 1em; }
+.of-palette__foot { display: flex; gap: 14px; padding: 6px 12px; border-top: 1px solid var(--of-border-soft); font-size: 11px; color: var(--of-text-faint); }
+.of-palette__foot kbd { padding: 0 4px; border: 1px solid var(--of-border); border-radius: 3px; }
+.of-palette__input:focus-visible { outline: none; }
+
+/* ---- What's new */
+.of-whatsnew { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.of-whatsnew li { display: flex; gap: 12px; align-items: flex-start; }
+.of-whatsnew sl-icon { flex: none; font-size: 18px; color: var(--of-accent); margin-top: 2px; }
+.of-whatsnew p { margin: 2px 0 0; color: var(--of-text-dim); font-size: 12.5px; line-height: 1.45; }
+
+@media (prefers-reduced-motion: reduce) {
+  .of-coach__ring, .of-nudge, .of-theme { transition: none; animation: none; }
+}
+:root.of-reduce-motion .of-coach__ring, :root.of-reduce-motion .of-nudge, :root.of-reduce-motion .of-theme { transition: none; animation: none; }
+
+/* ---- UX polish */
+/* menu items with and without an icon line up */
+sl-menu-item::part(prefix) { min-width: 20px; justify-content: center; }

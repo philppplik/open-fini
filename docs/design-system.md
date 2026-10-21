@@ -37,7 +37,12 @@ color, tooltip and panel colors), so every Shoelace component picks up the same 
 
 ### Theming
 
-The theme is a class on `<html>`: `sl-theme-dark` or `sl-theme-light` (both Shoelace theme sheets are
+Color themes are registered in [`app/src/ui/themes.js`](../app/src/ui/themes.js) and written to `<html>` as the `--of-*` variables
+above (plus `--of-on-accent`, `--of-selection`, the editor and syntax variables); see [Themes](themes.md). The table values are the default
+theme; never hard-code a color in a component, use a variable. Text on the accent uses `--of-on-accent`. Scrollbars
+(`app/styles/themes.css`) use `--of-scroll-*`; add `.of-native-scroll` to keep a platform scrollbar.
+
+The mode is a class on `<html>`: `sl-theme-dark` or `sl-theme-light` (both Shoelace theme sheets are
 loaded). **Preferences ▸ Theme** offers *Dark*, *Light* and *Match system*. The canvas pasteboard, rulers
 and overlays read the same tokens, so they follow the theme automatically.
 

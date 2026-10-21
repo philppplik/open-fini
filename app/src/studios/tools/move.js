@@ -333,6 +333,13 @@ export class MoveTool extends Tool {
       app.enterGroup(hit);
       const child = pick(hit, e.x, e.y, 5 / app.view.zoom);
       app.select(child ? [child] : []);
+    } else if (hit.type === "table") {
+      app.select([hit]);
+      app.setTool("table");
+      app.tools.get("table")?.doubleClick(e);
+    } else if (hit.type === "chart") {
+      app.select([hit]);
+      app.run("chart.editData");
     } else if (hit.type === "text") {
       app.select([hit]);
       app.setTool("text");

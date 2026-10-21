@@ -1,8 +1,10 @@
 // History and Navigator panels.
 import { h, empty, frameScheduler, debounce } from "../../core/util.js";
+import { emptyHint } from "../empty-hint.js";
 import { buildPageDL } from "../../engine/dl.js";
 import { renderToCanvas } from "../../engine/backends/canvas.js";
 import { iconButton } from "../controls.js";
+import { markContext } from "../context-menu/index.js";
 
 export function createHistoryPanel(app) {
   const list = h("div.of-history__list", { role: "listbox", "aria-label": "History" });
@@ -19,12 +21,14 @@ export function createHistoryPanel(app) {
     if (!doc) return;
     const hst = doc.history;
     list.append(historyRow("Open document", hst.index === 0, () => hst.goto(0), doc));
+    if (!hst.entries.length) list.append(emptyHint(app, { icon: "clock-history", title: "Nothing to undo yet", text: "Every change you make is listed here. Click a step to go back to it.", plain: "No steps yet." }));
     hst.entries.forEach((e, i) => list.append(historyRow(e.label, hst.index === i + 1, () => hst.goto(i + 1), doc, i + 1 > hst.index)));
     const active = list.querySelector(".active");
     active?.scrollIntoView({ block: "nearest" });
   }
   function historyRow(label, active, go, doc, dim = false) {
     const r = h("button.of-history__row", { type: "button", class: `${active ? "active" : ""} ${dim ? "dim" : ""}`, role: "option", "aria-selected": String(active) }, label);
+    markContext(r, "history-item", { label, go: () => (go(), doc.emit("change", { nodes: new Set(), structure: true, history: true, label: "History" })) });
     r.addEventListener("click", () => {
       go();
       doc.emit("change", { nodes: new Set(), structure: true, history: true, label: "History" });
@@ -43,6 +47,7 @@ export function createNavigatorPanel(app) {
   const wrap = h("div.of-nav__wrap", canvas, box);
   const label = h("span.of-nav__zoom");
   const el = h("div.of-nav", wrap, h("div.of-nav__bar", iconButton({ icon: "zoom-out", label: "Zoom out", onClick: () => app.run("view.zoomOut") }), label, iconButton({ icon: "zoom-in", label: "Zoom in", onClick: () => app.run("view.zoomIn") }), iconButton({ icon: "arrows-angle-contract", label: "Fit page", onClick: () => app.run("view.fit") })));
+  markContext(el, "navigator");
   let info = null;
 
   const draw = debounce(() => {

@@ -7,7 +7,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "app", "src", "engine", "web");
-const MODULES = ["paths", "bytes", "html", "css", "edit", "css-props", "preview", "site", "templates", "elements", "index"];
+const MODULES = ["paths", "bytes", "html", "css", "edit", "css-props", "preview", "site", "templates", "elements", "highlight", "markdown", "latex", "libs", "frameworks", "ssg", "measure", "viewport", "index"];
 
 /**
  * Source text without comments, string literals, template literals and regular expression literals (a small scanner,
@@ -88,7 +88,9 @@ function files() {
 test("modules only import relative engine files", () => {
   for (const file of files()) {
     const src = readFileSync(file, "utf8");
-    for (const m of src.matchAll(/^\s*(?:import|export)\b[^;]*?\sfrom\s+["']([^"']+)["']/gm)) {
+    // template files hold JavaScript sources inside strings: only their first lines are real imports
+    const scanned = /[\\/]tpl[\\/]/.test(file) ? src.split("\n").slice(0, 12).join("\n") : src;
+    for (const m of scanned.matchAll(/^\s*(?:import|export)\b[^;]*?\sfrom\s+["']([^"']+)["']/gm)) {
       assert.ok(m[1].startsWith("./") || m[1].startsWith("../"), `${file}: imports ${m[1]}`);
       assert.ok(!/node:|vendor|\.\.\/\.\.\//.test(m[1]), `${file}: imports ${m[1]}`);
     }

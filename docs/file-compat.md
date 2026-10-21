@@ -19,8 +19,53 @@ No proprietary code was used.
 | Photoshop PSB (version 2) | yes | no | 8-byte lengths, 4-byte RLE counts |
 | InDesign IDML | yes | no | pages, shapes, text stories, swatches |
 | InDesign INDD | no | no | proprietary binary format, no public specification |
-| Affinity `.afdesign` `.afphoto` `.afpub` | no | no | proprietary containers, no public specification; only detected |
-| Illustrator AI / PDF vector import | no | no | not part of this engine; `sniffFormat` only reports the kind |
+| Affinity `.af` `.afdesign` `.afphoto` `.afpub` | no | no | proprietary, no public specification; detected by extension, the app explains how to export PSD / PDF / SVG and can open a plain PNG / JPEG preview if one is stored as an ordinary image stream |
+| PDF, Illustrator AI (PDF compatible), EPS with PDF | yes (editable Layout document) | export only | through pdf.js in `core/import-pdf.js`, see [pdf-import.md](pdf-import.md) |
+| Sketch `.sketch` | best effort | no | documented ZIP + JSON, `engine/formats/sketch.js`, verified with synthetic files |
+| Figma `.fig`, Adobe XD `.xd` | no | no | proprietary; the app shows how to export PDF / SVG instead |
+| Word DOCX, OpenDocument ODT, RTF | yes (Office Studio) | yes | `engine/office/`, clean-room from ECMA-376, ISO/IEC 26300 and the RTF 1.9 specification; see [office-studio.md](office-studio.md) for the fidelity matrix |
+| HTML, Markdown, plain text as documents | yes (in the Office Studio) | yes | outside the Office Studio these still open in the Code studio |
+| Word 97-2003 `.doc`, Apple `.pages`, Google Docs `.gdoc` | no | no | detected; the app explains how to save or download a `.docx` (Google Docs: button opens the document in the browser) |
+| Excel / Calc / Numbers, PowerPoint / Impress / Keynote | not yet | no | detected and explained ("not supported yet in Office Studio"); CSV opens as a table in Layout (Table ▸ Import Table) |
+| TIFF `.tif` `.tiff` | yes (pages as layers) | no | LZW / PackBits / Deflate, 1 to 16 bit, see below |
+| Animated GIF | yes (frames as layers) | no | no timeline yet |
+| OpenRaster `.ora` | yes (layers, groups, blend modes) | yes (plain pixel layers) | File > Quick Export > OpenRaster |
+| Krita `.kra`, GIMP `.xcf` | flattened image (KRA) / export route (XCF) | no | see the research doc |
+| ICO / CUR | largest image | no | |
+| EPS | PDF inside, or the TIFF preview of a DOS EPS (flattened) | no | OpenFini never runs PostScript |
+| Palettes `.gpl` `.ase` `.aco` | yes (document swatches) | yes | File > Swatches |
+| Fonts WOFF, TTC | yes (Type panel) | no | WOFF2 works on screen only, no PDF embedding |
+
+## Raster, palette and font formats (0.5.0)
+
+The research behind each verdict is in [file-format-research.md](file-format-research.md). All engines below are
+pure (no DOM), lazy loaded, bounds checked and tested with synthetic files in `tests/formats/` (the fixtures are
+written by independent writers in the tests, not by the readers).
+
+| Module | API | Notes |
+| --- | --- | --- |
+| `tiff.js` | `readTiff(bytes, { maxPixels, maxPages })` -> `{ pages: [{ width, height, rgba, name }], warnings }` | TIFF 6.0, II and MM, IFD chain (loop safe), strips and tiles, compression none / LZW / PackBits / Deflate, predictor 2, 1/2/4/8/16 bit gray and palette, RGB, RGBA, CMYK (naive). Reduced-resolution subfiles are skipped. Errors for BigTIFF, JPEG, planar, YCbCr, Lab. |
+| `gif.js` | `readGif(bytes, { maxFrames, maxPixels })` -> `{ width, height, loops, frames: [{ rgba, delay, name }] }` | GIF87a / 89a, interlace, transparency, disposal methods 0 to 3, composited full-canvas frames. A still GIF falls back to the normal image path. |
+| `ora.js` | `readOra(bytes)`, `writeOra({ width, height, layers, mergedPng })` | Layers and stacks (groups), opacity, visibility, offsets, `svg:*` composite ops. PNG data stays bytes; the host decodes. Paths cannot escape the archive. |
+| `kra.js` | `readKraMerged(bytes)` | Krita: only the flattened `mergedimage.png` / `preview.png`. |
+| `ico.js` | `readIco(bytes)` | PNG or BMP entries, largest first. |
+| `palette.js` | `readGpl/writeGpl`, `readAse/writeAse`, `readAco/writeAco`, `readHexList`, `readPalette` | RGB, CMYK, Lab, HSB and gray swatches become `#rrggbb` (naive CMYK, no ICC). Writers produce RGB. At most 4096 colors per file. |
+| `fontwrap.js` | `unwrapFont(bytes)`, `woffToSfnt`, `ttcFonts`, `fontContainer` | WOFF to sfnt, TTC to standalone fonts; WOFF2 is passed through (not decoded). |
+| `embedded.js` | `dosEpsParts(bytes)` | Byte ranges of a DOS EPS binary header (PostScript, WMF, TIFF preview). |
+
+Where it is wired: `core/import-raster.js` builds Pixel documents (TIFF pages and GIF frames become layers, the
+first visible), writes the import report, adds palette colors to `doc.swatches` and writes ORA; routing is one block in
+`commands/file.js openFile`; commands in `commands/formats.js` (File > Swatches, Quick Export > OpenRaster);
+file types in `platform/file-types.js` (and the packaging lists, kept consistent by `tests/packaging`).
+
+Fidelity statements shown in the import report: TIFF DPI and ICC profile are ignored and 16-bit data is reduced to 8
+bit; GIF frames are layers without a timeline; Krita files open flattened; ICO opens only the largest size; an EPS with
+a TIFF preview opens as a flattened low-resolution "preview only" document.
+
+How to extend: add a pure reader under `engine/formats/`, export it from `index.js`, add a loader in
+`core/import-raster.js` (plus the extension in `RASTER_FORMAT_EXT`, the routing block in `commands/file.js`,
+`OPEN_FILTERS` in `core/io.js`, a `FILE_TYPES` row and the packaging lists), a verdict in
+`platform/format-verdicts.js`, and tests with a fixture writer.
 
 ## `sniffFormat(bytes, name?)`
 
@@ -139,6 +184,63 @@ only the child elements, `text` the concatenated direct text. Handles quotes of 
 standard and numeric entities (unknown ones stay literal), CDATA, comments, processing instructions, DOCTYPE with
 an internal subset, a BOM, unclosed tags and stray close tags. Throws `Error` when there is no root element or the
 nesting exceeds 1000 levels.
+
+## PDF, Illustrator, Sketch and the import report
+
+- **PDF / AI / EPS with PDF:** see [pdf-import.md](pdf-import.md). `sniffFormat` returns `pdf` or `ai`; `findPdfStart(bytes)` locates the `%PDF-` header inside AI and EPS wrappers (DOS EPS headers included).
+- **Sketch:** `readSketch(zipBytes)` returns `{ pages: [{ name, artboards: [{ name, x, y, width, height, background, items }] }], images, warnings }`. Items are `group`, `rect`, `ellipse`, `path` (from the layer's points), `text` (first text style of the layer), `image`. Solid and linear / radial gradient fills, borders (width, position, dashes), corner radius, rotation, opacity and visibility are read. Not read: symbol instances, boolean operations (the shapes stay separate), shadows, blurs, pattern fills, text with several styles, flips, shared styles and text styles. Verified with synthetic files built from the public file format reference only.
+- **Embedded preview scan (Affinity):** `findEmbeddedPreview(bytes)` looks for complete PNG (chunk CRCs checked) and JPEG streams by their public signatures and returns the largest. It does not parse or interpret the Affinity container; it finds nothing when the file stores its preview in a compressed or private form. Verified with synthetic files only.
+- **Import report:** every importer fills an `ImportReport` (`core/import-report.js`) with *kept*, *flattened*, *dropped* and *note* entries; File ▸ Import Report… shows it for the active document and Vibe can read it with `get_import_report`.
+- **Photoshop in the app:** text layers whose text content could be read become editable text frames (position and size from the file, font Inter; the original raster stays as a hidden layer), smart objects are imported as their flattened preview and reported, adjustment layers and layer effects are listed as not imported.
+
+## Text and code files
+
+Markdown (`.md`, `.markdown`, `.mdx`), LaTeX (`.tex`, `.latex`, `.bib`, `.sty`, `.cls`) and plain text formats (`.txt`, `.json`,
+`.yaml`/`.yml`, `.xml`, `.csv`, `.tsv`, `.toml`, `.ini`, `.conf`, `.properties`, `.log`, `.ts`, `.tsx`, `.jsx`, `.js`, `.css`, `.html`) open in the Code studio as a one-file
+project (File ▸ Open, drag and drop; folders keep their structure). SVG still opens as a vector document. Files that contain
+NUL bytes are refused. See [frameworks.md](frameworks.md).
+
+## Saving back to the original format
+
+File ▸ Save (Ctrl+S) writes a file you opened with File ▸ Open in the format it came from: a `.txt` stays a `.txt`, a `.docx`
+stays a `.docx`. Only when your edits need more than that format can hold does the document become an `.ofini`. Turn the
+behavior off in Settings ▸ General ▸ *Save opened files in their original format when possible* (off: Save always writes `.ofini`).
+
+| Opened as | Saved back as | Stays that way while | When it no longer fits |
+| --- | --- | --- | --- |
+| Text and code files (`.txt`, `.md`, `.json`, `.csv`, `.css`, `.js`, `.html`, `.tex` ...) | the same file, UTF-8 | the project is still exactly that one file (no second file, no design pages, no attached images, no Git repository, not renamed) | one dialog |
+| Word processor and text files opened in the Office studio (`.docx`, `.odt`, `.rtf`, `.html`, `.md`, `.txt`) | the same format, written by the Office writers | always. After saving, a toast lists what the format cannot store (for example "Formatting is not stored in plain text") and offers *Save as .ofini* | not applicable |
+| SVG | SVG through the SVG exporter | the document is a single-page, plain vector drawing (no pixel layers, adjustment layers, masks, live effects, blend modes, master pages) | one dialog |
+| PNG, JPEG, WebP, GIF, TIFF ..., PSD, PDF, IDML, Illustrator, Sketch ... | never silently: Save writes `.ofini` | not applicable: writing the flat file back would destroy layers or data | Save As offers PNG, JPEG or WebP as a flattened export next to `.ofini` |
+
+Templates and macro-enabled Word files (`.dotx`, `.docm`) are not written back by a plain document, and neither are files
+the Office studio can only read through a guidance dialog.
+
+**The dialog.** When a document that had a source format outgrows it, the next Save shows exactly one dialog: *This document now
+has features that {format} cannot hold.* with *Save as .ofini (keeps everything)*, *Save a copy as {format} (flattened)* and
+*Cancel*. Choosing `.ofini` is remembered for that document (it is an `.ofini` document from then on and the tab shows the
+`.ofini` name); a copy leaves the document and its source untouched, so Save asks again.
+
+**What is written.**
+- Text keeps its encoding details: UTF-8 without BOM unless the original had one, and the original line endings (LF, CRLF or
+  CR). A file you did not change is written back **byte for byte** (even if it was not valid UTF-8); after an edit a file with
+  mixed line endings is written with LF.
+- Desktop: Save writes to the original path without a dialog. Browsers with the File System Access API (Chromium) keep the
+  file handle from File ▸ Open and write to the same file after a permission check; other browsers open the save dialog (or
+  download) with the original file name. Save As lists the source format first and `.ofini` as the alternative; the file type
+  you pick decides what is written.
+- The tab shows the file name with its extension, the status bar shows a badge with the save target (`.txt`, `.docx`,
+  `.ofini`) and its tooltip says why. After a successful save the toast reads *Saved as notes.txt*.
+
+**Limits (honest).** SVG goes through the importer and the exporter, so features the importer does not read (scripts, CSS
+animation, filters it cannot represent) are not in the written file; keep an original copy when the SVG came from another
+tool. The Office writers keep structure, styles, tables, lists, images, footnotes and links but are not byte-compatible with the
+original producer (Word rewrites a file the same way). A web handle exists only while the tab stays open: after a restart
+restored from autosave, the first Save asks for the file again.
+
+Implementation: `app/src/core/source-format.js` (pure decision and text codec, tests in `tests/core/source-format.test.js`),
+`app/src/commands/save-source.js` (writing and the dialog), `doc.source` on the `Doc`, `platform.saveFile({ bytesFor })` and
+`platform.saveFileTo(path | handle)`. The Vibe tool `get_save_target` reports the current target.
 
 ## Warnings
 

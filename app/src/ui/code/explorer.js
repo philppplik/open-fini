@@ -3,7 +3,7 @@ import { h, empty, formatBytes } from "../../core/util.js";
 import { dirname, basename, sanitizeFileName } from "../../engine/web/index.js";
 import { iconButton } from "../controls.js";
 import { promptDialog, confirmDialog } from "../dialogs.js";
-import { showContextMenu } from "../menus.js";
+import { openContextMenu } from "../context-menu/index.js";
 import { platform } from "../../platform/index.js";
 import { fileIcon } from "./util.js";
 import { pickFiles, entriesFromPicked, entriesFromDrop, importInto } from "./import.js";
@@ -57,6 +57,12 @@ export function createExplorer(ws) {
     return tree;
   }
 
+  /** Git status badge (A, M, D, U) for a file, or a dot for a folder that contains changes. */
+  const gitBadge = (n) => {
+    const d = n.type === "file" ? ws.git?.decoration(n.path) : ws.git?.folderDecorated(n.path) ? { letter: "●", kind: "modified", title: "Contains changes" } : null;
+    return d ? h("span.of-git__badge.of-tree__git", { "data-k": d.letter === "●" ? "M" : d.letter, title: d.title }, d.letter) : null;
+  };
+
   function render() {
     empty(list);
     const tree = treeWithExtras();
@@ -91,6 +97,7 @@ export function createExplorer(ws) {
       n.type === "dir" ? h("sl-icon.of-tree__chev", { name: expanded.has(n.path) ? "chevron-down" : "chevron-right" }) : h("span.of-tree__chev"),
       n.type === "dir" ? h("sl-icon.of-fileicon", { name: expanded.has(n.path) ? "folder2-open" : "folder" }) : fileIcon(n.path),
       nameEl,
+      gitBadge(n),
     );
     r.addEventListener("click", () => {
       selected = n.path;
@@ -106,7 +113,7 @@ export function createExplorer(ws) {
       e.preventDefault();
       selected = n.path;
       render();
-      showContextMenu(app, e.clientX, e.clientY, menuFor(n));
+      openContextMenu(app, { kind: n.type === "dir" ? "explorer-folder" : "explorer-file", x: e.clientX, y: e.clientY, event: e, data: { path: n.path, node: n }, base: menuFor(n) });
     });
     r.addEventListener("dragstart", (e) => {
       e.dataTransfer.setData("text/x-of-path", n.path);
@@ -300,6 +307,7 @@ export function createExplorer(ws) {
   });
 
   web.on("tree", render);
+  ws.git?.on("change", render);
   ws.editors.on("active", render);
   render();
   return {

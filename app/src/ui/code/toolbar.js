@@ -1,12 +1,13 @@
 // Toolbar of the Code studio (shown in the context bar): view switch, page, breakpoints, zoom, preview mode.
 import { h, empty } from "../../core/util.js";
 import { BREAKPOINTS, sanitizeFileName } from "../../engine/web/index.js";
-import { iconButton, segmented } from "../controls.js";
+import { iconButton, segmented, button } from "../controls.js";
 import { promptDialog } from "../dialogs.js";
 import { starterContent } from "../../core/web.js";
+import { ta } from "../../i18n/dom.js";
+import { N_ } from "../../i18n/index.js";
 
 const BP_ICONS = { "desktop-2xl": "display", "desktop-xl": "pc-display", desktop: "laptop", tablet: "tablet", "mobile-landscape": "phone-landscape", "mobile-portrait": "phone" };
-const ZOOMS = [{ value: "fit", label: "Fit" }, ...[25, 50, 75, 100, 125, 150, 200].map((n) => ({ value: String(n / 100), label: `${n}%` }))];
 
 export function createToolbar(ws) {
   const { web } = ws;
@@ -47,28 +48,43 @@ export function createToolbar(ws) {
   );
   const bpLabel = h("span.of-codebar__bplabel");
 
-  const zoomSel = h("sl-select", { size: "small", hoist: true, class: "of-codebar__zoom", value: String(ws.preview.zoomSetting), "aria-label": "Zoom" });
-  for (const z of ZOOMS) zoomSel.append(h("sl-option", { value: z.value }, z.label));
-  zoomSel.addEventListener("sl-change", () => ws.preview.setZoom(zoomSel.value === "fit" ? "fit" : Number(zoomSel.value)));
+  // zoom lives in the viewport bar above the preview (viewport-ui.js)
 
+  // split arrangement (only in Split view): the filled half is the code editor
+  const LAYOUT_BTNS = [
+    { id: "codeLeft", label: N_("Code left, preview right"), svg: '<rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor"/><rect x="2" y="3" width="5.5" height="10" fill="currentColor" opacity=".55"/>' },
+    { id: "codeRight", label: N_("Preview left, code right"), svg: '<rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor"/><rect x="8.5" y="3" width="5.5" height="10" fill="currentColor" opacity=".55"/>' },
+    { id: "codeTop", label: N_("Code above, preview below"), svg: '<rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor"/><rect x="2" y="3" width="12" height="4.5" fill="currentColor" opacity=".55"/>' },
+    { id: "codeBottom", label: N_("Preview above, code below"), svg: '<rect x="1.5" y="2.5" width="13" height="11" rx="1.5" fill="none" stroke="currentColor"/><rect x="2" y="8.5" width="12" height="4.5" fill="currentColor" opacity=".55"/>' },
+  ];
+  const layoutEl = h("div.of-seg.of-codebar__layout", { role: "group", ...ta({ "aria-label": "Split layout" }) });
+  const layoutBtns = LAYOUT_BTNS.map((l) => {
+    const b = h("button.of-seg__btn", { type: "button", ...ta({ tip: l.label, "aria-label": l.label }), html: `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">${l.svg}</svg>` });
+    b.addEventListener("click", () => ws.app.run(`code.layout.${l.id}`));
+    layoutEl.append(b);
+    return b;
+  });
+
+  const measure = iconButton({ icon: "rulers", label: "Measure tool (M): hover to measure, Alt for distances, Esc to leave", onClick: () => ws.app.run("code.measure") });
   const mode = iconButton({ icon: "cursor", label: "Design mode — click to select and edit", onClick: () => ws.preview.setMode(!ws.preview.edit) });
   const reload = iconButton({ icon: "arrow-repeat", label: "Reload preview", onClick: () => ws.preview.rebuild() });
   const format = iconButton({ icon: "text-indent-left", label: "Format document (Shift+Alt+F)", onClick: () => ws.editors.format() });
   const palette = iconButton({ icon: "terminal", label: "Command palette (Ctrl+Shift+P)", onClick: () => ws.palette() });
   const bottomBtn = iconButton({ icon: "layout-text-window-reverse", label: "Console and problems (Ctrl+J)", onClick: () => ws.bottom.toggle() });
+  const publish = button("Publish", () => import("../export-dialog.js").then((m) => m.exportDialog(ws.app, { tab: "publish" })), { variant: "primary", icon: "upload", title: "Publish the website to Netlify, Vercel, GitHub Pages, WebDAV or your own server" });
   const badge = h("span.of-codebar__badge.hidden");
   const bottomWrap = h("span.of-codebar__withbadge", bottomBtn, badge);
 
   el.append(
-    h("div.of-codebar__group", view.el),
+    h("div.of-codebar__group", view.el, layoutEl),
     h("span.of-sep"),
-    h("div.of-codebar__group", pageSel, addPage),
+    h("div.of-codebar__group.of-codebar__design", pageSel, addPage),
     h("span.of-sep"),
-    h("div.of-codebar__group", bps.el, bpLabel, zoomSel),
+    h("div.of-codebar__group.of-codebar__design", bps.el, bpLabel),
     h("span.of-sep"),
-    h("div.of-codebar__group", mode, reload),
+    h("div.of-codebar__group.of-codebar__design", measure, mode, reload),
     h("span.of-codebar__spacer"),
-    h("div.of-codebar__group", format, bottomWrap, palette),
+    h("div.of-codebar__group", format, bottomWrap, palette, publish),
   );
 
   function renderPages() {
@@ -88,14 +104,22 @@ export function createToolbar(ws) {
   const sync = () => {
     const bp = ws.preview.bp;
     bps.set(bp.id);
-    bpLabel.textContent = `${bp.width}px`;
+    // the viewport can be any width: the segmented control highlights the breakpoint that matches it
+    bpLabel.textContent = `${ws.preview.vw}px`;
     view.set(ws.view);
+    layoutEl.classList.toggle("hidden", ws.view !== "split");
+    LAYOUT_BTNS.forEach((l, i) => layoutBtns[i].setAttribute("aria-pressed", String(ws.layout === l.id)));
+    measure.classList.toggle("active", ws.preview.measuring);
+    measure.setAttribute("aria-pressed", String(ws.preview.measuring));
     mode.classList.toggle("active", ws.preview.edit);
     mode.setAttribute("data-tip", ws.preview.edit ? "Design mode — click to select and edit (click to switch to live preview)" : "Live preview — the page behaves normally (click to switch back to design mode)");
     mode.querySelector("sl-icon")?.setAttribute("name", ws.preview.edit ? "cursor" : "play-circle");
   };
   ws.preview.on("breakpoint", sync);
+  ws.preview.on("viewport", sync);
+  ws.preview.on("measure", sync);
   ws.preview.on("mode", sync);
+  ws.on("layout", sync);
   ws.on("view", sync);
   sync();
 

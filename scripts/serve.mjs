@@ -45,6 +45,7 @@ export const MIME_TYPES = {
   ".pdf": "application/pdf",
   ".zip": "application/zip",
   ".ofini": "application/x-openfini",
+  ".ofext": "application/zip",
 };
 
 /**
@@ -97,6 +98,11 @@ export function createServer({ root, spa = false, csp }) {
       }
       let file = resolveRequestPath(absoluteRoot, req.url ?? "/");
       if (file === null) return send(res, 400, "Bad request");
+      // Development: the bundled extensions live in <repo>/extensions, outside app/ (the build copies them into dist/).
+      if (absoluteRoot === join(projectRoot, "app")) {
+        const m = /^\/extensions\/(catalog\.json|packages\/[\w.-]+\.ofext)$/.exec(new URL(req.url ?? "/", "http://localhost").pathname);
+        if (m) file = join(projectRoot, "extensions", m[1]);
+      }
 
       let info = await stat(file).catch(() => null);
       if (info?.isDirectory()) {

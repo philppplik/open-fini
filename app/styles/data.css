@@ -1,0 +1,64 @@
+/* Tables and charts (Layout studio): Data panel, dialogs, data grid, in-canvas cell editor. */
+
+.of-data { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px 12px; overflow-y: auto; }
+.of-data .of-section__body { display: flex; flex-direction: column; gap: 6px; }
+.of-data .of-row { display: flex; gap: 6px; align-items: flex-end; flex-wrap: wrap; }
+.of-data .of-row > * { flex: 1 1 90px; min-width: 0; }
+.of-data__status { font-weight: 600; color: var(--of-text-dim); }
+.of-btnrow { display: flex; flex-wrap: wrap; gap: 4px; }
+.of-btnrow .of-btn { flex: 1 1 auto; }
+.of-btn--small { padding: 3px 7px; font-size: 11.5px; }
+.of-btn--toggle[aria-pressed="true"] { background: var(--of-accent-soft); border-color: var(--of-accent); color: var(--of-text); }
+
+.of-textlabel { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.of-textfield {
+  width: 100%; box-sizing: border-box; font: inherit; font-size: 12px; color: var(--of-text);
+  background: var(--of-bg-input); border: 1px solid var(--of-border); border-radius: var(--of-radius-sm); padding: 4px 6px;
+}
+.of-textfield:focus-visible { outline: 2px solid var(--of-accent); outline-offset: 1px; }
+textarea.of-textfield { resize: vertical; min-height: 48px; }
+
+/* in-canvas cell editor */
+.of-celledit { font-family: inherit; caret-color: currentColor; }
+
+/* dialogs */
+.of-datadlg { display: flex; flex-direction: column; gap: 10px; }
+.of-datadlg__preview { display: flex; justify-content: center; padding: 10px; background: var(--of-bg-canvas); border-radius: var(--of-radius); }
+.of-datadlg__swatches { display: flex; gap: 3px; align-items: center; }
+.of-datadlg__swatches span { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--of-border); }
+.of-datadlg__grid { min-height: 120px; }
+.of-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; max-height: 340px; overflow-y: auto; padding: 2px; }
+.of-gallery__card {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; cursor: pointer; font: inherit; font-size: 11.5px;
+  color: var(--of-text); background: var(--of-bg-raised); border: 1px solid var(--of-border); border-radius: var(--of-radius);
+}
+.of-gallery__card:hover { border-color: var(--of-text-faint); }
+.of-gallery__card[aria-selected="true"] { border-color: var(--of-accent); box-shadow: 0 0 0 2px var(--of-accent-soft); }
+.of-gallery__card:focus-visible { outline: 2px solid var(--of-accent); outline-offset: 1px; }
+.of-thumb__img { display: block; border-radius: 4px; background: #fff; max-width: 100%; }
+.of-importarea {
+  width: 100%; box-sizing: border-box; font-family: var(--of-mono); font-size: 12px; color: var(--of-text);
+  background: var(--of-bg-input); border: 1px solid var(--of-border); border-radius: var(--of-radius-sm); padding: 6px;
+}
+.of-importgrid { max-height: 200px; overflow: auto; }
+
+/* data grid */
+.of-gridwrap { display: flex; flex-direction: column; gap: 4px; }
+.of-grid__bar { display: flex; align-items: center; gap: 4px; }
+.of-grid__barlabel { font-size: 11.5px; color: var(--of-text-dim); margin-right: 6px; }
+.of-grid__sep { width: 1px; height: 16px; background: var(--of-border); margin: 0 6px; }
+.of-grid__scroll { max-height: 340px; overflow: auto; border: 1px solid var(--of-border); border-radius: var(--of-radius-sm); background: var(--of-bg-input); }
+.of-grid { border-collapse: separate; border-spacing: 0; font-size: 12px; }
+.of-grid th { position: sticky; top: 0; z-index: 1; background: var(--of-bg-raised); color: var(--of-text-dim); font-weight: 600; padding: 2px 6px; border-bottom: 1px solid var(--of-border); border-right: 1px solid var(--of-border-soft); }
+.of-grid th.of-grid__rowhead { position: sticky; left: 0; top: auto; z-index: 1; text-align: right; border-right: 1px solid var(--of-border); border-bottom: 1px solid var(--of-border-soft); }
+.of-grid th.of-grid__corner { left: 0; z-index: 2; }
+.of-grid td { padding: 0; border-bottom: 1px solid var(--of-border-soft); border-right: 1px solid var(--of-border-soft); }
+.of-grid__cell { width: 92px; box-sizing: border-box; border: 0; background: transparent; color: var(--of-text); font: inherit; padding: 4px 6px; }
+.of-grid__cell.head { font-weight: 700; background: var(--of-accent-soft); }
+.of-grid__cell.label { font-weight: 600; }
+.of-grid__cell:focus-visible { outline: 2px solid var(--of-accent); outline-offset: -2px; background: var(--of-bg-raised); }
+.of-grid__cell[readonly] { color: var(--of-text-dim); }
+
+@media (prefers-reduced-motion: reduce) {
+  .of-gallery__card { transition: none; }
+}

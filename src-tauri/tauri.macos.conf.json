@@ -1,0 +1,26 @@
+{
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "OpenFini",
+        "width": 1440,
+        "height": 900,
+        "minWidth": 800,
+        "minHeight": 560,
+        "center": true,
+        "resizable": true,
+        "decorations": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "backgroundColor": "#1c1d21",
+        "dragDropEnabled": false
+      }
+    ]
+  },
+  "bundle": {
+    "resources": {
+      "icons/ofini-doc.icns": "ofini-doc.icns"
+    }
+  }
+}

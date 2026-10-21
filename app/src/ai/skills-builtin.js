@@ -1,6 +1,8 @@
 // Built-in skills for Vibe, as SKILL.md style markdown strings. Parsed by parseSkill() in skills.js.
 // Tool names refer to the "OpenFini tool names" list in docs/ai-engine.md.
 // (No backticks or template placeholders inside the markdown, so plain template literals are safe.)
+// The workflow library added in 0.5 (power tools, sub-agents, parameters) lives in skills-library.js.
+import { LIBRARY_SKILLS } from "./skills-library.js";
 
 const LOGO = `---
 name: logo-design
@@ -69,7 +71,7 @@ Call screenshot. Squint test: shrink your mental view; the headline must still b
 const PHOTO = `---
 name: photo-retouch
 description: Non-destructive photo correction and retouching in the Pixel studio (exposure, color, contrast, cleanup, sharpening) with a before and after check.
-allowed-tools: get_document_info, list_layers, select_layers, add_pixel_layer, apply_adjustment, list_effects, edit_image, set_style, screenshot, ask_user
+allowed-tools: get_document_info, list_layers, select_layers, add_pixel_layer, apply_adjustment, list_effects, edit_image, set_style, screenshot, get_histogram, auto_correct_suggestion, ask_user
 tags: [pixel, photo]
 ---
 # Photo retouch
@@ -77,7 +79,7 @@ tags: [pixel, photo]
 Work non-destructively and in a fixed order. Small moves add up; big moves look fake.
 
 ## Workflow
-1. Inspect: get_document_info and list_layers. Take a screenshot to see the original. Never edit the original layer; duplicate it or use adjustment layers.
+1. Inspect: get_document_info and list_layers. Take a screenshot to see the original. Call get_histogram first (composite, channel luma) and read its assessment: exposure, contrast, clipping and color cast decide the next steps; auto_correct_suggestion returns ready-made levels, curves and exposure params for apply_adjustment. Never edit the original layer; duplicate it or use adjustment layers.
 2. Crop and straighten first (horizon level, remove distractions at the edges, keep the subject on a third line).
 3. Exposure and white balance: use apply_adjustment for exposure and temperature/tint. Neutral grays should look neutral; skin should stay warm but not orange.
 4. Contrast: lift shadows and recover highlights before adding global contrast. Use a gentle curve (S-curve of 5 to 10 percent) instead of a heavy contrast slider.
@@ -87,7 +89,7 @@ Work non-destructively and in a fixed order. Small moves add up; big moves look 
 8. Sharpen last with apply_adjustment (kind filter, id unsharp-mask; call list_effects for the parameters): amount 40 to 80 percent, radius 0.8 to 1.5 px for web, 1.5 to 3 px for print).
 
 ## Rules
-- Check the histogram intent: do not clip more than about 1 percent of pixels to pure black or white unless the look demands it.
+- Check the histogram intent (get_histogram again after the adjustments): do not clip more than about 1 percent of pixels to pure black or white unless the look demands it.
 - Keep skin tones consistent across the frame. Avoid heavy skin smoothing: keep pores visible.
 - Keep every step on its own named layer so the user can switch it off.
 - Export-ready images: sRGB, long edge 2048 px for web unless the user says otherwise.
@@ -257,5 +259,101 @@ Clear beats clever. Write for one person, in their words, about their outcome.
 ## Verify
 Read each line aloud. Cut every word that does not change the meaning. Check against the limits above and against the brand voice. Offer to adapt the winner for other channels. Use remember to save the chosen voice and key phrases.`;
 
+const HELP = `---
+name: help-me-use-openfini
+description: Explain how to do something in OpenFini (where a tool or command is, its shortcut, which studio to use), switch themes, and start a guided tour. Use when the user is new, lost or asks "how do I ...".
+allowed-tools: list_commands, list_themes, set_theme, start_tour, get_document_info, set_studio, screenshot, ask_user
+tags: [help, onboarding]
+---
+# Help me use OpenFini
+
+Answer with the shortest path: name the studio, the menu or panel, and the shortcut. Never invent a command: look it up first.
+
+## Workflow
+1. Find out where the user is. get_document_info tells you the open document and the studio. If the task belongs in another studio, say which one and offer to switch with set_studio.
+2. Look the feature up with list_commands, using one or two key words ("export", "align", "zoom"). The result lists each command with its shortcut. You cannot run commands yourself, so describe how the user reaches it: the menu name, the shortcut, or the command palette (Ctrl+K, or Cmd+K on macOS, or F1).
+3. If the user looks lost or is new, offer a tour and call start_tour (welcome for the whole interface, or vector, pixel, layout, code or vibe for one studio). Tell them they can leave it with Esc.
+4. For "make it darker", "use a calmer look" or accessibility needs, call list_themes, suggest one or two themes by name, then call set_theme. Every theme has a dark and a light variant; mode can be dark, light or auto. The High contrast theme is the most legible. Ask with ask_user only when the choice is unclear.
+
+## Where things live
+- Vector: logos, icons, illustration. Pixel: photos and painting. Layout: pages and text flow. Code: websites. Vibe: the AI assistant.
+- Export is the button at the top right (Ctrl+Shift+E) and works from every studio.
+- Settings: the OpenFini menu at the top left, then Settings (Ctrl+comma). Appearance holds themes, accent, density and scale; Accessibility holds motion and contrast.
+- Shift+F1 turns on What's this?: the user clicks anything to read what it does.
+
+## Rules
+- Be concrete: "Press Ctrl+Shift+E" beats "use the export feature".
+- If list_commands finds nothing, say so and suggest the command palette or the Help menu rather than guessing.
+- Keep answers to a few lines; offer the tour instead of a long explanation.
+
+## Verify
+Check the shortcut you quote against the list_commands result. After set_theme, take a screenshot and confirm the interface changed, then tell the user how to go back (Settings, Appearance).`;
+
+const REPORT = `---
+name: report-with-charts
+description: Build a report or dashboard page with real tables and charts (editable, vector, linked to each other): KPI cards, a data table with totals, and a matching chart. Use for sales reports, price lists, project status, survey results and one-page summaries.
+allowed-tools: get_document_info, new_document, add_text, add_shape, add_table, edit_table, read_table, list_tables, add_chart, edit_chart, read_chart, import_csv_to_table, align_layers, group_layers, screenshot, ask_user
+tags: [layout, data, report]
+---
+# Report with tables and charts
+
+Real data objects beat drawings: add_table and add_chart create editable objects that stay editable after saving and export as vectors.
+
+## Workflow
+1. Get the data. If the user gave numbers or CSV text, use them exactly (import_csv_to_table for pasted CSV). If not, ask once with ask_user for the metric, the periods or categories and the values; never invent figures without saying they are samples.
+2. Start a page (new_document, studio layout, 1240 x 1754 px portrait or 1754 x 1240 landscape) or use the open one. Check get_document_info for its size.
+3. Add a title and a one-line takeaway with add_text (the takeaway states the finding, such as "Revenue grew 18 percent, driven by Online").
+4. Optional KPI row: add_chart with type kpi (one series; the last value is the number, earlier values give the change and the sparkline), 3 cards of equal size in one row.
+5. Add the table: add_table with data (header row first), headerRows 1, headerCols 1 if the first column holds labels, a style (striped or clean), numberFormats per column letter (currency, percent), and formulas for totals such as =SUM(B2:B5). Put a Total row at the bottom and format it bold with edit_table.
+6. Add the chart linked to the table: add_chart with tableId (it then updates when the table changes). Choose the type by the question: comparison of categories = column or bar (bar when labels are long), trend over time = line or area, share of a whole = pie or donut (at most 5 slices), correlation = scatter, progress toward a goal = progress or ring. Give it a title that states what is shown and an alt text.
+7. Align and size everything on a grid with margins of at least 60 px: table and chart share the left edge; chart width equals the content width or half of it. Use align_layers.
+8. Verify with screenshot, then read_table to confirm the formula results and fix anything wrong with edit_table.
+
+## Rules
+- One message per chart. At most 5 series or 8 colors; sort bars by value when order does not matter (options sort desc).
+- Label units in axis titles or number formats. Start bar and column axes at zero.
+- Use one palette per page. The colorblind palette is safe for everyone.
+- Keep table text at 12 px or larger (print) and right-align numbers (automatic for numeric columns).
+- Large tables: split them across pages in the app with Table > Flow Table Across Pages (header rows repeat).
+
+## Verify
+screenshot the page, check that no text is cut off, that totals match read_table and that the chart title matches the table content.`;
+
+const BUSINESS_DOC = `---
+name: write-business-document
+description: Write or restyle a business document in the Office Studio (letter, report, proposal, memo, resume) with named styles, lists, tables, page numbers and a clean page setup, ready to export as Word or PDF.
+allowed-tools: office_new_document, office_read_document, office_find, office_insert_blocks, office_replace_text, office_set_style, office_apply_format, office_insert_table, office_set_page_setup, office_export, ask_user, search_knowledge, remember
+tags: [office, writing, word, business]
+---
+# Business documents in the Office Studio
+
+Office documents are flowing text on pages, not canvases: structure comes from named styles (Title, Heading1-3, Normal, List, Quote), never from manual font changes.
+
+## Workflow
+1. Clarify once with ask_user if the request lacks the essentials: document type, recipient or audience, purpose, key facts, length, language, tone. Never invent facts, figures, names or dates; mark gaps as [placeholder].
+2. Start with office_new_document (template letter, report or resume when it fits; size Letter in the US, otherwise A4) or office_read_document when a document is open. Keep existing content unless asked.
+3. Write with office_insert_blocks. Prefer the \`markdown\` input for longer content: # Title, ## Heading, - bullets, 1. steps, | tables |, **bold** for key terms only.
+4. Tables with office_insert_table (header row on, short cell texts, numbers right where it reads well). Use them for prices, schedules, comparisons.
+5. Page setup with office_set_page_setup: margins 20 to 25 mm, a footer "Page {PAGE} of {PAGES}" for anything longer than two pages, a header with the company or document name for reports and proposals.
+6. Polish: office_set_style to fix headings, office_apply_format only for emphasis or alignment (signature right or left, title centered for reports).
+7. Offer office_export to docx or pdf at the end; exporting asks the user for approval.
+
+## Style guidance by type
+- Letter: sender block, date, recipient block, subject line in bold, salutation, 3 to 5 short paragraphs (purpose first, details, call to action), closing, name. No headings.
+- Report: Title and Subtitle (date or audience), an Executive summary of 3 to 5 sentences first, Heading1 per section, Heading2 sparingly, findings as bullets, data in tables, Next steps at the end.
+- Proposal: problem, proposed solution, scope and deliverables (numbered), timeline table, pricing table with a total row, terms, contact.
+- Memo: To / From / Date / Subject lines, then the decision or request in the first paragraph.
+- Resume: name as Title, contact line as Subtitle, Experience with achievement bullets (verb first, a number when possible), Education, Skills; one page for under ten years of experience.
+- Keep sentences short, active voice, one idea per paragraph. Use the user's language and spelling (US or UK) consistently.
+
+## Rules
+- Headings describe content ("Pricing", not "Section 3"). At most three heading levels.
+- Lists: 3 to 7 items, parallel grammar, no full stops for fragments.
+- Do not paste the whole document again to change a word: use office_replace_text with the exact original text, or office_find first.
+- Never put personal data you were not given into a document.
+
+## Verify
+Call office_read_document and check the outline (title, logical heading order), that no [placeholder] was left unexplained, that tables have header rows, and that the footer shows page numbers. Read it aloud mentally: every paragraph should make one clear point. Then summarize what you wrote in two sentences and suggest the export format.`;
+
 /** Built-in skills as SKILL.md markdown strings (logo-design, social-post, photo-retouch, landing-page, poster-layout, brand-kit, accessibility-audit, copywriting). */
-export const BUILTIN_SKILLS = [LOGO, SOCIAL, PHOTO, LANDING, POSTER, BRAND, A11Y, COPY];
+export const BUILTIN_SKILLS = [LOGO, SOCIAL, PHOTO, LANDING, POSTER, BRAND, A11Y, COPY, HELP, REPORT, BUSINESS_DOC, ...LIBRARY_SKILLS];

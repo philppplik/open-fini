@@ -4,6 +4,7 @@ import { Emitter, uid, clone, equal } from "./util.js";
 import { History } from "./history.js";
 import { createNode, walk } from "./nodes.js";
 import { DEFAULT_SWATCHES } from "./color.js";
+import { FORMAT_VERSION } from "./ofini-migrate.js";
 
 const UNDEF = Symbol("undef");
 
@@ -61,7 +62,11 @@ export class Doc extends Emitter {
     this.styles = { paragraph: {}, character: {} };
     this.swatches = DEFAULT_SWATCHES.map((c, i) => ({ id: `sw${i}`, name: c, color: c }));
     this.slices = []; // export slices {id,name,page,x,y,w,h}
+    this.tableStyles = {}; // saved table styles {id: {name, style}} (engine/layout/table-styles.js)
     this.web = null; // website project of the Code studio (core/web.js), stored next to the design data
+    this.office = null; // word-processing document of the Office Studio (core/office.js)
+    this.comments = []; // comment threads (collab/comments.js); saved as document.json ▸ "comments" when not empty
+    this.source = null; // the file this document was opened from, while File ▸ Save can write it back in that format (core/source-format.js)
     this.settings = { snap: true, snapObjects: true, snapGrid: false, grid: { size: 32, subdivisions: 4, visible: false }, guidesVisible: true };
     this.history = new History();
     this.rev = 0;
@@ -745,12 +750,13 @@ export class Doc extends Emitter {
       JSON.stringify(
         {
           format: "openfini",
-          version: 1,
+          version: FORMAT_VERSION,
           id: this.id,
           name: this.name,
           dpi: this.dpi,
           unit: this.unit,
           studio: this.studio,
+          source: this.source ? { name: this.source.name, format: this.source.format } : undefined, // display only (core/source-format.js)
           createdAt: this.createdAt,
           modifiedAt: this.modifiedAt,
           pages: this.pages,
@@ -760,8 +766,11 @@ export class Doc extends Emitter {
           styles: this.styles,
           swatches: this.swatches,
           slices: this.slices,
+          tableStyles: this.tableStyles,
           settings: this.settings,
           web: this.web ? this.web.manifest() : undefined,
+          office: this.office ? this.office.manifest() : undefined,
+          comments: this.comments?.length ? this.comments : undefined, // additive field, see docs/file-format.md
         },
         (k, v) => (k.charCodeAt(0) === 95 ? undefined : v),
       ),
@@ -780,9 +789,13 @@ export class Doc extends Emitter {
     d.styles = json.styles || { paragraph: {}, character: {} };
     d.swatches = json.swatches || d.swatches;
     d.slices = json.slices || [];
+    d.tableStyles = json.tableStyles && typeof json.tableStyles === "object" ? json.tableStyles : {};
     d.settings = { ...d.settings, ...(json.settings || {}) };
     d.assets = {};
     for (const a of json.assets || []) d.assets[a.id] = { ...a };
+    // comment threads: only a shape check here (keeps start-up small); collab/comments.js normalizeThreads validates
+    // every field before the comments UI shows them, and all comment text is rendered as plain text
+    d.comments = Array.isArray(json.comments) ? json.comments.filter((c) => c && typeof c === "object" && !Array.isArray(c) && typeof c.id === "string").slice(0, 2000) : [];
     if (!d.pages.length) d.pages.push(makePage());
     d.relink();
     d.saved = true;

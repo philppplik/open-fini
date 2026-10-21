@@ -1,9 +1,11 @@
 // Assets pane: images, fonts and media of the project, upload, insert, and "use a design page as an asset".
 import { h, empty, formatBytes } from "../../core/util.js";
+import { emptyHint } from "../empty-hint.js";
 import { relativeRef, sanitizeFileName, basename, uniquePath } from "../../engine/web/index.js";
 import { iconButton } from "../controls.js";
 import { confirmDialog } from "../dialogs.js";
 import { showContextMenu } from "../menus.js";
+import { openContextMenu } from "../context-menu/index.js";
 import { exportRaster, exportSvg } from "../../core/io.js";
 import { fileIcon, isImagePath, isFontPath } from "./util.js";
 import { pickFiles, entriesFromPicked, entriesFromDrop, importInto } from "./import.js";
@@ -37,7 +39,7 @@ export function createAssetsPanel(ws) {
     empty(grid);
     const files = web.paths.filter((p) => MEDIA.test(p));
     if (!files.length) {
-      grid.append(h("div.of-empty", "No assets yet. Upload images, fonts or media — or add a page of your design."));
+      grid.append(emptyHint(ws.app, { icon: "images", title: "No assets yet", text: "Upload images, fonts or media, or drop files here. They become available to every page.", plain: "No assets yet. Upload images, fonts or media." }));
     }
     for (const path of files) {
       const f = web.get(path);
@@ -46,13 +48,13 @@ export function createAssetsPanel(ws) {
       t.addEventListener("dblclick", () => insert(path));
       t.addEventListener("contextmenu", (e) => {
         e.preventDefault();
-        showContextMenu(app, e.clientX, e.clientY, [
+        openContextMenu(app, { kind: "asset-item", x: e.clientX, y: e.clientY, event: e, data: { path }, base: [
           { label: isFontPath(path) ? "Add @font-face rule" : "Insert into page", icon: "plus-square", run: () => insert(path) },
           { label: "Use as background of the selected element", icon: "image", run: () => background(path), disabled: !isImagePath(path) },
           "-",
           { label: "Copy path", icon: "link-45deg", run: () => navigator.clipboard?.writeText(path) },
           { label: "Delete", icon: "trash3", run: async () => ((await confirmDialog({ title: "Delete asset", message: `Delete “${path}”?`, ok: "Delete", danger: true })) ? web.remove(path) : null) },
-        ]);
+        ] });
       });
       grid.append(t);
     }

@@ -1,11 +1,12 @@
 // Parse cache and project-wide lookups for the Code studio. Parsing is memoized by file text, so panels,
 // the outline, the linter and the style panel can all ask for "the parsed index.html" without re-parsing.
-import { parseHtml, parseCss, flattenRules, classesInSelector, elementPath } from "../../engine/web/index.js";
+import { parseHtml, parseCss, flattenRules, classesInSelector, elementPath, detectFrameworks } from "../../engine/web/index.js";
 
 export function createModel(web) {
   const cache = new Map(); // path → { text, kind, parsed }
   let classCache = { rev: -1, list: [] };
   let varCache = { rev: -1, list: [] };
+  let fwCache = { rev: -1, set: new Set() };
 
   function parsed(path, kind) {
     const text = web.text(path);
@@ -21,6 +22,11 @@ export function createModel(web) {
     web,
     html: (path) => parsed(path, "html"),
     css: (path) => parsed(path, "css"),
+    /** Frameworks the project uses (Set of ids, cached per project revision). */
+    frameworks() {
+      if (fwCache.rev !== web.rev) fwCache = { rev: web.rev, set: detectFrameworks(web.source) };
+      return fwCache.set;
+    },
     isHtml: (path) => /\.html?$/i.test(path),
     isCss: (path) => /\.css$/i.test(path),
     cssFiles: () => web.paths.filter((p) => /\.css$/i.test(p)),

@@ -1,5 +1,7 @@
 // Reusable UI building blocks. Shoelace provides the design-system primitives (icons, color
 // picker, range, select, switch, dropdown); everything dense or canvas-specific is lightweight DOM.
+import { ta } from "../i18n/dom.js";
+import { t } from "../i18n/index.js";
 import { h, clamp, round, prettyShortcut, equal } from "../core/util.js";
 import { cssColor, parseColor, toHex6, DEFAULT_SWATCHES } from "../core/color.js";
 
@@ -7,6 +9,7 @@ import { cssColor, parseColor, toHex6, DEFAULT_SWATCHES } from "../core/color.js
 
 let tipEl = null;
 let tipTimer = 0;
+let helpMod = null; // help-content.js, loaded on the first tooltip (one-line "what it does" under the name)
 function ensureTip() {
   if (tipEl) return tipEl;
   tipEl = h("div.of-tip", { role: "tooltip" });
@@ -22,12 +25,14 @@ export function installTooltips() {
     const t = e.target.closest?.("[data-tip]");
     if (!t) return hide();
     clearTimeout(tipTimer);
+    if (!helpMod && !document.documentElement.classList.contains("of-no-tips")) import("./help-content.js").then((m) => (helpMod = m)).catch(() => {});
     tipTimer = setTimeout(() => {
       if (document.documentElement.classList.contains("of-no-tips")) return;
       const el = ensureTip();
       const text = t.getAttribute("data-tip");
       const sc = t.getAttribute("data-shortcut");
-      el.replaceChildren(text, sc ? h("kbd", prettyShortcut(sc)) : "");
+      const desc = helpMod?.tipDescription(t);
+      el.replaceChildren(text, sc ? h("kbd", prettyShortcut(sc)) : "", desc ? h("span.of-tip__desc", desc) : "");
       const r = t.getBoundingClientRect();
       el.classList.add("show");
       const w = el.offsetWidth;
@@ -54,7 +59,8 @@ export const icon = (name, library) => h("sl-icon", { name, library: library || 
 export const ofIcon = (name) => h("sl-icon", { name, library: "of" });
 
 export function iconButton({ icon: ic, lib, label, shortcut, onClick, active = false, disabled = false, cls = "", tipPos } = {}) {
-  const b = h("button.of-ibtn", { type: "button", class: cls, "aria-label": label, "data-tip": label, "data-shortcut": shortcut, "data-tip-pos": tipPos }, ic ? h("sl-icon", { name: ic, library: lib }) : null);
+  // label is English source text: translated now and again on a language switch (data-i18n-* markers, i18n/index.js translateDom)
+  const b = h("button.of-ibtn", { type: "button", class: cls, ...ta({ "aria-label": label, tip: label }), "data-shortcut": shortcut, "data-tip-pos": tipPos }, ic ? h("sl-icon", { name: ic, library: lib }) : null);
   if (active) b.classList.add("active");
   if (disabled) b.disabled = true;
   if (onClick) b.addEventListener("click", (e) => onClick(e, b));
@@ -62,7 +68,7 @@ export function iconButton({ icon: ic, lib, label, shortcut, onClick, active = f
 }
 
 export function button(label, onClick, { variant = "default", icon: ic, cls = "", title } = {}) {
-  const b = h("button.of-btn", { type: "button", class: `${cls} of-btn--${variant}`, title }, ic ? h("sl-icon", { name: ic }) : null, label);
+  const b = h("button.of-btn", { type: "button", class: `${cls} of-btn--${variant}`, title }, ic ? h("sl-icon", { name: ic }) : null, t(label));
   if (onClick) b.addEventListener("click", onClick);
   return b;
 }
@@ -70,7 +76,7 @@ export function button(label, onClick, { variant = "default", icon: ic, cls = ""
 export function segmented(options, value, onChange, { cls = "" } = {}) {
   const el = h("div.of-seg", { class: cls, role: "group" });
   const btns = options.map((o) => {
-    const b = h("button.of-seg__btn", { type: "button", "data-tip": o.label, "aria-pressed": String(o.value === value) }, o.icon ? h("sl-icon", { name: o.icon, library: o.lib }) : o.text || o.label);
+    const b = h("button.of-seg__btn", { type: "button", "data-tip": t(o.label), "aria-pressed": String(o.value === value) }, o.icon ? h("sl-icon", { name: o.icon, library: o.lib }) : t(o.text || o.label));
     b.addEventListener("click", () => {
       set(o.value);
       onChange(o.value);
@@ -106,8 +112,8 @@ function evalExpr(s) {
 /** Compact numeric input with a drag-to-scrub label. */
 export function numField({ label = "", value = 0, min = -Infinity, max = Infinity, step = 1, unit = "", precision = 2, scrub = true, onInput, onChange, title, cls = "", wide = false } = {}) {
   let cur = value;
-  const input = h("input.of-num__input", { type: "text", inputMode: "decimal", value: fmt(value, precision), spellcheck: false, "aria-label": title || label });
-  const lab = label ? h("span.of-num__label", { "data-tip": title }, label) : null;
+  const input = h("input.of-num__input", { type: "text", inputMode: "decimal", value: fmt(value, precision), spellcheck: false, "aria-label": t(title || label) });
+  const lab = label ? h("span.of-num__label", { "data-tip": title ? t(title) : undefined }, t(label)) : null;
   const un = unit ? h("span.of-num__unit", unit) : null;
   const el = h("label.of-num", { class: `${cls}${wide ? " wide" : ""}` }, lab, input, un);
   const commit = (v, final) => {
@@ -174,7 +180,7 @@ export function numField({ label = "", value = 0, min = -Infinity, max = Infinit
 
 /** Labeled slider (Shoelace range) with a numeric readout. */
 export function sliderField({ label, value = 0, min = 0, max = 100, step = 1, unit = "", precision = 0, scale = 1, onInput, onChange, cls = "" } = {}) {
-  const range = h("sl-range", { min, max, step, value, tooltip: "none", "aria-label": label });
+  const range = h("sl-range", { min, max, step, value, tooltip: "none", "aria-label": t(label) });
   const num = numField({
     value: value * scale, min: min * scale, max: max * scale, step: step * scale, unit, precision, scrub: false,
     onChange: (v) => {
@@ -184,7 +190,7 @@ export function sliderField({ label, value = 0, min = 0, max = 100, step = 1, un
     onInput: (v) => onInput?.(v / scale),
   });
   num.el.classList.add("of-slider__num");
-  const el = h("div.of-slider", { class: cls }, label ? h("span.of-slider__label", label) : null, range, num.el);
+  const el = h("div.of-slider", { class: cls }, label ? h("span.of-slider__label", t(label)) : null, range, num.el);
   range.addEventListener("sl-input", () => {
     num.set(range.value * scale);
     onInput?.(range.value);
@@ -204,7 +210,7 @@ export function sliderField({ label, value = 0, min = 0, max = 100, step = 1, un
 /** Swatch button that opens a Shoelace color picker (with alpha and document swatches). */
 export function colorField({ value = "#000000", alpha = true, swatches = DEFAULT_SWATCHES, onInput, onChange, label = "", cls = "" } = {}) {
   const chip = h("span.of-chip__fill");
-  const trigger = h("button.of-chip", { type: "button", slot: "trigger", "aria-label": label || "Color" }, chip);
+  const trigger = h("button.of-chip", { type: "button", slot: "trigger", "aria-label": t(label || "Color") }, chip);
   const picker = h("sl-color-picker", { value, format: "hex", opacity: alpha, size: "small", inline: true, swatches: swatches.join(";"), "no-format-toggle": true });
   const dd = h("sl-dropdown", { class: "of-color-dd", distance: 6, hoist: true }, trigger, h("div.of-popover", picker));
   const paint = (c) => {
@@ -216,7 +222,7 @@ export function colorField({ value = "#000000", alpha = true, swatches = DEFAULT
     onInput?.(picker.value);
   });
   picker.addEventListener("sl-change", () => onChange?.(picker.value));
-  const el = h("div.of-colorfield", { class: cls }, label ? h("span.of-num__label", label) : null, dd);
+  const el = h("div.of-colorfield", { class: cls }, label ? h("span.of-num__label", t(label)) : null, dd);
   return {
     el,
     set(c) {
@@ -230,15 +236,15 @@ export function colorField({ value = "#000000", alpha = true, swatches = DEFAULT
 // ------------------------------------------------------------------ select / switch
 
 export function selectField({ label, value, options, onChange, cls = "", size = "small" } = {}) {
-  const sel = h("sl-select", { value, size, hoist: true, "aria-label": label });
-  for (const o of options) sel.append(h("sl-option", { value: o.value }, o.label));
+  const sel = h("sl-select", { value, size, hoist: true, "aria-label": t(label) });
+  for (const o of options) sel.append(h("sl-option", { value: o.value }, t(o.label)));
   sel.addEventListener("sl-change", () => onChange?.(sel.value));
-  const el = h("div.of-select", { class: cls }, label ? h("span.of-num__label", label) : null, sel);
+  const el = h("div.of-select", { class: cls }, label ? h("span.of-num__label", t(label)) : null, sel);
   return { el, set: (v) => (sel.value = v), select: sel };
 }
 
 export function switchField({ label, value = false, onChange, cls = "" } = {}) {
-  const sw = h("sl-switch", { size: "small" }, label);
+  const sw = h("sl-switch", { size: "small" }, t(label));
   sw.checked = !!value;
   sw.addEventListener("sl-change", () => onChange?.(sw.checked));
   return { el: h("div.of-switch", { class: cls }, sw), set: (v) => (sw.checked = !!v), sw };

@@ -1,9 +1,11 @@
 // Layers panel: tree of the active page with drag & drop, visibility/lock toggles and layer controls.
 import { h, empty, frameScheduler } from "../../core/util.js";
+import { emptyHint } from "../empty-hint.js";
 import { BLEND_MODES } from "../../core/effects.js";
 import { reparent, setProp, topLevelSelection } from "../../core/ops.js";
 import { iconButton, selectField, sliderField } from "../controls.js";
 import { showContextMenu } from "../menus.js";
+import { openContextMenu } from "../context-menu/index.js";
 import { cssColor } from "../../core/color.js";
 
 const TYPE_ICON = {
@@ -83,7 +85,7 @@ export function createLayersPanel(app) {
       "div.of-layer",
       {
         role: "treeitem", "aria-selected": String(isSel), "aria-level": depth + 1, draggable: !node.locked,
-        class: [isSel ? "selected" : "", node.visible ? "" : "hidden", node.locked ? "locked" : ""].join(" ").trim(),
+        class: [isSel ? "selected" : "", node.visible ? "" : "is-hidden", node.locked ? "locked" : ""].join(" ").trim(),
         style: { "--depth": depth },
       },
       twist,
@@ -124,7 +126,7 @@ export function createLayersPanel(app) {
     r.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       if (!app.isSelected(node)) app.select([node]);
-      app.emit("contextmenu", { x: e.clientX, y: e.clientY, layers: true });
+      openContextMenu(app, { kind: "layers-row", x: e.clientX, y: e.clientY, selection: app.selection, event: e, data: { node, rename: () => rename(node, name), layers: true } });
     });
     // drag and drop
     r.addEventListener("dragstart", (e) => {
@@ -219,7 +221,7 @@ export function createLayersPanel(app) {
     const page = app.page;
     if (app.state?.group) rows.push(h("div.of-layers__crumb", h("button.of-btn", { onclick: () => app.exitGroup() }, "← ", app.state.group.name)));
     walkRows(page.root, 0, rows);
-    if (!rows.length) rows.push(h("div.of-empty", "No layers yet. Draw a shape or add a layer."));
+    if (!rows.length) rows.push(emptyHint(app, { icon: "layers", title: "No layers yet", text: "Draw a shape, type some text or drop an image on the canvas. Each object appears here.", plain: "No layers yet. Draw a shape or add a layer." }));
     list.append(...rows);
     syncControls();
   }

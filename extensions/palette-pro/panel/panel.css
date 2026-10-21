@@ -1,0 +1,14 @@
+section { margin-bottom: 14px; }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+.grow { margin-left: auto; display: inline-flex; gap: 6px; align-items: center; }
+.sw { display: flex; flex-wrap: wrap; gap: 6px; min-height: 8px; align-items: center; }
+.sw button { width: 44px; height: 44px; padding: 0; border-radius: 6px; border: 1px solid var(--of-border, #888); position: relative; }
+.sw button span { position: absolute; left: 0; right: 0; bottom: 1px; font-size: 8px; text-align: center; text-shadow: 0 0 2px #fff, 0 0 2px #000; color: #fff; }
+.result { padding: 8px; border-radius: 6px; border: 1px solid var(--of-border, #888); margin: 6px 0; }
+.result b { font-size: 16px; }
+.ok { color: var(--of-ok, #1a7f37); }
+.bad { color: var(--of-danger, #c62828); }
+.fix { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
+.chip { display: inline-block; width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--of-border, #888); }
+input[type=color] { padding: 0; width: 34px; height: 26px; }
+.status { color: var(--of-text-dim, #666); min-height: 16px; }

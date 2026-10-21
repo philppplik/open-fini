@@ -37,6 +37,9 @@ function hitOwn(node, x, y, tol) {
     case "image":
     case "pixel":
       return x >= -tol && y >= -tol && x <= node.w + tol && y <= node.h + tol;
+    case "chart":
+      return x >= -tol && y >= -tol && x <= node.w + tol && y <= node.h + tol;
+    case "table":
     case "text": {
       const b = node._bounds || { x: 0, y: 0, w: node.w || 0, h: node.h || 0 };
       return x >= b.x - tol && y >= b.y - tol && x <= b.x + b.w + tol && y <= b.y + b.h + tol;

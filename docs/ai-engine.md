@@ -118,6 +118,10 @@ last real user message and walks a plan, one step per model call, reading ids fr
 | `website`, `landing`, `portfolio`, `blog` | `create_website{template}` -> `write_file` x2 -> `screenshot` |
 | `rectangle`, `circle`, `headline`/`title` | `add_shape` / `add_text` in one step (+ `set_style{ids}` for outline/border/shadow, then `screenshot`) |
 | `brighter`, `contrast`, `saturation`, `blur` | `list_layers` (when no ids known) -> `apply_adjustment{kind,id,params}` / `apply_filter{filter,id,params}` -> `screenshot` |
+| `agents` with `brand kit` / `three` / `parallel` | `new_document` -> three `spawn_agent{role,task,tools:['design']}` in one step -> `wait_agent{}` -> `screenshot` (each child is answered by the same script from its task: rectangle, circle, headline) |
+| `batch`, `run_plan`, `run a plan` | one `run_plan` with five steps and a `{"$ref":"card.id"}` reference -> `screenshot` |
+| `query` / `find all` + rect/shapes/layers/text | `query_layers{type}` -> `apply_to_many{query,style}` -> `describe_page` |
+| `Use the “name” skill [with args {...}].` | `use_skill{name,args}` first, then the plan for the rest of the prompt |
 
 Calls are only made for tools present in `request.tools`. The demo tool arguments (illustrative; the real tools
 define the contract): `add_shape{type:'rect'|'ellipse',x,y,w,h,fill,radius,name}` where `fill` may be a gradient
@@ -170,6 +174,19 @@ Semantics:
 `{type:'tool_end', id, name, result, isError, ms}`, `{type:'usage', input, output, cachedInput?, total}`,
 `{type:'retry', attempt, error, status?, delayMs}`, `{type:'done', stopReason, usage, steps, error?}`.
 
+Parallel tools: consecutive `readOnly` calls of one step run concurrently; mutating calls keep their order. The Vibe
+session additionally serializes mutating calls across chats with a FIFO write lock (`app/src/vibe/locks.js`, ADR 0008).
+
+**Sub-agents** (`app/src/vibe/agents.js`, pure): `new AgentManager({runAgent, provider, model, parentTools, depth,
+settings:{maxConcurrent, maxSteps, budgetSteps, budgetTokens}, signal, onEvent, approve, toolsFor})` runs child loops
+with `runAgent`: `spawn({role, task, tools, constraints, maxSteps})` (queued FIFO beyond `maxConcurrent`), `wait(ids?)`
+-> `[{id, role, status, summary, artifacts:{layers, files}, steps, usage, ms, note?, error?}]`, `list()`,
+`cancel(id)`, `cancelAll()`. `resolveToolset(spec, parentTools, {depth})` maps tool-set names (`design`, `pixel`,
+`web`, `layout`, `knowledge`, `read-only`) and tool names to a subset of the parent's tools (never more; no
+`ask_user`/`create_tool`/`remember`; no `spawn_agent` at `MAX_DEPTH` = 2). Children share one step/token budget,
+abort with the parent and emit `{type:'agent_status', agent}` and `{type:'agent_event', agentId, role, parentToolId,
+ev}` (child tool ids are prefixed `a1:`). Child approvals call `approve` with `agent:{id, role}`.
+
 Also exported: `compactMessages(messages, {maxChars=200000, keepRecent=6})` (replaces old images with
 `[image omitted]`, then old tool results with `[result omitted]`, then shortens old long text; never mutates, never
 touches the last `keepRecent` messages), `estimateTokens(messages)` (characters / 4, images about 1.5k tokens),
@@ -220,9 +237,21 @@ goes to `meta`). `parseSkill(md)` is tolerant (inline lists, comma lists, YAML d
 quotes, CRLF, no frontmatter), `serializeSkill({name, description, body, allowedTools?, tags?, meta?, ...})` writes it
 back, `skillsCatalog(skills)` builds the compact list for the system prompt (the model loads one with `use_skill`).
 
-`BUILTIN_SKILLS` is an array of eight markdown strings (`BUILTIN_SKILL_LIST` has them parsed): `logo-design`,
-`social-post`, `photo-retouch`, `landing-page`, `poster-layout`, `brand-kit`, `accessibility-audit`, `copywriting`.
-Each has a workflow, concrete design rules (grids, type scales, contrast ratios) and a verification step.
+`BUILTIN_SKILLS` is an array of 26 markdown strings (`BUILTIN_SKILL_LIST` has them parsed): the original ten in
+`skills-builtin.js` and sixteen workflow skills in `skills-library.js`. Each has a workflow, concrete rules (grids,
+type scales, contrast ratios), token-saving tips where useful and a verification step.
+
+Skills v2 (all pure, see [vibe-skills.md](vibe-skills.md) for the format): parsed skills also carry `params`
+(`[{name, description, default?, required}]`), `whenToUse`, `requires`, `references`, `version`, `studios`,
+`enforceTools` and `argumentHint`, derived from the frontmatter (the raw values stay in `meta`).
+
+- `renderSkill(skill, {args, all})` -> `{text, missing, values}`: substitutes `{{name}}` and `$ARGUMENTS`, appends
+  undeclared values, includes required skills (depth 3, cycle safe), lists reference files and the enforced tools.
+  `args` is an object or a string (`key=value`, `key="two words"`, otherwise the first required parameter).
+- `validateSkill(skillOrText, {toolNames, skillNames})` -> `{errors, warnings, skill}`.
+- `suggestSkills(prompt, skills, {limit=3, min=1.2})` -> `[{skill, score}]` (BM25 over name x2, description, tags,
+  when-to-use x2; stop words and a light plural stemmer).
+- `parseArgString`, `parseParam` helpers; `skillsCatalog` shows `[args: a, b?]`.
 
 `buildSystemPrompt({studio, doc, skills, memory, knowledgeHint, mode, extra})`: identity ("Vibe, the assistant built
 into OpenFini"), studio notes, current document (`{name, pages, page:{width,height}, website}` or any object or
@@ -283,7 +312,17 @@ are owned by the implementation. Read-only tools are marked (R) and may run in p
 | `search_knowledge` (R) | query the local knowledge base (`KnowledgeIndex.search`) |
 | `remember` | store a durable user or project preference for the system prompt |
 | `ask_user` | ask the user a short question and wait for the answer |
-| `use_skill` (R) | load a skill's full instructions by name |
+| `use_skill` (R) | load a skill's full instructions by name (with `args`; or a reference `file`) |
+| `create_skill` | save a skill draft distilled from the chat (approval) |
+| `run_plan` | ordered tool calls in one turn with `{"$ref":"step.path"}` references, one approval, one undo step |
+| `query_layers` (R) | selector/attribute layer query, paged, `fields` projection |
+| `describe_page`, `describe_selection` (R) | summary + compact scene text, revision cache (`since` -> `unchanged`) |
+| `apply_to_many` | set_style / transform for every query match |
+| `evaluate` (R) | sandboxed JavaScript (no network) that may call read-only tools |
+| `screenshot_layers`, `compare_screenshots` (R) | isolated renders, before/after pairs, `lowRes` |
+| `grid_layout`, `distribute_layers`, `snap_layers`, `make_component` | layout helpers, one undo step each |
+| `spawn_agent`, `wait_agent`, `list_agents`, `cancel_agent` (R) | sub-agents (see Agent loop) |
+| `list_attachments` (R), `open_attachment` | files attached in the chat; open one as a new document |
 
 The Demo provider additionally emits `new_document` and `create_website`, so the studio layer should register them as
 well.

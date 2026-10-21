@@ -1,6 +1,6 @@
 // "Add" pane: the element and section catalog. Click inserts at the selection, dragging drops onto the canvas.
 import { h, empty } from "../../core/util.js";
-import { ELEMENT_CATEGORIES } from "../../engine/web/index.js";
+import { ELEMENT_CATEGORIES, FRAMEWORK_ELEMENT_CATEGORIES } from "../../engine/web/index.js";
 import { fuzzyScore } from "./util.js";
 
 export function createElementsPanel(ws) {
@@ -25,7 +25,10 @@ export function createElementsPanel(ws) {
   function render() {
     empty(body);
     const q = search.value.trim();
-    for (const cat of ELEMENT_CATEGORIES) {
+    // framework snippets (Bootstrap, Tailwind, htmx) appear when the project uses that framework
+    const fw = ws.model.frameworks();
+    const cats = [...ELEMENT_CATEGORIES, ...FRAMEWORK_ELEMENT_CATEGORIES.filter((c) => fw.has(c.framework))];
+    for (const cat of cats) {
       const items = q ? cat.items.filter((i) => fuzzyScore(q, `${i.label} ${cat.label} ${i.id}`) >= 0) : cat.items;
       if (!items.length) continue;
       body.append(h("details.of-addcat", { open: true }, h("summary", cat.label), h("div.of-addgrid", items.map(tile))));
@@ -78,5 +81,6 @@ export function createElementsPanel(ws) {
   }
 
   render();
-  return { el, render, show: () => search.focus() };
+  ws.on("files", render);
+  return { el, render, show: () => (render(), search.focus()) };
 }
