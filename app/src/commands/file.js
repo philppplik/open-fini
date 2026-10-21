@@ -69,7 +69,7 @@ export function registerFileCommands(app) {
       return null;
     }
     // Markdown, LaTeX, JSON, YAML, TypeScript … open as a one-file project in the Code studio
-    if (isTextDocumentName(file.name)) return (await import("../ui/code/open-document.js")).openTextDocument(app, file);
+    if (!/\.ofini$/i.test(file.name) && isTextDocumentName(file.name)) return (await import("../ui/code/open-document.js")).openTextDocument(app, file);
     const mime = sniffMime(file.bytes, file.name);
     if (mime === OFINI_MIME || /\.ofini$/i.test(file.name)) {
       const doc = await loadOfini(file.bytes);
