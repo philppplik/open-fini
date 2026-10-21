@@ -397,10 +397,10 @@ export function compactCss(css) {
     const line = `${indent}${selector} { ${decls.join(" ")} }`;
     return decls.length <= 5 && line.length <= 112 ? line : whole;
   };
-  let out = css.replace(/^([ \t]*)((?:[^{}\n;]+,\n[ \t]*)*[^{}\n;]+) \{\n((?:[ \t]+[^{}\n]+;\n)+)[ \t]*\}$/gm, (m, indent, selector, body) =>
+  let out = css.replace(/^([ \t]*)((?:[^{}\s;][^{}\n;]*,\n[ \t]*)*[^{}\s;][^{}\n;]*) \{\n((?:[ \t]+[^{}\s][^{}\n]*;\n)+)[ \t]*\}$/gm, (m, indent, selector, body) =>
     short(m, indent, selector.replace(/,\n[ \t]*/g, ", "), body),
   );
-  out = out.replace(/(^[ \t]*[^{}\n]+ \{ [^{}\n]+ \}\n)\n(?=[ \t]*[^{}\n]+ \{ [^{}\n]+ \}\n)/gm, "$1");
+  out = out.replace(/(^[ \t]*[^{}\s][^{}\n]* \{ [^{}\n]+ \}\n)\n(?=[ \t]*[^{}\s][^{}\n]* \{ [^{}\n]+ \}\n)/gm, "$1");
   return out;
 }
 

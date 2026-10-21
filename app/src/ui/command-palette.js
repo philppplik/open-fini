@@ -1,6 +1,6 @@
 // Global command palette (Ctrl/Cmd+K or F1): every registered command, fuzzy search, shortcuts, recent commands and
 // studio-aware ranking. Lists the commands that can run right now. Ranking lives in command-search.js.
-import { h, empty, prettyShortcut } from "../core/util.js";
+import { h, empty, prettyShortcut, uid as makeUid } from "../core/util.js";
 import { rankCommands, pushRecent } from "./command-search.js";
 
 /** Commands that need arguments from their caller and make no sense in a list. */
@@ -26,7 +26,7 @@ export function openCommandPalette(app, initial = "") {
     return;
   }
   const previous = document.activeElement;
-  const uid = `of-cp-${Math.random().toString(36).slice(2, 7)}`;
+  const uid = makeUid("of-cp");
   const input = h("input.of-palette__input", { type: "text", value: initial, spellcheck: false, autocomplete: "off", role: "combobox", "aria-expanded": "true", "aria-controls": `${uid}-list`, "aria-autocomplete": "list", "aria-label": "Search commands", placeholder: "Type a command…" });
   const list = h("div.of-palette__list", { role: "listbox", id: `${uid}-list`, "aria-label": "Commands" });
   const foot = h("div.of-palette__foot", h("span", h("kbd", "↑↓"), " navigate"), h("span", h("kbd", "Enter"), " run"), h("span", h("kbd", "Esc"), " close"));

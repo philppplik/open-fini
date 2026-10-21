@@ -73,7 +73,7 @@ test("setAttribute: add, update, remove, quote styles, escaping, idempotence", (
   assert.equal(run(src, (p) => setAttribute(p, 0, "target", "_self")), '<a href="x.html" target=\'_self\' rel=noopener hidden>t</a>');
   assert.equal(run(src, (p) => setAttribute(p, 0, "rel", "no opener")), '<a href="x.html" target=\'_blank\' rel="no opener" hidden>t</a>');
   assert.equal(run(src, (p) => setAttribute(p, 0, "rel", "nofollow")), '<a href="x.html" target=\'_blank\' rel=nofollow hidden>t</a>');
-  assert.equal(run(src, (p) => setAttribute(p, 0, "title", 'Say "hi" & bye')), '<a href="x.html" target=\'_blank\' rel=noopener hidden title=\'Say "hi" &amp; bye\'>t</a>'.replace("title='Say \"hi\" &amp; bye'", 'title="Say &quot;hi&quot; &amp; bye"').replace("target='_blank'", "target='_blank'"));
+  assert.equal(run(src, (p) => setAttribute(p, 0, "title", 'Say "hi" & bye')), '<a href="x.html" target=\'_blank\' rel=noopener hidden title=\'Say "hi" &amp; bye\'>t</a>'.replace("title='Say \"hi\" &amp; bye'", 'title="Say &quot;hi&quot; &amp; bye"'));
   assert.equal(run(src, (p) => setAttribute(p, 0, "target", null)), '<a href="x.html" rel=noopener hidden>t</a>');
   assert.equal(run(src, (p) => setAttribute(p, 0, "href", null)), "<a target='_blank' rel=noopener hidden>t</a>");
   assert.equal(run(src, (p) => setAttribute(p, 0, "hidden", null)), '<a href="x.html" target=\'_blank\' rel=noopener>t</a>');
@@ -352,7 +352,7 @@ test("setDeclarations handles !important, idempotence and removal", () => {
   assert.equal(runCss(SHEET, (p) => setDeclarations(p, { selector: ".hero" }, { margin: "" })), SHEET.replace("  margin: 0 auto;\n", ""));
   assert.equal(runCss(SHEET, (p) => setDeclarations(p, { selector: ".btn" }, { color: null })), SHEET.replace("{ color: blue; padding: 4px }", "{ padding: 4px }"));
   assert.equal(runCss(SHEET, (p) => setDeclarations(p, { selector: ".btn" }, { padding: null })), SHEET.replace("{ color: blue; padding: 4px }", "{ color: blue; }"));
-  assert.equal(runCss(SHEET, (p) => setDeclarations(p, { selector: ".hero" }, { color: null, margin: "0" })), SHEET.replace("  color: red;\n  margin: 0 auto;\n", "  margin: 0;\n").replace("  margin: 0;\n", "  margin: 0;\n"));
+  assert.equal(runCss(SHEET, (p) => setDeclarations(p, { selector: ".hero" }, { color: null, margin: "0" })), SHEET.replace("  color: red;\n  margin: 0 auto;\n", "  margin: 0;\n"));
   assert.equal(runCss(".a {\n  color: red;\n  margin: 0;\n}", (p) => setDeclarations(p, { selector: ".a" }, { margin: null, padding: "1px" })), ".a {\n  color: red;\n  padding: 1px;\n}");
 });
 

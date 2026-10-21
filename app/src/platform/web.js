@@ -166,7 +166,8 @@ export const platform = {
 
   async openExternal(url) {
     if (!isSafeExternalUrl(url)) throw new Error(`Refusing to open ${url}`);
-    window.open(url, "_blank", "noopener,noreferrer");
+    // navigate to the re-serialized, scheme-checked URL (never the raw input)
+    window.open(new URL(url).href, "_blank", "noopener,noreferrer");
   },
 
   async onOpenFiles(callback) {

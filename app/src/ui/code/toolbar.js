@@ -59,7 +59,9 @@ export function createToolbar(ws) {
   ];
   const layoutEl = h("div.of-seg.of-codebar__layout", { role: "group", ...ta({ "aria-label": "Split layout" }) });
   const layoutBtns = LAYOUT_BTNS.map((l) => {
-    const b = h("button.of-seg__btn", { type: "button", ...ta({ tip: l.label, "aria-label": l.label }), html: `<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">${l.svg}</svg>` });
+    const b = h("button.of-seg__btn", { type: "button", ...ta({ tip: l.label, "aria-label": l.label }) });
+    // parsed as an SVG document (never innerHTML): the markup is a constant above, and this keeps scripts inert regardless
+    b.append(document.importNode(new DOMParser().parseFromString(`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">${l.svg}</svg>`, "image/svg+xml").documentElement, true));
     b.addEventListener("click", () => ws.app.run(`code.layout.${l.id}`));
     layoutEl.append(b);
     return b;
