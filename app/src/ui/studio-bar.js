@@ -5,6 +5,7 @@ import { h } from "../core/util.js";
 import { t } from "../i18n/index.js";
 import { iconEl } from "./toolbox.js";
 import { buildMenu } from "./menus.js";
+import { markContext } from "./context-menu/index.js";
 import { STUDIOS, onStudioRegistered, studioIconSpec } from "../studios/registry.js";
 
 export function createStudioBar(app) {
@@ -25,6 +26,7 @@ export function createStudioBar(app) {
     app.visibleStudios.forEach((id, i) => {
       const s = STUDIOS[id];
       const b = h("button.of-studio", { type: "button", "data-studio": id, "data-tip": tip(s), "data-shortcut": `Alt+${i + 1}`, "aria-pressed": "false" }, iconEl(studioIconSpec(s)), h("span", s.label));
+      markContext(b, "studio-button", { studio: id });
       b.addEventListener("click", () => app.setStudio(id));
       buttons.set(id, b);
       el.append(b);

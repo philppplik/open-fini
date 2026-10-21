@@ -85,6 +85,75 @@ export function idsFromResults(messages, from) {
  * @returns {{text:string, calls:{name:string,input:object}[]}[]}
  */
 export function planForPrompt(prompt, ctx = { ids: [], called: new Set() }) {
+  // "Use the “name” skill [with args {...}]. rest" loads the skill first, then continues with the rest
+  const sk = /use the [“"]?([a-z0-9-]+)[”"]? skill(?: with args (\{[^\n]*?\}))?\.?\s*/i.exec(prompt);
+  if (sk) {
+    let args;
+    try {
+      args = sk[2] ? JSON.parse(sk[2]) : undefined;
+    } catch {
+      args = undefined;
+    }
+    const rest = prompt.replace(sk[0], " ").trim();
+    const after = rest ? planForPrompt(rest, ctx) : [];
+    return [{ text: `Loading the ${sk[1]} skill.`, calls: [{ name: "use_skill", input: { name: sk[1], ...(args ? { args } : {}) } }] }, ...after];
+  }
+  return planForPromptBase(prompt, ctx);
+}
+
+function planForPromptBase(prompt, ctx) {
+  const p = prompt.toLowerCase();
+  const color0 = pickColor(prompt, "#4f46e5");
+  // sub-agents: "build a brand kit with three agents"
+  if (/\bagents?\b/.test(p) && /\b(brand ?kit|three|3|parallel)\b/.test(p)) {
+    return [
+      { text: "I will set up a canvas and split the brand kit into three parallel agents.", calls: [{ name: "new_document", input: { name: "Brand kit", width: 1200, height: 800 } }] },
+      {
+        text: "Starting the agents.",
+        calls: [
+          { name: "spawn_agent", input: { role: "palette", task: `Draw a ${/#[0-9a-f]{6}/i.test(prompt) ? color0 : "blue"} rectangle at the left as the primary color swatch.`, tools: ["design"] } },
+          { name: "spawn_agent", input: { role: "mark", task: "Draw an orange circle as the brand mark.", tools: ["design"] } },
+          { name: "spawn_agent", input: { role: "type", task: 'Add a headline text "Brand Kit".', tools: ["design"] } },
+        ],
+      },
+      { text: "Waiting for the agents to finish.", calls: [{ name: "wait_agent", input: {} }] },
+      { text: "Let me check the combined result.", calls: [{ name: "screenshot", input: {} }] },
+    ];
+  }
+  // power tools: "run a batch plan" / "query the rectangles and recolor them"
+  if (/\bbatch\b|\brun_plan\b|\brun a plan\b/.test(p)) {
+    return [
+      {
+        text: "Doing it in one batch.",
+        calls: [{
+          name: "run_plan",
+          input: {
+            label: "Batch demo",
+            steps: [
+              { id: "doc", tool: "new_document", args: { name: "Batch demo", width: 800, height: 600 } },
+              { id: "bg", tool: "add_shape", args: { type: "rect", x: 0, y: 0, w: 800, h: 600, fill: color0, name: "Background" } },
+              { id: "card", tool: "add_shape", args: { type: "rect", x: 200, y: 150, w: 400, h: 300, fill: "#ffffff", radius: 24, name: "Card" } },
+              { id: "title", tool: "add_text", args: { text: "Made in one turn", x: 240, y: 270, fontSize: 40, color: "#111827" } },
+              { tool: "set_style", args: { ids: [{ $ref: "card.id" }], stroke: "#111827", strokeWidth: 2 } },
+            ],
+          },
+        }],
+      },
+      { text: "Checking it.", calls: [{ name: "screenshot", input: {} }] },
+    ];
+  }
+  if (/\bquery\b|\bfind (all|every)\b/.test(p) && /\b(rect|rectangles|shapes|layers|text)\b/.test(p)) {
+    const type = /\btext\b/.test(p) ? "text" : "rect";
+    return [
+      { text: "Finding the layers.", calls: [{ name: "query_layers", input: { type, fields: ["id", "name", "fill"] } }] },
+      { text: "Recoloring all of them at once.", calls: [{ name: "apply_to_many", input: { query: { type }, style: { fill: color0 } } }] },
+      { text: "", calls: [{ name: "describe_page", input: {} }] },
+    ];
+  }
+  return planForPromptLegacy(prompt, ctx);
+}
+
+function planForPromptLegacy(prompt, ctx) {
   const p = prompt.toLowerCase();
   const color = pickColor(prompt, "#4f46e5");
   const q = quoted(prompt);

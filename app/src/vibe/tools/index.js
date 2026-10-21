@@ -16,13 +16,17 @@ import { frameworkTools } from "./frameworks.js";
 import { officeTools } from "./office.js";
 import { textcodecTools } from "./textcodec.js";
 import { customizationTools } from "./customization.js";
+import { formatTools } from "./formats.js";
+import { powerTools } from "./power.js";
+import { agentTools } from "./agents.js";
+import { attachmentTools } from "./attachments.js";
 
 /**
  * @param {import("../../core/app.js").App} app
  * @param {object} ctx session context: { images, knowledge, memory, skills, ask, plan, customTools }
  */
 export function createOpenFiniTools(app, ctx = {}) {
-  return [...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx)];
+  return [...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...formatTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx)];
 }
 
 /** Tools grouped for the UI. */
@@ -39,8 +43,12 @@ export const TOOL_GROUPS = {
   "System and files": ["get_platform_info", "list_recent_files"],
   Extensions: ["list_extensions", "run_extension_command", "install_extension_from_url", "create_extension"],
   "Appearance and help": ["list_themes", "set_theme", "start_tour", "list_commands"],
+  "File formats": ["list_supported_formats", "import_palette_from_text", "export_palette"],
   Customization: ["get_settings", "set_setting", "list_shortcuts", "set_shortcut", "export_profile"],
   "Diagnostics and security": ["get_app_logs", "get_diagnostics", "get_security_status"],
   "Text and encoding": ["encode_text", "decode_text", "transform_file_text"],
-  Assistant: ["search_knowledge", "remember", "use_skill", "ask_user", "update_plan", "create_tool"],
+  Assistant: ["search_knowledge", "remember", "use_skill", "create_skill", "ask_user", "update_plan", "create_tool"],
+  "Power tools": ["run_plan", "query_layers", "describe_page", "describe_selection", "apply_to_many", "evaluate", "screenshot_layers", "compare_screenshots", "grid_layout", "distribute_layers", "snap_layers", "make_component"],
+  Agents: ["spawn_agent", "wait_agent", "list_agents", "cancel_agent"],
+  Attachments: ["list_attachments", "open_attachment"],
 };

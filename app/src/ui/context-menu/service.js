@@ -12,7 +12,7 @@ import { log } from "../../core/log.js";
  */
 export const KINDS = [
   "canvas-empty", "canvas-layers", "canvas-text", "table", "table-cell", "chart", "text-field", "code-editor", "web-element", "explorer-file", "explorer-folder", "layers-row", "doc-tab", "editor-tab",
-  "history-item", "asset-item", "navigator", "panel-header", "vibe-message", "vibe-tool-card", "status-bar", "ruler", "welcome-recent",
+  "history-item", "asset-item", "navigator", "panel-header", "vibe-message", "vibe-tool-card", "status-bar", "ruler", "welcome-recent", "studio-button",
 ];
 
 /**

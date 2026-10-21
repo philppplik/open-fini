@@ -37,6 +37,8 @@ const defaultPrefs = () => ({
   restoreSession: true,
   autosave: true,
   autosaveSeconds: 4,
+  showRecent: true, // recent files on the start page
+  recentLimit: 12, // recent files remembered (0-50)
   confirmClose: true,
   // canvas and performance
   lowPower: "auto", // auto | on | off
@@ -54,6 +56,9 @@ const defaultPrefs = () => ({
   // security and AI
   confirmExternal: true,
   aiEnabled: false,
+  updateCheckAuto: false, // check GitHub for a newer release at start-up (once a day); off by default
+  updateLastCheck: 0,
+  updateSeenVersion: "",
   offlineMode: false, // network kill-switch (core/network.js)
   appLock: false, // mirror of the lock record; the lock itself is in storage (ui/app-lock.js)
   appLockIdleMinutes: 10, // 0 = never lock on idle

@@ -85,7 +85,7 @@ export function createLayersPanel(app) {
       "div.of-layer",
       {
         role: "treeitem", "aria-selected": String(isSel), "aria-level": depth + 1, draggable: !node.locked,
-        class: [isSel ? "selected" : "", node.visible ? "" : "hidden", node.locked ? "locked" : ""].join(" ").trim(),
+        class: [isSel ? "selected" : "", node.visible ? "" : "is-hidden", node.locked ? "locked" : ""].join(" ").trim(),
         style: { "--depth": depth },
       },
       twist,

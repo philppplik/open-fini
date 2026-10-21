@@ -16,5 +16,5 @@ export { planForPrompt, gradientPng } from "./providers/mock.js";
 export { runAgent, compactMessages, estimateTokens, validateSchema, truncateText } from "./agent.js";
 export { McpClient, McpError, mcpToolsToAgentTools, mcpContentToBlocks, mcpToolName } from "./mcp.js";
 export { KnowledgeIndex, chunkText, tokenize, stem } from "./rag.js";
-export { parseSkill, serializeSkill, skillsCatalog, buildSystemPrompt, slugify, BUILTIN_SKILLS, BUILTIN_SKILL_LIST } from "./skills.js";
+export { parseSkill, serializeSkill, skillsCatalog, buildSystemPrompt, slugify, BUILTIN_SKILLS, BUILTIN_SKILL_LIST, renderSkill, validateSkill, suggestSkills, parseArgString, parseParam } from "./skills.js";
 export { encryptJson, decryptJson, maskKey, randomId, createPkce, pkceChallenge, openRouterAuthUrl, exchangeOpenRouterCode, VaultError } from "./vault.js";

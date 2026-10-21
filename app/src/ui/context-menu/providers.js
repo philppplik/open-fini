@@ -204,6 +204,9 @@ export function registerBuiltinProviders() {
         { label: "Save as…", icon: "save2", run: () => (app.activateDoc(doc), app.run("file.saveAs")) },
         { label: "Export…", icon: "box-arrow-up", run: () => (app.activateDoc(doc), app.run("file.export")) },
         "-",
+        { label: "Move to new window", icon: "box-arrow-up-right", run: () => app.run("window.popout", { doc, mode: "move" }) },
+        { label: "Open copy in new window", icon: "files", run: () => app.run("window.popout", { doc, mode: "copy" }) },
+        "-",
         { label: "Close", icon: "x-lg", shortcut: "Mod+W", run: () => app.run("file.close", doc) },
         { label: "Close others", disabled: !others.length, run: () => closeAll(others) },
         { label: "Close all", run: () => closeAll(app.docs.slice()) },
@@ -283,6 +286,16 @@ export function registerBuiltinProviders() {
         "-", "view.guides", "view.snapping", "view.rulers",
       ];
     },
+  });
+
+  registerContextProvider({
+    id: "core.studio-button",
+    priority: 50,
+    matches: (c) => c.kind === "studio-button",
+    items: (c) => [
+      { label: "Open studio", icon: "box-arrow-in-right", run: () => c.app.setStudio(c.data.studio) },
+      { label: "Open studio in new window", icon: "box-arrow-up-right", run: () => c.app.run("window.popoutStudio", { studio: c.data.studio }) },
+    ],
   });
 
   registerContextProvider({

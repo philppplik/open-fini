@@ -120,3 +120,22 @@ export function findEmbeddedPreview(bytes, { minSide = 48, maxScanBytes = 512 * 
   }
   return best;
 }
+
+/**
+ * Parses the optional binary header that Windows tools put in front of an EPS file (magic C5 D0 D3 C6) and returns
+ * the byte ranges of its parts: the PostScript program, and the WMF / TIFF preview when present. `null` for other files.
+ * The header layout is part of the public Adobe "Encapsulated PostScript File Format Specification" 3.0.
+ * @returns {{ ps: [number, number], wmf: [number, number] | null, tiff: [number, number] | null } | null}
+ */
+export function dosEpsParts(bytes) {
+  if (!bytes || bytes.length < 30 || bytes[0] !== 0xc5 || bytes[1] !== 0xd0 || bytes[2] !== 0xd3 || bytes[3] !== 0xc6) return null;
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const range = (o) => {
+    const off = dv.getUint32(o, true);
+    const len = dv.getUint32(o + 4, true);
+    return len > 0 && off >= 30 && off + len <= bytes.length ? [off, len] : null;
+  };
+  const ps = range(4);
+  if (!ps) return null;
+  return { ps, wmf: range(12), tiff: range(20) };
+}

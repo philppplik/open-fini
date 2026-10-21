@@ -38,6 +38,12 @@ export function registerFileCommands(app) {
       if (kind === "psd" || kind === "psb") return imp.openPsd(app, file);
       if (kind === "idml") return imp.openIdml(app, file);
     }
+    // TIFF, animated GIF, OpenRaster, Krita, ICO / CUR and GPL / ASE / ACO palettes (core/import-raster.js)
+    const rb = file.bytes;
+    if (/\.(tiff?|gif|ora|kra|ico|cur|gpl|ase|aco)$/i.test(file.name) || (rb[0] === 0x47 && rb[1] === 0x49 && rb[2] === 0x46) || (rb[0] === 0x49 && rb[1] === 0x49 && rb[2] === 0x2a && rb[3] === 0) || (rb[0] === 0x4d && rb[1] === 0x4d && rb[2] === 0 && rb[3] === 0x2a)) {
+      const r = await (await import("../core/import-raster.js")).openRasterFormat(app, file);
+      if (r !== undefined) return r;
+    }
     // PDF, Illustrator, Sketch and the "convert this first" guidance for Affinity, InDesign, Figma, XD ... (core/open-foreign.js)
     const fb = file.bytes;
     if (/\.(pdf|ai|eps|sketch|afdesign|afphoto|afpub|aftemplate|afpackage|indd|indt|fig|xd|cdr|pxd|kra|xcf)$/i.test(file.name) || (fb[0] === 0x25 && fb[1] === 0x50 && fb[2] === 0x44 && fb[3] === 0x46)) {
@@ -265,7 +271,7 @@ export function registerFileCommands(app) {
   });
   app.on("recents", (r) => (recents = r));
   app.menuProviders = app.menuProviders || {};
-  app.menuProviders.recent = () => (recents.length ? recents.slice(0, 8).map((r) => ({ label: r.name, run: () => app.run("file.openRecent", r) })) : [{ label: t("No recent files"), disabled: true, run() {} }]);
+  app.menuProviders.recent = () => (recents.length ? [...recents.slice(0, 8).map((r) => ({ label: r.name, run: () => app.run("file.openRecent", r) })), "-", { label: t("Clear Recent"), run: () => app.run("file.clearRecent") }] : [{ label: t("No recent files"), disabled: true, run() {} }]);
 
   // ---- autosave + restore
   let saveTimer = 0;
@@ -279,7 +285,7 @@ export function registerFileCommands(app) {
     try {
       const entries = [];
       for (const d of app.docs) entries.push({ name: d.name, studio: d.studio, saved: d.saved, path: d.path || null, untrusted: !!d.untrusted && !d.scriptsOk, bytes: await saveOfini(d) });
-      await saveSession(entries, app.docs.indexOf(app.doc));
+      await saveSession(entries, app.docs.indexOf(app.doc), app.sessionKey); // pop-out windows use their own key
     } catch (err) {
       log.warn("storage", "Autosave failed", err);
     }
@@ -288,6 +294,7 @@ export function registerFileCommands(app) {
   app.on("docchange", schedule);
   app.on("docs", schedule);
   app.restoreSession = async () => {
+    if (app.popout) return false; // a pop-out gets its document by handoff, never the main session
     const s = await loadSession();
     if (!s?.docs?.length) return false;
     let n = 0;

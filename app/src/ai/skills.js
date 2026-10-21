@@ -116,7 +116,192 @@ export function parseSkill(markdown) {
   const allowedRaw = meta["allowed-tools"] ?? meta.allowed_tools ?? meta.allowedTools ?? meta.tools;
   const extra = {};
   for (const [k, v] of Object.entries(meta)) if (!["name", "description", "allowed-tools", "allowed_tools", "allowedTools", "tools", "tags"].includes(k)) extra[k] = v;
-  return { id: slugify(name), name, description, allowedTools: asList(allowedRaw), tags: asList(meta.tags), body, meta: extra };
+  return { id: slugify(name), name, description, allowedTools: asList(allowedRaw), tags: asList(meta.tags), body, meta: extra, ...skillFeatures(extra) };
+}
+
+// ------------------------------------------------------------------ skill features (v2)
+// Frontmatter keys beyond name/description/allowed-tools/tags (all optional, all kept verbatim in `meta`):
+//   enforce-tools: true            allowed-tools becomes a hard restriction while the skill is active
+//   params / arguments: list       named parameters: "name: description (default: value)", "name?: desc", "name=value"
+//   argument-hint: text            shown in the slash menu
+//   when-to-use: text              trigger phrases used for auto-suggestion
+//   requires: [skill-a, skill-b]   composition: the bodies of these skills are included when this one is loaded
+//   references: [file.md]          extra files loaded on demand (use_skill with `file`)
+//   version: 1.2.0                 informational, shown in the Skills panel
+//   studios: [vector, layout]      only offered in these studios (default: all)
+// Placeholders in the body: {{name}} for a named parameter, $ARGUMENTS for the raw argument text.
+
+const DERIVED = ["params", "whenToUse", "requires", "references", "version", "studios", "enforceTools", "argumentHint"];
+
+/** Parses one parameter spec. @returns {{name:string,description:string,default?:string,required:boolean}|null} */
+export function parseParam(spec) {
+  if (spec && typeof spec === "object") return spec.name ? { name: String(spec.name), description: String(spec.description || ""), ...(spec.default != null ? { default: String(spec.default) } : {}), required: spec.required ?? spec.default == null } : null;
+  const s = String(spec || "").trim();
+  if (!s) return null;
+  let m = /^([A-Za-z_][\w-]*)\s*=\s*(.*)$/.exec(s);
+  if (m) return { name: m[1], description: "", default: m[2].trim(), required: false };
+  m = /^([A-Za-z_][\w-]*)(\?)?\s*(?::\s*(.*))?$/.exec(s);
+  if (!m) return null;
+  let description = (m[3] || "").trim();
+  let def;
+  const d = /\(\s*default\s*:\s*([^)]*)\)\s*$/i.exec(description);
+  if (d) {
+    def = d[1].trim();
+    description = description.slice(0, d.index).trim();
+  }
+  return { name: m[1], description, ...(def != null ? { default: def } : {}), required: !m[2] && def == null };
+}
+
+function skillFeatures(meta) {
+  const truthy = (v) => v === true || /^(true|yes|1|on)$/i.test(String(v ?? ""));
+  return {
+    // parameter specs may contain commas in their descriptions: a YAML list is taken item by item
+    params: ((v) => (Array.isArray(v) ? v.map(String) : asList(v)))(meta.params ?? meta.arguments ?? meta.parameters).map(parseParam).filter(Boolean),
+    whenToUse: String(meta["when-to-use"] ?? meta.when_to_use ?? meta.whenToUse ?? ""),
+    requires: asList(meta.requires),
+    references: asList(meta.references),
+    version: String(meta.version ?? ""),
+    studios: asList(meta.studios),
+    enforceTools: truthy(meta["enforce-tools"] ?? meta.enforce_tools),
+    argumentHint: String(meta["argument-hint"] ?? ""),
+  };
+}
+
+/**
+ * Splits slash-command style argument text into named values: `key=value`, `key="two words"`; the rest is raw text.
+ * With no `key=` pairs, the whole text fills the first required (else first) parameter.
+ * @returns {{named:Record<string,string>, raw:string}}
+ */
+export function parseArgString(text, params = []) {
+  const named = {};
+  let rest = String(text ?? "");
+  const known = new Set(params.map((p) => p.name));
+  rest = rest.replace(/(?:^|\s)([A-Za-z_][\w-]*)=(?:"([^"]*)"|'([^']*)'|(\S+))/g, (all, k, a, b, c) => {
+    if (known.size && !known.has(k)) return all;
+    named[k] = a ?? b ?? c ?? "";
+    return " ";
+  });
+  const raw = rest.replace(/\s+/g, " ").trim();
+  if (!Object.keys(named).length && raw && params.length) named[(params.find((p) => p.required) || params[0]).name] = raw;
+  return { named, raw: String(text ?? "").trim() };
+}
+
+/**
+ * Renders a skill for the model: substitutes parameters, includes required skills, lists references.
+ * @param {Skill & {params?:any[], requires?:string[], references?:string[], files?:Record<string,string>}} skill
+ * @param {{args?: string|Record<string,any>, all?: Skill[], depth?: number, seen?: Set<string>}} [o]
+ * @returns {{text:string, missing:string[], values:Record<string,string>}}
+ */
+export function renderSkill(skill, { args, all = [], depth = 0, seen = new Set() } = {}) {
+  const params = skill.params || [];
+  const { named, raw } = typeof args === "string" || args == null ? parseArgString(args ?? "", params) : { named: Object.fromEntries(Object.entries(args).map(([k, v]) => [k, typeof v === "string" ? v : JSON.stringify(v)])), raw: typeof args.$ARGUMENTS === "string" ? args.$ARGUMENTS : "" };
+  const values = {};
+  const missing = [];
+  for (const p of params) {
+    const v = named[p.name] ?? p.default;
+    if (v == null || v === "") {
+      if (p.required) missing.push(p.name);
+    } else values[p.name] = String(v);
+  }
+  for (const [k, v] of Object.entries(named)) if (!(k in values) && k !== "$ARGUMENTS") values[k] = v;
+  let text = String(skill.body || "");
+  const usedNames = new Set();
+  text = text.replace(/\{\{\s*([A-Za-z_][\w-]*)\s*\}\}/g, (all2, k) => {
+    usedNames.add(k);
+    return values[k] ?? `(${k}: not given)`;
+  });
+  const rawText = raw || Object.entries(values).map(([k, v]) => `${k}=${v}`).join(" ");
+  const hadArgs = text.includes("$ARGUMENTS");
+  text = text.replace(/\$ARGUMENTS/g, rawText || "(no arguments)");
+  const unused = Object.entries(values).filter(([k]) => !usedNames.has(k));
+  if (unused.length && !hadArgs) text += `\n\n## Arguments\n${unused.map(([k, v]) => `- ${k}: ${v}`).join("\n")}`;
+  seen.add(skill.id || slugify(skill.name));
+  if (depth < 3) {
+    for (const r of skill.requires || []) {
+      const id = slugify(r);
+      if (seen.has(id)) continue;
+      const dep = all.find((s) => (s.id || slugify(s.name)) === id);
+      if (!dep) {
+        text += `\n\n(Required skill “${r}” is not installed.)`;
+        continue;
+      }
+      seen.add(id);
+      text += `\n\n## Included skill: ${dep.name}\n${renderSkill(dep, { all, depth: depth + 1, seen }).text}`;
+    }
+  }
+  const refs = [...new Set([...(skill.references || []), ...Object.keys(skill.files || {})])];
+  if (refs.length) text += `\n\nReference files of this skill (load one with use_skill {name: "${skill.name}", file: "<name>"} only when you need it): ${refs.join(", ")}`;
+  if (skill.enforceTools && skill.allowedTools?.length) text += `\n\nWhile this skill is active only these tools are allowed: ${skill.allowedTools.join(", ")}.`;
+  return { text, missing, values };
+}
+
+/**
+ * Checks a skill (or SKILL.md text) for problems.
+ * @param {Skill|string} input
+ * @param {{toolNames?: Iterable<string>, skillNames?: Iterable<string>}} [o]
+ * @returns {{errors:string[], warnings:string[], skill:Skill}}
+ */
+export function validateSkill(input, { toolNames, skillNames } = {}) {
+  const skill = typeof input === "string" ? parseSkill(input) : input;
+  const errors = [];
+  const warnings = [];
+  if (typeof input === "string" && !/^\s*(?:﻿)?---[ \t]*\r?\n[\s\S]*?\r?\n---/.test(input)) errors.push("Missing front matter: start the file with --- name/description --- lines.");
+  if (!/^[a-z0-9][a-z0-9-]{1,63}$/.test(skill.name || "")) errors.push("name must be 2-64 characters: lowercase letters, digits and dashes (e.g. brand-kit).");
+  if (!skill.description || skill.description.length < 20) errors.push("description should say in one sentence what the skill does and when to use it (at least 20 characters).");
+  if (!skill.body || skill.body.trim().length < 40) errors.push("The body is empty: add the workflow (numbered steps), rules and a Verify section.");
+  if (skill.body && !/##\s*verify/i.test(skill.body)) warnings.push("Add a “## Verify” section: how the assistant checks its result (e.g. screenshot).");
+  const tools = toolNames ? new Set(toolNames) : null;
+  if (tools) for (const t of skill.allowedTools || []) if (!tools.has(t)) warnings.push(`allowed-tools: unknown tool “${t}”.`);
+  if (skill.enforceTools && !(skill.allowedTools || []).length) errors.push("enforce-tools is on but allowed-tools is empty: the skill could not do anything.");
+  const names = skillNames ? new Set([...skillNames].map(slugify)) : null;
+  if (names) for (const r of skill.requires || []) if (!names.has(slugify(r))) warnings.push(`requires: unknown skill “${r}”.`);
+  if ((skill.requires || []).map(slugify).includes(skill.id)) errors.push("A skill cannot require itself.");
+  const declared = new Set((skill.params || []).map((p) => p.name));
+  for (const m of String(skill.body || "").matchAll(/\{\{\s*([A-Za-z_][\w-]*)\s*\}\}/g)) if (!declared.has(m[1])) warnings.push(`The body uses {{${m[1]}}} but no parameter “${m[1]}” is declared in params.`);
+  for (const p of skill.params || []) if (!/^[A-Za-z_][\w-]*$/.test(p.name)) errors.push(`Invalid parameter name “${p.name}”.`);
+  return { errors, warnings: [...new Set(warnings)], skill };
+}
+
+const STOP = new Set("the and for with that this from into your you are can use when make made want need some have will what how about please just like more also them then than over under its our".split(" "));
+const terms = (s) => (String(s || "").toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).filter((w) => w.length > 2 && !STOP.has(w)).map((w) => w.replace(/(ing|ies|es|s)$/, (x) => (x === "ies" ? "y" : "")));
+
+/**
+ * Cheap BM25 ranking of skills for a user prompt (auto-suggest chip). Pure and fast (no embeddings).
+ * @param {string} prompt
+ * @param {Skill[]} skills
+ * @param {{limit?:number, min?:number}} [o]
+ * @returns {{skill:Skill, score:number}[]}
+ */
+export function suggestSkills(prompt, skills, { limit = 3, min = 1.2 } = {}) {
+  const q = [...new Set(terms(prompt))];
+  if (!q.length || !skills?.length) return [];
+  const docs = skills.map((s) => {
+    const nameTerms = terms(String(s.name).replace(/-/g, " "));
+    const t = [...nameTerms, ...nameTerms, ...terms(s.description), ...terms((s.tags || []).join(" ")), ...terms(s.whenToUse), ...terms(s.whenToUse)];
+    const tf = new Map();
+    for (const w of t) tf.set(w, (tf.get(w) || 0) + 1);
+    return { s, tf, len: t.length || 1 };
+  });
+  const avg = docs.reduce((n, d) => n + d.len, 0) / docs.length;
+  const df = new Map();
+  for (const d of docs) for (const w of d.tf.keys()) df.set(w, (df.get(w) || 0) + 1);
+  const N = docs.length;
+  const k1 = 1.2;
+  const b = 0.75;
+  const out = [];
+  for (const d of docs) {
+    let score = 0;
+    let hits = 0;
+    for (const w of q) {
+      const f = d.tf.get(w);
+      if (!f) continue;
+      hits++;
+      const idf = Math.log(1 + (N - df.get(w) + 0.5) / (df.get(w) + 0.5));
+      score += (idf * f * (k1 + 1)) / (f + k1 * (1 - b + (b * d.len) / avg));
+    }
+    if (hits >= 1 && score >= min) out.push({ skill: d.s, score: Math.round(score * 100) / 100 });
+  }
+  return out.sort((a, b2) => b2.score - a.score).slice(0, limit);
 }
 
 function yamlValue(s) {
@@ -134,10 +319,12 @@ export function serializeSkill(skill) {
   if (skill.description) out.push(`description: ${JSON.stringify(skill.description)}`);
   if (skill.allowedTools && skill.allowedTools.length) out.push(`allowed-tools: ${skill.allowedTools.join(", ")}`);
   if (skill.tags && skill.tags.length) out.push(`tags: [${skill.tags.map(yamlValue).join(", ")}]`);
-  const known = new Set(["id", "name", "description", "allowedTools", "tags", "body", "meta"]);
+  const known = new Set(["id", "name", "description", "allowedTools", "tags", "body", "meta", "source", "origin", ...DERIVED]);
   const extras = { ...Object.fromEntries(Object.entries(skill).filter(([k, v]) => !known.has(k) && (typeof v === "string" || Array.isArray(v)))), ...(skill.meta || {}) };
   for (const [k, v] of Object.entries(extras)) {
-    if (Array.isArray(v)) out.push(`${k}: [${v.map(yamlValue).join(", ")}]`);
+    // items with commas or "key: value" pairs (parameter specs) go in a YAML dash list so they survive parsing
+    if (Array.isArray(v) && v.some((x) => /[,:]/.test(String(x)))) out.push(`${k}:`, ...v.map((x) => `  - ${JSON.stringify(String(x))}`));
+    else if (Array.isArray(v)) out.push(`${k}: [${v.map(yamlValue).join(", ")}]`);
     else out.push(`${k}: ${yamlValue(v)}`);
   }
   out.push("---", "", (skill.body || "").trim(), "");
@@ -153,9 +340,10 @@ export function skillsCatalog(skills) {
   if (!skills || !skills.length) return "";
   const lines = skills.map((s) => {
     const d = (s.description || "").replace(/\s+/g, " ").trim();
-    return `- ${s.id || slugify(s.name)}: ${d.length > 220 ? d.slice(0, 217) + "..." : d}`;
+    const args = (s.params || []).length ? ` [args: ${s.params.map((p) => p.name + (p.required ? "" : "?")).join(", ")}]` : "";
+    return `- ${s.id || slugify(s.name)}: ${d.length > 220 ? d.slice(0, 217) + "..." : d}${args}`;
   });
-  return `Available skills (call use_skill with the skill name to load its full instructions before you start a matching task):\n${lines.join("\n")}`;
+  return `Available skills (call use_skill with the skill name, and args when listed, to load its full instructions before you start a matching task):\n${lines.join("\n")}`;
 }
 
 /** The built-in skills, parsed. @type {Skill[]} */
@@ -228,7 +416,8 @@ export function buildSystemPrompt({ studio = "vibe", doc, skills, memory, knowle
       "## How to work",
       "- Use tools to do things; do not describe steps you could simply perform. Only call tools that appear in your tool list. Never invent tools or parameters.",
       "- Start by looking: call get_document_info, list_layers or get_selection (or list_files in the Code studio) before changing anything you have not seen.",
-      "- Make small, reversible edits. Prefer several focused tool calls over one giant one, and name layers and files clearly so the user can find them.",
+      "- Make small, reversible edits and name layers and files clearly so the user can find them.",
+      "- Work efficiently when those tools are in your list: find layers with query_layers or describe_page instead of walking list_layers, do many known steps in one call with run_plan, change many layers with apply_to_many, compute with evaluate, and delegate independent sub-tasks with spawn_agent.",
       "- Verify visually: after meaningful changes call screenshot, look at the result and fix problems (overlaps, clipped text, low contrast, uneven spacing) before you say you are done.",
       "- Units are pixels and coordinates are page-space (origin at the top-left of the page, x to the right, y down) unless a tool says otherwise. Colors are hex (#rrggbb).",
       "- If the request is ambiguous in a way that changes the result (audience, format, brand colors, size), ask one short question with ask_user. If the answer is a matter of taste, choose sensible defaults and mention them.",

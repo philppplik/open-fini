@@ -1,4 +1,4 @@
-# 0008: Bundled extensions are data, packed from source, installed on demand
+# 0009: Bundled extensions are data, packed from source, installed on demand
 
 Status: Accepted
 

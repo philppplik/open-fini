@@ -14,7 +14,7 @@ const time = (t) => new Date(t).toLocaleTimeString("en-US", { hour12: false });
 
 export function createActivityPanel(vs) {
   const { app, session } = vs;
-  const timeline = vs.timeline;
+  let timeline = vs.timeline; // the active chat's log; rebound when the user switches chats
   let filter = "all";
   const opened = new Map(); // run id -> user's choice (true/false); default: newest run open
   let raf = 0;
@@ -127,8 +127,13 @@ export function createActivityPanel(vs) {
       const b = h("button.of-btn", { type: "button", disabled: session.running, title: direct ? `Undo the ${run.edits} edit${run.edits === 1 ? "" : "s"} of this run${doc ? ` in ${doc.name}` : ""}` : `Undo ${u.count - run.undoRefs.length} newer run${u.count - run.undoRefs.length === 1 ? "" : "s"} first, then this one` }, iconEl("arrow-counterclockwise"), direct ? "Undo this run" : "Undo back to here");
       b.addEventListener("click", () => {
         let n = 0;
-        for (let k = 0; k < u.count; k++) n += session.undoLastRun();
-        app.toast(`Undid ${n} change${n === 1 ? "" : "s"} (${u.count} run${u.count === 1 ? "" : "s"}).`, "success", 1800);
+        for (let k = 0; k < u.count; k++) {
+          const d = session.undoLastRun();
+          if (!d) break; // another chat or the user edited the document afterwards (run-undo.js)
+          n += d;
+        }
+        if (!n && session.lastUndoError) app.toast(session.lastUndoError, "warning", 5000);
+        else app.toast(`Undid ${n} change${n === 1 ? "" : "s"} (${u.count} run${u.count === 1 ? "" : "s"}).`, "success", 1800);
       });
       undoRow.append(b, h("small", `${run.edits} edit${run.edits === 1 ? "" : "s"}${doc ? ` in ${doc.name}` : ""}${direct ? "" : " · newer runs are undone first"}`));
     } else if (run.undoRefs.length) undoRow.append(h("small.of-vlog__muted", iconEl("check2"), "Undone"));
@@ -174,9 +179,18 @@ export function createActivityPanel(vs) {
     app.toast(ok ? "Log copied." : "Could not copy to the clipboard.", ok ? "success" : "warning", 1400);
   });
   clearBtn.addEventListener("click", () => timeline.clear());
+  // a chat can be undone only while its edits are on top of the document history (docs/adr/0008-vibe-hub.md)
 
-  timeline.onChange(schedule);
+  let off = timeline.onChange(schedule);
   session.on("runs", schedule);
+  session.on("chat", () => {
+    if (vs.timeline === timeline) return;
+    off?.();
+    timeline = vs.timeline;
+    off = timeline.onChange(schedule);
+    opened.clear();
+    schedule();
+  });
   paintChips();
   render();
   return { el, show: render };

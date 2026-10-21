@@ -19,7 +19,7 @@ No proprietary code was used.
 | Photoshop PSB (version 2) | yes | no | 8-byte lengths, 4-byte RLE counts |
 | InDesign IDML | yes | no | pages, shapes, text stories, swatches |
 | InDesign INDD | no | no | proprietary binary format, no public specification |
-| Affinity `.afdesign` `.afphoto` `.afpub` | no | no | proprietary, no public specification; detected by extension, the app explains how to export PSD / PDF / SVG and can open a plain PNG / JPEG preview if one is stored as an ordinary image stream |
+| Affinity `.af` `.afdesign` `.afphoto` `.afpub` | no | no | proprietary, no public specification; detected by extension, the app explains how to export PSD / PDF / SVG and can open a plain PNG / JPEG preview if one is stored as an ordinary image stream |
 | PDF, Illustrator AI (PDF compatible), EPS with PDF | yes (editable Layout document) | export only | through pdf.js in `core/import-pdf.js`, see [pdf-import.md](pdf-import.md) |
 | Sketch `.sketch` | best effort | no | documented ZIP + JSON, `engine/formats/sketch.js`, verified with synthetic files |
 | Figma `.fig`, Adobe XD `.xd` | no | no | proprietary; the app shows how to export PDF / SVG instead |
@@ -27,6 +27,45 @@ No proprietary code was used.
 | HTML, Markdown, plain text as documents | yes (in the Office Studio) | yes | outside the Office Studio these still open in the Code studio |
 | Word 97-2003 `.doc`, Apple `.pages`, Google Docs `.gdoc` | no | no | detected; the app explains how to save or download a `.docx` (Google Docs: button opens the document in the browser) |
 | Excel / Calc / Numbers, PowerPoint / Impress / Keynote | not yet | no | detected and explained ("not supported yet in Office Studio"); CSV opens as a table in Layout (Table ▸ Import Table) |
+| TIFF `.tif` `.tiff` | yes (pages as layers) | no | LZW / PackBits / Deflate, 1 to 16 bit, see below |
+| Animated GIF | yes (frames as layers) | no | no timeline yet |
+| OpenRaster `.ora` | yes (layers, groups, blend modes) | yes (plain pixel layers) | File > Quick Export > OpenRaster |
+| Krita `.kra`, GIMP `.xcf` | flattened image (KRA) / export route (XCF) | no | see the research doc |
+| ICO / CUR | largest image | no | |
+| EPS | PDF inside, or the TIFF preview of a DOS EPS (flattened) | no | OpenFini never runs PostScript |
+| Palettes `.gpl` `.ase` `.aco` | yes (document swatches) | yes | File > Swatches |
+| Fonts WOFF, TTC | yes (Type panel) | no | WOFF2 works on screen only, no PDF embedding |
+
+## Raster, palette and font formats (0.5.0)
+
+The research behind each verdict is in [file-format-research.md](file-format-research.md). All engines below are
+pure (no DOM), lazy loaded, bounds checked and tested with synthetic files in `tests/formats/` (the fixtures are
+written by independent writers in the tests, not by the readers).
+
+| Module | API | Notes |
+| --- | --- | --- |
+| `tiff.js` | `readTiff(bytes, { maxPixels, maxPages })` -> `{ pages: [{ width, height, rgba, name }], warnings }` | TIFF 6.0, II and MM, IFD chain (loop safe), strips and tiles, compression none / LZW / PackBits / Deflate, predictor 2, 1/2/4/8/16 bit gray and palette, RGB, RGBA, CMYK (naive). Reduced-resolution subfiles are skipped. Errors for BigTIFF, JPEG, planar, YCbCr, Lab. |
+| `gif.js` | `readGif(bytes, { maxFrames, maxPixels })` -> `{ width, height, loops, frames: [{ rgba, delay, name }] }` | GIF87a / 89a, interlace, transparency, disposal methods 0 to 3, composited full-canvas frames. A still GIF falls back to the normal image path. |
+| `ora.js` | `readOra(bytes)`, `writeOra({ width, height, layers, mergedPng })` | Layers and stacks (groups), opacity, visibility, offsets, `svg:*` composite ops. PNG data stays bytes; the host decodes. Paths cannot escape the archive. |
+| `kra.js` | `readKraMerged(bytes)` | Krita: only the flattened `mergedimage.png` / `preview.png`. |
+| `ico.js` | `readIco(bytes)` | PNG or BMP entries, largest first. |
+| `palette.js` | `readGpl/writeGpl`, `readAse/writeAse`, `readAco/writeAco`, `readHexList`, `readPalette` | RGB, CMYK, Lab, HSB and gray swatches become `#rrggbb` (naive CMYK, no ICC). Writers produce RGB. At most 4096 colors per file. |
+| `fontwrap.js` | `unwrapFont(bytes)`, `woffToSfnt`, `ttcFonts`, `fontContainer` | WOFF to sfnt, TTC to standalone fonts; WOFF2 is passed through (not decoded). |
+| `embedded.js` | `dosEpsParts(bytes)` | Byte ranges of a DOS EPS binary header (PostScript, WMF, TIFF preview). |
+
+Where it is wired: `core/import-raster.js` builds Pixel documents (TIFF pages and GIF frames become layers, the
+first visible), writes the import report, adds palette colors to `doc.swatches` and writes ORA; routing is one block in
+`commands/file.js openFile`; commands in `commands/formats.js` (File > Swatches, Quick Export > OpenRaster);
+file types in `platform/file-types.js` (and the packaging lists, kept consistent by `tests/packaging`).
+
+Fidelity statements shown in the import report: TIFF DPI and ICC profile are ignored and 16-bit data is reduced to 8
+bit; GIF frames are layers without a timeline; Krita files open flattened; ICO opens only the largest size; an EPS with
+a TIFF preview opens as a flattened low-resolution "preview only" document.
+
+How to extend: add a pure reader under `engine/formats/`, export it from `index.js`, add a loader in
+`core/import-raster.js` (plus the extension in `RASTER_FORMAT_EXT`, the routing block in `commands/file.js`,
+`OPEN_FILTERS` in `core/io.js`, a `FILE_TYPES` row and the packaging lists), a verdict in
+`platform/format-verdicts.js`, and tests with a fixture writer.
 
 ## `sniffFormat(bytes, name?)`
 

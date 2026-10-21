@@ -1,73 +1,8 @@
-// Vibe Studio ▸ Skills (instruction packs) and Knowledge (documents the assistant can search, memory notes).
+// Vibe Studio ▸ Knowledge (documents the assistant can search, memory notes). Skills live in panel-skills.js.
 import { h, empty } from "../../core/util.js";
 import { vibeStore } from "../../vibe/store.js";
-import { BUILTIN_SKILLS, parseSkill, serializeSkill } from "../../ai/index.js";
 import { pickFiles } from "../code/import.js";
-import { confirmDialog } from "../dialogs.js";
 import { iconEl } from "../toolbox.js";
-
-export function createSkillsPanel(vs) {
-  const { app } = vs;
-  const el = h("div.of-vskills");
-  const builtin = () => BUILTIN_SKILLS.map((x) => (typeof x === "string" ? parseSkill(x) : x));
-
-  function render() {
-    empty(el);
-    el.append(h("p.of-vlead", "Skills are instruction packs Vibe loads only when a task needs them — like a recipe book. Type / in the chat to start one."));
-    const mine = h("div.of-vcard", h("div.of-vcard__head", h("strong", "Your skills"), h("div.of-vrow", h("button.of-btn", { type: "button", onclick: () => edit(null) }, iconEl("plus-lg"), "New"), h("button.of-btn", { type: "button", onclick: importSkill }, "Import .md"))));
-    for (const s of vibeStore.skills) {
-      const sw = h("sl-switch", { size: "small" });
-      sw.checked = s.enabled !== false;
-      sw.addEventListener("sl-change", () => vibeStore.saveSkills(vibeStore.skills.map((x) => (x.name === s.name ? { ...x, enabled: sw.checked } : x))));
-      mine.append(h("div.of-vtool", h("div", h("code", s.name), h("small", s.description)), h("div.of-vrow", h("button.of-btn", { type: "button", onclick: () => edit(s) }, "Edit"), sw)));
-    }
-    if (!vibeStore.skills.length) mine.append(h("div.of-empty", "No skills of your own yet. A skill is a Markdown file with a name, a description and instructions."));
-    el.append(mine);
-    const bi = h("div.of-vcard", h("strong", "Built in"));
-    for (const s of builtin()) bi.append(h("div.of-vtool", h("div", h("code", s.name), h("small", s.description)), h("button.of-btn", { type: "button", onclick: () => { vs.chat.setInput(`/${s.name} `); } }, "Use")));
-    el.append(bi);
-    app.extensions?.vibeSkills().then((list) => {
-      if (!list.length || !el.isConnected) return;
-      const ex = h("div.of-vcard", h("strong", "From extensions"));
-      for (const s of list) ex.append(h("div.of-vtool", h("div", h("code", s.name), h("small", `${s.description || ""} — extension “${s.origin.name}”`)), h("button.of-btn", { type: "button", onclick: () => { vs.chat.setInput(`/${s.name} `); } }, "Use")));
-      el.append(ex);
-    }).catch(() => {});
-  }
-
-  function edit(s) {
-    const text = h("textarea.of-vfield__in.mono", { rows: 18, spellcheck: false }, s ? serializeSkill(s) : "---\nname: my-skill\ndescription: One sentence: when should Vibe use this skill?\n---\n\n# Steps\n\n1. …\n");
-    text.addEventListener("keydown", (e) => e.stopPropagation());
-    const err = h("div.of-vstatus.bad");
-    el.replaceChildren(h("div.of-vform", h("strong", s ? "Edit skill" : "New skill"), text, err, h("div.of-vrow", h("button.of-btn.of-btn--primary", { type: "button", onclick: async () => {
-      try {
-        const p = parseSkill(text.value);
-        if (!p.name || !/^[a-z0-9][a-z0-9-]{1,40}$/.test(p.name)) throw new Error("The skill needs a name in the front matter (lowercase letters, digits and dashes).");
-        if (!p.description) throw new Error("The skill needs a description so Vibe knows when to use it.");
-        await vibeStore.saveSkills([...vibeStore.skills.filter((x) => x.name !== p.name && x.name !== s?.name), { ...p, enabled: true }]);
-        render();
-      } catch (e) {
-        err.textContent = e.message;
-      }
-    } }, "Save"), h("button.of-btn", { type: "button", onclick: render }, "Cancel"), s ? h("button.of-btn", { type: "button", onclick: async () => { if (await confirmDialog({ title: "Delete skill", message: `Delete “${s.name}”?`, ok: "Delete", danger: true })) { await vibeStore.saveSkills(vibeStore.skills.filter((x) => x.name !== s.name)); render(); } } }, "Delete") : null)));
-  }
-  async function importSkill() {
-    const files = await pickFiles({ accept: ".md,.markdown,.txt" });
-    for (const f of files) {
-      try {
-        const p = parseSkill(await f.text());
-        if (p.name && p.description) await vibeStore.saveSkills([...vibeStore.skills.filter((x) => x.name !== p.name), { ...p, enabled: true }]);
-        else app.toast(`${f.name} needs name and description in its front matter.`, "warning", 3000);
-      } catch (e) {
-        app.toast(e.message, "danger", 3000);
-      }
-    }
-    render();
-  }
-
-  vibeStore.on("change", (g) => g === "skills" && el.isConnected && !el.querySelector(".of-vform") && render());
-  render();
-  return { el, show: render };
-}
 
 export function createKnowledgePanel(vs) {
   const { app, session } = vs;

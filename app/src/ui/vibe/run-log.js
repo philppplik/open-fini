@@ -14,7 +14,14 @@ export function createRunLog(session) {
 
   session.on("chat", () => timeline.clear());
   session.on("message", (m) => timeline.startRun(textOf(m)));
-  session.on("event", (ev) => timeline.event(ev));
+  session.on("event", (ev) => {
+    // sub-agent tool calls appear as child entries ("↳ role: tool") of the parent's run
+    if (ev.type === "agent_event") {
+      if (ev.ev?.type === "tool_start" || ev.ev?.type === "tool_end") timeline.event({ ...ev.ev, child: ev.role });
+      return;
+    }
+    timeline.event(ev);
+  });
   session.on("plan", (steps) => timeline.setPlan(steps));
   session.on("approval", (req) => {
     timeline.approvalAsked(req);
@@ -31,7 +38,7 @@ export function createRunLog(session) {
   session.on("runs", (runs) => {
     const fresh = runs.filter((r) => !known.has(r));
     for (const r of fresh) known.add(r);
-    if (fresh.length) timeline.attachUndo(fresh, fresh.reduce((n, r) => n + Math.max(0, r.doc.history.index - r.marker), 0));
+    if (fresh.length) timeline.attachUndo(fresh, fresh.reduce((n, r) => n + (r.edits ?? Math.max(0, r.doc.history.index - r.marker)), 0));
   });
 
   return timeline;

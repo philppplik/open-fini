@@ -6,7 +6,30 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+**Small improvements**
+- **Update checker** (Settings, About): "Check for updates" asks GitHub for the latest release, compares versions and offers the installer for your platform plus the release notes; optional automatic check once a day (off by default); honors offline mode. Nothing is installed automatically.
+- **Hidden layers** stay in the Layers panel (dimmed, with a highlighted eye) instead of disappearing, so they can be shown again.
+- **Header logo**: the white OpenFini mark on an accent-colored tile, in every theme (`app/icons/mark-white.svg`).
+
 ### Added
+
+**Vibe engine: concurrent chats, sub-agents, power tools, skills v2** (docs/vibe-studio.md, docs/vibe-skills.md, ADR 0008)
+- **Several chats at once:** chats keep running in the background with status badges (running, needs approval, done, failed), a "Stop all" kill switch, per-chat model and approval mode, queued approvals that never steal focus, a fair document write lock and per-run undo that stays correct (or explains why not) when chats share a document.
+- **Sub-agents:** `spawn_agent`, `wait_agent`, `list_agents`, `cancel_agent` delegate focused tasks to parallel child runs with restricted tools, budgets and a depth limit; live nested cards with cancel; optional cheaper sub-agent model.
+- **Power tools:** `run_plan` (many calls in one turn with step references, one approval, one undo), `query_layers`, `describe_page` / `describe_selection` (compact scene text, revision cache), `apply_to_many`, `evaluate` (sandboxed JS), `screenshot_layers`, `compare_screenshots`, `grid_layout`, `distribute_layers`, `snap_layers`, `make_component`.
+- **Attachments:** `list_attachments` and `open_attachment` open a file attached in the chat as a new document.
+- **Skills v2:** parameters with a form, composition (`requires`), reference files, triggers with a "Use skill X?" chip, optional enforced tool restrictions, versions, studio filters, usage stats, editor with live preview and validation, `.skill.md` / `.skillpack` import and export, Demo test runs, "Create from this chat" (`create_skill` drafts) and 16 new built-in workflow skills.
+- **AI progress pill:** a floating "AI is …" status with progress, Stop and open-chat in every studio.
+
+**Pop-out windows and recent files** (docs/multi-window.md)
+- **Pop-out windows:** move or copy a document tab, or open a studio, in its own window (tab and studio-button right-click, File ▸ New Window, Detach Current Studio, Return to Main Window). Documents are handed over through IndexedDB and a BroadcastChannel; the source closes its copy only after the new window confirmed. Preferences stay in sync across windows. Desktop uses real Tauri windows; the browser uses a popup window.
+- **Recent files:** Clear recent on the start page with a 6-second Undo, a remove button per entry, File ▸ Open Recent ▸ Clear Recent, and settings for showing the list and how many files to remember (0-50).
+**More native file formats** (docs/file-format-research.md, docs/file-compat.md)
+- Research with sources and a legal / technical verdict per format (Affinity, Adobe, Figma, Krita, GIMP, TIFF, HEIC, fonts, palettes ...). Affinity (including the new single-app `.af`), InDesign, Figma and XD stay export routes; the guidance dialogs have updated steps and link to the research.
+- Open **TIFF** (multi-page, LZW / PackBits / Deflate, 1 to 16 bit, CMYK), **animated GIF** (frames as layers), **OpenRaster** (read and write with layers and blend modes), **Krita** (flattened), **ICO / CUR**, and the preview image of DOS **EPS** files, each with an import report.
+- Color palettes: import and export **GPL, ASE and ACO** through File > Swatches.
+- Fonts: WOFF is unwrapped, TrueType collections (.ttc) are split, WOFF2 works on screen (PDF export falls back).
+- Vibe tools `list_supported_formats`, `import_palette_from_text`, `export_palette`.
 
 **Internationalization, German first** (docs/i18n.md, ADR 0007)
 - The interface follows the system language automatically (`navigator.languages`, `de-AT`/`de-CH` match German) and ships in US English and **German**; Settings ▸ General ▸ Language switches live without a reload and shows the detected language. Menus, command labels, the palette, settings, new document / about / shortcuts dialogs, welcome screen, status bar, studio bar, title bar, tours, What's new, context menus, common toasts and the Vibe composer are translated; the rest falls back to English (known gaps are listed in docs/i18n.md).

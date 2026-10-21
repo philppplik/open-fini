@@ -6,7 +6,7 @@ import { h } from "../../core/util.js";
 import { iconEl } from "../toolbox.js";
 import { toolTitle, summarizeArgs, formatDuration, formatJson, resultParts, endStatus, groupLabel, STATUS_LABEL } from "./tool-format.js";
 
-const TOOL_ICONS = { add_shape: "bounding-box", add_text: "fonts", add_path: "bezier2", import_svg: "filetype-svg", set_style: "palette", screenshot: "camera", generate_image: "image", edit_image: "magic", write_file: "file-earmark-code", edit_file: "pencil-square", read_file: "file-earmark-text", create_website: "globe2", ask_user: "question-circle", update_plan: "list-check", search_knowledge: "search", remember: "bookmark-star", apply_adjustment: "sliders", new_document: "file-earmark-plus", insert_element: "plus-square", set_element_style: "palette2", use_skill: "mortarboard" };
+const TOOL_ICONS = { spawn_agent: "people", wait_agent: "three-dots", list_agents: "people", cancel_agent: "x-circle", run_plan: "collection", query_layers: "filter", describe_page: "card-text", describe_selection: "card-text", apply_to_many: "layers", evaluate: "123", screenshot_layers: "camera", compare_screenshots: "images", grid_layout: "grid-3x3", distribute_layers: "distribute-horizontal", snap_layers: "magnet", make_component: "box", open_attachment: "file-earmark-plus", list_attachments: "paperclip", create_skill: "mortarboard", add_shape: "bounding-box", add_text: "fonts", add_path: "bezier2", import_svg: "filetype-svg", set_style: "palette", screenshot: "camera", generate_image: "image", edit_image: "magic", write_file: "file-earmark-code", edit_file: "pencil-square", read_file: "file-earmark-text", create_website: "globe2", ask_user: "question-circle", update_plan: "list-check", search_knowledge: "search", remember: "bookmark-star", apply_adjustment: "sliders", new_document: "file-earmark-plus", insert_element: "plus-square", set_element_style: "palette2", use_skill: "mortarboard" };
 const STATUS_ICON = { ok: "check2", error: "exclamation-circle", declined: "slash-circle", aborted: "x-circle", awaiting: "shield-lock" };
 const MAX_NODES = 60;
 
@@ -93,8 +93,9 @@ function openLightbox(src, alt, opener) {
 // ---------------------------------------------------------------- cards
 let uidn = 0;
 
-export function createToolCards({ settings, saveSettings, onGrow }) {
+export function createToolCards({ settings, saveSettings, onGrow, cancelAgent }) {
   const recs = new Map(); // tool id -> record
+  const agents = new Map(); // sub-agent id -> nested box under its spawn_agent card
   const live = new Set(); // records whose duration ticks
   let timer = null;
 
@@ -223,7 +224,8 @@ export function createToolCards({ settings, saveSettings, onGrow }) {
     markContext(el, "vibe-tool-card", { name, input, card: el, toggle: () => setOpen(r, !r.open), isOpen: () => r.open, detail: () => detail });
     head.addEventListener("click", () => setOpen(r, !r.open));
     // consecutive calls share one collapsible group
-    if (b.tail?.type === "tool") {
+    // spawn_agent cards stay ungrouped so their live agent boxes are visible
+    if (b.tail?.type === "tool" && name !== "spawn_agent" && b.tail.rec.name !== "spawn_agent") {
       const g = groupOf(b, b.tail.rec);
       g.list.append(el);
       g.members.push(r);
@@ -317,11 +319,84 @@ export function createToolCards({ settings, saveSettings, onGrow }) {
     return t;
   }
 
+  // ---- sub-agents: a nested box per child run under the spawn_agent card (or under its parent agent's box)
+  const AGENT_ICON = { queued: "three-dots", done: "check2", error: "exclamation-circle", cancelled: "x-circle" };
+  const AGENT_LABEL = { queued: "Queued", running: "Running", done: "Done", error: "Failed", cancelled: "Cancelled" };
+  function agentBox(agent) {
+    let a = agents.get(agent.id);
+    if (a) return a;
+    const dot = agent.id.lastIndexOf(".");
+    const host = recs.get(agent.parentToolId)?.el || (dot > 0 ? agents.get(agent.id.slice(0, dot))?.body : null);
+    if (!host) return null;
+    const list = h("div.of-tagent__list");
+    const text = h("div.of-tagent__text");
+    const body = h("div.of-tagent__body", { id: `of-ta${++uidn}`, hidden: true }, text, list);
+    const title = h("span.of-tagent__title", `Agent: ${agent.role}`);
+    const sum = h("span.of-tagent__sum");
+    const stat = h("span.of-tagent__stat");
+    const sr = h("span.of-sr-only");
+    const head = h("button.of-tagent__head", { type: "button", "aria-expanded": "false", "aria-controls": body.id }, iconEl("chevron-right"), iconEl("people"), title, sum, stat, sr);
+    const cancel = h("button.of-tagent__cancel", { type: "button", "aria-label": `Cancel agent ${agent.role}`, title: "Cancel this agent" }, iconEl("x-lg"));
+    cancel.addEventListener("click", () => cancelAgent?.(agent.id));
+    const el = h("div.of-tagent", h("div.of-tagent__row", head, cancel), body);
+    a = { el, head, body, list, text, title, sum, stat, sr, cancel, bubble: { body: list, tail: null, group: null }, open: false };
+    const setOpen = (open) => {
+      a.open = open;
+      head.setAttribute("aria-expanded", String(open));
+      body.hidden = !open;
+      el.classList.toggle("open", open);
+      if (open) onGrow?.();
+    };
+    a.setOpen = setOpen;
+    head.addEventListener("click", () => setOpen(!a.open));
+    host.append(el);
+    agents.set(agent.id, a);
+    onGrow?.();
+    return a;
+  }
+  function agentStatus(agent) {
+    const a = agentBox(agent);
+    if (!a) return;
+    const st = agent.status;
+    a.el.dataset.status = st;
+    a.stat.replaceChildren(st === "running" ? h("sl-spinner") : iconEl(AGENT_ICON[st] || "circle"));
+    a.stat.title = AGENT_LABEL[st] || st;
+    a.sr.textContent = AGENT_LABEL[st] || st;
+    a.title.classList.toggle("of-shimmer", st === "running");
+    a.sum.textContent = agent.summary ? agent.summary.split("\n")[0].slice(0, 120) : agent.task;
+    a.cancel.hidden = !(st === "running" || st === "queued");
+    if (agent.summary && st !== "running") a.text.textContent = agent.summary;
+    if (st === "error" && !a.open) a.setOpen(true);
+  }
+  function agentEvent(e) {
+    const a = agents.get(e.agentId);
+    const ev = e.ev;
+    if (!a || !ev) return;
+    if (ev.type === "tool_start") add(a.bubble, ev.id, ev.name, ev.input);
+    else if (ev.type === "tool_end") end(ev.id, ev.result, ev.isError, ev.ms);
+    else if (ev.type === "text") {
+      a.bubble.tail = null;
+      a.bubble.group = null;
+      a.text.textContent = (a.text.textContent + ev.delta).slice(-600);
+    }
+  }
+  /** An approval of a child's tool call: shown inside the agent's box. */
+  function agentApprove(req) {
+    const a = agents.get(req.agent?.id);
+    if (!a) return false;
+    if (!a.open) a.setOpen(true);
+    if (!recs.has(req.id)) add(a.bubble, req.id, req.name, req.input);
+    return approve(req);
+  }
+
   return {
     add,
     end,
     approve,
     thinking,
+    agentStatus,
+    agentEvent,
+    agentApprove,
     has: (id) => recs.has(id),
     running: () => live.size,
     /** Stops timers and forgets all cards (history re-render). */
@@ -329,6 +404,7 @@ export function createToolCards({ settings, saveSettings, onGrow }) {
       recs.clear();
       live.clear();
       thinkers.clear();
+      agents.clear();
     },
     /** A run ended: nothing keeps ticking. */
     settle() {

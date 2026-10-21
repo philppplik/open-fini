@@ -19,8 +19,41 @@ document you can keep editing, and every run can be undone in one click.
    the document as it was before the request.
 
 Composer extras: attach images and text files (paperclip), start a skill or command with `/` (`/new`, `/undo`,
-`/clear`, `/<skill>`), choose the approval mode and the thinking effort. The assistant always knows which layers you
+`/stop-all`, `/create-skill`, `/<skill>`), choose the approval mode and the thinking effort. The assistant always knows which layers you
 have selected, so "make this bigger" works.
+
+## Several chats at once
+
+Chats keep running when you switch to another one or start a new one (pencil button, `/new`, `Ctrl+Alt+N`). The chat
+list shows each chat's state: a spinner while it works, a shield with a count when it **waits for your approval** or
+answer, a check when it finished in the background, a warning sign when it failed. The header says "2 running · 1
+waiting" and offers **Stop all** (the global kill switch; also the command *Stop All AI Tasks* and the Stop button of
+the AI pill). Right-click a chat to stop only that chat, pin the current model to it, or give it its own approval mode
+(the composer pills then say "(this chat)").
+
+- **Approvals never steal focus.** A background chat that needs approval waits; open it from the list and the approval
+  card is there. Other chats keep going meanwhile.
+- **Limit**: at most 4 chats run at the same time (Models ▸ Engine). Right-click AI actions count as hidden chats.
+- **Same document, several chats**: edits are serialized one tool call at a time with a fair queue, so two chats never
+  interleave inside one step; `run_plan` keeps a whole plan together. The canvas follows the chat that is editing.
+- **Undo this run** works per chat while that chat's edits are the newest ones in the document. If another chat (or
+  you) edited the document afterwards, Vibe explains why it cannot undo and you undo the newer work first (or use
+  `Ctrl+Z` step by step). Details: [ADR 0008](adr/0008-vibe-hub.md).
+- **AI progress pill**: in every studio a small pill at the bottom says what the AI is doing ("AI is adding shapes…",
+  "2 AI tasks running", "AI needs your approval"), with a progress bar, Stop and a click that opens the chat. It is
+  hidden while you are in Vibe Studio and only the open chat works.
+- Token usage per chat is shown under each answer and in Models ▸ Engine when the provider reports it.
+
+## Sub-agents
+
+For bigger jobs the assistant can delegate focused parts to **sub-agents** (`spawn_agent`): each runs in parallel with
+its own context window, only the tools it was given (never more than the chat has), and returns a structured result
+(summary, ids of layers and files it touched). They appear nested under the "Spawn agent" card with live status, a
+mini transcript of their tool calls and a cancel button, and as "↳ role: tool" entries in the Activity tab. Their
+approvals show inside their box in the chat. Limits (Models ▸ Engine): 3 running at once per chat (more queue), 12
+steps each, 80 steps per request in total, no agents of agents of agents (depth 2), and an optional cheaper
+**Sub-agent model**. Stopping the chat stops its agents. Try it offline: "build a brand kit with three agents" with
+the Demo model.
 
 ## Chat behavior
 
@@ -96,13 +129,28 @@ tested against recorded protocol fixtures and fake servers.
 - **Diagnostics and security**: `get_app_logs` (redacted, filterable), `get_diagnostics` (environment and grouped problems) and
   `get_security_status`, all read-only; the assistant should call them only when you ask about errors or your setup
   (see [troubleshooting](troubleshooting.md), [security](security.md)). Offline mode blocks provider and MCP requests.
-- **Imported documents**: `get_import_report` (what an import kept, flattened or dropped), `list_pdf_pages`, `describe_document_pages` and `extract_pdf_text` (page text in reading order, for summarizing or translating a PDF). The assistant has no file access: attach a PDF, AI, PSD, IDML or Sketch file in the composer and click *Open as document* on the chip first. See [pdf-import.md](pdf-import.md).
+- **File formats**: `list_supported_formats` (verdict and best conversion route per format, see [file-format-research.md](file-format-research.md)), `import_palette_from_text` (GPL text or hex colors into the swatches) and `export_palette` (swatches as GPL text).
+- **Imported documents**: `get_import_report` (what an import kept, flattened or dropped), `list_pdf_pages`, `describe_document_pages` and `extract_pdf_text` (page text in reading order, for summarizing or translating a PDF). The assistant has no file access: attach a PDF, AI, PSD, IDML or Sketch file in the composer; the assistant opens it with `open_attachment` (or click *Open as document* on the chip). See [pdf-import.md](pdf-import.md).
 - **Tables and charts**: `add_table`, `edit_table`, `read_table`, `list_tables`, `import_csv_to_table`, `add_chart`, `edit_chart`, `read_chart` build and edit real table / chart objects (formulas, merges, number formats, sorting, charts linked to a table). The built-in skill `report-with-charts` assembles a report page. See [layout-tables-charts.md](layout-tables-charts.md).
 - **Office documents**: `office_new_document`, `office_read_document`, `office_find` (read-only), `office_insert_blocks` (Markdown or typed blocks), `office_replace_text`, `office_set_style`, `office_apply_format`, `office_insert_table`, `office_set_page_setup` and `office_export` (asks first; a save dialog opens) write and format Word-style documents in the Office Studio, one undo step per call. The built-in skill `write-business-document` covers letters, reports, proposals, memos and resumes. See [office-studio.md](office-studio.md).
 - **Extensions**: list installed extensions, run an extension command, install an extension from a URL (you confirm its permissions), and write a small local extension from a description (`create_extension`). Tools that extensions add appear as `ext_<id>_<tool>`, always ask for approval and show their origin; see [extensions.md](extensions.md).
 - **Text and encoding**: `encode_text`, `decode_text` (pure transforms: HTML entities, JS, CSS, percent, code points) and `transform_file_text` (apply a named transform to project files; more than one file needs approval).
-- **Assistant**: knowledge search (RAG), remember, use a skill, ask you a question, update the visible plan, create a
-  tool.
+- **Assistant**: knowledge search (RAG), remember, use a skill (with arguments and reference files), save a skill
+  draft (`create_skill`), ask you a question, update the visible plan, create a tool.
+- **Power tools** (fewer round trips, more detail): `run_plan` (an ordered list of tool calls in one turn with
+  `{"$ref": "step.path"}` references between steps, stop-on-error, one approval listing every step, one undo step),
+  `query_layers` (selector such as `rect[name^="Card"][w>100]` or attributes: type, name glob, fill, text, within,
+  intersects, parent; paged with limit/offset and `fields`), `describe_page` / `describe_selection` (plain-language
+  summary plus a compact scene text, about 4-6x smaller than `list_layers` JSON; pass `since` to get "unchanged"),
+  `apply_to_many` (set_style / transform for every match, one undo step), `evaluate` (sandboxed JavaScript for math,
+  colors and grids; no network; may call read-only tools), `screenshot_layers` (isolated render, `lowRes`),
+  `compare_screenshots` (save, then before/after), `grid_layout`, `distribute_layers`, `snap_layers`, `make_component`
+  (group + copies with overrides by child name). Error messages include valid values and the nearest tool names.
+- **Agents**: `spawn_agent`, `wait_agent`, `list_agents`, `cancel_agent` (see Sub-agents).
+- **Attachments**: `list_attachments` and `open_attachment` open a file you attached in this chat as a new document
+  through the same importers as File ▸ Open (images in Pixel, SVG in Vector, PDF and Illustrator in Layout with the
+  default import options, PSD, IDML, Sketch, text and code files in Code). Opening asks for approval only in Careful
+  mode. Attachments are kept in memory for the session; after a restart attach the file again.
 
 Inside Vibe Studio the assistant does not switch studios behind your back; the Canvas panel shows the document and
 offers buttons to open it in a studio. (Website editing builds the Code studio's editor in the background.)
@@ -126,10 +174,21 @@ tool descriptions and system instructions stay English: they are instructions to
 
 ## Skills
 
-A skill is a Markdown file (`SKILL.md` style): a name, a description, optional `allowed-tools`, and instructions. The
-assistant sees only the catalog and loads a skill when a task matches (the `use_skill` tool), so skills cost almost
-no context. Nine are built in (`help-me-use-openfini` and `logo-design`, `social-post`, `photo-retouch`, `landing-page`, `poster-layout`, `brand-kit`,
-`accessibility-audit`, `copywriting`). Create your own under *Skills ▸ New* or import a `.md` file.
+A skill is a Markdown file (`SKILL.md` style): a name, a description, optional `allowed-tools`, parameters and
+instructions. The assistant sees only the catalog and loads a skill when a task matches (the `use_skill` tool), so
+skills cost almost no context. 26 are built in, including workflow skills for design systems, responsive sites from a
+brief, photo compositing, icon sets, presentations, print brochures, social campaign kits, mobile UI mockups, data
+reports, code refactoring, SEO, accessibility fixes, localization, brands from a logo, CSS animation and
+`multi-agent-project-lead` (how to split work across sub-agents).
+
+- `/skill-name` starts a skill; skills with parameters open a small form. A chip suggests a matching skill while you type.
+- Skills can require other skills, load reference files on demand, be limited to studios, and (with
+  `enforce-tools: true`) restrict the assistant to their tools while active.
+- *Skills* panel: search, tag filters, source badges (built-in, yours, extension, draft), usage stats, an editor with
+  live preview and validation, *Customize* for built-ins, import/export of `.skill.md` and `.skillpack` bundles,
+  *Test* with the Demo model, and *Create from this chat* (`/create-skill`), which saves a draft for you to review.
+
+Format reference and authoring guide with examples: [vibe-skills.md](vibe-skills.md).
 
 ## Knowledge (RAG)
 
@@ -186,10 +245,29 @@ appears afterwards, or with `Ctrl+Z`.
 | Part | Location |
 | --- | --- |
 | Pure AI runtime (providers, agent loop, MCP, RAG, skills, vault) | `app/src/ai/` — see [ai-engine.md](ai-engine.md) |
-| OpenFini tools (100) | `app/src/vibe/tools/` |
-| Session, store, custom tools, quick actions, OAuth return | `app/src/vibe/` |
-| Studio UI | `app/src/ui/vibe/`, `app/styles/vibe.css` |
+| OpenFini tools (130) | `app/src/vibe/tools/` (power tools `power.js`, agents `agents.js`, attachments `attachments.js`) |
+| Hub (many chats, shared services, write lock), chat session | `app/src/vibe/hub.js`, `app/src/vibe/session.js` |
+| Write lock, run undo, sub-agent engine, query/ref/scene helpers (pure) | `app/src/vibe/locks.js`, `run-undo.js`, `agents.js`, `query.js` |
+| Store, custom tools, quick actions, OAuth return | `app/src/vibe/` |
+| Studio UI | `app/src/ui/vibe/` (chat list `chat-list.js`, skills `panel-skills.js`), `app/styles/vibe.css`, `app/styles/vibe-engine.css` |
+| AI progress pill | `app/src/ui/ai-pill.js`, wording in `app/src/ui/vibe/activity-label.js` |
 | MCP gateway | `scripts/mcp-gateway.mjs` |
 
-Tests: `tests/ai/` (runtime, gateway, and a contract test that checks the demo assistant, the skills and the tool
-groups against the real tool registry).
+**How it fits together.** `getVibeHub(app)` creates the hub on first use. The workspace binds the UI to `hub.view`, a
+`SessionView` that forwards the events of the active chat (`chat`, `message`, `event`, `approval`, `ask`, `plan`,
+`notice`, `done`, `error`, `status`, `runs`) and replays a running chat when you switch to it. Each `VibeSession` builds
+its tools per request and wraps them: skill restriction, then the write lock (mutating calls), document affinity and
+the history tag `{ chat, run }`. `send()` runs `runAgent` with an `AgentManager` for sub-agents. Design decisions:
+[ADR 0008](adr/0008-vibe-hub.md).
+
+**How to extend.** New tools: a `(app, ctx) => Tool[]` module in `app/src/vibe/tools/`, registered in `tools/index.js`
+and listed in `TOOL_GROUPS`; mark pure reads `readOnly: true` (they run in parallel and without the lock) and set
+`exclusive: true` for reads that must not overlap writes. Session services for tools are on `ctx` (`lookup`, `policy`,
+`allowed`, `agents`, `attachments`, `snapshots`, `useSkill`). New Demo scenarios: `planForPrompt` in
+`app/src/ai/providers/mock.js`.
+
+**Testing.** `tests/ai/` (runtime, gateway, skills v2, and a contract test that checks the demo assistant, the skills
+and the tool groups against the real tool registry) and `tests/vibe/` (write lock fairness, tag-based undo, queries,
+run_plan refs, scene text, sub-agent budgets/depth/tool restriction, and engine tests that run the real hub with the
+Demo provider against real documents: concurrent chats, background approvals, limits, kill switch, three-agent brand
+kit, skill arguments and enforcement, attachments).

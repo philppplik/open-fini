@@ -26,7 +26,7 @@ addEventListener("message", (e) => {
 `;
 
 /** Builds the document of the sandbox for one tool and one set of arguments. */
-function buildDoc(code, args) {
+function buildDoc(code, args, isolated = false) {
   const body = `${RUNTIME}
 (async () => {
   try {
@@ -40,7 +40,9 @@ ${code}
   }
 })();`;
   const src = `data:text/javascript;charset=utf-8,${encodeURIComponent(body)}`;
-  return `<!doctype html><meta charset="utf-8"><script src="${src}"><\/script>`;
+  // isolated (the evaluate tool): a CSP that blocks every network request (fetch, images, sockets) from the snippet
+  const csp = isolated ? `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src data:">` : "";
+  return `<!doctype html><meta charset="utf-8">${csp}<script src="${src}"><\/script>`;
 }
 
 /**
@@ -49,7 +51,7 @@ ${code}
  * @param {(name: string, args: object) => Promise<any>} callTool executes an OpenFini tool (with approvals)
  * @param {{timeoutMs?: number, onLog?: (s: string) => void}} [opts]
  */
-export function runCustomTool(tool, args, callTool, { timeoutMs = 30000, onLog } = {}) {
+export function runCustomTool(tool, args, callTool, { timeoutMs = 30000, onLog, isolated = false } = {}) {
   return new Promise((resolve, reject) => {
     const frame = document.createElement("iframe");
     frame.setAttribute("sandbox", "allow-scripts");
@@ -81,7 +83,7 @@ export function runCustomTool(tool, args, callTool, { timeoutMs = 30000, onLog }
     }
     window.addEventListener("message", onMessage);
     document.body.append(frame);
-    frame.srcdoc = buildDoc(tool.code, args);
+    frame.srcdoc = buildDoc(tool.code, args, isolated);
   });
 }
 
