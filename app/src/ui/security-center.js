@@ -10,6 +10,7 @@ import { parseManifest, verifyFiles, integritySummary } from "../core/integrity.
 import { kvDelete, kvEntries, kvClear, getRecents, clearSession } from "../core/storage.js";
 import { log } from "../core/log.js";
 import { platform } from "../platform/index.js";
+import { t } from "../i18n/index.js";
 
 const sw = (key, label, hint, extra = {}) => ({ type: "switch", key, label, hint, ...extra });
 const custom = (label, hint, render) => ({ type: "custom", label, hint, render });
@@ -257,6 +258,31 @@ function integrityControls() {
   return h("div.of-sec", h("div.of-sec__acts", run, full), bar, out, h("p.of-hint", "Compares the files this page is served with against the hashes recorded when the app was built. It finds damaged downloads, stale caches and half-applied updates. It cannot detect a server that was changed to serve different hashes as well: for that, compare the installer with SHA256SUMS.txt from the release page."));
 }
 
+// ------------------------------------------------------------------ collaboration (docs/collaboration.md)
+
+/** Room status with a one-click Leave. Reads `app.collab` only when the collaboration runtime was loaded. */
+function collabStatus(app, rerender) {
+  const c = app.collab;
+  const st = c?.status?.() || { connected: false };
+  const s = c?.session;
+  const text = s ? t("In a room on {host}: end-to-end encrypted, {n} member(s), your role: {role}. The relay sees IP addresses, the room id, message sizes and timing, never content.", { host: s.relayHost, n: st.members || 1, role: s.myRole }) : t("Not in a collaboration room. Rooms are end-to-end encrypted; invite codes and keys are never stored.");
+  const box = h("div.of-sec", h("p.of-hint", text));
+  const acts = h("div.of-sec__acts");
+  if (s) {
+    const leave = h("sl-button", { size: "small", variant: "danger" }, t("Leave room"));
+    leave.addEventListener("click", async () => {
+      await c.leave();
+      rerender();
+    });
+    acts.append(leave);
+  }
+  const more = h("sl-button", { size: "small" }, t("Profile and collaboration settings"));
+  more.addEventListener("click", () => app.run("collab.profile"));
+  acts.append(more);
+  box.append(acts);
+  return box;
+}
+
 // ------------------------------------------------------------------ the section
 
 /** The "Security and privacy" settings section. */
@@ -276,6 +302,7 @@ export function securitySection(app) {
           { type: "info", label: "Telemetry", text: "OpenFini collects no analytics or crash reports and has no accounts. Logs stay on this device." },
         ],
       },
+      { title: "Collaboration", items: [custom("Collaboration rooms", "collaboration room relay encrypted invite members leave", (a, rerender) => collabStatus(a, rerender))] },
       { title: "App lock", items: [custom("App lock passphrase encrypt idle", "passphrase lock screen idle minutes hidden encrypt session recent files", (a, rerender) => lockControls(a, rerender))] },
       {
         title: "Opening files and links",

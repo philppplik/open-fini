@@ -36,7 +36,7 @@ export const kvDelete = (key) => tx("readwrite", (s) => s.delete(key)).catch(() 
 /** Keys the app lock encrypts: the autosaved session, recent files, AI keys and chats. */
 export function isProtectedKey(key) {
   const k = String(key);
-  return k === "session" || k.startsWith("popout:") || k.startsWith("popout-session:") || k === "recents" || k.startsWith("recent:") || k === "vibe.secrets" || k === "publish.secrets" || k === "vibe.chats" || k.startsWith("vibe.chat.");
+  return k === "session" || k.startsWith("popout:") || k.startsWith("popout-session:") || k === "recents" || k.startsWith("recent:") || k === "vibe.secrets" || k === "publish.secrets" || k === "vibe.chats" || k.startsWith("vibe.chat.") || k.startsWith("versions.");
 }
 /** True for values written by the app lock. */
 export const isSealed = (v) => !!v && typeof v === "object" && v.__ofl === 1 && v.iv instanceof Uint8Array && v.data instanceof Uint8Array;
