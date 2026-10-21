@@ -34,8 +34,8 @@ export const LIMITS = Object.freeze({
   docName: 120,
   idChars: 64,
   reactions: 8,
-  opNodes: 64, // nodes per op message ("Edit together", beta)
-  opNodeChars: 96 * 1024,
+  ops: 512, // ops per "op" message ("Edit together", beta); each op is validated by collab/tree-crdt.js or text-crdt.js
+  opPath: 512, // file path of a text op (Code studio)
   skewMs: 10 * 60 * 1000, // messages older/newer than this are rejected (replay window across sessions)
   presencePerSecond: 20,
 });
@@ -60,6 +60,8 @@ export const PERMISSION = Object.freeze({
   comment: "commenter",
   activity: "editor",
   op: "editor",
+  share: "editor",
+  live: "viewer",
   state: "host",
   role: "host",
   remove: "host",
@@ -85,6 +87,9 @@ const ID_RE = /^[A-Za-z0-9_.:-]{1,64}$/;
 const MEMBER_RE = /^[A-Za-z0-9_-]{22}$/;
 const B64U_RE = /^[A-Za-z0-9_-]*$/;
 const COLOR_RE = /^#[0-9a-f]{6}$/i;
+// a project-relative file path: no leading slash, no "..", no backslashes or control characters
+// eslint-disable-next-line no-control-regex
+const PATH_RE = /^(?!\/)(?!(?:.*\/)?\.\.(?:\/|$))[^\\\u0000-\u001f]+$/;
 const AVATAR_RE = /^data:image\/(?:png|webp|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/;
 
 class Invalid extends Error {}
@@ -125,6 +130,8 @@ const V = {
     for (const [k, check] of Object.entries(shape)) if (v[k] !== undefined) out[k] = check(v[k], `${p}.${k}`);
     return out;
   },
+  /** A plain object (not an array); its contents are validated by the module that uses it. */
+  plain: () => (v, p) => (v && typeof v === "object" && !Array.isArray(v) ? v : fail(`${p} must be an object`)),
   /** { key: value } with validated keys and values, at most `max` entries. */
   map: (key, value, max) => (v, p) => {
     if (!v || typeof v !== "object" || Array.isArray(v)) fail(`${p} must be an object`);
@@ -212,11 +219,15 @@ const SHAPES = {
     },
     ["studio"],
   ],
-  "file-offer": [{ fid: V.id(), name: V.text(LIMITS.fileName, { min: 1 }), mime: V.str(100), size: V.int(0, LIMITS.fileBytes), chunks: V.int(1, Math.ceil(LIMITS.fileBytes / LIMITS.chunkBytes)), sha: V.b64u(43), purpose: V.oneOf("file", "doc", "version"), doc: V.id(), note: V.text(200) }, ["fid", "name", "size", "chunks", "sha"]],
+  "file-offer": [{ fid: V.id(), name: V.text(LIMITS.fileName, { min: 1 }), mime: V.str(100), size: V.int(0, LIMITS.fileBytes), chunks: V.int(1, Math.ceil(LIMITS.fileBytes / LIMITS.chunkBytes)), sha: V.b64u(43), purpose: V.oneOf("file", "doc", "version", "live"), doc: V.id(), note: V.text(200), to: V.member() }, ["fid", "name", "size", "chunks", "sha"]],
   "file-chunk": [{ fid: V.id(), i: V.int(0, 100000), data: V.str(Math.ceil((LIMITS.chunkBytes * 4) / 3) + 4, { re: /^[A-Za-z0-9+/]*={0,2}$/ }) }, ["fid", "i", "data"]],
   comment: [{ doc: V.id(), op: COMMENT_OP }, ["doc", "op"]],
   activity: [{ doc: V.id(), docName: V.text(LIMITS.docName), page: V.id(), pageName: V.text(LIMITS.label), label: V.text(LIMITS.label, { min: 1 }), count: V.int(1, 100000), nodes: V.arr(V.id(), LIMITS.ids) }, ["doc", "label", "count"]],
-  op: [{ doc: V.id(), nodes: V.arr(V.str(LIMITS.opNodeChars), LIMITS.opNodes), removed: V.arr(V.id(), 256), order: V.map(V.id(), V.arr(V.id(), 2000), 32) }, ["doc"]],
+  // live editing (docs/collaboration.md ▸ Live editing): the envelope is checked here, every entry of `ops` by
+  // validateTreeOp / validateTextOp before it is applied
+  op: [{ doc: V.id(), kind: V.oneOf("tree", "text"), path: V.str(LIMITS.opPath, { min: 1, re: PATH_RE }), ops: V.arr(V.plain(), LIMITS.ops) }, ["doc", "kind", "ops"]],
+  share: [{ doc: V.id(), docName: V.text(LIMITS.docName), kind: V.oneOf("tree", "text", "snapshot"), a: V.oneOf("start", "stop", "pause", "resume"), studio: STUDIO }, ["doc", "kind", "a"]],
+  live: [{ doc: V.id(), a: V.oneOf("req", "have", "bye", "sent"), to: V.member(), fid: V.id() }, ["doc", "a"]],
   state: [{ host: V.member(), roles: V.map((k, p) => V.member()(k, p), V.oneOf(...ROLES), LIMITS.members * 4), defaultRole: V.oneOf("viewer", "commenter", "editor"), chat: V.arr(V.obj({ from: V.member(), nick: V.text(LIMITS.nick), color: V.str(7, { re: COLOR_RE }), ts: V.int(0, 1e14), msg: CHAT }, ["from", "ts", "msg"]), LIMITS.stateChat) }, ["host", "roles", "defaultRole"]],
   role: [{ member: V.member(), role: V.oneOf("viewer", "commenter", "editor") }, ["member", "role"]],
   remove: [{ member: V.member() }, ["member"]],

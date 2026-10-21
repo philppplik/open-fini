@@ -3,7 +3,10 @@
 // between the members of a room. It never sees plaintext: clients encrypt and sign everything (app/src/collab/crypto.js).
 //
 //   npm run relay                                   127.0.0.1:8787 (this device only)
-//   node scripts/relay.mjs --host 0.0.0.0           the local network (prints a warning; use TLS or a trusted LAN)
+//   npm run relay -- --lan                          the whole local network: binds 0.0.0.0, serves the app itself,
+//                                                   answers http/ws AND https/wss (self-signed) on one port, prints the
+//                                                   LAN addresses and a QR code to open the app on a phone or laptop
+//   node scripts/relay.mjs --host 0.0.0.0           the local network without serving the app (prints a warning)
 //   node scripts/relay.mjs --tls-cert c.pem --tls-key k.pem --port 8443    wss:// directly
 //   node scripts/relay.mjs --origin https://app.example.org --max-rooms 50 --max-peers 8
 //
@@ -12,11 +15,31 @@
 // the other peers, frame size limit, per-connection rate limits (messages and bytes), per-IP connection limit, ping/pong
 // keep-alive, an Origin allow-list for browsers. Logs contain counts, short room-id prefixes and error codes, never
 // payloads or tokens. Protocol: docs/collaboration.md ▸ Relay protocol. Module API (tests): startRelay(options).
+//
+// HTTP endpoints: GET /info (JSON: version, LAN addresses, whether it serves the app; CORS for allowed origins, Chrome
+// Private Network Access preflights answered), and with --serve-app the static files of the built app (dist/, or app/
+// in a source checkout) on the same origin, so another device opens http(s)://<lan-ip>:<port>/ and connects to the
+// relay without mixed-content or origin problems. Pages served by this relay are allowed automatically (same origin,
+// IP-literal or localhost hosts only, which rules out DNS rebinding).
 import { createServer as createHttp } from "node:http";
 import { createServer as createHttps } from "node:https";
+import { createServer as createNet, isIP } from "node:net";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { pathToFileURL } from "node:url";
+import { readFileSync, existsSync, statSync, realpathSync } from "node:fs";
+import { networkInterfaces } from "node:os";
+import { dirname, join, resolve, sep, extname } from "node:path";
+import { pathToFileURL, fileURLToPath } from "node:url";
+import { encodeQR, qrToText } from "../app/src/collab/qr.js";
+import { loadOrCreateCert } from "./relay-tls.mjs";
+
+const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const VERSION = (() => {
+  try {
+    return JSON.parse(readFileSync(join(REPO, "package.json"), "utf8")).version || "?";
+  } catch {
+    return "?";
+  }
+})();
 
 const GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 const ID_RE = /^[A-Za-z0-9_-]{22}$/;
@@ -67,6 +90,62 @@ export function originAllowed(origin, allow) {
   }
 }
 
+/** IPv4 addresses of this machine's network interfaces (not loopback), e.g. ["192.168.1.20"]. */
+export function lanAddresses(ifaces = networkInterfaces()) {
+  const out = [];
+  for (const list of Object.values(ifaces || {}))
+    for (const a of list || []) if ((a.family === "IPv4" || a.family === 4) && !a.internal && !a.address.startsWith("169.254.")) out.push(a.address);
+  return [...new Set(out)];
+}
+
+/**
+ * A page served by this relay (--serve-app) may connect: its Origin equals the request's Host and that host is an IP
+ * literal or localhost (a DNS name could be rebound to this machine by a hostile site, so names are not trusted).
+ */
+export function sameOriginAllowed(origin, hostHeader) {
+  if (!origin || !hostHeader) return false;
+  try {
+    const u = new URL(origin);
+    if (u.host !== String(hostHeader).toLowerCase()) return false;
+    const h = u.hostname.replace(/^\[|\]$/g, "");
+    return isIP(h) !== 0 || h === "localhost";
+  } catch {
+    return false;
+  }
+}
+
+const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json", ".webmanifest": "application/manifest+json", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".webp": "image/webp", ".ico": "image/x-icon", ".woff2": "font/woff2", ".woff": "font/woff", ".ttf": "font/ttf", ".wasm": "application/wasm", ".txt": "text/plain; charset=utf-8", ".md": "text/plain; charset=utf-8", ".map": "application/json" };
+
+/** The directory with the app to serve: an explicit one, else dist/ (built) or app/ (source checkout). */
+export function appDir(dir) {
+  if (dir && dir !== true) return resolve(dir);
+  for (const d of ["dist", "app"]) if (existsSync(join(REPO, d, "index.html"))) return join(REPO, d);
+  return null;
+}
+
+/** Resolves a URL path inside `root`, or null for anything outside it (traversal, encoded tricks, NUL bytes). */
+export function safeStaticPath(root, urlPath) {
+  let p;
+  try {
+    p = decodeURIComponent(String(urlPath).split("?")[0].split("#")[0]);
+  } catch {
+    return null;
+  }
+  if (p.includes("\0") || p.includes("\\") || !p.startsWith("/")) return null;
+  if (p.split("/").some((seg) => seg === "..")) return null;
+  let file = resolve(root, `.${p}`);
+  if (file !== root && !file.startsWith(root + sep)) return null;
+  try {
+    if (statSync(file).isDirectory()) file = join(file, "index.html");
+    const real = realpathSync(file);
+    const realRoot = realpathSync(root);
+    if (real !== realRoot && !real.startsWith(realRoot + sep)) return null; // symlinks out of the root
+    return statSync(real).isFile() ? real : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Encodes one unmasked server frame. */
 export function encodeFrame(opcode, payload) {
   const len = payload.length;
@@ -100,14 +179,80 @@ export function startRelay(options = {}) {
   const counters = { frames: 0, bytes: 0, rejected: 0 };
   const short = (id) => `${String(id).slice(0, 6)}…`;
 
+  const root = o.serveApp ? appDir(o.serveApp) : null;
+  if (o.serveApp && !root) throw new Error("--serve-app: no app found (build it with npm run build, or pass the directory).");
+  const tls = o.tls || (o.tlsCert && o.tlsKey ? { cert: readFileSync(o.tlsCert), key: readFileSync(o.tlsKey) } : null);
+  const dual = !!(tls && o.dual); // one port answers both plain and TLS connections
+  const allowedFor = (req) => originAllowed(req.headers.origin, origins) || (!!root && sameOriginAllowed(req.headers.origin, req.headers.host));
+  let listenPort = 0;
+
+  const info = (req) => {
+    const lan = lanAddresses(o.interfaces);
+    const hosts = o.host === "0.0.0.0" || o.host === "::" ? lan : [o.host];
+    const urls = (scheme) => hosts.map((h) => `${scheme}://${h}:${listenPort}/`);
+    return {
+      app: "openfini-relay",
+      version: VERSION,
+      port: listenPort,
+      host: o.host,
+      lan: o.host === "0.0.0.0" || o.host === "::" ? lan : [],
+      ws: !tls || dual ? urls("ws") : [],
+      wss: tls ? urls("wss") : [],
+      servesApp: !!root,
+      appUrls: root ? [...(!tls || dual ? urls("http") : []), ...(tls ? urls("https") : [])] : [],
+      originAllowed: allowedFor(req),
+    };
+  };
+
   const handler = (req, res) => {
+    const origin = req.headers.origin;
+    const cors = {};
+    if (origin && allowedFor(req)) Object.assign(cors, { "access-control-allow-origin": origin, vary: "Origin" });
+    const path = String(req.url || "/").split("?")[0];
+    if (req.method === "OPTIONS") {
+      // CORS and Chrome Private Network Access preflights (a public https page asking a LAN address)
+      if (req.headers["access-control-request-private-network"] && cors["access-control-allow-origin"]) cors["access-control-allow-private-network"] = "true";
+      res.writeHead(204, { ...cors, "access-control-allow-methods": "GET", "access-control-max-age": "600" });
+      return res.end();
+    }
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      res.writeHead(405, { allow: "GET, HEAD" });
+      return res.end();
+    }
+    if (path === "/info") {
+      res.writeHead(200, { ...cors, "content-type": "application/json", "cache-control": "no-store", "x-content-type-options": "nosniff" });
+      return res.end(JSON.stringify(info(req)));
+    }
+    if (root) {
+      const file = safeStaticPath(root, path);
+      if (!file) {
+        res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+        return res.end("Not found\n");
+      }
+      const body = readFileSync(file);
+      res.writeHead(200, { "content-type": MIME[extname(file).toLowerCase()] || "application/octet-stream", "cache-control": "no-cache", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer" });
+      return res.end(req.method === "HEAD" ? undefined : body);
+    }
     // a tiny health page: counts only
     res.writeHead(200, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
     res.end(`OpenFini relay: ${rooms.size} rooms, ${conns.size} connections. This server only forwards encrypted frames.\n`);
   };
-  const server = o.tlsCert && o.tlsKey ? createHttps({ cert: readFileSync(o.tlsCert), key: readFileSync(o.tlsKey) }, handler) : createHttp(handler);
+  const plainServer = !tls || dual ? createHttp(handler) : null;
+  const tlsServer = tls ? createHttps({ cert: tls.cert, key: tls.key }, handler) : null;
+  const server = dual
+    ? createNet((sock) => {
+        // the first byte of a TLS connection is 0x16 (handshake record); anything else is plain HTTP
+        sock.once("data", (buf) => {
+          sock.pause();
+          sock.unshift(buf);
+          (buf[0] === 0x16 ? tlsServer : plainServer).emit("connection", sock);
+          process.nextTick(() => sock.resume());
+        });
+        sock.on("error", () => sock.destroy());
+      })
+    : tlsServer || plainServer;
 
-  server.on("upgrade", (req, socket) => {
+  for (const srv of [plainServer, tlsServer]) srv?.on("upgrade", (req, socket) => {
     const ip = req.socket.remoteAddress || "?";
     const deny = (code, text) => {
       counters.rejected++;
@@ -117,7 +262,7 @@ export function startRelay(options = {}) {
     if (req.headers["sec-websocket-version"] !== "13") return deny(426, "Upgrade Required");
     const key = req.headers["sec-websocket-key"];
     if (typeof key !== "string" || !/^[A-Za-z0-9+/]{22}==$/.test(key)) return deny(400, "Bad Request");
-    if (!originAllowed(req.headers.origin, origins)) {
+    if (!allowedFor(req)) {
       log(`refused origin ${String(req.headers.origin).slice(0, 80)}`);
       return deny(403, "Forbidden");
     }
@@ -319,10 +464,15 @@ export function startRelay(options = {}) {
     server.once("error", reject);
     server.listen(o.port, o.host, () => {
       const port = server.address().port;
+      listenPort = port;
       resolve({
         port,
         host: o.host,
         server,
+        root,
+        tls: !!tls,
+        dual,
+        info: () => info({ headers: {} }),
         stats: () => ({ rooms: rooms.size, connections: conns.size, ...counters }),
         close: () =>
           new Promise((r) => {
@@ -338,7 +488,7 @@ export function startRelay(options = {}) {
 
 // ------------------------------------------------------------------ CLI
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   const o = {};
   const num = (v, name) => {
     const n = Number(v);
@@ -362,25 +512,86 @@ function parseArgs(argv) {
     else if (a === "--max-peers") o.maxPeers = num(v(), "max-peers");
     else if (a === "--rate") o.rate = num(v(), "rate");
     else if (a === "--quiet") o.log = false;
+    else if (a === "--lan") o.lan = true;
+    else if (a === "--serve-app") o.serveApp = argv[i + 1] && !argv[i + 1].startsWith("--") ? argv[++i] : true;
+    else if (a === "--no-serve-app") o.serveApp = false;
+    else if (a === "--no-tls") o.noTls = true;
+    else if (a === "--tls-dir") o.tlsDir = v();
     else if (a === "--help" || a === "-h") o.help = true;
     else throw new Error(`Unknown option ${a} (see --help)`);
+  }
+  if (o.lan) {
+    o.host ??= "0.0.0.0";
+    if (o.serveApp === undefined) o.serveApp = true;
   }
   return o;
 }
 
 const HELP = `OpenFini collaboration relay (forwards end-to-end encrypted frames; sees no content)
 
+  --lan               the whole local network: bind 0.0.0.0, serve the app (--serve-app), answer http/ws and
+                      https/wss (self-signed certificate, kept in ~/.openfini-relay/) on one port, print the LAN
+                      addresses and a QR code. Other devices open https://<this computer's IP>:<port>/ (accept the
+                      certificate warning once) and join with the invite code or a join link.
+  --serve-app [dir]   also serve the OpenFini app (default dist/, or app/ in a source checkout)
+  --no-tls            with --lan: plain http/ws only (other browsers then cannot use encryption: WebCrypto needs a
+                      secure page; only the desktop app and this computer's browser work)
+  --tls-dir <dir>     where --lan keeps its certificate (default ~/.openfini-relay)
   --host <addr>       interface to bind (default 127.0.0.1; 0.0.0.0 = every interface, e.g. the LAN)
   --port <n>          port (default 8787; 0 = any free port)
   --tls-cert <file>   PEM certificate: serve wss:// directly (with --tls-key)
   --tls-key <file>    PEM private key
-  --origin <origin>   allow browser pages from this origin (repeatable; the desktop app and localhost are always allowed)
+  --origin <origin>   allow browser pages from this origin (repeatable; the desktop app, localhost and pages this
+                      relay serves itself are always allowed)
   --any-origin        allow every origin (not recommended)
   --max-rooms <n>     default ${DEFAULTS.maxRooms}
   --max-peers <n>     members per room, default ${DEFAULTS.maxPeers}
   --rate <n>          messages per second per connection, default ${DEFAULTS.rate}
   --quiet             no log output
 `;
+
+/** Starts the relay from command-line options and prints how to reach it (used by the CLI and the tests). */
+export async function runCli(opts, out = console) {
+  if ((opts.tlsCert && !opts.tlsKey) || (!opts.tlsCert && opts.tlsKey)) throw new Error("--tls-cert and --tls-key must be given together.");
+  const lanIps = lanAddresses();
+  const start = { ...opts };
+  let certInfo = null;
+  if (opts.lan && !opts.noTls && !opts.tlsCert) {
+    certInfo = loadOrCreateCert({ ips: ["127.0.0.1", ...lanIps], dir: opts.tlsDir });
+    start.tls = { cert: certInfo.cert, key: certInfo.key };
+    start.dual = true;
+  }
+  const relay = await startRelay(start);
+  const { port, host } = relay;
+  const pub = host !== "127.0.0.1" && host !== "localhost" && host !== "::1";
+  const scheme = relay.tls && !relay.dual ? "wss" : "ws";
+  out.log(`OpenFini relay ${VERSION} listening on ${scheme}://${host}:${port}/${relay.dual ? " (also wss:// on the same port)" : ""}`);
+  if (relay.root) out.log(`Serving the app from ${relay.root}`);
+  if (pub) {
+    const ips = host === "0.0.0.0" || host === "::" ? lanIps : [host];
+    if (!ips.length) out.log("No network address found (is this computer connected to a network?).");
+    for (const ip of ips) {
+      out.log(`  Relay address for invite codes: ${relay.dual || !relay.tls ? `ws://${ip}:${port}/` : ""}${relay.tls ? `${relay.dual ? "  or  " : ""}wss://${ip}:${port}/` : ""}`);
+      if (relay.root) out.log(`  Open the app on another device: ${relay.tls ? `https://${ip}:${port}/` : `http://${ip}:${port}/`}`);
+    }
+    const first = ips[0];
+    if (relay.root && first) {
+      const url = `${relay.tls ? "https" : "http"}://${first}:${port}/`;
+      out.log(`\nScan to open ${url} (then join with the invite code, or use “Copy join link” in Collaboration ▸ People):\n`);
+      out.log(qrToText(encodeQR(url, { ecl: "M" }), { quiet: 2, invert: true }));
+    }
+    if (certInfo) {
+      out.log(`\nTLS: self-signed certificate ${certInfo.created ? "created" : "reused"} (${certInfo.certPath}).`);
+      out.log(`  SHA-256 fingerprint: ${certInfo.fingerprint}`);
+      out.log("  Browsers warn once per device: open the https:// address above, check the fingerprint (certificate details) and continue.");
+      out.log("  The desktop app connects with ws:// on the same port; it does not need the certificate.");
+    } else if (!relay.tls && relay.root) {
+      out.log("\nNOTE: plain http only (--no-tls). Browsers on other devices cannot encrypt on http:// pages (WebCrypto needs a secure page): use the desktop app there, or drop --no-tls.");
+    }
+    out.warn("\nWARNING: the relay is reachable from other machines. Content stays end-to-end encrypted and every room needs its access token, but anyone who can reach this port can see IP addresses, room ids, message sizes and timing, and can use your bandwidth. Allow the port only for your network in the firewall (Windows asks on first start: choose Private networks only).");
+  }
+  return relay;
+}
 
 if (import.meta.url === pathToFileURL(process.argv[1] || "").href) {
   let opts;
@@ -394,23 +605,15 @@ if (import.meta.url === pathToFileURL(process.argv[1] || "").href) {
     process.stdout.write(HELP);
     process.exit(0);
   }
-  if ((opts.tlsCert && !opts.tlsKey) || (!opts.tlsCert && opts.tlsKey)) {
-    console.error("--tls-cert and --tls-key must be given together.");
-    process.exit(2);
-  }
-  startRelay(opts)
-    .then(({ port, host }) => {
-      const scheme = opts.tlsCert ? "wss" : "ws";
-      console.log(`OpenFini relay listening on ${scheme}://${host}:${port}/`);
-      if (host !== "127.0.0.1" && host !== "localhost" && host !== "::1") {
-        console.warn("WARNING: the relay is reachable from other machines. Content stays end-to-end encrypted, but anyone who can reach this port can see IP addresses, room ids, message sizes and timing, and can use your bandwidth. Prefer --tls-cert/--tls-key or a TLS reverse proxy, and a firewall that only admits your network.");
-      }
+  runCli(opts)
+    .then(() => {
       const stop = () => process.exit(0);
       process.on("SIGINT", stop);
       process.on("SIGTERM", stop);
     })
     .catch((e) => {
       console.error(`The relay could not start: ${e.message}`);
+      if (e.code === "EADDRINUSE") console.error("Another program (maybe another relay) uses this port: stop it or pass --port <n>.");
       process.exit(1);
     });
 }
