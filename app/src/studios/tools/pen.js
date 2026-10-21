@@ -124,6 +124,21 @@ export class PenTool extends Tool {
     else this.cancel();
   }
 
+  /** Tool pill (ui/tool-pill.js): while a path is being drawn. */
+  pillState() {
+    const n = this.nodes.length;
+    if (!n) return null;
+    const actions = [{ id: "finish", label: "Finish path", key: "Enter", primary: true }];
+    if (n >= 2) actions.push({ id: "close", label: "Close path" });
+    actions.push({ id: "cancel", label: "Cancel", key: "Escape" });
+    return { key: n === 1 ? "Drawing a path · 1 point" : "Drawing a path · {n} points", params: { n }, actions };
+  }
+  pillAction(id) {
+    if (id === "finish") this.finish(false);
+    else if (id === "close") this.finish(true);
+    else this.cancel();
+  }
+
   cancel() {
     this.nodes = [];
     this.dragging = false;

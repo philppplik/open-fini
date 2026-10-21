@@ -191,6 +191,16 @@ export class CropTool extends Tool {
     return h("div.of-row.of-inline", button("Apply crop", () => this.apply(), { variant: "primary" }), button("Cancel", () => this.app.setTool("move")));
   }
 
+  /** Tool pill (ui/tool-pill.js). */
+  pillState() {
+    if (!this.rect) return null;
+    return { key: "Crop · {w} × {h} px", params: { w: Math.round(this.rect.w), h: Math.round(this.rect.h) }, actions: [{ id: "apply", label: "Apply", key: "Enter", primary: true }, { id: "cancel", label: "Cancel", key: "Escape" }] };
+  }
+  pillAction(id) {
+    if (id === "apply") this.apply();
+    else this.app.setTool("move");
+  }
+
   overlay(ctx) {
     if (!this.rect) return;
     const app = this.app;
@@ -253,6 +263,16 @@ export class LiquifyTool extends Tool {
   }
   contextBar() {
     return h("div.of-row.of-inline", brushBar(this.app, { opacity: false, flow: false, hardness: false }), button("Apply", () => this.commit(), { variant: "primary" }), button("Reset", () => this.reset()));
+  }
+
+  /** Tool pill (ui/tool-pill.js): only while there are unapplied distortions. */
+  pillState() {
+    if (!this.session?.changed) return null;
+    return { key: "Liquify in progress", actions: [{ id: "apply", label: "Apply", key: "Enter", primary: true }, { id: "reset", label: "Cancel", key: "Escape" }] };
+  }
+  pillAction(id) {
+    if (id === "apply") this.commit();
+    else this.reset();
   }
 
   #begin() {

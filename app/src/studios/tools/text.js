@@ -198,6 +198,15 @@ export class TextTool extends Tool {
     this.app.requestOverlay();
   }
 
+  /** Tool pill (ui/tool-pill.js): while a text object is being edited. */
+  pillState() {
+    if (!this.s) return null;
+    return { key: "Editing text", actions: [{ id: "done", label: "Done editing", key: "Escape", primary: true }] };
+  }
+  pillAction() {
+    this.end(true);
+  }
+
   end(keepSelection = false) {
     const s = this.s;
     if (s) {

@@ -170,6 +170,7 @@ export function settingsSections(app) {
           title: "Canvas",
           items: [
             sw("rulers", "Show rulers", "Rulers along the canvas edges; drag from them to make guides."),
+            sw("toolPill", "Show the tool pill", "A small pill at the bottom of the canvas with the actions of the current state: Deselect and Invert for a selection, Apply and Cancel for crop, Finish for a path."),
             { type: "segmented", key: "clipContent", label: "Clip content to the page", hint: "Whether artwork outside the page is hidden. Automatic follows the studio: shown in Vector, clipped in Pixel and Layout.", options: [{ value: "auto", label: "Automatic", text: "Auto" }, { value: "on", label: "Always clip", text: "On" }, { value: "off", label: "Never clip", text: "Off" }], get: () => (app.prefs.clipContent == null ? "auto" : app.prefs.clipContent ? "on" : "off"), set: (v) => app.setPref("clipContent", v === "auto" ? null : v === "on") },
           ],
         },

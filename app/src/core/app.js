@@ -30,6 +30,7 @@ const defaultPrefs = () => ({
   highContrast: false,
   focusRings: false,
   showHints: true, // tooltips
+  toolPill: true, // floating context actions at the bottom of the canvas (ui/tool-pill.js)
   // onboarding (ui/onboarding.js)
   tours: true, // offer the welcome tour and the per-studio tours
   contextHints: true, // empty-state hints in panels
