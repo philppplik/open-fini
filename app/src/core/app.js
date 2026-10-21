@@ -77,6 +77,13 @@ const defaultPrefs = () => ({
   appLockOnHide: false, // lock when the window is hidden or minimized
   protectedMode: true, // website projects from files/folders open with preview scripts off until enabled
   verboseLogging: false, // also record debug-level log entries
+  // collaboration (docs/collaboration.md): local identity and options. Never exported in profiles; invite codes are never stored.
+  collabNick: "", // nickname shown to room members ("" = ask on first use)
+  collabColor: "", // presence color ("" = picked from the nickname)
+  collabRelay: "ws://127.0.0.1:8787/", // last relay address used to create a room (not secret)
+  collabActivity: true, // post my edits as activity lines in the room chat
+  collabCursors: "auto", // show other members' cursors: auto (off in low-power mode) | on | off
+  collabNotify: true, // toast + title badge for @mentions and replies
   // customization (customize/schema.js): fonts, shortcuts, toolbox, layout, workspaces, defaults
   ...customizationDefaults(),
 });

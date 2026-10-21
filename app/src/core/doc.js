@@ -65,6 +65,7 @@ export class Doc extends Emitter {
     this.tableStyles = {}; // saved table styles {id: {name, style}} (engine/layout/table-styles.js)
     this.web = null; // website project of the Code studio (core/web.js), stored next to the design data
     this.office = null; // word-processing document of the Office Studio (core/office.js)
+    this.comments = []; // comment threads (collab/comments.js); saved as document.json ▸ "comments" when not empty
     this.source = null; // the file this document was opened from, while File ▸ Save can write it back in that format (core/source-format.js)
     this.settings = { snap: true, snapObjects: true, snapGrid: false, grid: { size: 32, subdivisions: 4, visible: false }, guidesVisible: true };
     this.history = new History();
@@ -769,6 +770,7 @@ export class Doc extends Emitter {
           settings: this.settings,
           web: this.web ? this.web.manifest() : undefined,
           office: this.office ? this.office.manifest() : undefined,
+          comments: this.comments?.length ? this.comments : undefined, // additive field, see docs/file-format.md
         },
         (k, v) => (k.charCodeAt(0) === 95 ? undefined : v),
       ),
@@ -791,6 +793,9 @@ export class Doc extends Emitter {
     d.settings = { ...d.settings, ...(json.settings || {}) };
     d.assets = {};
     for (const a of json.assets || []) d.assets[a.id] = { ...a };
+    // comment threads: only a shape check here (keeps start-up small); collab/comments.js normalizeThreads validates
+    // every field before the comments UI shows them, and all comment text is rendered as plain text
+    d.comments = Array.isArray(json.comments) ? json.comments.filter((c) => c && typeof c === "object" && !Array.isArray(c) && typeof c.id === "string").slice(0, 2000) : [];
     if (!d.pages.length) d.pages.push(makePage());
     d.relink();
     d.saved = true;

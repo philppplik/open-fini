@@ -22,13 +22,14 @@ import { powerTools } from "./power.js";
 import { agentTools } from "./agents.js";
 import { attachmentTools } from "./attachments.js";
 import { saveTargetTools } from "./save-target.js";
+import { collabTools } from "./collab.js";
 
 /**
  * @param {import("../../core/app.js").App} app
  * @param {object} ctx session context: { images, knowledge, memory, skills, ask, plan, customTools }
  */
 export function createOpenFiniTools(app, ctx = {}) {
-  return [...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...formatTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx)];
+  return [...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...formatTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx)];
 }
 
 /** Tools grouped for the UI. */
@@ -53,4 +54,5 @@ export const TOOL_GROUPS = {
   "Power tools": ["run_plan", "query_layers", "describe_page", "describe_selection", "apply_to_many", "evaluate", "screenshot_layers", "compare_screenshots", "grid_layout", "distribute_layers", "snap_layers", "make_component"],
   Agents: ["spawn_agent", "wait_agent", "list_agents", "cancel_agent"],
   Attachments: ["list_attachments", "open_attachment"],
+  Collaboration: ["get_collab_status", "read_chat", "post_chat_message", "list_comments", "add_comment", "reply_comment", "resolve_comment", "list_versions", "save_version"],
 };

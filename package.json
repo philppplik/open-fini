@@ -42,6 +42,7 @@
     "ext:pack-all": "node scripts/pack-extensions.mjs",
     "mcp:gateway": "node scripts/mcp-gateway.mjs",
     "publish:helper": "node scripts/publish-helper.mjs",
+    "relay": "node scripts/relay.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"

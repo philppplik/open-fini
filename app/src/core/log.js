@@ -41,6 +41,8 @@ const RULES = [
   [/\bxox[abposr]-[A-Za-z0-9-]{10,}/g, "[redacted-key]"],
   [/\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g, "[redacted-key]"],
   [/\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g, "[redacted-jwt]"],
+  // collaboration invite codes: everything after #ofc1. is room id + room secret + host id (collab/crypto.js)
+  [/#?ofc1\.[A-Za-z0-9_.-]+/g, "[redacted-invite]"],
   // name=value / "name": "value" pairs whose name suggests a secret
   [new RegExp(`\\b((?:x-)?(?:${SECRET_NAMES})\\b["']?\\s*[=:]\\s*)("[^"]*"|'[^']*'|[^\\s"'&,;}\\]]+)`, "gi"), (m, head, value) => `${head}${/^["']/.test(value) ? `${value[0]}[redacted]${value[0]}` : "[redacted]"}`],
   // generic query parameters that carry secrets even though their name is short

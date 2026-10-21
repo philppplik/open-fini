@@ -15,6 +15,7 @@ import { registerExtensionCommands } from "./extensions.js";
 import { registerOfficeCommands } from "./office.js";
 import { registerTextToolCommands } from "./text-tools.js";
 import { registerWindowCommands } from "./window.js";
+import { registerCollabCommands } from "./collab.js";
 import { installAnts } from "../studios/tools/pixel-select.js";
 
 export function registerCommands(app) {
@@ -34,6 +35,7 @@ export function registerCommands(app) {
   registerExtensionCommands(app);
   registerWindowCommands(app);
   registerOfficeCommands(app);
+  registerCollabCommands(app);
   installAnts(app);
   app.emit("commands");
 }

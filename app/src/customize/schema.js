@@ -14,7 +14,7 @@ const NAME_RE = /^[^\u0000-\u001f<>]{1,40}$/;
 export const QUICK_ACTIONS = ["undo", "redo", "theme", "export", "panels"];
 
 /** Shown by default (theme toggle and panel toggle are optional extras: Settings > Toolbox and menus). */
-export const DEFAULT_QUICK_ACTIONS = ["undo", "redo", "export"];
+export const DEFAULT_QUICK_ACTIONS = ["undo", "redo", "export", "collab.open"];
 
 /** The default of versions up to 0.5: stored unchanged by users who never customized it, so it is migrated. */
 export const LEGACY_QUICK_ACTIONS = ["undo", "redo", "theme", "export", "panels"];

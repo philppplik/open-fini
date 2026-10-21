@@ -14,3 +14,4 @@ in place and are marked as such.
 | [0007](0007-i18n-english-as-key.md) | Internationalization: the English text is the key | Accepted |
 | [0009](0009-bundled-extensions.md) | Bundled extensions are data, packed from source, installed on demand | Accepted |
 | [0008](0008-vibe-hub.md) | Vibe hub: concurrent chats, fair write lock, tag-based run undo | Accepted |
+| [0010](0010-collaboration-e2e-relay.md) | Collaboration through a dumb relay with end-to-end encryption | Accepted |

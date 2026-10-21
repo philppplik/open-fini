@@ -46,6 +46,9 @@ export const IMPLICIT = [
   { test: (p) => p === "ui/settings-dialog.js", re: new RegExp(String.raw`\bnum\(\s*"[\w.]+"\s*,\s*${STR}\s*,[^"\n]*"[^"\n]*"(?:\s*,\s*${STR})?`, "g") },
   { test: (p) => p === "ui/settings-dialog.js", re: new RegExp(String.raw`\}\]\s*,\s*${STR}[,)]`, "g") },
   { test: (p) => p.startsWith("commands/"), re: new RegExp(String.raw`\bregisterCommand\(\s*"[\w.\-]+"\s*,\s*\{\s*label:\s*${STR}`, "g") },
+  // collaboration UI: literal toasts and dialog texts (translated by app.toast / confirmDialog / promptDialog) and tab labels
+  { test: (p) => p.startsWith("ui/collab/"), re: new RegExp(String.raw`\.toast\(\s*${STR}`, "g") },
+  { test: (p) => p.startsWith("ui/collab/"), re: new RegExp(String.raw`\b(?:title|message|ok|label):\s*${STR}`, "g") },
 ];
 
 /** Implicit patterns also hit units, numbers and technical tokens that need no translation. */

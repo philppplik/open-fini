@@ -15,6 +15,7 @@ export const NETWORK_KINDS = Object.freeze({
   cdn: "Remote scripts, fonts and images in website previews",
   update: "Update checks",
   oauth: "Sign-in with a provider (OAuth)",
+  collab: "Collaboration rooms (relay servers)",
   other: "Other network access",
 });
 

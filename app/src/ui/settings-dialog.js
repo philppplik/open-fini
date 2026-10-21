@@ -11,6 +11,7 @@ import { platform } from "../platform/index.js";
 import { FILE_TYPES, defaultAppsInstructions } from "../platform/file-types.js";
 import { kvGet, kvDelete, getRecents, clearSession } from "../core/storage.js";
 import { securitySection, troubleshootingSection } from "./security-center.js";
+import { collabSection } from "./collab/settings-section.js";
 import { openLink } from "./links.js";
 import { updateRows } from "./update-check.js";
 import { withCustomization, resetButton, sectionResetButton } from "./customize/sections.js";
@@ -234,6 +235,7 @@ export function settingsSections(app) {
       ],
     },
     securitySection(app),
+    collabSection(app),
     troubleshootingSection(app),
     {
       id: "shortcuts",
