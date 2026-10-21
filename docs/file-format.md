@@ -121,6 +121,33 @@ Run marks are `b`, `i`, `u`, `s`, `va` (`"sub"` / `"super"`), `color`, `highligh
 Covered cells of a merge are simply absent (HTML-style `colspan` / `rowspan`). Readers validate the object with
 `normalizeDoc()`, which drops unknown fields and clamps values.
 
+## Comments
+
+`"comments"` (optional, additive since 0.7.0, no format version bump: older readers ignore it) holds the comment threads
+of the document ([collaboration.md](collaboration.md)). The key is absent when there are none.
+
+```jsonc
+"comments": [
+  {
+    "id": "cAbC…", "author": "<22-char member id>", "nick": "Mia", "color": "#0090ff", "ts": 1760000000000,
+    "anchor": { "kind": "node", "node": "n_…", "page": "p_…", "quote": "Hero box" },
+    "resolved": false, "resolvedBy": "Hana", "resolvedAt": 1760000000000,
+    "messages": [ { "id": "cAbC…-0", "author": "…", "nick": "Mia", "color": "#0090ff", "text": "Bigger?", "ts": 1760000000000,
+                    "edited": 1760000000000, "deleted": false, "mentions": ["<member id>"] } ]
+  }
+]
+```
+
+Anchor kinds: `doc`; `page` (`page`); `node` (`node`, `page`); `region` (`page`, `rect {x,y,w,h}` in page coordinates);
+`text` (Office studio: `path` = JSON paragraph path, `from`, `to` offsets, `quote`); `line` (Code studio: `path` = file,
+`line`, `endLine`, `quote`). Text is plain text (never HTML). Readers validate every thread with
+`collab/comments.js ▸ normalizeThreads` (unknown fields, wrong types and oversize values drop the thread); the document
+loader itself only keeps objects with an `id` (at most 2000). Comments are not undoable steps; they mark the document as
+changed.
+
+**Named versions are not in the file.** Versions (*Collaboration ▸ Versions*) are complete `.ofini` snapshots stored on
+the device (IndexedDB keys `versions.index`, `versions.data.<id>`, `versions.thumb.<id>`, encrypted by the app lock).
+
 ## Versioning and migration
 
 `document.json` carries `"version": N`. The code lives in `app/src/core/ofini-migrate.js` (pure, tested in `tests/core/ofini-migrate.test.js`):

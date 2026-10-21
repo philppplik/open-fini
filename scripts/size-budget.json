@@ -1,6 +1,6 @@
 {
-  "$comment": "Budgets for scripts/check-size.mjs, in KiB of gzip-compressed bytes (level 9). shellJs covers every .js file outside vendor/ (the app and its lazily loaded studios, panels and engines, plus the service worker). startupJs is what must load before the app is usable (index.html modules and their static imports). total covers everything the browser downloads (dist/) except fonts, license texts and the on-demand libraries (PDF import, KaTeX), which are not precached.",
-  "shellJsGzipKiB": 1130,
+  "$comment": "Budgets for scripts/check-size.mjs, in KiB of gzip-compressed bytes (level 9). shellJs covers every .js file outside vendor/ (the app and its lazily loaded studios, panels and engines, plus the service worker). startupJs is what must load before the app is usable (index.html modules and their static imports). total covers everything the browser downloads (dist/) except fonts, license texts and the on-demand libraries (PDF import, KaTeX), which are not precached. 0.7.0: shellJs +50 for collaboration (app/src/collab + ui/collab, about 40 KiB, all lazy; start-up only gains the small command stubs).",
+  "shellJsGzipKiB": 1180,
   "startupJsGzipKiB": 380,
   "totalGzipKiB": 2048
 }

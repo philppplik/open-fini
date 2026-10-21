@@ -10,7 +10,8 @@ Open **Settings ▸ Security and privacy** (or *Help ▸ Security Check…*). Ev
 OpenFini is a local-first app. Documents live in files you choose; recovery copies, recent files, settings and
 (optionally) AI keys live in the browser or app profile on your device. It makes no network requests of its own
 except what you switch on: AI providers and MCP servers you add, publishing, extensions you grant network access,
-update checks of the installed web app, sign-in with OpenRouter. The main risks we address are: leaking a key or
+update checks of the installed web app, sign-in with OpenRouter, collaboration rooms you join (end-to-end encrypted, see
+[Collaboration rooms](#collaboration-rooms)). The main risks we address are: leaking a key or
 private data through a log or bug report, data lying around unencrypted on a shared computer, running a website
 project you did not write, and an extension or AI tool doing more than you expected. We do **not** defend against
 malware or an attacker with administrator rights on your computer, a compromised operating system or web view, or
@@ -45,6 +46,7 @@ a clear message instead of failing silently:
 | `cdn` | Remote scripts, fonts and images in website previews (the preview gets a Content-Security-Policy that blocks them) |
 | `update` | Update checks of the installed web app |
 | `oauth` | Sign-in with a provider |
+| `collab` | Collaboration rooms on a relay server (rooms on this device and relays on `localhost` keep working) |
 | `other` | Anything else (also used for unknown kinds) |
 
 Loopback addresses (`localhost`, `127.x.x.x`, `::1`) are not blocked, so local models (Ollama, LM Studio) keep
@@ -111,11 +113,36 @@ Start with `?safe=1` (*Troubleshooting ▸ Restart in safe mode*): no session re
 saved settings are not applied (defaults are used). Nothing is deleted; changes you make to a setting in safe mode
 are merged into your saved settings. See [troubleshooting.md](troubleshooting.md).
 
+## Collaboration rooms
+
+Rooms (chat, comments, presence, files, versions shared with others) are described in [collaboration.md](collaboration.md);
+the design decision is [ADR 0010](adr/0010-collaboration-e2e-relay.md). In short:
+
+* **End-to-end encrypted.** Every frame is AES-GCM encrypted with a room key derived (HKDF) from a 256-bit secret that
+  travels only inside the invite code's URL fragment, and signed with the sender's per-session ECDSA key. Replays,
+  reordering, tampering, forged senders and frames from outside the room are rejected (tested).
+* **What the relay sees**: IP addresses (or the reverse proxy's), the room id, how many members are connected, frame sizes
+  and timing. **What it cannot see**: nicknames, messages, comments, files, cursors, documents.
+* **What a malicious member can do**: read everything while in the room, post within their role (viewer, commenter,
+  editor), send junk (validated and rate-limited), send files (allow-listed types, 25 MB cap, never opened without your
+  click, website scripts stay off). They cannot impersonate others, change roles or make your app render HTML.
+* **Verification**: compare the six verification words (*Collaboration ▸ People*) out of band. Different words mean you
+  are not in the room you think.
+* **Removal and leaving rotate the key** (new secret and room id, wrapped per member with ECDH), so a removed member
+  cannot read what follows. There is no per-message forward secrecy, and a compromised device of any member exposes the
+  room.
+* **Nothing secret is stored**: invite codes and keys stay in memory; logs redact invite codes; settings profiles
+  (`.ofprofile`) contain neither your collaboration identity nor rooms. Your nickname, color and picture are stored on
+  this device only. Stored versions are encrypted by the app lock like the autosaved session.
+* **Desktop CSP**: `connect-src` allows `ws:` and `wss:` so you can reach the relay you enter (a CSP cannot be changed at
+  runtime; `https:` was already allowed). Offline mode blocks every relay that is not on this computer.
+* *Settings ▸ Security and privacy ▸ Collaboration* shows the current room and has a one-click *Leave room*.
+
 ## What the logs contain
 
 The log never contains document contents. API keys (`sk-…`, `AIza…`, `ghp_…` and similar), bearer tokens,
-credentials and token query parameters in URLs, `password=` style pairs, e-mail addresses and your user name inside
-file paths are removed **when an entry is recorded**, so they cannot reach the viewer, a report or a bundle.
+credentials and token query parameters in URLs, `password=` style pairs, collaboration invite codes, e-mail addresses and
+your user name inside file paths are removed **when an entry is recorded**, so they cannot reach the viewer, a report or a bundle.
 Redaction is pattern based: an unusual secret format may slip through, which is why reports are shown to you before
 anything is opened or saved. Logs stay on this device; a few recent errors are kept between sessions (clear them under
 Privacy tools).
