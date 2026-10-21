@@ -1,4 +1,4 @@
-; OPENFINI: this is a modified copy of the stock NSIS template of tauri-bundler 2.10.2 (the version behind
+﻿; OPENFINI: this is a modified copy of the stock NSIS template of tauri-bundler 2.10.2 (the version behind
 ; @tauri-apps/cli 2.12.x, see docs/installer.md). Every change is marked with "OPENFINI". Keep the
 ; Handlebars placeholders (double curly braces) intact; when the Tauri CLI is upgraded, diff against the upstream template
 ; (crates/tauri-bundler/src/bundle/windows/nsis/installer.nsi) and re-apply the marked blocks.
@@ -559,18 +559,8 @@ FunctionEnd
 ; in tauri.conf.json and falls back to the first one, English). To add a language: add it to
 ; `bundle.windows.nsis.languages` (it must be one the Tauri bundler ships strings for) and copy the German block below.
 LangString welcomeTitle ${LANG_ENGLISH} "Welcome to ${PRODUCTNAME}"
-LangString welcomeText ${LANG_ENGLISH} "This wizard installs ${PRODUCTNAME} ${VERSION} on your computer.$$
-$$
-${PRODUCTNAME} is a lightweight, open-source creative suite for vector, pixel, layout and code work. It runs offline and keeps your documents on your device.$$
-$$
-Click Next to continue."
-LangString welcomeTextUser ${LANG_ENGLISH} "This wizard installs ${PRODUCTNAME} ${VERSION} on your computer.$$
-$$
-${PRODUCTNAME} is a lightweight, open-source creative suite for vector, pixel, layout and code work. It runs offline and keeps your documents on your device.$$
-$$
-It installs for your account only and does not need administrator rights.$$
-$$
-Click Next to continue."
+LangString welcomeText ${LANG_ENGLISH} "This wizard installs ${PRODUCTNAME} ${VERSION} on your computer.$\r$\n$\r$\n${PRODUCTNAME} is a lightweight, open-source creative suite for vector, pixel, layout and code work. It runs offline and keeps your documents on your device.$\r$\n$\r$\nClick Next to continue."
+LangString welcomeTextUser ${LANG_ENGLISH} "This wizard installs ${PRODUCTNAME} ${VERSION} on your computer.$\r$\n$\r$\n${PRODUCTNAME} is a lightweight, open-source creative suite for vector, pixel, layout and code work. It runs offline and keeps your documents on your device.$\r$\n$\r$\nIt installs for your account only and does not need administrator rights.$\r$\n$\r$\nClick Next to continue."
 LangString integrationTitle ${LANG_ENGLISH} "Windows integration"
 LangString integrationSubtitle ${LANG_ENGLISH} "Choose how ${PRODUCTNAME} fits into Windows."
 LangString integrationIntro ${LANG_ENGLISH} "These choices can be changed later by running the installer again. Nothing here changes the default program of your existing images, PDFs or text files."
@@ -578,24 +568,12 @@ LangString optAssoc ${LANG_ENGLISH} "Associate ${PRODUCTNAME} documents (.ofini,
 LangString optOpenWith ${LANG_ENGLISH} "Offer ${PRODUCTNAME} in Open with for images, PDF and code files"
 LangString optDesktop ${LANG_ENGLISH} "Create a desktop shortcut"
 LangString finishTitle ${LANG_ENGLISH} "${PRODUCTNAME} is ready"
-LangString finishText ${LANG_ENGLISH} "${PRODUCTNAME} ${VERSION} was installed.$$
-$$
-Click Finish to close this wizard."
+LangString finishText ${LANG_ENGLISH} "${PRODUCTNAME} ${VERSION} was installed.$\r$\n$\r$\nClick Finish to close this wizard."
 LangString quickStart ${LANG_ENGLISH} "Open the quick-start guide (online)"
 !ifdef LANG_GERMAN
 LangString welcomeTitle ${LANG_GERMAN} "Willkommen bei ${PRODUCTNAME}"
-LangString welcomeText ${LANG_GERMAN} "Dieser Assistent installiert ${PRODUCTNAME} ${VERSION} auf Ihrem Computer.$$
-$$
-${PRODUCTNAME} ist eine leichtgewichtige Open-Source-Kreativsuite für Vektor-, Pixel-, Layout- und Code-Arbeit. Sie läuft offline und behält Ihre Dokumente auf Ihrem Gerät.$$
-$$
-Klicken Sie auf Weiter, um fortzufahren."
-LangString welcomeTextUser ${LANG_GERMAN} "Dieser Assistent installiert ${PRODUCTNAME} ${VERSION} auf Ihrem Computer.$$
-$$
-${PRODUCTNAME} ist eine leichtgewichtige Open-Source-Kreativsuite für Vektor-, Pixel-, Layout- und Code-Arbeit. Sie läuft offline und behält Ihre Dokumente auf Ihrem Gerät.$$
-$$
-Die Installation gilt nur für Ihr Benutzerkonto und benötigt keine Administratorrechte.$$
-$$
-Klicken Sie auf Weiter, um fortzufahren."
+LangString welcomeText ${LANG_GERMAN} "Dieser Assistent installiert ${PRODUCTNAME} ${VERSION} auf Ihrem Computer.$\r$\n$\r$\n${PRODUCTNAME} ist eine leichtgewichtige Open-Source-Kreativsuite für Vektor-, Pixel-, Layout- und Code-Arbeit. Sie läuft offline und behält Ihre Dokumente auf Ihrem Gerät.$\r$\n$\r$\nKlicken Sie auf Weiter, um fortzufahren."
+LangString welcomeTextUser ${LANG_GERMAN} "Dieser Assistent installiert ${PRODUCTNAME} ${VERSION} auf Ihrem Computer.$\r$\n$\r$\n${PRODUCTNAME} ist eine leichtgewichtige Open-Source-Kreativsuite für Vektor-, Pixel-, Layout- und Code-Arbeit. Sie läuft offline und behält Ihre Dokumente auf Ihrem Gerät.$\r$\n$\r$\nDie Installation gilt nur für Ihr Benutzerkonto und benötigt keine Administratorrechte.$\r$\n$\r$\nKlicken Sie auf Weiter, um fortzufahren."
 LangString integrationTitle ${LANG_GERMAN} "Windows-Integration"
 LangString integrationSubtitle ${LANG_GERMAN} "Legen Sie fest, wie sich ${PRODUCTNAME} in Windows einfügt."
 LangString integrationIntro ${LANG_GERMAN} "Diese Einstellungen können Sie später ändern, indem Sie das Installationsprogramm erneut ausführen. Das Standardprogramm für Ihre vorhandenen Bilder, PDFs oder Textdateien wird dadurch nicht geändert."
@@ -603,9 +581,7 @@ LangString optAssoc ${LANG_GERMAN} "${PRODUCTNAME}-Dokumente (.ofini, .ofext) zu
 LangString optOpenWith ${LANG_GERMAN} "${PRODUCTNAME} unter Öffnen mit für Bilder, PDF und Code-Dateien anbieten"
 LangString optDesktop ${LANG_GERMAN} "Desktop-Verknüpfung erstellen"
 LangString finishTitle ${LANG_GERMAN} "${PRODUCTNAME} ist bereit"
-LangString finishText ${LANG_GERMAN} "${PRODUCTNAME} ${VERSION} wurde installiert.$$
-$$
-Klicken Sie auf Fertigstellen, um den Assistenten zu schließen."
+LangString finishText ${LANG_GERMAN} "${PRODUCTNAME} ${VERSION} wurde installiert.$\r$\n$\r$\nKlicken Sie auf Fertigstellen, um den Assistenten zu schließen."
 LangString quickStart ${LANG_GERMAN} "Kurzanleitung öffnen (online)"
 !endif
 
