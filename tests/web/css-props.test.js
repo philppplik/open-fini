@@ -118,7 +118,7 @@ test("shadows", () => {
   assert.equal(formatShadowList([]), "none");
   assert.equal(formatShadowList([{ inset: false, x: 0, y: 4, blur: 12, spread: 0, color: "rgba(0, 0, 0, 0.2)" }]), "0 4px 12px rgba(0, 0, 0, 0.2)");
   assert.equal(formatShadowList([{ inset: true, x: 1, y: 2, blur: 3, spread: 4, color: "#fff" }, { x: 0, y: 0, color: "red" }]), "inset 1px 2px 3px 4px #fff, 0 0 0 red");
-  for (const v of ["0 4px 12px rgba(0, 0, 0, 0.2)", "inset 0 1px 0 #fff", "0 0 0 1px #4f46e5"]) assert.equal(formatShadowList(parseShadowList(v)), v.replace("inset 0 1px 0 #fff", "inset 0 1px 0 #fff"));
+  for (const v of ["0 4px 12px rgba(0, 0, 0, 0.2)", "inset 0 1px 0 #fff", "0 0 0 1px #4f46e5"]) assert.equal(formatShadowList(parseShadowList(v)), v);
 });
 
 test("gradients", () => {

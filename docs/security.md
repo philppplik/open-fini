@@ -138,6 +138,28 @@ the design decision is [ADR 0010](adr/0010-collaboration-e2e-relay.md). In short
   runtime; `https:` was already allowed). Offline mode blocks every relay that is not on this computer.
 * *Settings ▸ Security and privacy ▸ Collaboration* shows the current room and has a one-click *Leave room*.
 
+## Third-party code and known advisories
+
+Vendored libraries are copied into `app/vendor/` (see [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) for licenses). They
+are checked against the GitHub Advisory Database (`gh api "advisories?ecosystem=npm&affects=<package>@<version>"`); re-run
+the check whenever one is updated and update this table.
+
+| Library | Pinned version | Advisories affecting that version | Checked |
+| --- | --- | --- | --- |
+| Shoelace (`@shoelace-style/shoelace`) | 2.20.1 | none | 2026-10-21 |
+| Lit (bundled in Shoelace) | ^3.2 | none | 2026-10-21 |
+| CodeMirror 6 (`@codemirror/view` and siblings) | 6.43.x | none | 2026-10-21 |
+| KaTeX | 0.19.0 | none (older 0.15 and below have several) | 2026-10-21 |
+| pdf.js (`pdfjs-dist`, legacy build) | 6.4.299 | none | 2026-10-21 |
+| fflate | 0.8.3 | none | 2026-10-21 |
+| polygon-clipping | 0.15.7 | none | 2026-10-21 |
+
+`npm audit` (all and `--omit=dev`) reports 0 vulnerabilities for the build tooling. The Rust crates are tracked by Dependabot
+(`.github/dependabot.yml`: npm, cargo and GitHub Actions, weekly, grouped); `cargo audit` is not part of CI.
+
+Code scanning (CodeQL for JavaScript, Rust and Actions) runs on every pull request and weekly. Do not dismiss an alert without a
+comment that explains why the code is safe; prefer restructuring so the analysis understands it.
+
 ## What the logs contain
 
 The log never contains document contents. API keys (`sk-…`, `AIza…`, `ghp_…` and similar), bearer tokens,

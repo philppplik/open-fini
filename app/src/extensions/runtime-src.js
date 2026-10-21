@@ -40,12 +40,12 @@ function runtime() {
     switch (m) {
       case "command.run": {
         const fn = commands.get(p.id);
-        if (!fn) throw new Error(`Command “${p.id}” has no handler. Call openfini.commands.register("${p.id}", fn) while activating.`);
+        if (typeof fn !== "function") throw new Error(`Command “${p.id}” has no handler. Call openfini.commands.register("${p.id}", fn) while activating.`);
         return (await fn(p.args)) ?? null;
       }
       case "tool.run": {
         const fn = tools.get(p.name);
-        if (!fn) throw new Error(`Vibe tool “${p.name}” has no handler.`);
+        if (typeof fn !== "function") throw new Error(`Vibe tool “${p.name}” has no handler.`);
         return (await fn(p.args)) ?? null;
       }
       case "event":
