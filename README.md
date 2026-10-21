@@ -146,6 +146,7 @@ The application itself has **no build step** in development: `app/` is served as
 
 | | |
 | --- | --- |
+| **[Wiki](https://github.com/philppplik/open-fini/wiki)** | The user and developer manual: installation, every studio, shortcuts, settings, security, extensions, developer guides. Source in [`wiki/`](wiki), see [docs/wiki-maintenance.md](docs/wiki-maintenance.md) |
 | [Architecture](docs/architecture.md) | Layers, data flow, display lists, performance design |
 | [Studios guide](docs/studios.md) | Tools, panels and shortcuts per studio |
 | [Code studio](docs/code-studio.md) · [Web engine](docs/web-engine.md) | Website workbench and its pure engine |
