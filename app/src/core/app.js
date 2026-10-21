@@ -18,6 +18,12 @@ const defaultPrefs = () => ({
   theme: "dark", // mode: dark | light | auto
   themeId: "default", // color theme (ui/themes.js); every theme has a light and a dark variant
   accent: "violet",
+  surfaceStyle: "solid", // solid | glass | liquid | sea (ui/glass.js); sits on top of the color theme
+  glassBlur: null, // 0-40 px, null = the style's default
+  glassTransparency: null, // 0-50 %, null = the style's default
+  glassBackdrop: "auto", // auto | aurora | ocean | dusk | seaglass | mono | accent | image
+  glassDim: 0, // 0-80 %, darkens the background layer
+  glassAnimate: false, // slowly drifting mesh gradient
   density: "default", // compact | default | spacious
   uiScale: 100, // percent
   reduceMotion: "auto", // auto | on | off

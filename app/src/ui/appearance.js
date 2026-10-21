@@ -1,7 +1,8 @@
 // Applies the appearance and accessibility preferences to the document: theme, accent color, density,
 // interface scale, reduced motion, high contrast, focus rings and tooltips. Called on start-up and on every change.
 
-import { applyTheme, onThemesChanged } from "./themes.js";
+import { applyTheme, onThemesChanged, getTheme } from "./themes.js";
+import { applyGlass } from "./glass-dom.js";
 import { applyCustomization } from "../customize/apply.js";
 
 export const ACCENTS = [
@@ -62,6 +63,7 @@ export function applyAppearance(app) {
   // theme (surfaces, borders, selection, editor), mode and accent override
   const dark = isDark(p);
   const applied = applyTheme(p.themeId || "default", dark ? "dark" : "light", { highContrast: !!p.highContrast, accent: accentOverride(p) });
+  applyGlass(app, applied.vars, getTheme(applied.id)); // surface style: translucent chrome over a background layer (ui/glass.js)
   root.classList.toggle("sl-theme-dark", dark);
   root.classList.toggle("sl-theme-light", !dark);
   document.querySelector('meta[name="theme-color"]')?.setAttribute("content", applied.vars["--of-bg-bar"]);

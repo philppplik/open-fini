@@ -6,6 +6,7 @@ import { segmented, numField, button } from "./controls.js";
 import { iconEl } from "./toolbox.js";
 import { ACCENTS } from "./appearance.js";
 import { themeGallery } from "./theme-gallery.js";
+import { surfaceGallery } from "./surface-gallery.js";
 import { platform } from "../platform/index.js";
 import { FILE_TYPES, defaultAppsInstructions } from "../platform/file-types.js";
 import { kvGet, kvDelete, getRecents, clearSession } from "../core/storage.js";
@@ -83,7 +84,7 @@ export function settingsSections(app) {
       label: "Appearance",
       icon: "palette",
       lead: "Theme, color and density of the interface in every studio.",
-      keywords: "theme dark light color accent density compact scale zoom size",
+      keywords: "theme dark light color accent density compact scale zoom size glass blur transparency frosted liquid sea background surface",
       groups: [
         {
           title: "Theme",
@@ -93,6 +94,7 @@ export function settingsSections(app) {
           ],
         },
         { title: "Color theme", items: [{ type: "themes" }] },
+        { title: "Surface style", items: [{ type: "surfaces" }] },
         {
           title: "Layout",
           items: [
@@ -358,6 +360,7 @@ function row(app, item, rerender) {
   if (item.type === "language") return languageRow(app);
   if (item.type === "custom") return item.render(app, rerender); // self-contained block (security center)
   if (item.type === "themes") return themeGallery(app);
+  if (item.type === "surfaces") return surfaceGallery(app);
   if (item.type === "info") return h("div.of-set__row", h("div", h("div.of-set__label", tr(item.label)), h("div.of-set__hint", tr(item.text))));
   if (item.type === "storage") {
     const v = h("span", "…");

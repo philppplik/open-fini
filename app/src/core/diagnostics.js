@@ -252,6 +252,7 @@ export function describeKey(key, kind = "kv") {
   if (k === "recents") return { label: "Recent files list", category: "Documents", sensitive: true, clear: "recents" };
   if (k.startsWith("recent:")) return { label: "Stored copy of a recent file", category: "Documents", sensitive: true, clear: "recents" };
   if (k === "fonts") return { label: "Fonts you added", category: "Fonts", sensitive: false, clear: "fonts" };
+  if (k === "ui.glassImage") return { label: "Your glass background image (stays on this device, never exported)", category: "Appearance", sensitive: false };
   if (k === "applock") return { label: "App lock record (salt and check value, no passphrase)", category: "Security", sensitive: false };
   if (k === "diag.errors") return { label: "Errors of earlier sessions (redacted)", category: "Diagnostics", sensitive: false, clear: "logs" };
   if (k === "vibe.secrets") return { label: "AI provider API keys", category: "AI", sensitive: true, clear: "ai" };

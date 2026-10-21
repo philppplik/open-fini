@@ -6,6 +6,9 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Surface styles** (Settings ▸ Appearance ▸ Surface style): optional **Glass** (frosted glassmorphism), **Liquid glass** (bevelled, refractive, soft sheen on controls) and **Sea glass** (muted green-teal, matte, light grain) on top of any color theme, in light and dark. Sliders for Blur, Transparency and Dim, a selectable background layer (Aurora, Ocean, Dusk, Sea glass, Mono, accent-derived, optional slow drift, or your own image that stays on the device, is downscaled to 1920 px and is never exported). Applies to the chrome only: the document canvas, pickers and artboards stay opaque and color-accurate. Text stays AA over the worst backdrops (fill-opacity floor and lifted text colors, tested in `tests/ui/glass.test.js`); blur turns off automatically in Low-power mode, High contrast, `prefers-reduced-transparency` and without `backdrop-filter` (opaque panels, same tint). New prefs `surfaceStyle`, `glassBlur`, `glassTransparency`, `glassBackdrop`, `glassDim`, `glassAnimate` travel in customization profiles; extension themes may set `surface` (`"none"` opts out). Vibe: `set_theme` / `list_themes` accept and report `surface`. See [docs/themes.md](docs/themes.md#surface-styles).
+
 ## [0.6.0] — Your files stay yours
 
 ### Added

@@ -452,6 +452,7 @@ export function validateTheme(def) {
       // a missing base color falls back to the default theme: allowed, just checked for the minimum
     }
   }
+  if (def.surface != null && !["none", "solid", "glass", "liquid", "sea"].includes(def.surface)) errors.push('surface must be "none" (opt out of glass styles), "solid", "glass", "liquid" or "sea".');
   if (def.accent != null) {
     const accents = typeof def.accent === "string" ? [def.accent] : [def.accent.light, def.accent.dark];
     for (const a of accents) if (typeof a !== "string" || !/^#[0-9a-f]{6}$/i.test(a)) errors.push("accent must be #rrggbb (or { light, dark }).");
@@ -475,6 +476,7 @@ function normalize(def) {
     description: def.description || "",
     contrast: def.contrast === "high" ? "high" : "normal",
     neutrals: def.neutrals !== false,
+    surface: def.surface || null, // "none" opts out of surface styles; a style id is the theme's recommendation (docs/themes.md)
     builtin: BUILTIN_IDS.has(def.id) && def.__builtin === true,
     light: Object.freeze({ vars: pick("light") }),
     dark: Object.freeze({ vars: pick("dark") }),
