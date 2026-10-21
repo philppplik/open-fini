@@ -40,6 +40,16 @@ export const blankCell = () => ({ v: '' });
 const cloneJson = (x) => (x === undefined ? undefined : JSON.parse(JSON.stringify(x)));
 
 /** A copy of `cell` without content or merge info (keeps formatting). */
+/** Removes tags until nothing changes, so nested fragments such as `<scr<b>ipt>` cannot reassemble into a tag. */
+function stripTagsStable(s) {
+  let prev;
+  do {
+    prev = s;
+    s = s.replace(/<[^>]*>/g, '');
+  } while (s !== prev);
+  return s;
+}
+
 function styleOnly(cell) {
   const out = { v: '' };
   if (!cell) return out;
@@ -703,7 +713,7 @@ export function parseHtmlTable(html) {
       const attrs = cm[2];
       const cs = Math.min(60, parseInt(/colspan\s*=\s*["']?(\d+)/i.exec(attrs)?.[1] || '1', 10) || 1);
       const rs = Math.min(500, parseInt(/rowspan\s*=\s*["']?(\d+)/i.exec(attrs)?.[1] || '1', 10) || 1);
-      const text = decodeEntities(cm[3].replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>\s*<p[^>]*>/gi, '\n').replace(/<[^>]*>/g, '')).replace(/[ \t\r\f\v]+/g, ' ').replace(/ ?\n ?/g, '\n').trim();
+      const text = decodeEntities(stripTagsStable(cm[3].replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>\s*<p[^>]*>/gi, '\n'))).replace(/[ \t\r\f\v]+/g, ' ').replace(/ ?\n ?/g, '\n').trim();
       row[c] = text;
       for (let k = 1; k < cs; k++) row[c + k] = '';
       if (rs > 1) for (let k = 0; k < cs; k++) carry[c + k] = rs - 1;

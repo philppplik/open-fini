@@ -93,7 +93,7 @@ test("resolveUrl hook maps or drops URLs", () => {
   const out = md("![a](pic.png) [l](doc.md) [e](https://x.org)", { resolveUrl: (u, kind) => (kind === "image" ? `blob:${u}` : u.startsWith("http") ? null : u) });
   assert.ok(out.includes('src="blob:pic.png"'));
   assert.ok(out.includes('<a href="doc.md">l</a>'));
-  assert.ok(out.includes(" e") && !out.includes("x.org"));
+  assert.ok(out.includes(" e") && !/\bx\.org\b/.test(out));
   assert.ok(md("![a](https://x.org/i.png)", { resolveUrl: () => null }).includes("md-missing-image"));
 });
 

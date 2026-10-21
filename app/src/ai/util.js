@@ -92,7 +92,7 @@ let idCounter = 0;
 /** Short unique-ish id for generated tool calls. @param {string} [prefix] */
 export function makeId(prefix = "id") {
   idCounter = (idCounter + 1) % 1e9;
-  return `${prefix}_${Date.now().toString(36)}${idCounter.toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  return `${prefix}_${Date.now().toString(36)}${idCounter.toString(36)}${(globalThis.crypto?.getRandomValues?.(new Uint32Array(1))[0] ?? 0).toString(36).slice(-6)}`;
 }
 
 /** Normalizes message content to a block array. @param {string|object[]} content */

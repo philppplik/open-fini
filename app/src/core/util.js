@@ -1,7 +1,13 @@
 // Small, dependency-free helpers shared across OpenFini.
 
 let counter = 0;
-const rand = () => Math.random().toString(36).slice(2, 8);
+// Ids can end up in places where guessability matters (session keys, element ids shared between windows), so they come
+// from the CSPRNG; without Web Crypto (very old engines) a clock-based value is the fallback.
+const rand = () => {
+  const c = globalThis.crypto;
+  if (c && typeof c.getRandomValues === "function") return c.getRandomValues(new Uint32Array(1))[0].toString(36).padStart(6, "0").slice(-6);
+  return (Date.now() % 2176782336).toString(36).padStart(6, "0");
+};
 
 /** Creates a short unique id such as `n_k3j9a2_1f`. */
 export const uid = (prefix = "n") => `${prefix}_${rand()}${(counter++).toString(36)}`;
@@ -125,7 +131,6 @@ export function h(tag, attrs, ...children) {
       else if (k === "style" && typeof v === "object") Object.assign(el.style, v);
       else if (k === "dataset") Object.assign(el.dataset, v);
       else if (k.startsWith("on") && typeof v === "function") el.addEventListener(k.slice(2).toLowerCase(), v);
-      else if (k === "html") el.innerHTML = v;
       else if (k in el && k !== "list" && !k.includes("-")) {
         try {
           el[k] = v;

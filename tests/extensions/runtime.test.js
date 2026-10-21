@@ -64,7 +64,7 @@ test("panel documents inline local scripts and styles, drop remote ones, and sta
   assert.ok(!/evil\.test\/(x\.js|x\.css)/.test(out) && !out.includes("<base"));
   assert.ok(out.includes("<style>b{color:red}</style>"));
   assert.ok(out.includes(scriptUrl("window.x = 1;")));
-  assert.ok(!/<script>[^<]/.test(out), "no inline script bodies remain");
+  assert.ok(!/<script\b[^>]*>[^<]/.test(out), "no inline script bodies remain");
   assert.ok(/<script src="data:text\/javascript;charset=utf-8,__ofxBoot/.test(out) || out.includes(scriptUrl("__ofxBoot()")));
 });
 

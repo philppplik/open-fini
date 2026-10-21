@@ -21,7 +21,11 @@ const ID_RE = /^[a-z0-9][a-z0-9-]{0,63}$/i;
 export const isSafeId = (v) => typeof v === "string" && ID_RE.test(v);
 
 /** Short random id (injectable random for tests). */
-export function newId(rand = Math.random, now = Date.now) {
+const secureRandom = () => {
+  const c = globalThis.crypto;
+  return c && typeof c.getRandomValues === "function" ? c.getRandomValues(new Uint32Array(1))[0] / 2 ** 32 : 0;
+};
+export function newId(rand = secureRandom, now = Date.now) {
   return `${now().toString(36)}${Math.floor(rand() * 36 ** 4).toString(36).padStart(4, "0")}`;
 }
 

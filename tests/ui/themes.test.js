@@ -119,7 +119,7 @@ test("the default theme matches the CSS defaults in theme.css and code.css", () 
   const css = readFileSync(join(root, "app/styles/theme.css"), "utf8") + readFileSync(join(root, "app/styles/code.css"), "utf8");
   const block = (sel) => {
     const out = {};
-    for (const m of css.matchAll(new RegExp(`(?:^|\n)${sel.replace(/[.]/g, "\.")}\s*\{([^}]*)\}`, "g"))) for (const d of m[1].matchAll(/(--of-[a-z-]+):\s*([^;]+);/g)) out[d[1]] = d[2].trim().toLowerCase();
+    for (const m of css.matchAll(new RegExp(String.raw`(?:^|\n)${sel.replace(/[.]/g, String.raw`\.`)}\s*\{([^}]*)\}`, "g"))) for (const d of m[1].matchAll(/(--of-[a-z-]+):\s*([^;]+);/g)) out[d[1]] = d[2].trim().toLowerCase();
     return out;
   };
   const norm = (s) => s.toLowerCase().replace(/\s+/g, "");

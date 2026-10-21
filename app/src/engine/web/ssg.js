@@ -230,9 +230,19 @@ export function buildMarkdownSite(files, options = {}) {
   return result;
 }
 
+/** Removes tags until nothing changes, so nested fragments such as `<scr<b>ipt>` cannot reassemble into a tag. */
+function stripTagsStable(s) {
+  let prev;
+  do {
+    prev = s;
+    s = s.replace(/<[^>]*>/g, "");
+  } while (s !== prev);
+  return s;
+}
+
 function excerptOf(html) {
   const m = /<p>([\s\S]*?)<\/p>/.exec(html);
-  return m ? m[1].replace(/<[^>]+>/g, "").trim().slice(0, 220) : "";
+  return m ? stripTagsStable(m[1]).trim().slice(0, 220) : "";
 }
 
 /**

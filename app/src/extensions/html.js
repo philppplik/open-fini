@@ -47,17 +47,25 @@ export function buildMainDocument({ config, runtimeSrc, mainCode }) {
   return `<!doctype html><html><head>${head(cfg, runtimeSrc)}</head><body><script src="${scriptUrl(mainCode || "")}"></script><script src="${scriptUrl("__ofxBoot()")}"></script></body></html>`;
 }
 
+/** Applies a removal until nothing changes, so nested fragments (`<ba<base>se>`) cannot reassemble into a tag. */
+function removeAll(s, re) {
+  let prev;
+  do {
+    prev = s;
+    s = s.replace(re, "");
+  } while (s !== prev);
+  return s;
+}
+
 /** Document of a panel frame: the extension's HTML with local resources inlined. */
 export function buildPanelDocument({ config, runtimeSrc, html, htmlPath, files }) {
   const cfg = `const __OFX_CFG = ${JSON.stringify({ ...config, panel: true }).replace(/</g, "\\u003c")};`;
-  let out = String(html)
-    .replace(/<base\b[^>]*>/gi, "")
-    .replace(/<meta\b[^>]*http-equiv\s*=\s*["']?refresh[^>]*>/gi, "")
-    .replace(/<script\b([^>]*?)\bsrc\s*=\s*("([^"]*)"|'([^']*)')([^>]*)>\s*<\/script>/gi, (m, a, _q, d, s, b) => {
+  let out = removeAll(removeAll(String(html), /<base\b[^>]*>/gi), /<meta\b[^>]*http-equiv\s*=\s*["']?refresh[^>]*>/gi)
+    .replace(/<script\b([^>]*?)\bsrc\s*=\s*("([^"]*)"|'([^']*)')([^>]*)>\s*<\/script\s*>/gi, (m, a, _q, d, s, b) => {
       const p = resolveRef(d ?? s, htmlPath, files);
       return p ? `<script${a}src="${scriptUrl(text(files[p]))}"${b}></script>` : "";
     })
-    .replace(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi, (m, a, code) => (/\bsrc\s*=/i.test(a) ? m : `<script${a} src="${scriptUrl(code)}"></script>`))
+    .replace(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi, (m, a, code) => (/\bsrc\s*=/i.test(a) ? m : `<script${a} src="${scriptUrl(code)}"></script>`))
     .replace(/<link\b[^>]*>/gi, (m) => {
       if (!/rel\s*=\s*["']?stylesheet/i.test(m)) return "";
       const p = resolveRef(/href\s*=\s*["']([^"']*)["']/i.exec(m)?.[1], htmlPath, files);
