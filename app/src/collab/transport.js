@@ -17,9 +17,30 @@
 import { LIMITS } from "./protocol.js";
 
 /** Creates the transport for a relay address ("local" = same device, otherwise ws:// or wss://). */
-export function createTransport(relay, { WebSocketImpl = globalThis.WebSocket, BroadcastChannelImpl = globalThis.BroadcastChannel } = {}) {
+export function createTransport(relay, { WebSocketImpl = globalThis.WebSocket, BroadcastChannelImpl = globalThis.BroadcastChannel, pageProtocol = globalThis.location?.protocol } = {}) {
   if (relay === "local") return createLocalTransport({ BroadcastChannelImpl });
-  return createRelayTransport(relay, { WebSocketImpl });
+  return createRelayTransport(relay, { WebSocketImpl, urls: relayCandidates(relay, pageProtocol) });
+}
+
+const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * The addresses to try for a relay, in order. `scripts/relay.mjs --lan` answers ws:// and wss:// on the same port, so
+ * the other scheme is a safe fallback: an https page cannot open ws:// to another machine (mixed content), so it tries
+ * wss:// first; the desktop app may not trust the relay's self-signed certificate, so a wss:// invite falls back to ws://.
+ * The keys never depend on the address, only the transport does.
+ */
+export function relayCandidates(relay, pageProtocol = "") {
+  let u;
+  try {
+    u = new URL(relay);
+  } catch {
+    return [relay];
+  }
+  const other = `${u.protocol === "ws:" ? "wss:" : "ws:"}//${u.host}${u.pathname}`;
+  if (u.protocol === "ws:" && pageProtocol === "https:" && !LOOPBACK.has(u.hostname)) return [other, relay];
+  if (u.protocol === "wss:" && pageProtocol !== "https:") return [relay, other];
+  return [relay];
 }
 
 function emitterBits() {
@@ -74,9 +95,11 @@ export function createLocalTransport({ BroadcastChannelImpl = globalThis.Broadca
 
 // ------------------------------------------------------------------ relay (WebSocket)
 
-export function createRelayTransport(url, { WebSocketImpl = globalThis.WebSocket, maxRetries = 6, setTimer = (f, ms) => setTimeout(f, ms) } = {}) {
+export function createRelayTransport(firstUrl, { WebSocketImpl = globalThis.WebSocket, maxRetries = 6, setTimer = (f, ms) => setTimeout(f, ms), urls = [firstUrl] } = {}) {
   if (typeof WebSocketImpl !== "function") throw new Error("WebSockets are not available here.");
   const ev = emitterBits();
+  let url = urls[0];
+  let urlIndex = 0;
   let ws = null;
   let closed = false;
   let joinArgs = null;
@@ -143,10 +166,22 @@ export function createRelayTransport(url, { WebSocketImpl = globalThis.WebSocket
     get peers() {
       return peers;
     },
+    get url() {
+      return url;
+    },
     async connect({ room, token }) {
       joinArgs = { room, token };
       closed = false;
-      await open();
+      // try the candidate addresses in order until one joins (see relayCandidates)
+      for (;;) {
+        try {
+          await open();
+          return;
+        } catch (e) {
+          if (closed || e.code || urlIndex >= urls.length - 1) throw e;
+          url = urls[++urlIndex];
+        }
+      }
     },
     send(frame) {
       if (!ws || ws.readyState !== 1 || frame.length > LIMITS.frameBytes) return false;
