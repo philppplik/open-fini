@@ -332,7 +332,16 @@ export function slugify(text) {
 const isWs = (c) => c === undefined || c === "" || /\s/.test(c);
 const isPunct = (c) => c !== undefined && c !== "" && /[\p{P}\p{S}]/u.test(c);
 const normLabel = (s) => s.trim().replace(/\s+/g, " ").toLowerCase();
-const stripTags = (html) => html.replace(/<[^>]*>/g, "");
+/** Removes tags until nothing changes, so nested fragments such as `<scr<b>ipt>` cannot reassemble into a tag. */
+const stripTags = (html) => {
+  let s = html;
+  let prev;
+  do {
+    prev = s;
+    s = s.replace(/<[^>]*>/g, "");
+  } while (s !== prev);
+  return s;
+};
 const decodeAll = (s) => s.replace(/&(?:#\d+|#[xX][0-9a-fA-F]+|[A-Za-z][A-Za-z0-9]*);/g, (m) => entityAt(m)?.text ?? m);
 
 function expandTabs(line) {
@@ -374,7 +383,7 @@ function htmlBlockKind(line, canInterrupt) {
 }
 const HTML_END = [
   null,
-  /<\/(?:script|pre|style|textarea)>/i,
+  /<\/(?:script|pre|style|textarea)\s*>/i,
   /-->/,
   /\?>/,
   />/,

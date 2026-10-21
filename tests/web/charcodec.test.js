@@ -42,7 +42,7 @@ test("javascript escapes, surrogate pairs and braces", () => {
 test("css escapes", () => {
   assert.equal(encode("é€", { format: "css" }), "\\E9 \\20AC ");
   assert.equal(encode("😀", { format: "css" }), "\\1F600 ");
-  assert.equal(decode("\\E9 x \\20AC;", "css"), "éx €;".replace("éx", "éx"));
+  assert.equal(decode("\\E9 x \\20AC;", "css"), "éx €;");
   assert.equal(decodeCss("a\\E9 b"), "aéb");
   assert.equal(decodeCss("\\1F600 "), "😀");
 });

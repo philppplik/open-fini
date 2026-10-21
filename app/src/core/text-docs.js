@@ -6,7 +6,9 @@ export const TEXT_DOC_EXTS = [
   "properties", "log", "ts", "tsx", "jsx", "js", "mjs", "css", "html", "htm",
 ];
 
-const RE = new RegExp(`\.(${TEXT_DOC_EXTS.join("|")})$`, "i");
+// the dot MUST be escaped (a regex literal needs no template-string escaping): with a bare "." the pattern matched
+// "<any char>ini", so every ".ofini" document was treated as a text file and refused as "binary"
+const RE = new RegExp("\\.(" + TEXT_DOC_EXTS.join("|") + ")$", "i");
 
 /** Is this file name one that opens as a text document in the Code studio? */
 export function isTextDocumentName(name = "") {

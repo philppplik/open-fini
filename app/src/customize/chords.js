@@ -98,7 +98,7 @@ export function chordFromEvent(ev, isMac = false) {
   if (ev.altKey) parts.push("Alt");
   if (ev.shiftKey) parts.push("Shift");
   parts.push(key);
-  return normalizeChord(parts.join("+").replace(/\+\+$/, "++"));
+  return normalizeChord(parts.join("+"));
 }
 
 /** Human readable chord ("Ctrl+Shift+Z" / "⌘⇧Z"), the same style as the menus. */

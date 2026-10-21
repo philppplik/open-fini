@@ -23,6 +23,12 @@ You can expect an acknowledgement within **5 working days** and a status update 
 will coordinate a fix and a disclosure date with you and credit you in the release notes unless you prefer
 otherwise.
 
+## Repository security settings
+
+Dependabot alerts, Dependabot security updates, secret scanning with push protection, private vulnerability reporting
+(the advisory form above) and CodeQL code scanning are enabled. Dependabot version updates are configured in
+`.github/dependabot.yml`. If a setting is ever switched off, the owner can restore it under Settings ▸ Code security.
+
 ## What counts
 
 Examples of security-relevant issues: a crafted `.ofini`, SVG, image or font file that executes code,

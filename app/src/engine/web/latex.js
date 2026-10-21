@@ -227,7 +227,16 @@ const slug = (s) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 const idSafe = (s) => String(s).replace(/[^A-Za-z0-9_.:-]/g, "_");
-const stripTags = (h) => h.replace(/<[^>]*>/g, "");
+/** Removes tags until nothing changes, so nested fragments such as `<scr<b>ipt>` cannot reassemble into a tag. */
+const stripTags = (h) => {
+  let s = h;
+  let prev;
+  do {
+    prev = s;
+    s = s.replace(/<[^>]*>/g, "");
+  } while (s !== prev);
+  return s;
+};
 const unesc = (h) => h.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&amp;/g, "&");
 
 function alpha(n) {

@@ -1,6 +1,6 @@
 // Coach-mark tour engine: a popover anchored to real UI, a highlight ring, progress dots, keyboard control
 // (Left/Right, Esc, Tab stays inside), focus management and ARIA. Steps come from tour-steps.js.
-import { h } from "../core/util.js";
+import { h, uid as makeUid } from "../core/util.js";
 import { t } from "../i18n/index.js";
 import { TOURS } from "./tour-steps.js";
 
@@ -29,7 +29,7 @@ export function startTour(app, key) {
   return new Promise((resolve) => {
     let i = 0;
     const previous = document.activeElement;
-    const uid = `of-coach-${Math.random().toString(36).slice(2, 7)}`;
+    const uid = makeUid("of-coach");
     const ring = h("div.of-coach__ring", { "aria-hidden": "true" });
     const title = h("h3.of-coach__title", { id: `${uid}-t` });
     const body = h("p.of-coach__body", { id: `${uid}-b` });

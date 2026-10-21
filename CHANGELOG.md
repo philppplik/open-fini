@@ -6,6 +6,17 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Security
+- Resolved all open CodeQL code-scanning alerts: the compact-CSS regexes no longer backtrack polynomially, `h()` lost its `html` (innerHTML) option, tag stripping and removal in the Markdown, LaTeX, SSG, table-import and extension-panel code now repeat until stable (nested fragments like `<scr<b>ipt>` cannot reassemble), script end tags such as `</script >` are recognized, generated ids and window ids come from `crypto.getRandomValues`, extension and preview message handlers are looked up with `typeof function` checks, and external links open the re-serialized URL. Regression tests in `tests/core/sanitizers.test.js`.
+- Dependabot alerts and security updates are now enabled for the repository; `docs/security.md` lists the vendored libraries with their versions and the date they were checked against known advisories.
+
+### Changed
+- Tauri CLI 2.12.3 (bundler 2.10.3, NSIS 3.13): the custom installer template picked up the upstream uninstaller clean-up fix (the in-place uninstaller leaves no stray `uninstall.exe`/install folder after an upgrade).
+- GitHub Actions: `dtolnay/rust-toolchain` pin updated.
+
+### Fixed
+- Test-only regex and no-op `replace` calls flagged by code scanning were cleaned up.
+
 ## [0.7.0] — Collaboration, Code studio tools, glass
 
 ### Added

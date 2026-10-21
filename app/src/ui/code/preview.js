@@ -501,8 +501,9 @@ export class PreviewPane extends Emitter {
       return;
     }
     if (m.type === "computed" || m.type === "dropTarget" || m.type === "measureBox") {
-      this.reqs.get(m.reqId)?.(m);
+      const cb = this.reqs.get(m.reqId);
       this.reqs.delete(m.reqId);
+      if (typeof cb === "function") cb(m);
       return;
     }
     if (m.type === "scroll") {
