@@ -3,6 +3,17 @@
 
 export const WHATS_NEW = [
   {
+    version: "0.6.0",
+    title: "Your files stay yours",
+    items: [
+      { icon: "file-earmark", title: "Save in the original format", text: "Open a .txt, .md or .docx, press Ctrl+S, and it is saved as the same kind of file. Only when a document outgrows its format are you asked to save it as .ofini." },
+      { icon: "arrow-repeat", title: "Old documents keep opening", text: "OpenFini upgrades older .ofini files when you open them, and warns before it overwrites a file made by a newer version." },
+      { icon: "box-arrow-up-right", title: "Quit with confidence", text: "One dialog lists every unsaved document: Save All, Discard or Cancel." },
+      { icon: "cpu", title: "Custom AI providers", text: "Connect any OpenAI- or Anthropic-compatible server with your own headers, and type a model id when there is no model list." },
+      { icon: "palette", title: "More accent colors", text: "Twenty presets and a free color picker under Settings, Appearance. The settings search also keeps its focus while you type." },
+    ],
+  },
+  {
     version: "0.5.0",
     title: "Office, several Vibe chats at once, windows, German",
     items: [

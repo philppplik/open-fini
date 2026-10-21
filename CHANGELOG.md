@@ -6,12 +6,10 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] — Your files stay yours
+
 ### Added
 - **Save in the original format**: a file opened with File ▸ Open is saved again as the same kind of file (a `.txt` stays a `.txt`, a `.docx` stays a `.docx`, `.md`, `.json`, `.odt`, `.rtf`, `.html`, `.svg` too). Only when edits need more than the format can hold (a second file, design pages, pixel layers ...) does Save ask once whether to switch to `.ofini`. Text keeps its BOM and line endings and unchanged files are written byte for byte. Raster images, PSD and PDF are never overwritten (Save writes `.ofini`; Save As offers a flattened export). New setting *Save opened files in their original format when possible*, a save-target badge in the status bar, and the Vibe tool `get_save_target`. See [docs/file-compat.md](docs/file-compat.md).
-
-## [0.6.0] — Safer files, quitting, providers
-
-### Added
 - **.ofini versioning and migration** (`app/src/core/ofini-migrate.js`): old documents are upgraded in memory when opened (the file stays untouched until you save), documents from a newer OpenFini open best-effort with a warning and a confirmation before the first Save. A frozen version 1 sample guards compatibility; the checklist for format changes is in docs/file-format.md.
 - **Quit with unsaved documents**: one dialog lists them with *Save All / Discard / Cancel* (desktop close button, Alt+F4, Cmd+Q); the browser/PWA arms the browser's leave-page warning.
 - **Custom AI provider**: pick the API type (OpenAI- or Anthropic-compatible) and extra headers; when a server has no model list you can type the model id.
