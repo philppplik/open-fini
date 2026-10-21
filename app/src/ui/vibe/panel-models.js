@@ -23,6 +23,20 @@ export function createModelsPanel(vs) {
     const label = h("input.of-vfield__in", { value: existing?.label || preset0.label, spellcheck: false });
     const url = h("input.of-vfield__in", { value: existing?.baseUrl || preset0.baseUrl, spellcheck: false, placeholder: "https://…/v1" });
     const key = h("input.of-vfield__in", { type: "password", value: existing ? vibeStore.getKey(existing.id) : "", placeholder: preset0.needsKey === false ? "Not needed" : "Paste your API key", autocomplete: "off", spellcheck: false });
+    // custom endpoints: choose the API dialect and send extra headers (gateways, company proxies, local servers)
+    const kindSel = h("select.of-vfield__in", h("option", { value: "openai", selected: (existing?.kind || preset0.kind) === "openai" }, "OpenAI-compatible (Chat Completions)"), h("option", { value: "anthropic", selected: (existing?.kind || preset0.kind) === "anthropic" }, "Anthropic-compatible (Messages)"));
+    const headersIn = h("textarea.of-vfield__in", { rows: 3, spellcheck: false, placeholder: "X-Org-Id: my-team\nx-api-version: 2" });
+    headersIn.value = Object.entries(existing?.headers || {}).map(([k, v]) => `${k}: ${v}`).join("\n");
+    headersIn.addEventListener("keydown", (e) => e.stopPropagation());
+    const parseHeaders = () => {
+      const out = {};
+      for (const line of headersIn.value.split("\n")) {
+        const m = line.match(/^\s*([A-Za-z0-9-]+)\s*:\s*(.+?)\s*$/);
+        if (m && !/^(host|content-length|connection)$/i.test(m[1])) out[m[1]] = m[2];
+      }
+      return out;
+    };
+    const customRows = h("div", field("API type", kindSel, "How the server expects requests."), field("Extra headers", headersIn, "One per line, Name: value. Stored with the connection; do not put secrets here: use the key field."));
     const keyLink = h("a.of-vlink", { href: "#" }, "Get a key");
     const status = h("div.of-vstatus");
     const onPreset = () => {
@@ -38,12 +52,13 @@ export function createModelsPanel(vs) {
         import("../links.js").then((m) => m.openLink(p.keyUrl));
       };
       note.textContent = p.note || "";
+      customRows.style.display = p.id === "custom" ? "" : "none";
     };
     const note = h("p.of-hint", preset0.note || "");
     presetSel.addEventListener("change", onPreset);
     const save = async () => {
       const p = PROVIDER_PRESETS.find((x) => x.id === presetSel.value);
-      const rec = await vibeStore.saveProvider({ id: existing?.id, preset: p.id, label: label.value.trim() || p.label, kind: p.kind, baseUrl: url.value.trim().replace(/\/+$/, ""), apiKey: key.value.trim() });
+      const rec = await vibeStore.saveProvider({ id: existing?.id, preset: p.id, label: label.value.trim() || p.label, kind: p.id === "custom" ? kindSel.value : p.kind, headers: p.id === "custom" ? parseHeaders() : (existing?.headers || {}), baseUrl: url.value.trim().replace(/\/+$/, ""), apiKey: key.value.trim() });
       return rec;
     };
     const test = h("button.of-btn", { type: "button" }, "Save and test");
@@ -64,7 +79,7 @@ export function createModelsPanel(vs) {
         status.className = "of-vstatus bad";
       }
     });
-    const rows = [field("Provider", presetSel), field("Name", label), field("Base URL", url, "OpenAI-compatible servers: the URL that ends in /v1."), field("API key", key, "Stored on this device only. Sent only to the base URL above."), h("div.of-vrow", keyLink), note];
+    const rows = [field("Provider", presetSel), field("Name", label), field("Base URL", url, "OpenAI-compatible servers: the URL that ends in /v1."), customRows, field("API key", key, "Stored on this device only. Sent only to the base URL above."), h("div.of-vrow", keyLink), note];
     if (preset0.id === "openrouter" || !existing) {
       if (!platform.isDesktop) {
         rows.push(h("button.of-btn", { type: "button", onclick: async () => {

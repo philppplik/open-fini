@@ -919,7 +919,9 @@ sl-dialog.of-settings::part(body) { padding: 0; display: flex; min-height: 0; ov
 .of-set__ctl .of-num { width: 90px; }
 .of-set__ctl select { height: 28px; border: 1px solid var(--of-border); border-radius: var(--of-radius-sm); background: var(--of-bg-input); color: var(--of-text); padding: 0 8px; font: 12px var(--of-font); }
 .of-set__note { padding: 12px 14px; border-radius: var(--of-radius); background: var(--of-accent-soft); font-size: 12.5px; line-height: 1.5; margin-bottom: 14px; }
-.of-set__swatches { display: flex; gap: 6px; }
+.of-set__swatches { display: flex; flex-wrap: wrap; gap: 6px; max-width: 420px; }
+.of-set__swatch--custom { appearance: none; padding: 0; cursor: pointer; background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red); }
+.of-set__swatch--custom::-webkit-color-swatch-wrapper { padding: 0; opacity: 0; }
 .of-set__swatch { width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent; box-shadow: 0 0 0 1px var(--of-border); }
 .of-set__swatch[aria-pressed="true"] { border-color: var(--of-bg-panel); box-shadow: 0 0 0 2px var(--of-text); }
 .of-set__empty { padding: 30px 0; color: var(--of-text-dim); text-align: center; }

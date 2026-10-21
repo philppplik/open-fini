@@ -157,7 +157,15 @@ export function vibeStudio(app) {
             const prov = await session.providerFor(row.id);
             models = (await prov.listModels()).map((m) => m.id);
           } catch (err) {
-            body.replaceChildren(h("div.of-empty", err.message), h("button.of-btn", { type: "button", onclick: () => { pop.remove(); vs.openTab("models"); } }, "Open Models"));
+            // many custom endpoints have no model list: let the user type the model id instead
+            const manual = h("input.of-side__search", { type: "text", placeholder: "Model id, e.g. my-model-7b", "aria-label": "Model id", spellcheck: false });
+            manual.addEventListener("keydown", (e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") use.click();
+            });
+            const use = h("button.of-btn.of-btn--primary", { type: "button", onclick: async () => { const id = manual.value.trim(); if (!id) return; await vibeStore.saveSettings({ activeProvider: row.id, model: id }); pop.remove(); } }, "Use this model");
+            body.replaceChildren(h("button.of-modelpop__back", { type: "button", onclick: draw }, "← Providers"), h("div.of-empty", `No model list available (${err.message}). Type the model id your server expects.`), manual, use, h("button.of-btn", { type: "button", onclick: () => { pop.remove(); vs.openTab("models"); } }, "Open Models"));
+            manual.focus();
             return;
           }
           const filter = h("input.of-side__search", { type: "search", placeholder: `Search ${models.length} models…`, "aria-label": "Search models" });

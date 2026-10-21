@@ -12,6 +12,18 @@ export const ACCENTS = [
   { id: "orange", label: "Orange", color: "#ea580c" },
   { id: "pink", label: "Pink", color: "#db2777" },
   { id: "red", label: "Red", color: "#dc2626" },
+  { id: "indigo", label: "Indigo", color: "#4f46e5" },
+  { id: "sky", label: "Sky", color: "#0ea5e9" },
+  { id: "cyan", label: "Cyan", color: "#06b6d4" },
+  { id: "emerald", label: "Emerald", color: "#059669" },
+  { id: "lime", label: "Lime", color: "#65a30d" },
+  { id: "amber", label: "Amber", color: "#d97706" },
+  { id: "rose", label: "Rose", color: "#e11d48" },
+  { id: "fuchsia", label: "Fuchsia", color: "#c026d3" },
+  { id: "purple", label: "Purple", color: "#9333ea" },
+  { id: "brown", label: "Brown", color: "#92400e" },
+  { id: "slate", label: "Slate", color: "#64748b" },
+  { id: "graphite", label: "Graphite", color: "#3f3f46" },
 ];
 
 const DENSITY = {

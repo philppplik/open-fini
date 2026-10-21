@@ -60,6 +60,7 @@ export function registerFileCommands(app) {
     const mime = sniffMime(file.bytes, file.name);
     if (mime === OFINI_MIME || /\.ofini$/i.test(file.name)) {
       const doc = await loadOfini(file.bytes);
+      if (doc.formatNotes?.length) app.toast(doc.formatNotes.join(" "), doc.formatNewer ? "warning" : "primary", doc.formatNewer ? 12000 : 6000);
       if (!doc.name || doc.name === "Untitled") doc.name = file.name.replace(/\.ofini$/i, "");
       doc.path = file.path || null;
       doc.saved = true;
@@ -109,6 +110,12 @@ export function registerFileCommands(app) {
   async function saveDoc(a, forceDialog) {
     const doc = a.doc;
     if (!doc) return;
+    if (doc.formatNewer && !doc.formatNewerAck) {
+      // the file came from a newer OpenFini: saving with this version can drop what it does not understand
+      const ok = await confirmDialog({ title: "Saved by a newer version", message: `“${doc.name}” was saved by a newer version of OpenFini. Saving it here may remove features this version cannot show. Use Save As to keep the original untouched, or continue.`, ok: "Save anyway", cancel: "Cancel" });
+      if (!ok) return;
+      doc.formatNewerAck = true;
+    }
     if (a.studio === "code" && a.prefs.codeFormatOnSave && a.codeUI?.built) a.codeUI.editors.format();
     a.status("Saving…");
     try {
@@ -233,13 +240,32 @@ export function registerFileCommands(app) {
   // "Save / Don't Save / Cancel" confirmation as closing its tab. Resolves false when the user cancels.
   app.confirmQuit = async () => {
     if (app.prefs.confirmClose === false) return true;
-    for (const d of [...app.docs]) {
-      if (d.saved) continue;
-      await closeDoc(app, d);
-      if (app.docs.includes(d)) return false; // cancelled (or the save was cancelled)
+    const unsaved = app.docs.filter((d) => !d.saved);
+    if (!unsaved.length) return true;
+    // ONE dialog for all documents: Save All / Discard / Cancel
+    const names = unsaved.map((d) => `“${d.name}”`);
+    const message =
+      unsaved.length === 1
+        ? `${names[0]} has unsaved changes. Save it before quitting?`
+        : `${unsaved.length} documents have unsaved changes: ${names.slice(0, 6).join(", ")}${names.length > 6 ? `, and ${names.length - 6} more` : ""}. Save them before quitting?`;
+    const r = await confirmDialog({ title: "Unsaved changes", message, ok: unsaved.length === 1 ? "Save" : "Save All", extra: "Discard", cancel: "Cancel" });
+    if (r === false) return false;
+    if (r === "extra") return true; // discard: the autosaved copies on this device are not touched
+    for (const d of unsaved) {
+      app.activateDoc(d);
+      await save(app, false);
+      if (!d.saved) return false; // a save was cancelled or failed: stay open
     }
     return true;
   };
+  // Browser/PWA: the page cannot show its own dialog while unloading, so the browser's generic warning is armed.
+  window.addEventListener("beforeunload", (e) => {
+    if (platform.isDesktop || app.prefs.confirmClose === false || app.safeMode) return;
+    if (app.docs.some((d) => !d.saved)) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+  });
   def("file.close", "Close", (a, doc) => closeDoc(a, doc), { shortcut: "Mod+W", enabled: hasDoc });
 
   def("file.docSetup", "Document Setup…", (a) => documentSetupDialog(a), { enabled: hasDoc });
