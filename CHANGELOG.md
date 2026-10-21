@@ -6,11 +6,27 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+**Small improvements**
+- **Update checker** (Settings, About): "Check for updates" asks GitHub for the latest release, compares versions and offers the installer for your platform plus the release notes; optional automatic check once a day (off by default); honors offline mode. Nothing is installed automatically.
+- **Hidden layers** stay in the Layers panel (dimmed, with a highlighted eye) instead of disappearing, so they can be shown again.
+- **Header logo**: the white OpenFini mark on an accent-colored tile, in every theme (`app/icons/mark-white.svg`).
+
 ### Added
 
 **Pop-out windows and recent files** (docs/multi-window.md)
 - **Pop-out windows:** move or copy a document tab, or open a studio, in its own window (tab and studio-button right-click, File ▸ New Window, Detach Current Studio, Return to Main Window). Documents are handed over through IndexedDB and a BroadcastChannel; the source closes its copy only after the new window confirmed. Preferences stay in sync across windows. Desktop uses real Tauri windows; the browser uses a popup window.
 - **Recent files:** Clear recent on the start page with a 6-second Undo, a remove button per entry, File ▸ Open Recent ▸ Clear Recent, and settings for showing the list and how many files to remember (0-50).
+**More native file formats** (docs/file-format-research.md, docs/file-compat.md)
+- Research with sources and a legal / technical verdict per format (Affinity, Adobe, Figma, Krita, GIMP, TIFF, HEIC, fonts, palettes ...). Affinity (including the new single-app `.af`), InDesign, Figma and XD stay export routes; the guidance dialogs have updated steps and link to the research.
+- Open **TIFF** (multi-page, LZW / PackBits / Deflate, 1 to 16 bit, CMYK), **animated GIF** (frames as layers), **OpenRaster** (read and write with layers and blend modes), **Krita** (flattened), **ICO / CUR**, and the preview image of DOS **EPS** files, each with an import report.
+- Color palettes: import and export **GPL, ASE and ACO** through File > Swatches.
+- Fonts: WOFF is unwrapped, TrueType collections (.ttc) are split, WOFF2 works on screen (PDF export falls back).
+- Vibe tools `list_supported_formats`, `import_palette_from_text`, `export_palette`.
+
+**Internationalization, German first** (docs/i18n.md, ADR 0007)
+- The interface follows the system language automatically (`navigator.languages`, `de-AT`/`de-CH` match German) and ships in US English and **German**; Settings ▸ General ▸ Language switches live without a reload and shows the detected language. Menus, command labels, the palette, settings, new document / about / shortcuts dialogs, welcome screen, status bar, studio bar, title bar, tours, What's new, context menus, common toasts and the Vibe composer are translated; the rest falls back to English (known gaps are listed in docs/i18n.md).
+- Core in `app/src/i18n/` (`t()` with the English text as key, ICU-lite plurals and placeholders, lazy locale files, `<html lang>`/`dir`, `Intl` helpers); `npm run i18n:extract` and `i18n:check` keep the catalog and translations consistent in CI. Adding a language is one `LOCALES` entry plus a JSON file.
+- Extensions can use `%key%` placeholders resolved from `locales/<code>.json`; Vibe replies follow the UI language; the offline page has a German variant.
 **Customization everywhere** (docs/customization.md)
 - **Keyboard shortcut editor:** click to record, conflict detection (swap / unassign / use for both), two shortcuts per command, search and filters, reset one or all, import / export JSON, presets Default, Classic, Compact and Editor-style. Menus, tooltips and the palette show the effective shortcut.
 - **Toolbox and menus:** show, hide, reorder and ungroup tools per studio, hide menus and menu items, choose the header's quick actions. Hidden tools stay in the command palette ("Tool: …").
@@ -22,6 +38,10 @@ All notable changes to OpenFini are documented here. The format follows
 **Studio registry, More menu and custom title bar** (docs/studios.md, docs/os-integration.md)
 - Studios come from a registry (`registerStudio`); the header shows at most five (Settings ▸ Studios: choose and reorder), the rest are in a new **More** menu. Alt+1..N follow the header order.
 - Desktop app: the header is the window title bar (drag, double-click maximize, minimize / maximize / close; macOS keeps the traffic lights). Closing the window asks about unsaved documents.
+**Office Studio: a word processor for Word documents** (docs/office-studio.md)
+- **New studio** with page view (real page sheets, headers and footers with page numbers), web layout, zoom, a formatting toolbar, outline and styles sidebar, find and replace (regular expressions), word count, page setup, named styles with inheritance, lists with levels, tables (insert with a grid picker, rows and columns, merge and split, shading, borders, header rows), images, links, footnotes, spellcheck and an optional dark page; every edit is one step of the normal undo history.
+- **Open and save** Word `.docx`, OpenDocument `.odt`, RTF, HTML, Markdown and text, and **export PDF**; clean-room readers and writers with an import report, ZIP-bomb and path-traversal limits and sanitized HTML. `.docx`, `.odt` and `.rtf` join the "Open with" lists. Google Docs shortcuts (`.gdoc`), Apple Pages, legacy `.doc`, spreadsheets and presentations are recognized and explained (with a button that opens a Google document in the browser).
+- **Vibe**: ten `office_` tools, the `write-business-document` skill and AI quick actions in the editor's context menu (Improve writing, Fix grammar, Summarize, Translate, Change tone).
 
 ### Fixed
 - Save, Save As, close and export prompts could appear twice (no re-entrancy guard, the Export button could be clicked twice while the popup animated out). They are now one prompt per request.

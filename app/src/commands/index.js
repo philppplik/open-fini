@@ -3,6 +3,7 @@ import { registerEditCommands } from "./edit.js";
 import { registerStudioCommands } from "./studios.js";
 import { registerFileCommands } from "./file.js";
 import { registerPdfCommands } from "./pdf.js";
+import { registerFormatCommands } from "./formats.js";
 import { registerPixelCommands } from "./pixel.js";
 import { registerLayoutCommands } from "./layout.js";
 import { registerDataCommands } from "./data.js";
@@ -11,6 +12,7 @@ import { registerVibeCommands } from "./vibe.js";
 import { registerOnboardingCommands } from "./onboarding.js";
 import { registerHistogramCommands } from "./histogram.js";
 import { registerExtensionCommands } from "./extensions.js";
+import { registerOfficeCommands } from "./office.js";
 import { registerTextToolCommands } from "./text-tools.js";
 import { registerWindowCommands } from "./window.js";
 import { installAnts } from "../studios/tools/pixel-select.js";
@@ -20,6 +22,7 @@ export function registerCommands(app) {
   registerStudioCommands(app);
   registerFileCommands(app);
   registerPdfCommands(app);
+  registerFormatCommands(app);
   registerPixelCommands(app);
   registerLayoutCommands(app);
   registerDataCommands(app);
@@ -30,6 +33,7 @@ export function registerCommands(app) {
   registerHistogramCommands(app);
   registerExtensionCommands(app);
   registerWindowCommands(app);
+  registerOfficeCommands(app);
   installAnts(app);
   app.emit("commands");
 }

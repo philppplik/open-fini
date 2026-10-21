@@ -96,8 +96,10 @@ tested against recorded protocol fixtures and fake servers.
 - **Diagnostics and security**: `get_app_logs` (redacted, filterable), `get_diagnostics` (environment and grouped problems) and
   `get_security_status`, all read-only; the assistant should call them only when you ask about errors or your setup
   (see [troubleshooting](troubleshooting.md), [security](security.md)). Offline mode blocks provider and MCP requests.
+- **File formats**: `list_supported_formats` (verdict and best conversion route per format, see [file-format-research.md](file-format-research.md)), `import_palette_from_text` (GPL text or hex colors into the swatches) and `export_palette` (swatches as GPL text).
 - **Imported documents**: `get_import_report` (what an import kept, flattened or dropped), `list_pdf_pages`, `describe_document_pages` and `extract_pdf_text` (page text in reading order, for summarizing or translating a PDF). The assistant has no file access: attach a PDF, AI, PSD, IDML or Sketch file in the composer and click *Open as document* on the chip first. See [pdf-import.md](pdf-import.md).
 - **Tables and charts**: `add_table`, `edit_table`, `read_table`, `list_tables`, `import_csv_to_table`, `add_chart`, `edit_chart`, `read_chart` build and edit real table / chart objects (formulas, merges, number formats, sorting, charts linked to a table). The built-in skill `report-with-charts` assembles a report page. See [layout-tables-charts.md](layout-tables-charts.md).
+- **Office documents**: `office_new_document`, `office_read_document`, `office_find` (read-only), `office_insert_blocks` (Markdown or typed blocks), `office_replace_text`, `office_set_style`, `office_apply_format`, `office_insert_table`, `office_set_page_setup` and `office_export` (asks first; a save dialog opens) write and format Word-style documents in the Office Studio, one undo step per call. The built-in skill `write-business-document` covers letters, reports, proposals, memos and resumes. See [office-studio.md](office-studio.md).
 - **Extensions**: list installed extensions, run an extension command, install an extension from a URL (you confirm its permissions), and write a small local extension from a description (`create_extension`). Tools that extensions add appear as `ext_<id>_<tool>`, always ask for approval and show their origin; see [extensions.md](extensions.md).
 - **Text and encoding**: `encode_text`, `decode_text` (pure transforms: HTML entities, JS, CSS, percent, code points) and `transform_file_text` (apply a named transform to project files; more than one file needs approval).
 - **Assistant**: knowledge search (RAG), remember, use a skill, ask you a question, update the visible plan, create a
@@ -117,6 +119,11 @@ offers buttons to open it in a studio. (Website editing builds the Code studio's
 Any tool can be set to *Always allow*. The approval card shows the exact arguments. Whatever the mode, the assistant
 only touches OpenFini documents: it has no access to your files, shell or network except through the connections and
 MCP servers you add.
+
+## Language
+
+Replies follow the interface language (Settings ▸ General ▸ Language) unless you write in another language. The built-in skills,
+tool descriptions and system instructions stay English: they are instructions to the model, not UI text. See [i18n.md](i18n.md).
 
 ## Skills
 

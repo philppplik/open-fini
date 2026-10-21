@@ -3,6 +3,7 @@ import { confirmDialog, openDialog, toPx, fromPx, UNITS } from "../ui/dialogs.js
 import { exportDialog, runExport } from "../ui/export-dialog.js";
 import { numField, selectField } from "../ui/controls.js";
 import { h, downloadName } from "../core/util.js";
+import { t, N_ } from "../i18n/index.js";
 import { platform } from "../platform/index.js";
 import { saveOfini, loadOfini, OFINI_MIME } from "../core/ofini.js";
 import { OPEN_FILTERS, PLACE_FILTERS, sniffMime, placeFile, placeSvg, openImageAsDocument } from "../core/io.js";
@@ -15,6 +16,8 @@ import { log } from "../core/log.js";
 import { singleFlight } from "../core/single-flight.js";
 
 const SAVE_FILTERS = [{ name: "OpenFini document", extensions: ["ofini"] }];
+// keep in sync with OFFICE_ONLY_EXTS in engine/office/index.js (tests/office/routing.test.js checks it)
+const OFFICE_FILE = /\.(docx|docm|dotx|dotm|odt|ott|fodt|rtf|doc|dot|wps|wpd|pages|gdoc|gsheet|gslides|xlsx|xlsm|xls|xltx|ods|fods|numbers|pptx|ppt|ppsx|potx|odp|fodp|key)$/i;
 
 export function registerFileCommands(app) {
   const def = (id, label, run, extra = {}) => app.registerCommand(id, { label, run, ...extra });
@@ -24,6 +27,9 @@ export function registerFileCommands(app) {
 
   async function openFile(file) {
     if (await app.importWithExtension?.(file)) return null; // a file type an installed extension imports
+    // Word processor files, Google Docs shortcuts, Pages, legacy .doc and (not yet supported) spreadsheets and
+    // presentations go to the Office Studio; in that studio HTML, Markdown, text and CSV open there too (ui/office/open.js)
+    if (OFFICE_FILE.test(file.name) || (app.studio === "office" && /\.(html?|xhtml|md|markdown|txt|text|csv|tsv)$/i.test(file.name))) return (await import("../ui/office/open.js")).openOfficeFile(app, file);
     // Photoshop and InDesign files have public specifications: PSD / PSB and IDML open as documents
     if (/.(psd|psb|idml)$/i.test(file.name) || (file.bytes[0] === 0x38 && file.bytes[1] === 0x42 && file.bytes[2] === 0x50 && file.bytes[3] === 0x53)) {
       const { sniffFormat } = await import("../engine/formats/index.js");
@@ -31,6 +37,12 @@ export function registerFileCommands(app) {
       const imp = await import("../core/import-formats.js");
       if (kind === "psd" || kind === "psb") return imp.openPsd(app, file);
       if (kind === "idml") return imp.openIdml(app, file);
+    }
+    // TIFF, animated GIF, OpenRaster, Krita, ICO / CUR and GPL / ASE / ACO palettes (core/import-raster.js)
+    const rb = file.bytes;
+    if (/\.(tiff?|gif|ora|kra|ico|cur|gpl|ase|aco)$/i.test(file.name) || (rb[0] === 0x47 && rb[1] === 0x49 && rb[2] === 0x46) || (rb[0] === 0x49 && rb[1] === 0x49 && rb[2] === 0x2a && rb[3] === 0) || (rb[0] === 0x4d && rb[1] === 0x4d && rb[2] === 0 && rb[3] === 0x2a)) {
+      const r = await (await import("../core/import-raster.js")).openRasterFormat(app, file);
+      if (r !== undefined) return r;
     }
     // PDF, Illustrator, Sketch and the "convert this first" guidance for Affinity, InDesign, Figma, XD ... (core/open-foreign.js)
     const fb = file.bytes;
@@ -52,7 +64,7 @@ export function registerFileCommands(app) {
       doc.path = file.path || null;
       doc.saved = true;
       markUntrusted(app.prefs, doc); // protected mode: website scripts stay off in the preview until enabled
-      app.setStudio(["pixel", "layout", "code"].includes(doc.studio) ? doc.studio : "vector");
+      app.setStudio(["pixel", "layout", "code", "office"].includes(doc.studio) ? doc.studio : "vector");
       app.openDoc(doc);
       requestAnimationFrame(() => app.cv?.fitPage());
       addRecent({ name: file.name, bytes: file.bytes, path: file.path }).then((r) => app.emit("recents", r));
@@ -127,13 +139,13 @@ export function registerFileCommands(app) {
       if (d.saved) n++;
     }
     if (keep && a.docs.includes(keep)) a.activateDoc(keep);
-    a.toast(n ? `Saved ${n} document${n === 1 ? "" : "s"}.` : "Everything is already saved.", n ? "success" : "primary", 1800);
+    a.toast(n ? t("Saved {n, plural, one {# document} other {# documents}}.", { n }) : t("Everything is already saved."), n ? "success" : "primary", 1800);
   }, { shortcut: "Mod+Alt+S", enabled: (a) => a.docs.length > 0, icon: "save2" });
   def("file.saveAs", "Save As…", (a) => save(a, true), { shortcut: "Mod+Shift+S", enabled: hasDoc });
 
-  def("file.export", "Export…", (a) => exportDialog(a), { shortcut: "Mod+Shift+E", enabled: hasDoc, icon: "box-arrow-up" });
-  for (const [fmt, label] of [["png", "PNG"], ["jpeg", "JPEG"], ["webp", "WebP"], ["svg", "SVG"], ["pdf", "PDF"]]) {
-    def(`file.export${fmt === "jpeg" ? "JPG" : fmt.toUpperCase()}`, `Export as ${label}`, (a) => runExport(a, { format: fmt, scope: "page", scale: 1, quality: 0.9, transparent: false, bleed: false, marks: false, rasterDpi: 200 }).catch((e) => a.toast(e.message, "danger", 6000)), { enabled: hasDoc });
+  def("file.export", "Export…", (a) => (a.studio === "office" && a.doc?.office ? a.run("office.export") : exportDialog(a)), { shortcut: "Mod+Shift+E", enabled: hasDoc, icon: "box-arrow-up" });
+  for (const [fmt, label] of [["png", N_("Export as PNG")], ["jpeg", N_("Export as JPEG")], ["webp", N_("Export as WebP")], ["svg", N_("Export as SVG")], ["pdf", N_("Export as PDF")]]) {
+    def(`file.export${fmt === "jpeg" ? "JPG" : fmt.toUpperCase()}`, label, (a) => runExport(a, { format: fmt, scope: "page", scale: 1, quality: 0.9, transparent: false, bleed: false, marks: false, rasterDpi: 200 }).catch((e) => a.toast(e.message, "danger", 6000)), { enabled: hasDoc });
   }
 
   def("file.openFolder", "Open Folder…", async (a) => (await import("../ui/open-folder.js")).openFolderDialog(a), { shortcut: "Mod+Shift+O", icon: "folder-symlink" });
@@ -155,7 +167,7 @@ export function registerFileCommands(app) {
         const bytes = new Uint8Array(await f.arrayBuffer());
         const named = { name: f.name, bytes, mime: f.type };
         if (!a.doc) await openFile(named);
-        else if (/\.(ofini|pdf|ai|psd|psb|idml|sketch|afdesign|afphoto|afpub|indd|fig|xd)$/i.test(f.name)) await openFile(named); // documents of other apps open as documents; they are not placed
+        else if (/\.(ofini|pdf|ai|psd|psb|idml|sketch|afdesign|afphoto|afpub|indd|fig|xd|docx|odt|rtf|doc|pages|gdoc)$/i.test(f.name)) await openFile(named); // documents of other apps open as documents; they are not placed
         else {
           // dropping onto an image frame fills that frame
           const hit = x != null ? pick(a.context, x, y, 4 / a.view.zoom, { deep: true }) : null;
@@ -259,7 +271,7 @@ export function registerFileCommands(app) {
   });
   app.on("recents", (r) => (recents = r));
   app.menuProviders = app.menuProviders || {};
-  app.menuProviders.recent = () => (recents.length ? [...recents.slice(0, 8).map((r) => ({ label: r.name, run: () => app.run("file.openRecent", r) })), "-", { label: "Clear Recent", run: () => app.run("file.clearRecent") }] : [{ label: "No recent files", disabled: true, run() {} }]);
+  app.menuProviders.recent = () => (recents.length ? [...recents.slice(0, 8).map((r) => ({ label: r.name, run: () => app.run("file.openRecent", r) })), "-", { label: t("Clear Recent"), run: () => app.run("file.clearRecent") }] : [{ label: t("No recent files"), disabled: true, run() {} }]);
 
   // ---- autosave + restore
   let saveTimer = 0;
@@ -300,7 +312,7 @@ export function registerFileCommands(app) {
     }
     if (n) {
       app.activateDoc(app.docs[Math.min(s.active ?? 0, app.docs.length - 1)] || app.docs[0]);
-      app.setStudio(["pixel", "layout", "code"].includes(app.doc.studio) ? app.doc.studio : "vector");
+      app.setStudio(["pixel", "layout", "code", "office"].includes(app.doc.studio) ? app.doc.studio : "vector");
       requestAnimationFrame(() => app.cv?.fitPage());
       app.toast("Restored your previous session.", "success", 2200);
     }

@@ -1,13 +1,16 @@
 // Menubar and context menus, rendered from the command registry with Shoelace menus.
 import { h, prettyShortcut, empty } from "../core/util.js";
+import { OFFICE_MENUS } from "../studios/office.js";
+import { t } from "../i18n/index.js";
 
+// Labels in this table are English source text: extracted by scripts/i18n-extract.mjs and translated with t() at render time.
 const DESIGN = ["vector", "pixel", "layout"];
 
 /** '-' = separator, string = command id, {label,items} = submenu, {dynamic:'name'} = built at open time. */
 export const MENUS = [
   {
     label: "File",
-    items: ["file.new", "window.new", "file.open", "file.openFolder", { label: "Open Recent", dynamic: "recent" }, "-", "file.save", "file.saveAs", "file.saveAll", "-", "file.export", { label: "Quick Export", items: ["file.exportPNG", "file.exportJPG", "file.exportWEBP", "file.exportSVG", "file.exportPDF"] }, "-", "file.place", "file.insertPdf", "file.extractPages", "file.importReport", "file.docSetup", "-", "window.popoutStudio", "window.returnToMain", "-", "file.close"],
+    items: ["file.new", "window.new", "file.open", "file.openFolder", { label: "Open Recent", dynamic: "recent" }, "-", "file.save", "file.saveAs", "file.saveAll", "-", "file.export", { label: "Quick Export", items: ["file.exportPNG", "file.exportJPG", "file.exportWEBP", "file.exportSVG", "file.exportPDF", "file.exportOra"] }, "-", "file.place", "file.insertPdf", "file.extractPages", "file.importReport", { label: "Swatches", items: ["file.importPalette", "-", "file.exportPalette.gpl", "file.exportPalette.ase", "file.exportPalette.aco"] }, "file.docSetup", "-", "window.popoutStudio", "window.returnToMain", "-", "file.close"],
   },
   {
     label: "Edit",
@@ -86,6 +89,7 @@ export const MENUS = [
     studios: ["vibe"],
     items: ["vibe.tabCanvas", "vibe.tabActivity", "vibe.tabModels", "vibe.tabTools", "vibe.tabSkills", "vibe.tabKnowledge", "-", "view.theme"],
   },
+  ...OFFICE_MENUS,
   { label: "Studio", items: [{ dynamic: "studios" }, "-", "ext.manage", { label: "Extension Commands", dynamic: "extCommands" }] },
   { label: "Help", items: ["help.palette", "help.tour", "help.studioTour", "help.whatsThis", "-", "help.shortcuts", "help.whatsNew", "help.docs", "help.issues", "help.troubleshoot", "help.security", "-", "help.about"] },
 ];
@@ -102,7 +106,7 @@ function itemFor(app, cmdId) {
     const [lib, name] = ic.includes(":") ? ic.split(":") : [undefined, ic];
     el.append(h("sl-icon", { slot: "prefix", name, library: lib === "of" ? "of" : undefined }));
   }
-  el.append(c.label);
+  el.append(c.label); // already translated (App.registerCommand)
   const sc = c.shortcut;
   if (sc) el.append(h("span", { slot: "suffix", class: "of-kbd" }, prettyShortcut(sc)));
   return el;
@@ -132,7 +136,7 @@ function fill(app, menu, items) {
       const sub = provider ? provider(app) : [];
       if (!sub.length) continue;
       if (it.label) {
-        const parent = h("sl-menu-item", it.label);
+        const parent = h("sl-menu-item", t(it.label));
         const sm = h("sl-menu", { slot: "submenu" });
         fill(app, sm, sub);
         parent.append(sm);
@@ -142,7 +146,7 @@ function fill(app, menu, items) {
     }
     if (it.hidden) continue;
     if (it.items) {
-      const parent = h("sl-menu-item", { disabled: !!it.disabled }, it.label);
+      const parent = h("sl-menu-item", { disabled: !!it.disabled }, t(it.label));
       if (it.icon) parent.prepend(h("sl-icon", { slot: "prefix", name: it.icon }));
       const sm = h("sl-menu", { slot: "submenu" });
       fill(app, sm, it.items);
@@ -152,7 +156,7 @@ function fill(app, menu, items) {
       push(parent);
     } else if (it.run) {
       // ad-hoc item: {label, run, disabled, checked, icon, shortcut, hidden, id, title}
-      const el = h("sl-menu-item", { type: it.checked !== undefined ? "checkbox" : undefined, disabled: !!it.disabled }, it.label);
+      const el = h("sl-menu-item", { type: it.checked !== undefined ? "checkbox" : undefined, disabled: !!it.disabled }, t(it.label));
       if (it.checked !== undefined) el.checked = !!it.checked;
       if (it.icon) el.prepend(h("sl-icon", { slot: "prefix", name: it.icon }));
       if (it.shortcut) el.append(h("span", { slot: "suffix", class: "of-kbd" }, prettyShortcut(it.shortcut)));
@@ -189,7 +193,8 @@ export function createMenubar(app) {
   const dropdowns = [];
   let openDd = null;
   for (const m of MENUS) {
-    const trigger = h("button.of-menubtn", { type: "button", slot: "trigger", role: "menuitem" }, m.label);
+    const trigger = h("button.of-menubtn", { type: "button", slot: "trigger", role: "menuitem" }, t(m.label));
+    trigger.dataset.src = m.label;
     const dd = h("sl-dropdown", { distance: 2, hoist: true }, trigger);
     // The menu is rebuilt on every open so enabled/checked states are always current.
     dd.append(h("sl-menu"));
@@ -221,6 +226,9 @@ export function createMenubar(app) {
       dd.classList.toggle("hidden", (!!list && !list.split(" ").includes(app.studio)) || !!app.customize?.isMenuHidden(dd.dataset.menu));
     }
   };
+  app.on("locale", () => {
+    for (const b of bar.querySelectorAll(".of-menubtn")) b.textContent = t(b.dataset.src);
+  });
   app.on("studio", syncStudio);
   app.on("menuschanged", syncStudio);
   syncStudio();
@@ -280,13 +288,13 @@ export function showContextMenu(app, x, y, items, opts = {}) {
   closeContextMenu(false);
   empty(ctxHost);
   const menu = buildMenu(app, items);
-  menu.setAttribute("aria-label", opts.label || "Context menu");
+  menu.setAttribute("aria-label", opts.label ? t(opts.label) : t("Context menu"));
   const last = opts.lastKey ? readLast()[opts.lastKey] : null;
   if (last && menu.querySelectorAll("sl-menu-item").length > 5) {
     const mark = [...menu.querySelectorAll("sl-menu-item")].find((el) => el.dataset.key === last && !el.querySelector("sl-menu"));
     if (mark) {
       mark.classList.add("of-ctx-last");
-      mark.append(h("span", { slot: "suffix", class: "of-ctx-lastbadge", "aria-label": "last used" }, "last"));
+      mark.append(h("span", { slot: "suffix", class: "of-ctx-lastbadge", "aria-label": t("last used") }, t("last")));
     }
   }
   menu.addEventListener("sl-select", (e) => {

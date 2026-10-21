@@ -4,6 +4,8 @@
 // In the browser and the installed PWA nothing changes. Dragging and double-click-to-maximize come from Tauri's
 // data-tauri-drag-region; only elements that carry the attribute drag, so buttons and menus stay clickable.
 import { h } from "../core/util.js";
+import { ta } from "../i18n/dom.js";
+import { t } from "../i18n/index.js";
 import { windowControls } from "../platform/window-controls.js";
 
 const ICONS = {
@@ -14,7 +16,7 @@ const ICONS = {
 };
 
 function controlButton(kind, label, onClick) {
-  const b = h("button.of-wc__btn", { type: "button", "data-wc": kind, "aria-label": label, title: label });
+  const b = h("button.of-wc__btn", { type: "button", "data-wc": kind, ...ta({ "aria-label": label, title: label }) });
   b.innerHTML = ICONS[kind];
   if (kind === "close") b.classList.add("of-wc__btn--close");
   b.addEventListener("click", onClick);
@@ -43,14 +45,16 @@ export function installTitleBar(app, header) {
   const minimize = controlButton("min", "Minimize", () => windowControls.minimize());
   const maximize = controlButton("max", "Maximize", () => windowControls.toggleMaximize());
   const close = controlButton("close", "Close window", () => windowControls.close());
-  const group = h("div.of-wc", { role: "group", "aria-label": "Window controls" }, minimize, maximize, close);
+  const group = h("div.of-wc", { role: "group", ...ta({ "aria-label": "Window controls" }) }, minimize, maximize, close);
   header.append(group);
 
   const setMaximized = (on) => {
     maximize.innerHTML = ICONS[on ? "restore" : "max"];
     const label = on ? "Restore" : "Maximize";
-    maximize.setAttribute("aria-label", label);
-    maximize.title = label;
+    maximize.setAttribute("aria-label", t(label));
+    maximize.title = t(label);
+    maximize.setAttribute("data-i18n-aria-label", label);
+    maximize.setAttribute("data-i18n-title", label);
     header.classList.toggle("is-maximized", on);
   };
   windowControls.verify().then((mode) => {

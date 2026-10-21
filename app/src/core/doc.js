@@ -63,6 +63,7 @@ export class Doc extends Emitter {
     this.slices = []; // export slices {id,name,page,x,y,w,h}
     this.tableStyles = {}; // saved table styles {id: {name, style}} (engine/layout/table-styles.js)
     this.web = null; // website project of the Code studio (core/web.js), stored next to the design data
+    this.office = null; // word-processing document of the Office Studio (core/office.js)
     this.settings = { snap: true, snapObjects: true, snapGrid: false, grid: { size: 32, subdivisions: 4, visible: false }, guidesVisible: true };
     this.history = new History();
     this.rev = 0;
@@ -764,6 +765,7 @@ export class Doc extends Emitter {
           tableStyles: this.tableStyles,
           settings: this.settings,
           web: this.web ? this.web.manifest() : undefined,
+          office: this.office ? this.office.manifest() : undefined,
         },
         (k, v) => (k.charCodeAt(0) === 95 ? undefined : v),
       ),

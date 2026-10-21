@@ -16,9 +16,10 @@
  * @property {string} mime          MIME type registered on Linux/macOS and in the PWA manifest.
  * @property {'Editor' | 'Viewer'} role  macOS CFBundleTypeRole.
  * @property {boolean} own          A type OpenFini owns (becomes the default handler on install).
- * @property {'document' | 'image' | 'import' | 'code' | 'foreign' | 'extension'} kind
+ * @property {'document' | 'image' | 'import' | 'office' | 'code' | 'foreign' | 'extension'} kind
  *   document: opens as an OpenFini document; image: opens as a pixel/vector document;
- *   import: converted on open; code: text opened in the Code studio; foreign: other tools' files the app only
+ *   import: converted on open; office: word processor files opened in the Office Studio;
+ *   code: text opened in the Code studio; foreign: other tools' files the app only
  *   explains how to convert; extension: a zip package.
  */
 
@@ -36,11 +37,21 @@ export const FILE_TYPES = [
   { id: "gif", name: "GIF Image", ext: ["gif"], mime: "image/gif", role: "Viewer", own: false, kind: "image" },
   { id: "bmp", name: "BMP Image", ext: ["bmp"], mime: "image/bmp", role: "Viewer", own: false, kind: "image" },
   { id: "avif", name: "AVIF Image", ext: ["avif"], mime: "image/avif", role: "Viewer", own: false, kind: "image" },
+  { id: "tiff", name: "TIFF Image", ext: ["tif", "tiff"], mime: "image/tiff", role: "Viewer", own: false, kind: "import" },
+  { id: "ico", name: "Windows Icon", ext: ["ico", "cur"], mime: "image/vnd.microsoft.icon", role: "Viewer", own: false, kind: "import" },
+  { id: "ora", name: "OpenRaster Image", ext: ["ora"], mime: "image/openraster", role: "Editor", own: false, kind: "import" },
+  { id: "kra", name: "Krita Document", ext: ["kra"], mime: "application/x-krita", role: "Viewer", own: false, kind: "import" },
+  { id: "gpl", name: "GIMP Palette", ext: ["gpl"], mime: "application/x-gimp-palette", role: "Viewer", own: false, kind: "import" },
+  { id: "ase", name: "Adobe Swatch Exchange", ext: ["ase"], mime: "application/vnd.adobe.ase", role: "Viewer", own: false, kind: "import" },
+  { id: "aco", name: "Photoshop Swatches", ext: ["aco"], mime: "application/vnd.adobe.aco", role: "Viewer", own: false, kind: "import" },
   { id: "pdf", name: "PDF Document", ext: ["pdf"], mime: "application/pdf", role: "Viewer", own: false, kind: "import" },
   { id: "ai", name: "Illustrator Artwork", ext: ["ai"], mime: "application/vnd.adobe.illustrator", role: "Viewer", own: false, kind: "foreign" },
   { id: "afdesign", name: "Affinity Designer Document", ext: ["afdesign"], mime: "application/x-affinity-designer", role: "Viewer", own: false, kind: "foreign" },
   { id: "afphoto", name: "Affinity Photo Document", ext: ["afphoto"], mime: "application/x-affinity-photo", role: "Viewer", own: false, kind: "foreign" },
   { id: "afpub", name: "Affinity Publisher Document", ext: ["afpub"], mime: "application/x-affinity-publisher", role: "Viewer", own: false, kind: "foreign" },
+  { id: "docx", name: "Word Document", ext: ["docx"], mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", role: "Editor", own: false, kind: "office" },
+  { id: "odt", name: "OpenDocument Text", ext: ["odt"], mime: "application/vnd.oasis.opendocument.text", role: "Editor", own: false, kind: "office" },
+  { id: "rtf", name: "Rich Text Document", ext: ["rtf"], mime: "application/rtf", role: "Editor", own: false, kind: "office" },
   { id: "markdown", name: "Markdown Document", ext: ["md", "markdown"], mime: "text/markdown", role: "Editor", own: false, kind: "code" },
   { id: "tex", name: "LaTeX Document", ext: ["tex", "latex"], mime: "text/x-tex", role: "Viewer", own: false, kind: "code" },
   { id: "html", name: "HTML Document", ext: ["html", "htm"], mime: "text/html", role: "Editor", own: false, kind: "code" },
@@ -102,6 +113,7 @@ export function describeSupportedTypes() {
     image: "Opens as an image document.",
     import: "Converted on open (layers, pages and text are kept where the format allows).",
     code: "Opens in the Code studio.",
+    office: "Opens in the Office Studio (word processor).",
     foreign: "Explains how to export the file into an open format first.",
     extension: "Extension package.",
   };

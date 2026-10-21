@@ -13,15 +13,17 @@ import { diagnosticsTools } from "./diagnostics.js";
 import { importTools } from "./import.js";
 import { layoutDataTools } from "./layout-data.js";
 import { frameworkTools } from "./frameworks.js";
+import { officeTools } from "./office.js";
 import { textcodecTools } from "./textcodec.js";
 import { customizationTools } from "./customization.js";
+import { formatTools } from "./formats.js";
 
 /**
  * @param {import("../../core/app.js").App} app
  * @param {object} ctx session context: { images, knowledge, memory, skills, ask, plan, customTools }
  */
 export function createOpenFiniTools(app, ctx = {}) {
-  return [...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx)];
+  return [...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...formatTools(app, ctx)];
 }
 
 /** Tools grouped for the UI. */
@@ -33,10 +35,12 @@ export const TOOL_GROUPS = {
   "Frameworks, libraries and documents": ["list_templates", "list_libraries", "search_packages", "add_library", "render_markdown", "convert_latex_preview", "create_markdown_document"],
   "Git and publishing": ["git_init", "git_status", "git_diff", "git_log", "git_commit", "git_branch", "git_checkout", "git_restore", "git_push", "git_pull", "list_publish_targets", "add_publish_target", "preflight_site", "publish_site"],
   "Tables and charts": ["add_table", "edit_table", "read_table", "list_tables", "import_csv_to_table", "add_chart", "edit_chart", "read_chart"],
+  "Office documents": ["office_new_document", "office_read_document", "office_find", "office_insert_blocks", "office_replace_text", "office_set_style", "office_apply_format", "office_insert_table", "office_set_page_setup", "office_export"],
   "Imported documents": ["get_import_report", "list_pdf_pages", "describe_document_pages", "extract_pdf_text"],
   "System and files": ["get_platform_info", "list_recent_files"],
   Extensions: ["list_extensions", "run_extension_command", "install_extension_from_url", "create_extension"],
   "Appearance and help": ["list_themes", "set_theme", "start_tour", "list_commands"],
+  "File formats": ["list_supported_formats", "import_palette_from_text", "export_palette"],
   Customization: ["get_settings", "set_setting", "list_shortcuts", "set_shortcut", "export_profile"],
   "Diagnostics and security": ["get_app_logs", "get_diagnostics", "get_security_status"],
   "Text and encoding": ["encode_text", "decode_text", "transform_file_text"],

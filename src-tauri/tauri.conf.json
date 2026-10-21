@@ -203,6 +203,78 @@
       },
       {
         "ext": [
+          "tif",
+          "tiff"
+        ],
+        "name": "TIFF Image",
+        "description": "TIFF Image",
+        "mimeType": "image/tiff",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "ico",
+          "cur"
+        ],
+        "name": "Windows Icon",
+        "description": "Windows Icon",
+        "mimeType": "image/vnd.microsoft.icon",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "ora"
+        ],
+        "name": "OpenRaster Image",
+        "description": "OpenRaster Image",
+        "mimeType": "image/openraster",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "kra"
+        ],
+        "name": "Krita Document",
+        "description": "Krita Document",
+        "mimeType": "application/x-krita",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "gpl"
+        ],
+        "name": "GIMP Palette",
+        "description": "GIMP Palette",
+        "mimeType": "application/x-gimp-palette",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "ase"
+        ],
+        "name": "Adobe Swatch Exchange",
+        "description": "Adobe Swatch Exchange",
+        "mimeType": "application/vnd.adobe.ase",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "aco"
+        ],
+        "name": "Photoshop Swatches",
+        "description": "Photoshop Swatches",
+        "mimeType": "application/vnd.adobe.aco",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
           "pdf"
         ],
         "name": "PDF Document",
@@ -249,6 +321,36 @@
         "description": "Affinity Publisher Document",
         "mimeType": "application/x-affinity-publisher",
         "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "docx"
+        ],
+        "name": "Word Document",
+        "description": "Word Document",
+        "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "odt"
+        ],
+        "name": "OpenDocument Text",
+        "description": "OpenDocument Text",
+        "mimeType": "application/vnd.oasis.opendocument.text",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "rtf"
+        ],
+        "name": "Rich Text Document",
+        "description": "Rich Text Document",
+        "mimeType": "application/rtf",
+        "role": "Editor",
         "rank": "Alternate"
       },
       {

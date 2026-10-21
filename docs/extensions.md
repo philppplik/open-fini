@@ -251,6 +251,12 @@ For now sharing is **by file or URL**: send the `.ofext` or host it anywhere ove
 tell users what permissions to expect and keep them minimal. Keep `engines.openfini` accurate and bump `version` for every
 release; installing a newer package with the same `id` updates the extension in place.
 
+## Translating your extension
+
+Any string in `name`, `description` and `contributes` may be a `%key%` placeholder. Put the texts in `locales/<code>.json`
+inside the package (for example `locales/en.json` and `locales/de.json`, each `{ "key": "Text" }`). OpenFini resolves them when the
+extension is loaded: exact language tag, base language, then `locales/en.json`, then the key itself. See [i18n.md](i18n.md).
+
 ## Honest limits
 
 - A runaway synchronous loop in an extension can freeze the window (see the security model).

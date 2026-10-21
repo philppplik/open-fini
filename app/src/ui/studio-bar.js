@@ -2,19 +2,21 @@
 // "More" menu with every other registered studio so none is unreachable. Opening a studio from "More" shows it
 // there temporarily: the More button turns into that studio's button until another studio is chosen.
 import { h } from "../core/util.js";
+import { t } from "../i18n/index.js";
 import { iconEl } from "./toolbox.js";
 import { buildMenu } from "./menus.js";
 import { markContext } from "./context-menu/index.js";
 import { STUDIOS, onStudioRegistered, studioIconSpec } from "../studios/registry.js";
 
 export function createStudioBar(app) {
-  const el = h("div.of-studios", { role: "tablist", "aria-label": "Studios" });
+  const el = h("div.of-studios", { role: "tablist", "aria-label": t("Studios") });
   /** @type {Map<string, HTMLButtonElement>} */
   let buttons = new Map();
   let moreBtn = null;
 
   function tip(s) {
-    return `${s.label} Studio${s.blurb ? ` — ${s.blurb}` : ""}`;
+    const name = t("{studio} Studio", { studio: s.label });
+    return s.blurb ? `${name} — ${t(s.blurb)}` : name;
   }
 
   function render() {
@@ -34,7 +36,7 @@ export function createStudioBar(app) {
   }
 
   function createMore() {
-    moreBtn = h("button.of-studio.of-studio--more", { type: "button", slot: "trigger", "data-tip": "More studios", "aria-haspopup": "menu", "aria-pressed": "false" });
+    moreBtn = h("button.of-studio.of-studio--more", { type: "button", slot: "trigger", "data-tip": t("More studios"), "aria-haspopup": "menu", "aria-pressed": "false" });
     const dd = h("sl-dropdown.of-studios__more", { distance: 6, hoist: true }, moreBtn);
     dd.addEventListener("sl-show", (e) => {
       if (e.target !== dd) return;
@@ -55,10 +57,14 @@ export function createStudioBar(app) {
     const hidden = !buttons.has(app.studio) && STUDIOS[app.studio] ? STUDIOS[app.studio] : null;
     moreBtn.classList.toggle("active", !!hidden);
     moreBtn.setAttribute("aria-pressed", String(!!hidden));
-    moreBtn.replaceChildren(iconEl(hidden ? studioIconSpec(hidden) : "three-dots"), h("span", hidden ? hidden.label : "More"), h("sl-icon.of-studio__caret", { name: "chevron-down" }));
+    moreBtn.replaceChildren(iconEl(hidden ? studioIconSpec(hidden) : "three-dots"), h("span", hidden ? hidden.label : t("More")), h("sl-icon.of-studio__caret", { name: "chevron-down" }));
   }
 
   app.on("studio", sync);
+  app.on("locale", () => {
+    el.setAttribute("aria-label", t("Studios"));
+    render();
+  });
   app.on("prefs", (key) => (key === "visibleStudios" || key === "*") && render());
   onStudioRegistered(render);
   render();

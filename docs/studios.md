@@ -134,6 +134,25 @@ toolbox of its own: a chat with the *Canvas* live view, and panels for *Activity
 
 Right-click menus gain an **AI** submenu (canvas, code editor, website elements) when AI features are on.
 
+## Office studio
+
+A page-based word processor for Word (.docx), OpenDocument (.odt), RTF, HTML, Markdown and text documents, with
+named styles, lists, tables, images, footnotes, headers and footers, find and replace, and export to DOCX, ODT, RTF,
+PDF, HTML, Markdown and text. Its workspace replaces the toolbox and dock: a formatting toolbar, an *Outline* /
+*Styles* sidebar and the pages. Spreadsheets and presentations are planned for a later version. See the
+[Office Studio guide](office-studio.md).
+
+| Key | Action |
+| --- | --- |
+| *More* menu | Open the Office studio (or add it to the header in Settings ▸ Studios; it then gets an `Alt` shortcut) |
+| `Mod+B` / `Mod+I` / `Mod+U` | Bold / italic / underline |
+| `Mod+Alt+1` … `Mod+Alt+3` / `Mod+Alt+0` | Heading 1-3 / Normal text |
+| `Mod+Shift+L` / `Mod+Shift+N` | Bulleted / numbered list |
+| `Tab` / `Shift+Tab` | Indent list item (next / previous cell in a table) |
+| `Mod+Enter` | Page break |
+| `Mod+K` | Link |
+| `Mod+F` / `Mod+H` | Find / replace |
+
 ## Export (popup)
 
 Export is **not a studio** — it is a popup that is available from every studio: press the **Export** button in
@@ -165,4 +184,4 @@ commands, welcome cards, New document dialog and Alt+N shortcuts are all derived
 The header shows at most **five** studios (preference `visibleStudios`, default Vector, Pixel, Layout, Code, Vibe). Every
 other registered studio is in the **More** menu; opening one from there shows it in place of the More label until you pick
 another studio. Choose and order the header studios in **Settings ▸ Studios** (drag or arrow buttons, at least one, never
-more than five). Alt+1 to Alt+N follow the header order. Planned studios (Office, video, motion, render) register the same way.
+more than five). Alt+1 to Alt+N follow the header order. The Office studio registers this way and starts in the *More* menu; planned studios (video, motion, render) will too.

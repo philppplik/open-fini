@@ -9,17 +9,18 @@ const PROPRIETARY = {
 
 const AFFINITY = {
   title: "Affinity files cannot be opened directly",
-  message: "Affinity's native formats (.afdesign, .afphoto, .afpub) are proprietary and have no public specification, so OpenFini does not read them. Export a copy from Affinity in an open format and open that file instead:",
+  message: "Affinity's native formats (.af, .afdesign, .afphoto, .afpub) are proprietary: neither Serif nor Canva publishes a specification or an SDK, so OpenFini does not read them (it never reverse engineers vendor formats). Export a copy from Affinity in an open format and open that file instead. docs/file-format-research.md lists the details and the fidelity of each route:",
   steps: [
-    "In Affinity choose File ▸ Export… (Affinity Photo / Designer / Publisher).",
-    "Photos and layered pixel work: choose PSD (layers are kept). Vector artwork: choose SVG (shapes and text as curves) or PDF (the best choice for pages and text; Publisher documents export well as PDF).",
-    "Open the exported file here: PSD opens in the Pixel studio, PDF in the Layout studio with editable text, SVG in the Vector studio.",
+    "In Affinity choose File ▸ Export… (the same command exists in Affinity Photo, Designer and Publisher, and in the newer single Affinity app).",
+    "Pages and text: choose PDF. OpenFini opens it in the Layout studio with editable text, shapes and images.",
+    "Layered pixel work: choose PSD (layers, masks, opacity and blend modes are kept; live filters and adjustment layers are not). Vector artwork: choose SVG (shapes and text as curves, no live effects).",
+    "If you only need the pixels, export TIFF or PNG.",
   ],
   preview: true,
 };
 
 const INFO = [
-  { ext: /\.(afdesign|afphoto|afpub|aftemplate|afpackage)$/i, ...AFFINITY },
+  { ext: /\.(af|afdesign|afphoto|afpub|aftemplate|afpackage|afbrushes|afbook)$/i, ...AFFINITY },
   {
     ext: /\.indd$/i,
     title: "InDesign documents cannot be opened directly",
@@ -44,8 +45,8 @@ const INFO = [
   },
   {
     ext: /\.eps$/i,
-    title: "EPS files are not supported",
-    message: "PostScript-based EPS files cannot be rendered by OpenFini (only EPS files that contain a PDF are opened). Export the artwork from the source application as PDF, SVG or PNG and open that file instead.",
+    title: "This EPS file cannot be rendered",
+    message: "OpenFini does not run PostScript. It opens EPS files that contain a PDF and shows the preview image of EPS files with a binary TIFF preview header; this file has neither. Export the artwork from the source application as PDF, SVG or PNG and open that file instead.",
     steps: [],
   },
   {
@@ -61,9 +62,9 @@ const INFO = [
     steps: ["In XD choose File ▸ Export ▸ Batch… and pick SVG or PDF.", "Open the exported files here."],
   },
   {
-    ext: /\.(cdr|pxd|kra|xcf)$/i,
+    ext: /\.(cdr|pxd|xcf)$/i,
     title: "This file format is not supported",
-    message: "OpenFini reads OpenFini documents (.ofini), PDF, Illustrator files saved with PDF content, Photoshop PSD / PSB, InDesign IDML, Sketch, SVG, PNG, JPEG, WebP, GIF, BMP and AVIF. Export your artwork from the source application in one of those formats.",
+    message: "OpenFini reads OpenFini documents (.ofini), PDF, Illustrator files saved with PDF content, Photoshop PSD / PSB, InDesign IDML, Sketch, OpenRaster, Krita (flattened), SVG, TIFF, PNG, JPEG, WebP, GIF, BMP, ICO and AVIF. GIMP's .xcf is documented but not read yet: in GIMP use File ▸ Export As… ▸ OpenRaster (.ora, keeps layers) or PSD. For other applications export PDF, SVG, PSD or PNG.",
     steps: [],
   },
 ];

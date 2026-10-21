@@ -25,6 +25,9 @@ export async function boot(app) {
   else if (studio && hasStudio(studio)) app.setStudio(studio);
   if (studio === "export") app.run("file.export"); // legacy launcher shortcut: Export is a popup now
 
+  // optional update check (off by default, at most once a day)
+  setTimeout(() => import("./ui/update-check.js").then((m) => m.maybeAutoCheck(app)).catch(() => {}), 4000);
+
   // returning from "Sign in with OpenRouter"
   if (params.get("vibe_oauth") === "openrouter" && params.has("code")) import("./vibe/oauth.js").then((m) => m.finishOAuth(app, params));
 

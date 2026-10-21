@@ -10,6 +10,7 @@ import { HandTool, ZoomTool, EyedropperTool } from "./tools/nav.js";
 // Additional tool sets register themselves here (pixel / layout / text / gradient ...).
 import { TOOL_SETS } from "./tool-sets.js";
 import { registerStudio } from "./registry.js";
+import { OFFICE_STUDIO } from "./office.js";
 
 export { STUDIOS, registerStudio, listStudios, studioIds, getStudio, hasStudio, onStudioRegistered } from "./registry.js";
 import { STUDIOS } from "./registry.js";
@@ -94,6 +95,10 @@ const BUILTIN_META = {
   vibe: { order: 50 },
 };
 for (const [id, def] of Object.entries(BUILTIN)) registerStudio({ ...def, ...BUILTIN_META[id] });
+
+// Office Studio (word processor): one registration call, see studios/office.js. Not in the default header five, so
+// it starts in the "More" menu.
+registerStudio(OFFICE_STUDIO);
 
 export function registerAllTools(app) {
   for (const C of CORE_TOOLS) app.registerTool(C);

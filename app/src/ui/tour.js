@@ -1,6 +1,7 @@
 // Coach-mark tour engine: a popover anchored to real UI, a highlight ring, progress dots, keyboard control
 // (Left/Right, Esc, Tab stays inside), focus management and ARIA. Steps come from tour-steps.js.
 import { h } from "../core/util.js";
+import { t } from "../i18n/index.js";
 import { TOURS } from "./tour-steps.js";
 
 let active = null;
@@ -34,10 +35,10 @@ export function startTour(app, key) {
     const body = h("p.of-coach__body", { id: `${uid}-b` });
     const count = h("span.of-coach__count");
     const dots = h("div.of-coach__dots", { "aria-hidden": "true" }, steps.map(() => h("i")));
-    const back = h("button.of-btn", { type: "button" }, "Back");
-    const next = h("button.of-btn.of-btn--primary", { type: "button" }, "Next");
-    const skip = h("button.of-coach__link", { type: "button" }, "Skip tour");
-    const never = h("button.of-coach__link", { type: "button" }, "Don't show again");
+    const back = h("button.of-btn", { type: "button" }, t("Back"));
+    const next = h("button.of-btn.of-btn--primary", { type: "button" }, t("Next"));
+    const skip = h("button.of-coach__link", { type: "button" }, t("Skip tour"));
+    const never = h("button.of-coach__link", { type: "button" }, t("Don't show again"));
     const live = h("div.of-sr-only", { "aria-live": "polite", role: "status" });
     const pop = h("div.of-coach", { role: "dialog", "aria-modal": "false", "aria-labelledby": `${uid}-t`, "aria-describedby": `${uid}-b`, tabindex: "-1" },
       h("div.of-coach__head", count, dots),
@@ -88,14 +89,14 @@ export function startTour(app, key) {
       if (n >= steps.length) return finish("done");
       i = n;
       const s = steps[i];
-      title.textContent = s.title;
-      body.textContent = s.body;
-      count.textContent = `${tour.title} · ${i + 1} of ${steps.length}`;
+      title.textContent = t(s.title);
+      body.textContent = t(s.body);
+      count.textContent = t("{tour} · {n} of {total}", { tour: t(tour.title), n: i + 1, total: steps.length });
       [...dots.children].forEach((d, k) => d.classList.toggle("on", k === i));
       back.disabled = i === 0;
       back.hidden = steps.length === 1;
-      next.textContent = i === steps.length - 1 ? "Done" : "Next";
-      live.textContent = `${s.title}. Step ${i + 1} of ${steps.length}.`;
+      next.textContent = i === steps.length - 1 ? t("Done") : t("Next");
+      live.textContent = t("{title}. Step {n} of {total}.", { title: t(s.title), n: i + 1, total: steps.length });
       place();
       next.focus({ preventScroll: true });
     }

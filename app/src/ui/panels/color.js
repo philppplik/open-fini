@@ -112,6 +112,7 @@ export function createColorPanel(app) {
   });
   for (const ev of ["selection", "docchange", "colors", "doc"]) app.on(ev, sched);
   app.on("doc", renderSwatches);
+  app.on("swatches", renderSwatches);
   buildSeg();
   renderSwatches();
   setTimeout(syncPicker, 0);
