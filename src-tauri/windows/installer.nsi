@@ -1,4 +1,4 @@
-﻿; OPENFINI: this is a modified copy of the stock NSIS template of tauri-bundler 2.10.2 (the version behind
+; OPENFINI: this is a modified copy of the stock NSIS template of tauri-bundler 2.10.2 (the version behind
 ; @tauri-apps/cli 2.12.x, see docs/installer.md). Every change is marked with "OPENFINI". Keep the
 ; Handlebars placeholders (double curly braces) intact; when the Tauri CLI is upgraded, diff against the upstream template
 ; (crates/tauri-bundler/src/bundle/windows/nsis/installer.nsi) and re-apply the marked blocks.
