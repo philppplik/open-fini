@@ -26,3 +26,8 @@ export { json, jsonLanguage } from "@codemirror/lang-json";
 export { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 export { xml } from "@codemirror/lang-xml";
 export { tags, classHighlighter } from "@lezer/highlight";
+// Legacy stream modes for the extra file types (LaTeX, YAML, TOML, INI/properties).
+export { stex } from "@codemirror/legacy-modes/mode/stex";
+export { yaml } from "@codemirror/legacy-modes/mode/yaml";
+export { toml } from "@codemirror/legacy-modes/mode/toml";
+export { properties } from "@codemirror/legacy-modes/mode/properties";

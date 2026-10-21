@@ -6,7 +6,7 @@ import { clone } from "./util.js";
 import { transformPath } from "../engine/vector/path.js";
 import { worldMatrix, localBounds, boundsInParent } from "./nodes.js";
 
-const RECTLIKE = new Set(["rect", "ellipse", "polygon", "star", "image"]);
+const RECTLIKE = new Set(["rect", "ellipse", "polygon", "star", "image", "chart"]);
 
 /** Everything needed to restore a node before an interactive transform. */
 export function captureTransform(node) {
@@ -20,6 +20,10 @@ export function captureTransform(node) {
     s.h = node.h;
   }
   if (node.type === "path") s.path = clone(node.path);
+  if (node.type === "table") {
+    s.cols = node.cols.slice();
+    s.rows = node._tl ? node._tl.rowHeights.slice() : node.rows.slice();
+  }
   return s;
 }
 
@@ -28,6 +32,10 @@ export function restoreTransform(node, snap) {
   if (snap.w !== undefined) node.w = snap.w;
   if (snap.h !== undefined) node.h = snap.h;
   if (snap.path) node.path = clone(snap.path);
+  if (snap.cols) {
+    node.cols = snap.cols.slice();
+    node.rows = snap.rows.slice();
+  }
 }
 
 /** Keys to record in history for a transform. */
@@ -35,6 +43,7 @@ export function transformKeys(node) {
   const k = ["m"];
   if (RECTLIKE.has(node.type) || node.type === "text") k.push("w", "h");
   if (node.type === "path") k.push("path");
+  if (node.type === "table") k.push("cols", "rows");
   return k;
 }
 
@@ -53,7 +62,7 @@ export function applyPageDelta(node, delta, snap, { bake = true } = {}) {
 }
 
 function bakeScale(node, snap) {
-  const bakeable = RECTLIKE.has(node.type) || (node.type === "text" && node.w != null) || node.type === "path";
+  const bakeable = RECTLIKE.has(node.type) || (node.type === "text" && node.w != null) || node.type === "path" || node.type === "table";
   if (!bakeable) return;
   const d = decompose(node.m);
   if (Math.abs(d.skew) > EPS) return; // skewed: leave the matrix alone
@@ -62,6 +71,9 @@ function bakeScale(node, snap) {
   const flipY = d.sy < 0 ? -1 : 1;
   if (node.type === "path") {
     node.path = transformPath(snap.path, scaleM(sx, sy));
+  } else if (node.type === "table") {
+    node.cols = snap.cols.map((w) => Math.max(8, w * sx));
+    node.rows = snap.rows.map((h) => Math.max(8, h * sy));
   } else {
     node.w = Math.max(0.01, snap.w * sx);
     node.h = Math.max(0.01, snap.h * sy);

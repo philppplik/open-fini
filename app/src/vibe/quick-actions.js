@@ -4,17 +4,15 @@ import { h } from "../core/util.js";
 import { vibeStore } from "./store.js";
 import { openDialog, promptDialog, confirmDialog } from "../ui/dialogs.js";
 
-let session = null;
 let bar = null;
 
+/** Every quick action runs in its own hidden chat of the Vibe hub, so several can run next to Vibe chats. */
 async function getSession(app) {
-  const { VibeSession } = await import("./session.js");
+  const { getVibeHub } = await import("./hub.js");
   await vibeStore.load();
-  if (!session) {
-    session = new VibeSession(app);
-    session.on("approval", async (req) => req.resolve(await confirmDialog({ title: "Allow this action?", message: req.reason || `Vibe wants to use “${req.name}”.`, ok: "Allow" })));
-    session.on("ask", async (q) => q.resolve((await promptDialog({ title: "Vibe asks", label: q.question, ok: "Answer" })) || ""));
-  }
+  const session = getVibeHub(app).create({ hidden: true });
+  session.on("approval", async (req) => req.resolve(await confirmDialog({ title: "Allow this action?", message: req.reason || `Vibe wants to use “${req.name}”.`, ok: "Allow" })));
+  session.on("ask", async (q) => q.resolve((await promptDialog({ title: "Vibe asks", label: q.question, ok: "Answer" })) || ""));
   return session;
 }
 
@@ -26,7 +24,7 @@ function selectionHint(app) {
 
 function undoBar(app, s, label) {
   bar?.remove();
-  bar = h("div.of-aibar", h("span", `AI: ${label}`), h("button.of-btn", { type: "button", onclick: () => { const n = s.undoLastRun(); app.toast(`Undid ${n} change${n === 1 ? "" : "s"}.`, "success", 1500); bar.remove(); } }, "Undo"), h("button.of-btn", { type: "button", "aria-label": "Dismiss", onclick: () => bar.remove() }, "×"));
+  bar = h("div.of-aibar", h("span", `AI: ${label}`), h("button.of-btn", { type: "button", onclick: () => { const n = s.undoLastRun(); app.toast(n ? `Undid ${n} change${n === 1 ? "" : "s"}.` : s.lastUndoError || "Nothing to undo.", n ? "success" : "warning", n ? 1500 : 5000); bar.remove(); } }, "Undo"), h("button.of-btn", { type: "button", "aria-label": "Dismiss", onclick: () => bar.remove() }, "×"));
   document.body.append(bar);
   setTimeout(() => bar?.remove(), 12000);
 }
@@ -51,14 +49,11 @@ function ready(app) {
 export async function runQuickAction(app, { label, prompt, mode = "apply", extra = "" }) {
   if (!ready(app)) return;
   const s = await getSession(app);
-  if (s.running) return app.toast("Vibe is still working on the previous request.", "warning", 2000);
-  s.newChat();
+  s.label = label;
   let text = "";
   const off = s.on("event", (ev) => {
     if (ev.type === "text") text += ev.delta;
-    if (ev.type === "tool_start") app.status(`AI: ${ev.name.replace(/_/g, " ")}…`);
   });
-  app.status(`AI: ${label}…`);
   try {
     await s.send(`${prompt}\n\n${extra}\n\nContext: ${selectionHint(app)} Work directly with the tools; keep changes focused on what was asked; reply with at most two sentences when done.`.trim());
   } catch (err) {
@@ -66,7 +61,7 @@ export async function runQuickAction(app, { label, prompt, mode = "apply", extra
     return;
   } finally {
     off();
-    app.status("");
+    setTimeout(() => s.hub.remove(s.id), 15000); // keep it for the undo bar, then forget the hidden chat
   }
   if (mode === "answer") {
     const { renderMarkdown } = await import("../ui/vibe/markdown.js");
@@ -126,6 +121,27 @@ export function codeAiItems(app, getContext) {
     { label: "Refactor…", run: ask("Refactor", "Refactor the selection", "What should improve?", (v) => `Refactor the selected code: ${v}. Edit the file with edit_file and keep behavior unless asked.`) },
     { label: "Add comments", run: run("Add comments", "Add concise, useful comments to the selected code with edit_file; do not change behavior.") },
     { label: "Generate code here…", run: ask("Generate code", "Generate code", "Describe what to add", (v) => `Write code for: ${v}. Insert it at the end of the selected lines in the file with edit_file.`) },
+  ];
+}
+
+/** Menu items for the Office Studio editor (selected text, or the whole document without a selection). */
+export function officeAiItems(app, getContext) {
+  if (!app.prefs.aiEnabled) return [];
+  const extra = () => {
+    const c = getContext();
+    return c.hasSelection && c.text.trim() ? `Selected text in the Office document:\n"""\n${c.text.slice(0, 8000)}\n"""\nChange only this text: use office_replace_text with the exact original sentences as \`find\`.` : "No text is selected: work on the whole document (read it with office_read_document first).";
+  };
+  const run = (label, prompt, mode) => () => runQuickAction(app, { label, prompt, mode, extra: extra() });
+  const ask = (label, title, field, build) => async () => {
+    const v = await promptDialog({ title, label: field, ok: "Go" });
+    if (v) runQuickAction(app, { label, prompt: build(v), extra: extra() });
+  };
+  return [
+    { label: "Improve writing", run: run("Improve writing", "Improve the writing: clearer, more concise and better flow. Keep the meaning, the language and the formatting.") },
+    { label: "Fix spelling and grammar", run: run("Fix grammar", "Fix spelling, grammar and punctuation without changing the voice or the meaning.") },
+    { label: "Summarize", run: run("Summarize", "Summarize the text in a few bullet points. Do not change the document.", "answer") },
+    { label: "Translate…", run: ask("Translate", "Translate", "Target language", (v) => `Translate the text into ${v}. Keep headings, lists and formatting.`) },
+    { label: "Change tone…", run: ask("Change tone", "Change the tone", "New tone (for example formal, friendly, persuasive)", (v) => `Rewrite the text in a ${v} tone. Keep facts, names and numbers.`) },
   ];
 }
 

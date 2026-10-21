@@ -1,0 +1,40 @@
+{
+  "$schema": "../../schema/openfini-extension.schema.json",
+  "id": "openfini-examples.theme-pack",
+  "name": "Ink and Mint Themes",
+  "version": "1.0.0",
+  "description": "Two color themes, each with a dark and a light variant. They appear under Settings > Appearance.",
+  "engines": { "openfini": ">=0.3.0" },
+  "contributes": {
+    "themes": [
+      {
+        "id": "midnight-ink",
+        "label": "Midnight Ink",
+        "dark": {
+          "--of-bg-app": "#0b1020", "--of-bg-bar": "#10172b", "--of-bg-panel": "#131b33", "--of-bg-raised": "#1b2542", "--of-bg-input": "#0a0f1e", "--of-bg-canvas": "#070b16",
+          "--of-border": "#2a3558", "--of-border-soft": "#1f2947", "--of-text": "#e6ebff", "--of-text-dim": "#9aa6cc", "--of-text-faint": "#66729a",
+          "--of-accent": "#7cc4ff", "--of-hover": "rgba(150, 180, 255, 0.09)", "--of-active": "rgba(150, 180, 255, 0.16)"
+        },
+        "light": {
+          "--of-bg-app": "#e8ecf8", "--of-bg-bar": "#f4f6fc", "--of-bg-panel": "#eef1fa", "--of-bg-raised": "#ffffff", "--of-bg-input": "#ffffff", "--of-bg-canvas": "#cdd4ea",
+          "--of-border": "#c3cbe4", "--of-border-soft": "#d6dcef", "--of-text": "#10172b", "--of-text-dim": "#4b5679", "--of-text-faint": "#78829f",
+          "--of-accent": "#2563c9", "--of-hover": "rgba(20, 40, 100, 0.07)", "--of-active": "rgba(20, 40, 100, 0.12)"
+        }
+      },
+      {
+        "id": "paper-mint",
+        "label": "Paper Mint",
+        "dark": {
+          "--of-bg-app": "#16201d", "--of-bg-bar": "#1b2723", "--of-bg-panel": "#1f2c28", "--of-bg-raised": "#293a35", "--of-bg-input": "#131b19", "--of-bg-canvas": "#0f1614",
+          "--of-border": "#35504a", "--of-border-soft": "#2a3f3a", "--of-text": "#e5f3ee", "--of-text-dim": "#9bbdb2", "--of-text-faint": "#6a8c82",
+          "--of-accent": "#4fd6a4", "--of-hover": "rgba(150, 255, 220, 0.08)", "--of-active": "rgba(150, 255, 220, 0.15)"
+        },
+        "light": {
+          "--of-bg-app": "#eef3ef", "--of-bg-bar": "#fbfdfb", "--of-bg-panel": "#f4f8f5", "--of-bg-raised": "#ffffff", "--of-bg-input": "#ffffff", "--of-bg-canvas": "#d3ddd6",
+          "--of-border": "#c6d4cb", "--of-border-soft": "#dbe5de", "--of-text": "#16231e", "--of-text-dim": "#4c6157", "--of-text-faint": "#7a8e84",
+          "--of-accent": "#0f8a64", "--of-hover": "rgba(10, 60, 40, 0.07)", "--of-active": "rgba(10, 60, 40, 0.12)"
+        }
+      }
+    ]
+  }
+}

@@ -4,11 +4,14 @@
 //   assets/<id>.<ext> original image bytes
 //   pixels/<id>.png   pixel layers (lossless)
 //   web/files/<path>  files of the website project (Code studio), listed in document.json → "web"
+//   office/media/<id>.<ext>  images of the Office Studio document (document.json → "office")
 //   thumbnail.png     preview
 import { zipSync, unzipSync, strToU8, strFromU8 } from "../../vendor/fflate/fflate.js";
 import { Doc, createCanvas } from "./doc.js";
 import { WebProject, attachWeb } from "./web.js";
+import { OfficeProject } from "./office.js";
 import { walk } from "./nodes.js";
+import { migrateDocumentJson } from "./ofini-migrate.js";
 import { dlState, buildPageDL } from "../engine/dl.js";
 import { renderToCanvas } from "../engine/backends/canvas.js";
 
@@ -56,6 +59,8 @@ export async function saveOfini(doc) {
   );
   await Promise.all(jobs);
   if (doc.web) for (const [name, bytes] of Object.entries(doc.web.entries())) files[name] = [bytes, { level: bytes.length > 512 ? 6 : 0 }];
+  if (doc.web?.gitFiles) for (const [name, bytes] of Object.entries(doc.web.gitEntries())) files[name] = [bytes, { level: 0 }]; // history travels with the file; objects are already zlib-compressed
+  if (doc.office) for (const [name, bytes] of Object.entries(doc.office.entries())) files[name] = [bytes, { level: 0 }]; // Office Studio images
   try {
     const page = doc.pages[0];
     const s = Math.min(1, 256 / Math.max(page.w, page.h));
@@ -76,8 +81,18 @@ export async function loadOfini(bytes) {
     throw new Error("This file is not a valid OpenFini document.");
   }
   if (!entries["document.json"]) throw new Error("The document is missing its content (document.json).");
-  const json = JSON.parse(strFromU8(entries["document.json"]));
+  let json;
+  try {
+    json = JSON.parse(strFromU8(entries["document.json"]));
+  } catch {
+    throw new Error("The document content (document.json) is damaged and cannot be read.");
+  }
+  // old files are upgraded in memory (the file stays untouched until saved); newer files open best-effort
+  const mig = migrateDocumentJson(json);
+  json = mig.json;
   const doc = Doc.fromJSON(json);
+  doc.formatNotes = mig.notes;
+  doc.formatNewer = mig.newer;
   // assets
   for (const a of Object.values(doc.assets)) {
     const key = Object.keys(entries).find((k) => k.startsWith(`assets/${a.id}.`));
@@ -103,7 +118,11 @@ export async function loadOfini(bytes) {
   if (json.web) {
     doc.web = WebProject.fromManifest(json.web, (path) => entries[`web/files/${path}`]);
     attachWeb(doc);
+    const git = new Map();
+    for (const [name, bytes] of Object.entries(entries)) if (name.startsWith("web/git/")) git.set(name.slice(8), bytes);
+    if (git.has("HEAD")) doc.web.gitFiles = git;
   }
+  if (json.office && typeof json.office === "object") doc.office = OfficeProject.fromManifest(json.office, entries);
   dlState.version++;
   doc.history.clear();
   doc.saved = true;

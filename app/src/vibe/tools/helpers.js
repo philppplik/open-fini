@@ -90,7 +90,14 @@ export function nodeInfo(app, n, { depth = 0, maxDepth = 3 } = {}) {
   if (n.blend && n.blend !== "normal") info.blend = n.blend;
   if ("fill" in n && n.fill) info.fill = paintSummary(n.fill);
   if ("stroke" in n && n.stroke) info.stroke = `${paintSummary(n.stroke.fill)} ${n.stroke.width}px`;
-  if (n.type === "text") info.text = nodeText(doc, n).slice(0, 300);
+  if (n.type === "text") {
+    info.text = nodeText(doc, n).slice(0, 300);
+    const ch = doc.stories[n.storyId]?.defaults?.char;
+    if (ch?.fontSize) Object.assign(info, { fontSize: r1(ch.fontSize), fontFamily: ch.fontFamily, fontWeight: ch.fontWeight });
+  }
+  if (n.type === "table") info.table = { rows: n.rows.length, cols: n.cols.length, headerRows: n.headerRows, firstRow: (n.cells[0] || []).map((c) => c.v).slice(0, 8) };
+  if (n.type === "chart" && n.chart) info.chart = { type: n.chart.type, title: n.chart.title || undefined, series: n.chart.data?.series?.length, linkedTable: n.chart.source?.tableId };
+  if (n.alt) info.alt = n.alt;
   if (n.type === "adjust") info.effect = `${n.effect?.group}/${n.effect?.id}`;
   if (n.children?.length) {
     info.childCount = n.children.length;

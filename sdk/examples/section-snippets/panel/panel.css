@@ -1,0 +1,5 @@
+/* The panel inherits OpenFini's theme variables (--of-*) from the host, so it matches light and dark. */
+.list { display: grid; gap: 6px; }
+.list button { text-align: left; padding: 8px 10px; }
+.list button small { display: block; color: var(--of-text-dim); }
+#status { margin-top: 10px; min-height: 1.4em; }

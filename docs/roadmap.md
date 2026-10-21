@@ -26,13 +26,15 @@ so you can decide whether OpenFini fits your work — and where contributions ar
 - Live adjustment and filter layers run in JavaScript on the viewport pixels (tens of milliseconds for simple
   adjustments, over 100 ms for heavy filters on large windows; half-resolution drafts while dragging).
   Moving them to a Web Worker / WebAssembly is the highest-impact performance task.
+- Histogram analysis and the clipping overlay run on the main thread (strips for large pages, proxies for live
+  updates): no Web Worker, no waveform / vectorscope, no color management or soft proof; Levels and Curves work on
+  8-bit sRGB only.
 - Layers are single canvases: documents above roughly 50 megapixels per layer depend on the WebView's
   canvas memory. Tiled layer storage would lift this.
 
 ## Layout studio
 
-- Tables are a **grid of cell objects**, not a real table model: no automatic row heights, merged cells or
-  header repeat.
+- Tables and charts are real objects (see [layout-tables-charts.md](layout-tables-charts.md)). Still missing: inline rich text inside one cell, table splitting that keeps a live link between the pieces, footers / totals rows as a table feature (use formulas), secondary chart axes, trend lines and 3D charts, tagged-PDF alt text.
 - No footnotes, indexes, cross references, books / sections or per-page numbering formats.
 - The layout engine supports text wrap around shapes, baseline grids and exclusions, but there is no UI for
   them yet (the data model and engine are ready).

@@ -5,7 +5,7 @@ import { createTransformPanel } from "./transform.js";
 import { createColorPanel } from "./color.js";
 import { createHistoryPanel, createNavigatorPanel } from "./history.js";
 import { createTypePanel } from "./type.js";
-import { createBrushPanel, createAdjustmentsPanel, createHistogramPanel } from "./pixel.js";
+import { createBrushPanel, createAdjustmentsPanel } from "./pixel.js";
 import { createPagesPanel, createStylesPanel } from "./layout.js";
 
 import { h } from "../../core/util.js";
@@ -35,9 +35,11 @@ export const PANELS = {
   type: { title: "Type", icon: "type", create: createTypePanel },
   brush: { title: "Brush", icon: "brush", create: createBrushPanel },
   adjustments: { title: "Adjust", icon: "sliders", create: createAdjustmentsPanel },
-  histogram: { title: "Histogram", icon: "bar-chart", create: createHistogramPanel },
+  histogram: { title: "Histogram", icon: "bar-chart", create: lazyPanel(() => import("../histogram/panel.js").then((m) => m.createHistogramPanel)) },
+  info: { title: "Info", icon: "info-circle", create: lazyPanel(() => import("../histogram/info.js").then((m) => m.createInfoPanel)) },
   style: { title: "Style", icon: "palette2", create: lazyPanel(() => import("../code/style-panel.js").then((m) => m.createStylePanel)) },
   element: { title: "Settings", icon: "sliders2", create: lazyPanel(() => import("../code/element-panel.js").then((m) => m.createElementPanel)) },
+  data: { title: "Data", icon: "table", create: lazyPanel(() => import("../data/panel.js").then((m) => m.createDataPanel)) },
   pages: { title: "Pages", icon: "files", create: createPagesPanel },
   styles: { title: "Styles", icon: "fonts", create: createStylesPanel },
 };

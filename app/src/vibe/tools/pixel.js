@@ -18,6 +18,33 @@ function bytesToB64(bytes) {
   return btoa(bin);
 }
 
+/** Parameter shapes that the generic control list cannot express. */
+const PARAM_SHAPES = {
+  levels: "params: { inBlack 0-254, inWhite 1-255, gamma 0.1-5 (>1 lightens midtones), outBlack 0-255, outWhite 0-255 } for all channels, plus optional channels: { red|green|blue: { inBlack, inWhite, gamma, outBlack, outWhite } } for per-channel correction (color casts). Example: { inBlack: 12, inWhite: 238, gamma: 1.15 }. get_histogram / auto_correct_suggestion compute good values.",
+  curves: "params: master, red, green, blue = lists of [x, y] points with x and y in 0..1 (input to output, sorted by x, include the end points). Example S-curve: { master: [[0,0],[0.25,0.2],[0.75,0.8],[1,1]] }. Omitted channels stay linear.",
+};
+
+function checkParams(id, p) {
+  const num = (v, lo, hi, name) => {
+    if (typeof v !== "number" || !Number.isFinite(v) || v < lo || v > hi) throw new Error(`${name} must be a number from ${lo} to ${hi}.`);
+  };
+  if (id === "curves") {
+    for (const k of ["master", "red", "green", "blue"]) {
+      if (p[k] === undefined) continue;
+      if (!Array.isArray(p[k]) || p[k].length < 2 || p[k].some((q) => !Array.isArray(q) || q.length !== 2)) throw new Error(`curves.${k} must be a list of at least two [x, y] points, e.g. [[0,0],[0.5,0.6],[1,1]].`);
+      for (const [x, y] of p[k]) {
+        num(x, 0, 1, `curves.${k} x`);
+        num(y, 0, 1, `curves.${k} y`);
+      }
+    }
+  } else if (id === "levels") {
+    const ranges = { inBlack: [0, 254], inWhite: [1, 255], gamma: [0.1, 5], outBlack: [0, 255], outWhite: [0, 255] };
+    for (const [k, [lo, hi]] of Object.entries(ranges)) if (p[k] !== undefined) num(p[k], lo, hi, `levels.${k}`);
+    if ((p.inBlack ?? 0) >= (p.inWhite ?? 255)) throw new Error("levels.inBlack must be smaller than levels.inWhite.");
+    if (p.channels) for (const [c, v] of Object.entries(p.channels)) if (!["red", "green", "blue"].includes(c) || typeof v !== "object") throw new Error("levels.channels takes red, green and blue objects.");
+  }
+}
+
 export function pixelTools(app, ctx) {
   const T = [];
 
@@ -29,7 +56,7 @@ export function pixelTools(app, ctx) {
       if (a.id) {
         for (const kind of ["adjustment", "filter", "develop"]) {
           const e = getEffect(kind, a.id);
-          if (e) return { kind, id: e.id, label: e.label, defaults: e.defaults, controls: e.controls.map((c) => ({ key: c.key, label: c.label, type: c.type, min: c.min, max: c.max, default: c.default, options: c.options?.map((o) => o.value) })) };
+          if (e) return { kind, id: e.id, label: e.label, usage: PARAM_SHAPES[e.id], defaults: e.defaults, controls: e.controls.map((c) => ({ key: c.key, label: c.label, type: c.type, min: c.min, max: c.max, default: c.default, options: c.options?.map((o) => o.value) })) };
         }
         throw new Error(`Unknown effect “${a.id}”. Call list_effects without id to see all.`);
       }
@@ -52,7 +79,7 @@ export function pixelTools(app, ctx) {
       return { id: n.id, width: n.w, height: n.h };
     }),
 
-    tool("apply_adjustment", "Adds a non-destructive adjustment or live filter layer (e.g. kind 'adjustment' id 'hsl', kind 'filter' id 'gaussian-blur'). It affects everything below it, or only the layer when nested is true.", {
+    tool("apply_adjustment", "Adds a non-destructive adjustment or live filter layer (e.g. kind 'adjustment' id 'hsl', kind 'filter' id 'gaussian-blur'). It affects everything below it, or only the layer when nested is true. Parameter shapes: levels = { inBlack, inWhite, gamma, outBlack, outWhite, channels?: { red|green|blue: {inBlack,inWhite,gamma} } }; curves = { master|red|green|blue: [[x,y],...] } with x,y in 0..1; exposure = { exposure (EV), offset, gamma }. Use get_histogram or auto_correct_suggestion to choose values; list_effects with id shows the usage.", {
       kind: S.str("Effect registry", { enum: ["adjustment", "filter", "develop"] }), id: S.str("Effect id from list_effects"),
       params: { type: "object", description: "Parameter overrides, keys as in list_effects" },
       targetId: S.str("Layer to put it above / inside (default: active layer)"), nested: S.bool("Apply only to the target layer"),
@@ -60,6 +87,7 @@ export function pixelTools(app, ctx) {
       requireDoc(app);
       const eff = getEffect(a.kind, a.id);
       if (!eff) throw new Error(`Unknown effect ${a.kind}/${a.id}. Call list_effects.`);
+      if (a.params) checkParams(a.id, a.params);
       if (a.targetId) app.select(nodesById(app, [a.targetId]));
       const node = addEffectLayer(app, a.kind, a.id, { nested: !!a.nested });
       if (!node) throw new Error("Could not add the effect layer.");

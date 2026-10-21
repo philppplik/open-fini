@@ -36,6 +36,9 @@ service by opening an enormous but valid document, and vulnerabilities in the op
 
 ## Design notes
 
+User-facing security tools (offline mode, app lock, protected mode, privacy tools, safe mode) and their honest limits
+are described in [docs/security.md](docs/security.md); diagnostics in [docs/troubleshooting.md](docs/troubleshooting.md).
+
 * OpenFini makes **no network requests** after installation unless you opt in to AI features (see below): no telemetry, no accounts, no remote fonts or
   scripts (a website project previewed in the Code studio loads only what that project references). The desktop app ships a restrictive Content-Security-Policy (`src-tauri/tauri.conf.json`).
 * Files are opened by explicit user action (dialog, drop, OS file association). The desktop app's

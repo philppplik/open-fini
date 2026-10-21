@@ -39,7 +39,7 @@ export function webTools(app) {
   };
 
   return [
-    tool("create_website", "Creates a new website project (in a new document) from a template or from your own files, and opens the Code studio. Templates: blank, landing, portfolio, blog, docs, link-in-bio.", {
+    tool("create_website", "Creates a new website project (in a new document) from a template or from your own files, and opens the Code studio. Templates: blank, landing, portfolio, blog, docs, link-in-bio, plus framework, Markdown and PWA starters (call list_templates).", {
       name: S.str("Project name"), template: S.str("Template id", { enum: E.TEMPLATES.map((t) => t.id) }),
       files: { type: "object", description: "Optional { path: text } files that replace/extend the template (e.g. {'index.html': '…', 'css/style.css': '…'})", additionalProperties: { type: "string" } },
     }, [], async (a) => {

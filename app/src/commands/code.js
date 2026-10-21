@@ -32,6 +32,16 @@ export function registerCodeCommands(app) {
   def("code.console", "Show Console", () => ws().bottom.show("console"), { icon: "terminal" });
   def("code.previewMode", "Toggle Design Mode / Live Preview", () => ws().preview.setMode(!ws().preview.edit), { shortcut: "Mod+Alt+P", icon: "play-circle" });
   def("code.reload", "Reload Preview", () => ws().preview.rebuild(), { shortcut: "Mod+Alt+R", icon: "arrow-repeat" });
+  def("code.measure", "Measure Tool", () => {
+    if (ws().view === "code") ws().setView("split");
+    ws().preview.setMeasure(!ws().preview.measuring);
+  }, { shortcut: "M", checked: (a) => !!a.codeUI?.preview?.measuring, icon: "rulers" });
+  def("code.rulers", "Show Rulers and Breakpoint Markers", () => ws().preview.setRulers(!ws().preview.rulersOn), { checked: (a) => a.codeUI?.preview?.rulersOn !== false, icon: "rulers" });
+  def("code.viewportRotate", "Rotate Preview (Swap Width and Height)", () => ws().preview.rotate(), { icon: "arrow-repeat" });
+  for (const [id, label, icon] of [["codeLeft", "Split Layout: Code Left, Preview Right", "layout-sidebar"], ["codeRight", "Split Layout: Preview Left, Code Right", "layout-sidebar-inset-reverse"], ["codeTop", "Split Layout: Code Above, Preview Below", "layout-text-window"], ["codeBottom", "Split Layout: Preview Above, Code Below", "layout-text-window-reverse"]]) {
+    def(`code.layout.${id}`, label, () => ws().setLayout(id), { checked: (a) => !!a.codeUI?.built && a.codeUI.layoutChoice === id, icon });
+  }
+  def("code.layout.auto", "Split Layout: Automatic (Stack When Narrow)", () => ws().setLayout("auto"), { checked: (a) => !!a.codeUI?.built && a.codeUI.layoutChoice === "auto" });
   def("code.wordWrap", "Toggle Word Wrap", () => ws().editors.setWordWrap(!ws().web.settings.wordWrap), { shortcut: "Alt+Z", checked: (a) => !!a.codeUI?.web?.settings.wordWrap });
   def("code.spacingGuides", "Toggle Margin and Padding Guides", () => ws().toggleSpacingGuides(), { checked: (a) => a.codeUI?.spacingGuides !== false });
   def("code.zoomFit", "Preview Zoom: Fit", () => ws().preview.setZoom("fit"));
@@ -48,6 +58,17 @@ export function registerCodeCommands(app) {
   def("code.importFolder", "Import Website Folder…", () => ws().explorer.importFolder(), { icon: "folder2-open" });
   def("code.setHome", "Set Current Page as Home Page", () => ws().web.setEntry(ws().page), { enabled: (a) => live(a) && !!a.codeUI.page && a.codeUI.page !== a.codeUI.web.entry });
   def("code.publish", "Export Website…", (a) => exportDialog(a, { tab: "website" }), { icon: "globe2" });
+
+  // ---- libraries, documents (Markdown, LaTeX) and Markdown sites
+  def("code.libraries", "Libraries…", () => import("../ui/code/libraries-ui.js").then((m) => m.openLibrariesDialog(ws())), { icon: "stack" });
+  def("code.showLibraries", "Show Libraries", () => ws().showSide("libs"), { icon: "stack" });
+  const docKind = (a) => live(a) && !!a.codeUI.documentKind;
+  def("code.docExportHtml", "Document: Export Preview as HTML Page", () => ws().docPreview.exportToProject(), { enabled: docKind, icon: "code-slash" });
+  def("code.docPrint", "Document: Print or Save Preview as PDF", () => ws().docPreview.print(), { enabled: docKind, icon: "file-earmark-text" });
+  def("code.docSave", "Document: Save This File to Your Computer…", () => ws().docPreview.saveSource(), { enabled: docKind, icon: "download" });
+  def("code.buildMarkdownSite", "Build Pages from Markdown (content/ and layouts/)", () => import("../ui/code/mdsite.js").then((m) => m.buildNow(ws(), { toast: true })), { icon: "journal-text", enabled: (a) => live(a) && a.codeUI.web.paths.some((p) => p.startsWith("content/")) });
+  def("code.newMarkdown", "New Markdown Document", () => import("../ui/code/mdsite.js").then((m) => m.newDocument(ws(), "md")), { icon: "filetype-md" });
+  def("code.newLatex", "New LaTeX Document", () => import("../ui/code/mdsite.js").then((m) => m.newDocument(ws(), "tex")), { icon: "file-earmark-text" });
 
   // ---- editing
   def("code.format", "Format Document", () => ws().editors.format(), { shortcut: "Shift+Alt+F", icon: "text-indent-left" });

@@ -16,6 +16,9 @@ libraries are shipped next to them in `app/vendor/**`.
 | [Bootstrap Icons](https://icons.getbootstrap.com) (subset of ~240 icons) | 1.11 (as shipped by Shoelace) | MIT | `app/vendor/shoelace/assets/icons` | © 2019-2024 The Bootstrap Authors |
 | [CodeMirror 6](https://codemirror.net) (`@codemirror/state`, `view`, `commands`, `language`, `autocomplete`, `search`, `lint`, `lang-html`, `lang-css`, `lang-javascript`, `lang-json`, `lang-markdown`, `lang-xml`) | see `package.json` (6.x) | MIT | `app/vendor/codemirror` (one bundle, Code studio only) | © Marijn Haverbeke and others |
 | ↳ [Lezer](https://lezer.codemirror.net) parser system and grammars (`@lezer/*`), style-mod, w3c-keyname, crelt | bundled | MIT | `app/vendor/codemirror` | © Marijn Haverbeke and others |
+| [KaTeX](https://katex.org) (math in the Markdown and LaTeX previews, loaded only when a document has formulas; woff2 fonts only) | 0.19.0 | MIT | `app/vendor/katex` | © 2013-2020 Khan Academy and other contributors |
+| ↳ `@codemirror/legacy-modes` (stex, yaml, toml, properties stream modes, part of the CodeMirror bundle) | 6.5.5 | MIT | `app/vendor/codemirror` | © Marijn Haverbeke and others |
+| [pdf.js](https://mozilla.github.io/pdf.js/) (legacy build, loaded only when a PDF is opened) | 6.4.299 | Apache-2.0 | `app/vendor/pdfjs` (worker, WebAssembly decoders for JPEG 2000 / JBIG2 / color management with their own licenses in `wasm/`, ICC profile) | © Mozilla Foundation and pdf.js contributors; OpenJPEG (BSD-2-Clause), the PDFium-derived JBIG2 decoder (BSD-3-Clause) and qcms (MIT), see `app/vendor/pdfjs/wasm/LICENSE_*` |
 | [fflate](https://github.com/101arrowz/fflate) | 0.8.3 | MIT | `app/vendor/fflate` | © 2023 Arjun Barrett |
 | [polygon-clipping](https://github.com/mfogel/polygon-clipping) | 0.15.7 | MIT | `app/vendor/polygon-clipping` (bundled) | © 2018 Mike Fogel |
 | ↳ [splaytree](https://github.com/w8r/splay-tree) | 3.2.3 (bundled) | MIT | `app/vendor/polygon-clipping` | © Alexander Milevski |
@@ -36,8 +39,7 @@ project and are covered by the project license.
 ## Build and test tooling (not shipped)
 
 [esbuild](https://esbuild.github.io) (MIT), [Tauri CLI](https://tauri.app) (MIT / Apache-2.0),
-[Node.js](https://nodejs.org) (MIT and others). `pdfjs-dist` (Apache-2.0) may be used locally to validate
-generated PDFs but is never a project dependency.
+[Node.js](https://nodejs.org) (MIT and others). The vendored `pdfjs-dist` files are copied from the npm package `pdfjs-dist@6.4.299` (not a project dependency).
 
 ## MIT license (applies to the MIT components above)
 

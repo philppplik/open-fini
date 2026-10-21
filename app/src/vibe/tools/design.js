@@ -196,7 +196,7 @@ export function designTools(app, ctx) {
       ids: S.ids(),
       fill: S.color("Fill color or gradient (text: text color); 'none' removes it"), stroke: S.str("Stroke color or 'none'"), strokeWidth: S.num("Stroke width"),
       opacity: S.num("0-1", { minimum: 0, maximum: 1 }), blend: S.str("Blend mode", { enum: ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity"] }),
-      name: S.str("New layer name"), visible: S.bool("Show or hide"), locked: S.bool("Lock or unlock"), radius: S.num("Rect corner radius"),
+      name: S.str("New layer name"), visible: S.bool("Show or hide"), locked: S.bool("Lock or unlock"), radius: S.num("Rect corner radius"), alt: S.str("Alt text (description for assistive technology and SVG export)"),
       text: S.str("New text content (text layers)"), fontFamily: S.str("Font family"), fontSize: S.num("Font size px"), fontWeight: S.num("100-900"), italic: S.bool("Italic"),
       align: S.str("Text alignment", { enum: ["left", "center", "right", "justify"] }), lineHeight: S.num("Line height multiple"), tracking: S.num("Letter spacing in 1/1000 em"),
     }, ["ids"], (a) => {
@@ -210,7 +210,7 @@ export function designTools(app, ctx) {
             if (a.stroke === "none") patch.stroke = null;
             else patch.stroke = { ...(n.stroke || defaultStroke(a.stroke || "#000000", a.strokeWidth ?? 1)), ...(a.stroke ? { fill: toPaint(a.stroke) } : {}), ...(a.strokeWidth != null ? { width: a.strokeWidth } : {}) };
           }
-          for (const k of ["opacity", "blend", "name", "visible", "locked"]) if (a[k] !== undefined) patch[k] = a[k];
+          for (const k of ["opacity", "blend", "name", "visible", "locked", "alt"]) if (a[k] !== undefined) patch[k] = a[k];
           if (a.radius != null && n.type === "rect") patch.r = [a.radius, a.radius, a.radius, a.radius];
           if (Object.keys(patch).length) doc.set(n, patch, "AI: Style");
           if (n.type === "text") {

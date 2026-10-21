@@ -1,67 +1,112 @@
 // Vibe Studio chat: transcript (messages, tool cards, approvals, questions) and the composer.
 import { h, empty } from "../../core/util.js";
 import { iconButton } from "../controls.js";
+import { t } from "../../i18n/index.js";
+import { ta, tspan } from "../../i18n/dom.js";
 import { iconEl } from "../toolbox.js";
 import { renderMarkdown } from "./markdown.js";
 import { vibeStore } from "../../vibe/store.js";
 import { showContextMenu } from "../menus.js";
+import { createToolCards, copyButton } from "./tool-cards.js";
+import { markEl } from "./logo.js";
+import { markContext } from "../context-menu/index.js";
+import { registerVibeContext } from "./context.js";
 
-const pretty = (name) => name.replace(/^mcp_/, "").replace(/__/g, " › ").replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
-const TOOL_ICONS = { add_shape: "bounding-box", add_text: "fonts", add_path: "bezier2", import_svg: "filetype-svg", set_style: "palette", screenshot: "camera", generate_image: "stars", edit_image: "magic", write_file: "file-earmark-code", edit_file: "pencil-square", read_file: "file-earmark-text", create_website: "globe2", ask_user: "question-circle", update_plan: "list-check", search_knowledge: "search", remember: "bookmark-star", apply_adjustment: "sliders", new_document: "file-earmark-plus", insert_element: "plus-square", set_element_style: "palette2", use_skill: "mortarboard" };
-
-function summarize(input) {
-  if (!input || typeof input !== "object") return "";
-  const parts = [];
-  for (const [k, v] of Object.entries(input)) {
-    if (v == null || typeof v === "object") continue;
-    parts.push(`${k}: ${String(v).replace(/\s+/g, " ").slice(0, 38)}`);
-    if (parts.length >= 3) break;
-  }
-  return parts.join(" · ");
-}
-
-function resultNodes(result) {
-  const nodes = [];
-  const add = (b) => {
-    if (b.type === "image") nodes.push(h("img.of-tool__img", { src: `data:${b.mime};base64,${b.data}`, alt: "Tool result image" }));
-    else if (b.type === "text") nodes.push(h("pre", b.text.length > 3000 ? `${b.text.slice(0, 3000)}\n…` : b.text));
-  };
-  if (typeof result === "string") add({ type: "text", text: result });
-  else if (Array.isArray(result)) result.forEach(add);
-  else if (result != null) add({ type: "text", text: JSON.stringify(result, null, 2) });
-  return nodes;
-}
+const textOfMessage = (m) => (typeof m.content === "string" ? m.content : (m.content || []).filter((b) => b.type === "text" && !/^\[Attached/.test(b.text)).map((b) => b.text).join("\n"));
 
 export function createChat(vs) {
   const { app, session } = vs;
-  const scroller = h("div.of-vchat__scroll", { role: "log", "aria-live": "polite", "aria-label": "Conversation" });
+  const scroller = h("div.of-vchat__scroll", { role: "log", ...ta({ "aria-label": "Conversation" }), tabindex: "0" });
   const thread = h("div.of-vchat__thread");
-  scroller.append(thread);
+  const pending = h("div.of-vchat__tail.hidden", h("div.of-vmsg.of-vmsg--assistant", h("div.of-vmsg__avatar", markEl()), h("span.of-vpending.of-shimmer", "Thinking…")));
+  scroller.append(thread, pending);
+  const jump = h("button.of-vjump.hidden", { type: "button", ...ta({ "aria-label": "Jump to latest message" }) }, iconEl("arrow-down"), tspan("Jump to latest"));
+  const main = h("div.of-vchat__main", scroller, jump);
+
+  // ---- follow the bottom while the assistant streams; stop when the user scrolls up
   let stick = true;
-  scroller.addEventListener("scroll", () => (stick = scroller.scrollTop + scroller.clientHeight > scroller.scrollHeight - 60));
-  const toBottom = () => stick && requestAnimationFrame(() => (scroller.scrollTop = scroller.scrollHeight));
+  let lastTop = 0;
+  let raf = 0;
+  const gap = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+  const reduced = () => document.documentElement.classList.contains("of-reduce-motion");
+  const showJump = (on) => {
+    jump.classList.toggle("hidden", !on);
+    if (!on) jump.classList.remove("fresh");
+  };
+  const follow = () => {
+    if (!stick) {
+      if (!jump.classList.contains("hidden")) jump.classList.add("fresh");
+      return;
+    }
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      scroller.scrollTop = scroller.scrollHeight;
+    });
+  };
+  const toBottom = (smooth = false) => {
+    stick = true;
+    showJump(false);
+    if (smooth && !reduced()) scroller.scrollTo({ top: scroller.scrollHeight, behavior: "smooth" });
+    else follow();
+  };
+  scroller.addEventListener("scroll", () => {
+    const top = scroller.scrollTop;
+    if (gap() < 24) {
+      stick = true;
+      showJump(false);
+    } else if (top < lastTop - 2) {
+      stick = false;
+      showJump(true);
+    }
+    lastTop = top;
+  });
+  jump.addEventListener("click", () => {
+    toBottom(true);
+    input.focus({ preventScroll: true });
+  });
+  if (typeof ResizeObserver === "function") {
+    const ro = new ResizeObserver(follow); // growing tool cards, images, a taller composer
+    ro.observe(thread);
+    ro.observe(scroller);
+  }
+
+  let msgIndex = -1; // index in session.chat.messages of the message being rendered (-1: live, not stored yet)
+  registerVibeContext(vs);
+  const tools = createToolCards({ settings: () => vibeStore.settings, saveSettings: (p) => vibeStore.saveSettings(p), onGrow: follow, cancelAgent: (id) => vs.hub.active?.agentMgr?.cancel(id, "Cancelled by you.") });
 
   // ------------------------------------------------------------ transcript
-  let cur = null; // current assistant bubble { el, body, text }
-  const tools = new Map();
+  let cur = null; // current assistant bubble { body, text, all, tail, group, thinking }
 
   function assistantBubble() {
     if (cur) return cur;
     const body = h("div.of-vmsg__body");
-    const el = h("div.of-vmsg.of-vmsg--assistant", h("div.of-vmsg__avatar", iconEl("of:vibe")), body);
+    const el = h("div.of-vmsg.of-vmsg--assistant", h("div.of-vmsg__avatar", markEl()), body);
+    markContext(el, "vibe-message", { role: "assistant", index: msgIndex, el });
     thread.append(el);
-    cur = { el, body, text: "", textEl: null, thinking: null };
+    cur = { body, text: "", all: [], textEl: null, tail: null, group: null, thinking: null };
     return cur;
+  }
+  const breakTools = (b) => {
+    b.tail = null;
+    b.group = null;
+  };
+  function endThinking(b, ms) {
+    if (b.thinking && !b.thinking.done) b.thinking.finish(ms);
   }
   function appendText(delta) {
     const b = assistantBubble();
+    endThinking(b);
+    breakTools(b);
     b.text += delta;
     if (!b.textEl) {
       b.textEl = h("div.of-vmsg__text");
       b.body.append(b.textEl);
+      b.all.push("");
     }
+    b.all[b.all.length - 1] = b.text;
     b.textEl.replaceChildren(renderMarkdown(b.text));
-    toBottom();
+    follow();
   }
   function endText() {
     if (cur) {
@@ -76,58 +121,97 @@ export function createChat(vs) {
       if (b.type === "text") body.append(h("div.of-vmsg__text", b.text.length > 1500 && b.text.startsWith("[Attached") ? h("em", `${b.text.split("\n")[0]}`) : b.text));
       else if (b.type === "image") body.append(h("img.of-vmsg__img", { src: `data:${b.mime};base64,${b.data}`, alt: "Attached image" }));
     }
-    thread.append(h("div.of-vmsg.of-vmsg--user", body));
-    toBottom();
+    const copy = copyButton(() => textOfMessage(msg), "Copy message");
+    const uel = markContext(h("div.of-vmsg.of-vmsg--user", h("div.of-vmsg__tools", copy), body), "vibe-message", { role: "user", index: session.chat.messages.indexOf(msg), el: body });
+    thread.append(uel);
+    follow();
   }
-  function toolCard(id, name, input) {
-    const status = h("span.of-tool__status", h("sl-spinner"));
-    const sum = h("span.of-tool__sum", summarize(input));
-    const detail = h("div.of-tool__detail", h("pre", JSON.stringify(input ?? {}, null, 2)));
-    const head = h("button.of-tool__head", { type: "button", "aria-expanded": "false" }, iconEl(TOOL_ICONS[name] || "wrench"), h("strong", pretty(name)), sum, status);
-    const card = h("div.of-tool", { "data-tool": name }, head, detail);
-    head.addEventListener("click", () => card.classList.toggle("open"));
-    const b = assistantBubble();
-    endText();
-    b.body.append(card);
-    tools.set(id, { card, status, detail });
-    toBottom();
-  }
-  function toolEnd(id, result, isError, ms) {
-    const t = tools.get(id);
-    if (!t) return;
-    t.status.replaceChildren(isError ? iconEl("exclamation-circle") : iconEl("check2"), h("small", `${ms ?? 0} ms`));
-    t.card.classList.toggle("error", !!isError);
-    t.detail.append(h("div.of-tool__result", ...resultNodes(result)));
-    const img = t.detail.querySelector("img");
-    if (img) {
-      t.card.classList.add("open");
-      t.card.classList.add("has-image");
+  /** Copy (and, on the newest answer, retry) under a finished assistant bubble. */
+  function finishBubble(b, last) {
+    if (!b || b.finished) return;
+    b.finished = true;
+    const text = b.all.filter(Boolean).join("\n\n");
+    if (!text && !last) return;
+    const row = h("div.of-vmsg__actions", text ? copyButton(() => text, "Copy answer") : null);
+    if (last) {
+      thread.querySelectorAll(".of-vact--retry").forEach((x) => x.remove());
+      const retry = h("button.of-vact.of-vact--retry", { type: "button", ...ta({ "aria-label": "Retry: send the last message again", title: "Send the last message again" }) }, iconEl("arrow-repeat"), tspan("Retry"));
+      retry.addEventListener("click", () => retryLast());
+      row.append(retry);
     }
+    b.body.append(row);
+  }
+  function retryLast() {
+    if (session.running) return;
+    const msgs = session.chat.messages;
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const m = msgs[i];
+      if (m.role === "user" && !(Array.isArray(m.content) && m.content.every((x) => x.type === "tool_result"))) {
+        const t = textOfMessage(m);
+        if (t) send(t);
+        return;
+      }
+    }
+  }
+  function note(text, kind = "info", action = null) {
+    const el = h("div.of-vnote", { class: kind, role: kind === "error" ? "alert" : "status" }, iconEl(kind === "error" ? "exclamation-triangle" : "info-circle"), h("span.of-vnote__text", text));
+    if (action) el.append(h("button.of-btn", { type: "button", onclick: () => { el.remove(); action.run(); } }, action.label));
+    thread.append(el);
+    follow();
+  }
+
+  function renderHistory() {
+    empty(thread);
+    tools.reset();
+    pending.classList.add("hidden");
+    cur = null;
+    const msgs = session.chat.messages;
+    if (!msgs.length) {
+      thread.append(emptyState());
+      return toBottom();
+    }
+    const results = new Map();
+    for (const m of msgs) if (m.role === "user" && Array.isArray(m.content)) for (const b of m.content) if (b.type === "tool_result") results.set(b.toolUseId, b);
+    for (const m of msgs) {
+      msgIndex = msgs.indexOf(m);
+      if (m.role === "user") {
+        if (Array.isArray(m.content) && m.content.every((b) => b.type === "tool_result")) continue;
+        finishBubble(cur, false);
+        cur = null;
+        userBubble(m);
+      } else {
+        // one bubble per run: the steps of a run (assistant, tool results, assistant, ...) share it
+        const blocks = typeof m.content === "string" ? [{ type: "text", text: m.content }] : m.content;
+        for (const b of blocks) {
+          if (b.type === "text" && b.text) appendText(b.text), endText();
+          else if (b.type === "thinking" && b.text) {
+            const bb = assistantBubble();
+            breakTools(bb);
+            const t = tools.thinking(bb);
+            t.append(b.text);
+            t.finish(-1);
+          } else if (b.type === "tool_use") {
+            const bb = assistantBubble();
+            endText();
+            tools.add(bb, b.id, b.name, b.input);
+            const r = results.get(b.id);
+            if (r) tools.end(b.id, r.content, r.isError, null);
+            else tools.end(b.id, "Aborted by the user.", true, null);
+          }
+        }
+      }
+    }
+    finishBubble(cur, true);
+    cur = null;
+    msgIndex = -1;
     toBottom();
   }
-  function approvalCard(req) {
-    const b = assistantBubble();
-    endText();
-    const done = (ok, always) => {
-      card.classList.add("resolved");
-      card.querySelector(".of-approval__actions").replaceChildren(h("small", ok ? "Allowed" : "Declined"));
-      if (ok && always && !vibeStore.settings.autoAllow.includes(req.name)) vibeStore.saveSettings({ autoAllow: [...vibeStore.settings.autoAllow, req.name] });
-      req.resolve(ok);
-    };
-    const card = h(
-      "div.of-approval",
-      h("div.of-approval__title", iconEl("shield-check"), h("strong", "Approval needed")),
-      h("div", req.reason || `Allow “${pretty(req.name)}”?`),
-      h("pre", JSON.stringify(req.input ?? {}, null, 2).slice(0, 700)),
-      h("div.of-approval__actions", h("button.of-btn.of-btn--primary", { type: "button", onclick: () => done(true) }, "Allow"), h("button.of-btn", { type: "button", onclick: () => done(true, true) }, "Always allow this tool"), h("button.of-btn", { type: "button", onclick: () => done(false) }, "Decline")),
-    );
-    b.body.append(card);
-    toBottom();
-  }
+
   function askCard(q) {
     const b = assistantBubble();
     endText();
-    const input = h("input.of-ask__in", { type: "text", placeholder: "Your answer…", "aria-label": q.question });
+    breakTools(b);
+    const input = h("input.of-ask__in", { type: "text", ...ta({ placeholder: "Your answer…" }), "aria-label": q.question });
     const answer = (v) => {
       if (!v) return;
       card.classList.add("resolved");
@@ -138,45 +222,10 @@ export function createChat(vs) {
       e.stopPropagation();
       if (e.key === "Enter") answer(input.value.trim());
     });
-    const card = h("div.of-ask", h("div.of-ask__q", iconEl("question-circle"), q.question), h("div.of-ask__row", ...(q.options || []).map((o) => h("button.of-btn", { type: "button", onclick: () => answer(o) }, o)), input, h("button.of-btn.of-btn--primary", { type: "button", onclick: () => answer(input.value.trim()) }, "Send")));
+    const card = h("div.of-ask", { role: "group", ...ta({ "aria-label": "Question from Vibe" }) }, h("div.of-ask__q", iconEl("question-circle"), h("span", q.question)), h("div.of-ask__row", ...(q.options || []).map((o) => h("button.of-btn", { type: "button", onclick: () => answer(o) }, o)), input, h("button.of-btn.of-btn--primary", { type: "button", onclick: () => answer(input.value.trim()) }, "Send")));
     b.body.append(card);
-    toBottom();
-    setTimeout(() => input.focus(), 50);
-  }
-  function note(text, kind = "info") {
-    thread.append(h("div.of-vnote", { class: kind }, iconEl(kind === "error" ? "exclamation-triangle" : "info-circle"), text));
-    toBottom();
-  }
-
-  function renderHistory() {
-    empty(thread);
-    cur = null;
-    tools.clear();
-    const msgs = session.chat.messages;
-    if (!msgs.length) return thread.append(emptyState());
-    const results = new Map();
-    for (const m of msgs) if (m.role === "user" && Array.isArray(m.content)) for (const b of m.content) if (b.type === "tool_result") results.set(b.toolUseId, b);
-    for (const m of msgs) {
-      if (m.role === "user") {
-        if (Array.isArray(m.content) && m.content.every((b) => b.type === "tool_result")) continue;
-        cur = null;
-        userBubble(m);
-      } else {
-        cur = null;
-        const blocks = typeof m.content === "string" ? [{ type: "text", text: m.content }] : m.content;
-        for (const b of blocks) {
-          if (b.type === "text" && b.text) appendText(b.text), endText();
-          else if (b.type === "tool_use") {
-            toolCard(b.id, b.name, b.input);
-            const r = results.get(b.id);
-            if (r) toolEnd(b.id, r.content, r.isError, null);
-          }
-        }
-      }
-    }
-    cur = null;
-    stick = true;
-    toBottom();
+    follow();
+    setTimeout(() => input.focus({ preventScroll: true }), 50);
   }
 
   function emptyState() {
@@ -188,7 +237,7 @@ export function createChat(vs) {
     ];
     return h(
       "div.of-vempty",
-      h("div.of-vempty__logo", iconEl("of:vibe")),
+      h("div.of-vempty__logo", markEl()),
       h("h1", "What do you want to make?"),
       h("p", "Vibe works inside OpenFini. Describe it — it draws, edits photos, lays out pages and builds websites with your studios, and you can undo everything in one click."),
       h("div.of-vempty__ideas", ideas.map(([t, p, s]) => h("button.of-videa", { type: "button", onclick: () => { input.value = p; autosize(); input.focus(); } }, h("strong", t), h("span", p.slice(0, 80) + "…"), h("small", `${s} studio`)))),
@@ -196,32 +245,76 @@ export function createChat(vs) {
   }
 
   // ------------------------------------------------------------ composer
-  const input = h("textarea.of-composer__in", { rows: 1, placeholder: "Ask Vibe to design, edit or build something…  (/ for skills, @selection for the selected layers)", "aria-label": "Message Vibe" });
+  const input = h("textarea.of-composer__in", { rows: 1, ...ta({ placeholder: "Ask Vibe to design, edit or build something…  (/ for skills, @selection for the selected layers)", "aria-label": "Message Vibe" }) });
   const chips = h("div.of-composer__chips");
   let files = [];
-  const fileInput = h("input", { type: "file", multiple: true, style: { display: "none" }, accept: "image/*,.txt,.md,.csv,.json,.html,.css,.js,.svg,.xml,.yml,.yaml,.ts,.py,.sql" });
+  const fileInput = h("input", { type: "file", multiple: true, style: { display: "none" }, accept: "image/*,.pdf,.ai,.psd,.psb,.idml,.sketch,.txt,.md,.csv,.json,.html,.css,.js,.svg,.xml,.yml,.yaml,.ts,.py,.sql" });
   const attach = iconButton({ icon: "paperclip", label: "Attach files or images", onClick: () => fileInput.click() });
   const mic = iconButton({ icon: "mic", label: "Dictate", onClick: () => dictate() });
-  const sendBtn = h("button.of-composer__send", { type: "button", "aria-label": "Send" }, iconEl("arrow-up"));
+  const sendBtn = h("button.of-composer__send", { type: "button", ...ta({ "aria-label": "Send" }) }, iconEl("arrow-up"));
+  const paintSend = () => {
+    const running = session.running;
+    const can = running || !!input.value.trim() || files.length > 0;
+    // running: the OpenFini mark pulses; hovering or focusing the button shows the stop square
+    sendBtn.replaceChildren(...(running ? [markEl("of-composer__mark"), iconEl("stop-fill")] : [iconEl("arrow-up")]));
+    sendBtn.classList.toggle("running", running);
+    sendBtn.classList.toggle("idle", !can);
+    sendBtn.setAttribute("aria-disabled", String(!can));
+    sendBtn.setAttribute("aria-label", running ? t("Stop") : t("Send"));
+    sendBtn.title = running ? "Stop (Esc)" : "Send (Enter)";
+  };
   const modelPill = h("button.of-pill-btn", { type: "button", "aria-haspopup": "dialog" });
-  const modePill = h("button.of-pill-btn", { type: "button", "data-tip": "How much Vibe may do without asking" });
-  const thinkPill = h("button.of-pill-btn", { type: "button", "data-tip": "Reasoning effort (models that support it)" });
+  const modePill = h("button.of-pill-btn", { type: "button", ...ta({ tip: "How much Vibe may do without asking" }) });
+  const thinkPill = h("button.of-pill-btn", { type: "button", ...ta({ tip: "Reasoning effort (models that support it)" }) });
   const slash = h("div.of-slash.hidden", { role: "listbox" });
-  const box = h("div.of-composer", chips, input, h("div.of-composer__bar", attach, mic, modelPill, modePill, thinkPill, h("span.of-composer__spacer"), sendBtn), slash);
-  const root = h("div.of-vchat", scroller, h("div.of-vchat__dock", box, h("p.of-composer__hint", "Vibe can make mistakes. Changes are undoable with “Undo AI changes”. Keys and chats stay on this device.")));
+  const suggestEl = h("div.of-skillsug.hidden", { role: "status", "aria-live": "polite" });
+  const box = h("div.of-composer", suggestEl, chips, input, h("div.of-composer__bar", attach, mic, modelPill, modePill, thinkPill, h("span.of-composer__spacer"), sendBtn), slash);
+  const root = h("div.of-vchat", main, h("div.of-vchat__dock", box, h("p.of-composer__hint", "Vibe can make mistakes. Changes can be undone in the Activity tab or with Ctrl+Z. Keys and chats stay on this device.")));
 
+  // grows with the text up to 40% of the panel height (max 220 px), then scrolls inside
   const autosize = () => {
     input.style.height = "auto";
-    input.style.height = `${Math.min(220, input.scrollHeight)}px`;
+    const max = Math.max(60, Math.min(220, Math.round((root.clientHeight || 600) * 0.4)));
+    input.style.height = `${Math.min(max, input.scrollHeight)}px`;
+    input.style.overflowY = input.scrollHeight > max ? "auto" : "hidden";
+    paintSend();
   };
   input.addEventListener("input", () => {
     autosize();
     slashMenu();
+    suggest();
   });
 
+  // "Use skill X?" chip: cheap BM25 match of the draft against skill names, descriptions, tags and when-to-use
+  let sugTimer = 0;
+  const dismissed = new Set();
+  function suggest() {
+    clearTimeout(sugTimer);
+    sugTimer = setTimeout(async () => {
+      const text = input.value.trim();
+      const hide = () => suggestEl.classList.add("hidden");
+      if (vibeStore.settings.suggestSkills === false || text.length < 12 || text.startsWith("/") || /^use the [“"]/i.test(text) || !skillCache.length) return hide();
+      const { suggestSkills } = await vs.hub.ai();
+      const best = suggestSkills(text, skillCache, { limit: 1, min: 2 })[0];
+      if (!best || dismissed.has(best.skill.name)) return hide();
+      const s = best.skill;
+      suggestEl.replaceChildren(
+        iconEl("mortarboard"),
+        h("span", "Use skill ", h("strong", s.name), "?"),
+        h("button.of-btn.of-btn--sm", { type: "button", onclick: () => { const rest = input.value; suggestEl.classList.add("hidden"); useSkill(s, rest).then(() => autosize()); } }, "Use"),
+        h("button.of-skillsug__x", { type: "button", "aria-label": `Do not suggest ${s.name} again in this chat`, onclick: () => { dismissed.add(s.name); hide(); } }, "×"),
+      );
+      suggestEl.classList.remove("hidden");
+    }, 300);
+  }
+
+  let chipUrls = [];
   function renderChips() {
     empty(chips);
-    files.forEach((f, i) => chips.append(h("span.of-chip2", /^image\//.test(f.type) ? h("img", { src: URL.createObjectURL(f), alt: "" }) : iconEl("file-earmark"), f.name, h("button", { type: "button", "aria-label": `Remove ${f.name}`, onclick: () => { files.splice(i, 1); renderChips(); } }, "×"))));
+    chipUrls.forEach((u) => URL.revokeObjectURL(u));
+    chipUrls = [];
+    paintSend();
+    files.forEach((f, i) => chips.append(h("span.of-chip2", { title: f.name }, /^image\//.test(f.type) ? h("img", { src: (chipUrls[i] = URL.createObjectURL(f)), alt: "" }) : iconEl("file-earmark"), h("span.of-chip2__name", f.name),/\.(pdf|ai|psd|psb|idml|sketch)$/i.test(f.name) ? h("button", { type: "button", class: "of-chip2__open", title: "Import this file into OpenFini so the assistant can work with it", onclick: async () => { try { await app.openFile({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()), mime: f.type }); } catch (err) { app.toast(err.message, "danger", 5000); } } }, "Open as document") : null, h("button", { type: "button", "aria-label": `Remove ${f.name}`, onclick: () => { files.splice(i, 1); renderChips(); } }, "×"))));
   }
   function addFiles(list) {
     for (const f of list) if (files.length < 8) files.push(f);
@@ -248,10 +341,29 @@ export function createChat(vs) {
   });
 
   // slash commands: /skill-name, /new, /undo, /clear
+  let skillCache = [];
+  const loadSkills = () => vs.allSkills?.().then((l) => (skillCache = l)).catch(() => {});
+  loadSkills();
+  vibeStore.on("change", (g) => (g === "skills" || g === "all") && loadSkills());
+  const useSkill = async (s, rest = "") => {
+    if (!s.params?.length) {
+      input.value = `Use the “${s.name}” skill. ${rest}`;
+      return;
+    }
+    const { skillArgsDialog } = await import("./skill-form.js");
+    const args = await skillArgsDialog(s);
+    if (!args) return;
+    input.value = `Use the “${s.name}” skill with args ${JSON.stringify(args)}. ${rest}`;
+    autosize();
+    input.focus();
+  };
+  vs.useSkill = useSkill;
   const COMMANDS = () => [
-    { name: "new", hint: "Start a new chat", run: () => session.newChat() },
-    { name: "undo", hint: "Undo the last AI run", run: () => app.toast(`Undid ${session.undoLastRun()} step(s).`, "success", 1500) },
-    ...(vs.skills() || []).map((s) => ({ name: s.name, hint: s.description, run: () => (input.value = `Use the “${s.name}” skill. ${input.value.replace(/^\/\S*\s*/, "")}`) })),
+    { name: "new", hint: "Start a new chat (other chats keep running)", run: () => session.newChat() },
+    { name: "undo", hint: "Undo the last AI run of this chat", run: () => { const n = session.undoLastRun(); app.toast(n ? `Undid ${n} step(s).` : session.lastUndoError || "Nothing to undo.", n ? "success" : "warning", 2500); } },
+    { name: "stop-all", hint: "Stop every running chat and sub-agent", run: () => app.toast(`Stopped ${vs.hub.stopAll()} chat(s).`, "primary", 1500) },
+    { name: "create-skill", hint: "Turn what Vibe did in this chat into a reusable skill (draft)", run: () => (input.value = "Distill the workflow you performed in this chat into a reusable skill: call create_skill with a concrete numbered workflow (exact tools and arguments that worked), rules with numbers, {{param}} placeholders for what changes between uses (declare them in params), token-saving tips and a ## Verify section. Keep it under 120 lines.") },
+    ...(skillCache.length ? skillCache : vs.skills() || []).map((s) => ({ name: s.name, hint: `${s.argumentHint ? `[${s.argumentHint}] ` : s.params?.length ? `[${s.params.map((p) => p.name).join(", ")}] ` : ""}${s.description}`, run: () => useSkill(s, input.value.replace(/^\/\S*\s*/, "")) })),
   ];
   let slashItems = [];
   let slashSel = 0;
@@ -305,23 +417,35 @@ export function createChat(vs) {
   });
   sendBtn.addEventListener("click", () => (session.running ? session.abort() : send()));
 
-  async function send() {
-    let text = input.value.trim();
+  async function send(override) {
+    let text = typeof override === "string" ? override.trim() : input.value.trim();
     if (!text && !files.length) return;
     if (session.running) return;
     if (text.includes("@selection") && app.selection.length) {
       text = text.replace(/@selection/g, `the selected layer(s) (ids: ${app.selection.map((n) => n.id).join(", ")})`);
     }
-    const f = files;
-    files = [];
-    renderChips();
-    input.value = "";
+    const f = typeof override === "string" ? [] : files;
+    const draft = input.value;
+    if (typeof override !== "string") {
+      files = [];
+      renderChips();
+      input.value = "";
+    }
     autosize();
-    stick = true;
+    suggestEl.classList.add("hidden");
+    toBottom(true);
+    input.focus({ preventScroll: true });
     try {
       await session.send(text || "Please look at the attached files.", f);
     } catch (err) {
-      note(err.message, "error");
+      // nothing was sent: give the draft back
+      if (typeof override !== "string" && !input.value) {
+        input.value = draft;
+        files = f;
+        renderChips();
+        autosize();
+      }
+      note(err.message, "error", { label: "Try again", run: () => send(typeof override === "string" ? override : undefined) });
     }
   }
 
@@ -355,19 +479,22 @@ export function createChat(vs) {
   // ------------------------------------------------------------ pills
   const MODES = { careful: "Ask for every change", balanced: "Ask for risky steps", auto: "Auto-apply" };
   function paintPills() {
-    const s = vibeStore.settings;
+    const s = session.settings ? session.settings() : vibeStore.settings;
+    const ov = session.overrides || {};
     const p = s.activeProvider ? vibeStore.provider(s.activeProvider) : null;
-    modelPill.replaceChildren(iconEl("cpu"), h("span", s.activeProvider && s.model ? `${p?.label || "Provider"} · ${s.model.split("/").pop()}` : "Demo (offline)"), iconEl("chevron-down"));
-    modePill.replaceChildren(iconEl(s.approval === "auto" ? "lightning-charge" : s.approval === "careful" ? "shield-check" : "shield"), h("span", MODES[s.approval]));
+    modelPill.replaceChildren(iconEl("cpu"), h("span", `${s.activeProvider && s.model ? `${p?.label || "Provider"} · ${s.model.split("/").pop()}` : "Demo (offline)"}${ov.model ? " (this chat)" : ""}`), iconEl("chevron-down"));
+    modePill.replaceChildren(iconEl(s.approval === "auto" ? "lightning-charge" : s.approval === "careful" ? "shield-check" : "shield"), h("span", `${MODES[s.approval]}${ov.approval ? " (this chat)" : ""}`));
     thinkPill.replaceChildren(iconEl("lightbulb"), h("span", s.reasoning === "off" ? "Thinking off" : `Thinking ${s.reasoning}`));
-    sendBtn.replaceChildren(iconEl(session.running ? "stop-fill" : "arrow-up"));
-    sendBtn.classList.toggle("running", session.running);
-    sendBtn.setAttribute("aria-label", session.running ? "Stop" : "Send");
+    paintSend();
   }
   modelPill.addEventListener("click", () => vs.openModelPicker(modelPill));
   modePill.addEventListener("click", () => {
     const r = modePill.getBoundingClientRect();
-    showContextMenu(app, r.left, r.top - 130, Object.entries(MODES).map(([k, v]) => ({ label: v, checked: vibeStore.settings.approval === k, run: () => vibeStore.saveSettings({ approval: k }) })));
+    const own = session.overrides?.approval;
+    showContextMenu(app, r.left, r.top - 160, [
+      ...Object.entries(MODES).map(([k, v]) => ({ label: v, checked: (own || vibeStore.settings.approval) === k, run: () => (own ? session.setOverrides({ approval: k }) : vibeStore.saveSettings({ approval: k })) })),
+      { label: own ? "Use the default mode in this chat" : "Pin this mode to this chat (then changes apply only here)", run: () => session.setOverrides({ approval: own ? null : vibeStore.settings.approval }) },
+    ]);
   });
   thinkPill.addEventListener("click", () => {
     const r = thinkPill.getBoundingClientRect();
@@ -377,57 +504,108 @@ export function createChat(vs) {
   session.on("status", paintPills);
 
   // ------------------------------------------------------------ session events
-  session.on("chat", renderHistory);
+  const showPending = (on) => {
+    pending.classList.toggle("hidden", !on);
+    if (on) follow();
+  };
+  session.on("chat", () => {
+    renderHistory();
+    // switching to a chat that is still working: its live events are replayed next (hub SessionView)
+    if (session.running) showPending(true);
+    paintPills();
+    suggest();
+  });
   session.on("message", (m) => {
     if (thread.querySelector(".of-vempty")) empty(thread);
+    thread.querySelectorAll(".of-vact--retry").forEach((x) => x.remove());
+    finishBubble(cur, false);
     cur = null;
     userBubble(m);
+    showPending(true);
+    toBottom(true);
+    paintSend();
   });
   session.on("event", (ev) => {
     switch (ev.type) {
       case "text":
+        showPending(false);
         appendText(ev.delta);
         break;
       case "thinking": {
+        showPending(false);
         const b = assistantBubble();
-        if (!b.thinking) {
-          const pre = h("pre");
-          b.thinking = { pre, el: h("details.of-think", h("summary", "Thinking"), pre) };
-          b.body.append(b.thinking.el);
+        if (!b.thinking || b.thinking.done) {
+          endText();
+          breakTools(b);
+          b.thinking = tools.thinking(b);
         }
-        b.thinking.pre.textContent += ev.delta;
+        b.thinking.append(ev.delta);
         break;
       }
-      case "tool_start":
-        toolCard(ev.id, ev.name, ev.input);
+      case "tool_start": {
+        showPending(false);
+        const b = assistantBubble();
+        endThinking(b);
+        endText();
+        tools.add(b, ev.id, ev.name, ev.input);
         break;
+      }
       case "tool_end":
-        toolEnd(ev.id, ev.result, ev.isError, ev.ms);
-        break;
-      case "step":
-        if (ev.n > 1) cur = null;
+        tools.end(ev.id, ev.result, ev.isError, ev.ms);
+        if (session.running && !tools.running()) showPending(true);
         break;
       case "retry":
         note(`The provider is busy — retrying (${ev.attempt})…`);
+        break;
+      case "agent_status":
+        tools.agentStatus(ev.agent);
+        break;
+      case "agent_event":
+        tools.agentEvent(ev);
         break;
       default:
         break;
     }
   });
-  session.on("approval", approvalCard);
-  session.on("ask", askCard);
+  session.on("approval", (req) => {
+    showPending(false);
+    if (tools.approve(req)) return;
+    if (req.agent && tools.agentApprove(req)) return;
+    const b = assistantBubble();
+    endText();
+    tools.add(b, req.id, req.name, req.input);
+    tools.approve(req);
+  });
+  session.on("ask", (q) => {
+    showPending(false);
+    askCard(q);
+  });
   session.on("notice", (n) => note(n.text, n.kind === "mcp" ? "error" : "info"));
-  session.on("error", (err) => note(err.message || String(err), "error"));
+  const settleRun = () => {
+    showPending(false);
+    tools.settle();
+    if (cur) endThinking(cur);
+  };
+  session.on("error", (err) => {
+    settleRun();
+    note(err.message || String(err), "error", { label: "Retry", run: retryLast });
+    finishBubble(cur, true);
+    cur = null;
+  });
   session.on("done", (res) => {
+    settleRun();
+    finishBubble(cur, true);
     cur = null;
     if (res.stopReason === "max_steps") note("Stopped after the maximum number of steps. Say “continue” to go on.");
     else if (res.stopReason === "aborted") note("Stopped.");
     const u = res.usage;
     if (u?.input || u?.output) thread.append(h("div.of-vusage", `${u.input?.toLocaleString("en-US") || 0} tokens in · ${u.output?.toLocaleString("en-US") || 0} out · ${res.steps || 1} step${res.steps === 1 ? "" : "s"}`));
-    toBottom();
+    follow();
+    if (!document.activeElement || document.activeElement === document.body) input.focus({ preventScroll: true });
   });
+  session.on("status", (st) => st === "idle" && settleRun());
 
   renderHistory();
   paintPills();
-  return { el: root, focus: () => input.focus(), setInput: (t) => { input.value = t; autosize(); input.focus(); }, send: (t, f) => session.send(t, f), paintPills, note, addFiles };
+  return { el: root, focus: () => input.focus({ preventScroll: true }), setInput: (t) => { input.value = t; autosize(); input.focus(); }, send: (t, f) => send(t), sendRaw: (t, f) => session.send(t, f), paintPills, note, addFiles, useSkill };
 }

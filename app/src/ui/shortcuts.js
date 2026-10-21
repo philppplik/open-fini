@@ -1,17 +1,11 @@
 // Global keyboard shortcuts: tools get first refusal, then commands, then single-key tool selection.
 import { isMac } from "../core/util.js";
 import { STUDIOS } from "../studios/index.js";
+import { eventKey } from "../customize/chords.js";
 
-// Punctuation is matched by physical key (so Shift+] still means "]"); letters by their character.
-const PUNCT = { BracketLeft: "[", BracketRight: "]", Equal: "=", Minus: "-", Comma: ",", Semicolon: ";", Quote: "'", Backslash: "\\", Period: ".", Slash: "/" };
-
-function normalize(ev) {
-  if (PUNCT[ev.code]) return PUNCT[ev.code];
-  let k = ev.key;
-  if (k === " ") k = "Space";
-  if (k.length === 1) k = k.toUpperCase();
-  return k;
-}
+// The key of an event as the table matches it: punctuation and digits by physical key (so Shift+] still means "]"),
+// letters by their character. Shared with the shortcut editor so recorded chords always fire.
+const normalize = eventKey;
 
 function parse(sc) {
   const parts = sc.split("+");
@@ -34,6 +28,9 @@ export function installShortcuts(app) {
   };
   // The Code studio has no canvas selection: only these general commands apply there.
   const generalInCode = /^(file|studio|help|vibe)\.|^edit\.(preferences)$|^view\.(theme|lowPower)$/;
+  // Office Studio: a workspace studio like Code and Vibe, but undo/redo are the app's (its edits live in doc history)
+  const generalInOffice = /^(file|studio|help|vibe)\.|^edit\.(preferences|undo|redo)$|^view\.(theme|lowPower)$/;
+  const workspaceStudio = (s) => !!STUDIOS[s]?.workspace; // Code, Vibe, Office and later workspace studios
   rebuild();
   app.on("commands", rebuild);
 
@@ -52,14 +49,14 @@ export function installShortcuts(app) {
     if (!force && typing(ev)) return false;
     const key = normalize(ev);
 
-    if (!force && app.studio !== "code" && app.studio !== "vibe" && !mod && !ev.altKey && app.tool?.keyDown?.(ev)) {
+    if (!force && !workspaceStudio(app.studio) && !mod && !ev.altKey && app.tool?.keyDown?.(ev)) {
       ev.preventDefault();
       return true;
     }
     // commands
     for (const t of table) {
       if (t.studios && !t.studios.includes(app.studio)) continue;
-      if (!t.studios && (app.studio === "code" || app.studio === "vibe") && !generalInCode.test(t.id)) continue;
+      if (!t.studios && workspaceStudio(app.studio) && !(app.studio === "office" ? generalInOffice : generalInCode).test(t.id)) continue;
       if (t.key === key && t.mod === mod && t.alt === ev.altKey && t.shift === ev.shiftKey) {
         if (app.isEnabled(t.id)) {
           ev.preventDefault();

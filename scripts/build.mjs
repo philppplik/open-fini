@@ -125,6 +125,8 @@ export async function build({
   const assetsDir = join(out, "assets");
   const shoelaceDir = join(root, "vendor", "shoelace");
   const codemirrorDir = join(root, "vendor", "codemirror");
+  const pdfjsDir = join(root, "vendor", "pdfjs");
+  const katexDir = join(root, "vendor", "katex");
   const distOf = (sourceFile) => join(out, relative(root, sourceFile));
 
   // 1. Copy -----------------------------------------------------------------
@@ -142,6 +144,14 @@ export async function build({
       return true;
     },
   });
+
+  // Bundled extensions (data, not code of the app): the catalog and the packed .ofext files are served next to the
+  // app so the extension manager can offer them. Only for the real app source; never precached (see below).
+  if (root === join(projectRoot, "app") && (await exists(join(projectRoot, "extensions", "catalog.json")))) {
+    await mkdir(join(out, "extensions"), { recursive: true });
+    await cp(join(projectRoot, "extensions", "catalog.json"), join(out, "extensions", "catalog.json"));
+    if (await exists(join(projectRoot, "extensions", "packages"))) await cp(join(projectRoot, "extensions", "packages"), join(out, "extensions", "packages"), { recursive: true });
+  }
 
   // 2. Find what index.html references ----------------------------------------
   const indexPath = join(out, "index.html");
@@ -187,7 +197,7 @@ export async function build({
           });
           // The Code studio's editor (CodeMirror) is a vendored, already minified bundle. Keeping it a separate
           // file means it is fetched only when the studio is opened and does not count as application code.
-          b.onResolve({ filter: /vendor\/codemirror\// }, async (args) => {
+          b.onResolve({ filter: /vendor\/(codemirror|pdfjs|katex)\// }, async (args) => {
             if (args.pluginData?.skipExternals || args.kind === "entry-point") return undefined;
             const resolved = await b.resolve(args.path, {
               importer: args.importer,
@@ -195,7 +205,7 @@ export async function build({
               kind: args.kind,
               pluginData: { skipExternals: true },
             });
-            if (resolved.errors.length > 0 || !isInside(resolved.path, codemirrorDir)) return undefined;
+            if (resolved.errors.length > 0 || !(isInside(resolved.path, codemirrorDir) || isInside(resolved.path, pdfjsDir) || isInside(resolved.path, katexDir))) return undefined;
             return { path: urlFrom(outDir, distOf(resolved.path)), external: true };
           });
           // new URL("./file", import.meta.url) points at a file next to the source module; after
@@ -379,7 +389,9 @@ export async function build({
   const precacheExcluded = (rel) =>
     rel === "sw.js" ||
     rel === "build-info.json" ||
+    rel.startsWith("extensions/") || // bundled extensions are fetched on demand when the user installs one
     /\.map$/.test(rel) ||
+    /^vendor\/(pdfjs|katex)\//.test(rel) || // large and on demand: the service worker caches them on first use
     /^(LICENSE|COPYING|NOTICE)/i.test(basename(rel)) ||
     (rel.startsWith("vendor/") && /\.(md|txt)$/i.test(rel));
 

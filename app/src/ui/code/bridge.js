@@ -3,11 +3,17 @@
 // self-contained: no imports, no references to anything outside of `bridgeMain`.
 //
 // Parent → frame messages: { of:1, type: "mode"|"select"|"hover"|"computed"|"live"|"liveClear"|"css"|"scroll"|
-//   "reveal"|"dropProbe"|"dropEnd"|"textEditStart"|"spacing" , ... }
+//   "reveal"|"dropProbe"|"dropEnd"|"textEditStart"|"spacing"|"measure"|"measureBox" , ... }
 // Frame → parent messages: { of:1, type: "ready"|"console"|"pick"|"hover"|"context"|"computed"|"scroll"|"navigate"|
-//   "external"|"textEdit"|"htmlEdit"|"moveDrop"|"dropTarget"|"key"|"dblclick"|"submit" , ... }
+//   "external"|"textEdit"|"htmlEdit"|"moveDrop"|"dropTarget"|"key"|"dblclick"|"submit"|"measureInfo"|"measureBox"|
+//   "measureExit"|"measureCopied"|"measureOpt" , ... }
+// The measure tool (section "measure tool" below) draws its overlay in the frame; its geometry and unit code is the
+// self-contained `measureKit` of engine/web/measure.js, passed in as `kit` (see `bridgeSource`). The host validates
+// every measure message with `sanitizeBox` before using it.
 /* eslint-disable no-undef */
-export function bridgeMain() {
+import { measureKit } from "../../engine/web/measure.js";
+
+export function bridgeMain(kit) {
   var cfg = window.__OF_CONFIG__ || {};
   var TOP = window.parent;
   var ACCENT = cfg.accent || "#4f8cff";
@@ -134,7 +140,7 @@ export function bridgeMain() {
   var raf = 0;
   function redraw() {
     raf = 0;
-    var hov = hoverId != null && hoverId !== selectedId ? byId(hoverId) : null;
+    var hov = hoverId != null && hoverId !== selectedId && !M.on ? byId(hoverId) : null;
     place("hover", hov && edit ? hov.getBoundingClientRect() : null);
     var sel = edit ? byId(selectedId) : null;
     if (sel) {
@@ -169,6 +175,7 @@ export function bridgeMain() {
       place("drop", null);
       place("dropParent", null);
     }
+    drawMeasure();
   }
   function schedule() {
     if (!raf) raf = requestAnimationFrame(redraw);
@@ -190,6 +197,271 @@ export function bridgeMain() {
       post({ type: "scroll", x: window.scrollX, y: window.scrollY });
     }, 120);
   }, { passive: true });
+
+  // ---------------------------------------------------------------- measure tool
+  // Hover shows the box model (margin / border / padding / content bands), the size and distance guides to the
+  // viewport edges; holding Alt measures against the pinned (else the selected, else the parent) element; click pins,
+  // Shift+click links the new pin to the previous one with distance guides; Esc clears pins, then leaves the tool.
+  // The overlay has no animation, so there is nothing to reduce for prefers-reduced-motion. Dimensions are in CSS px
+  // and scale with the preview zoom, like the rest of the page.
+  var M = { on: false, unit: "px", ppi: 96, dprAware: false, details: false, accent: ACCENT, el: null, alt: false, pins: [], links: [], last: "" };
+  var mo = document.createElement("div");
+  mo.setAttribute("style", "position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;margin:0;padding:0;border:0;overflow:hidden");
+  ov.appendChild(mo);
+  var MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
+  function pxv(v) {
+    return parseFloat(v) || 0;
+  }
+  function boxOf(el) {
+    var r = el.getBoundingClientRect();
+    var cs = getComputedStyle(el);
+    var par = el.parentElement;
+    var pr = par ? par.getBoundingClientRect() : null;
+    return {
+      el: el,
+      rect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
+      margin: [pxv(cs.marginTop), pxv(cs.marginRight), pxv(cs.marginBottom), pxv(cs.marginLeft)],
+      border: [pxv(cs.borderTopWidth), pxv(cs.borderRightWidth), pxv(cs.borderBottomWidth), pxv(cs.borderLeftWidth)],
+      padding: [pxv(cs.paddingTop), pxv(cs.paddingRight), pxv(cs.paddingBottom), pxv(cs.paddingLeft)],
+      fontSize: pxv(cs.fontSize) || 16,
+      rootFontSize: pxv(getComputedStyle(document.documentElement).fontSize) || 16,
+      parent: pr ? { w: pr.width, h: pr.height } : null,
+    };
+  }
+  function mctx(b, axis) {
+    return {
+      ppi: M.ppi, dpr: window.devicePixelRatio || 1, dprAware: M.dprAware, rootPx: b.rootFontSize, emPx: b.fontSize,
+      basisPx: b.parent ? (axis === "x" ? b.parent.w : b.parent.h) : axis === "x" ? window.innerWidth : window.innerHeight,
+    };
+  }
+  function sizeText(b) {
+    return kit.formatSize(b.rect.right - b.rect.left, b.rect.bottom - b.rect.top, M.unit, mctx(b, "x"), mctx(b, "y"));
+  }
+  function wireBox(b) {
+    var el = b.el;
+    return {
+      id: idOf(el), tag: el.tagName.toLowerCase(),
+      rect: { x: b.rect.left + window.scrollX, y: b.rect.top + window.scrollY, w: b.rect.right - b.rect.left, h: b.rect.bottom - b.rect.top },
+      margin: b.margin, border: b.border, padding: b.padding, fontSize: b.fontSize, rootFontSize: b.rootFontSize, parent: b.parent,
+      vw: window.innerWidth, vh: window.innerHeight,
+    };
+  }
+  function mk(css, text) {
+    var d = document.createElement("div");
+    d.setAttribute("style", "position:fixed;box-sizing:border-box;pointer-events:none;" + css);
+    if (text != null) d.textContent = text;
+    mo.appendChild(d);
+    return d;
+  }
+  function rcss(r) {
+    return "left:" + r.left + "px;top:" + r.top + "px;width:" + Math.max(0, r.right - r.left) + "px;height:" + Math.max(0, r.bottom - r.top) + "px;";
+  }
+  function ring(outer, inner, color) {
+    var w = outer.right - outer.left;
+    var h = outer.bottom - outer.top;
+    if (w <= 0 || h <= 0) return;
+    var il = Math.max(0, Math.min(w, inner.left - outer.left));
+    var it = Math.max(0, Math.min(h, inner.top - outer.top));
+    var ir = Math.max(il, Math.min(w, inner.right - outer.left));
+    var ib = Math.max(it, Math.min(h, inner.bottom - outer.top));
+    mk(rcss(outer) + "background:" + color + ";clip-path:polygon(evenodd,0 0," + w + "px 0," + w + "px " + h + "px,0 " + h + "px,0 0," + il + "px " + it + "px," + il + "px " + ib + "px," + ir + "px " + ib + "px," + ir + "px " + it + "px," + il + "px " + it + "px)");
+  }
+  function tag(text, x, y, bg) {
+    var d = mk("background:" + bg + ";color:#fff;font:600 11px/16px " + MONO + ";padding:0 6px;border-radius:3px;white-space:nowrap;left:0;top:0;visibility:hidden", text);
+    var w = d.offsetWidth;
+    var h = d.offsetHeight || 16;
+    d.style.left = Math.max(2, Math.min(x, window.innerWidth - w - 2)) + "px";
+    d.style.top = Math.max(2, Math.min(y, window.innerHeight - h - 2)) + "px";
+    d.style.visibility = "visible";
+    return d;
+  }
+  function drawGuide(g, b, color) {
+    var horizontal = g.axis === "x";
+    var x = Math.min(g.x1, g.x2);
+    var y = Math.min(g.y1, g.y2);
+    mk("left:" + x + "px;top:" + y + "px;width:" + (horizontal ? g.px : 1) + "px;height:" + (horizontal ? 1 : g.px) + "px;background:" + color);
+    // end caps
+    if (horizontal) {
+      mk("left:" + x + "px;top:" + (y - 3) + "px;width:1px;height:7px;background:" + color);
+      mk("left:" + (x + g.px - 1) + "px;top:" + (y - 3) + "px;width:1px;height:7px;background:" + color);
+    } else {
+      mk("left:" + (x - 3) + "px;top:" + y + "px;width:7px;height:1px;background:" + color);
+      mk("left:" + (x - 3) + "px;top:" + (y + g.px - 1) + "px;width:7px;height:1px;background:" + color);
+    }
+    var text = kit.formatValue(g.px, M.unit, mctx(b, g.axis));
+    tag(text, horizontal ? x + g.px / 2 - 14 : x + 6, horizontal ? y + 5 : y + g.px / 2 - 8, color);
+  }
+  function bandValues(outer, inner, v, b) {
+    // numbers on the four sides of a band when the band is thick enough to hold them
+    var u = function (n, axis) {
+      return kit.formatValue(n, M.unit, mctx(b, axis)).replace(/^(-?[\d.]+).*$/, "$1");
+    };
+    var cx = (outer.left + outer.right) / 2;
+    var cy = (outer.top + outer.bottom) / 2;
+    var put = function (text, x, y) {
+      mk("left:" + (x - 14) + "px;top:" + (y - 7) + "px;width:28px;text-align:center;font:600 10px/14px " + MONO + ";color:#1d1e22", text);
+    };
+    if (v[0] >= 12) put(u(v[0], "y"), cx, (outer.top + inner.top) / 2);
+    if (v[2] >= 12) put(u(v[2], "y"), cx, (outer.bottom + inner.bottom) / 2);
+    if (v[3] >= 20) put(u(v[3], "x"), (outer.left + inner.left) / 2, cy);
+    if (v[1] >= 20) put(u(v[1], "x"), (outer.right + inner.right) / 2, cy);
+  }
+  function drawBox(b, full) {
+    var bands = kit.boxBands(b.rect, b.margin, b.border, b.padding);
+    if (full) {
+      ring(bands.margin, bands.border, "rgba(246,178,107,.55)");
+      ring(bands.border, bands.padding, "rgba(255,226,140,.55)");
+      ring(bands.padding, bands.content, "rgba(147,196,125,.55)");
+      mk(rcss(bands.content) + "background:rgba(111,168,220,.55)");
+      if (M.details) {
+        bandValues(bands.margin, bands.border, b.margin, b);
+        bandValues(bands.padding, bands.content, b.padding, b);
+      }
+    }
+    mk(rcss(b.rect) + "outline:1px " + (full ? "solid" : "dashed") + " " + M.accent + ";outline-offset:-1px");
+    var below = b.rect.bottom + 22 < window.innerHeight;
+    tag(describe(b.el) + "  " + sizeText(b), b.rect.left, below ? b.rect.bottom + 4 : b.rect.top - 20, M.accent);
+  }
+  function refBox(hover) {
+    var pin = M.pins.length ? M.pins[M.pins.length - 1] : null;
+    if (pin && pin !== hover) return boxOf(pin);
+    var sel = byId(selectedId);
+    if (sel && sel !== hover) return boxOf(sel);
+    return hover.parentElement ? boxOf(hover.parentElement) : null;
+  }
+  function clean() {
+    M.pins = M.pins.filter(function (e) { return e.isConnected; });
+    M.links = M.links.filter(function (l) { return l[0].isConnected && l[1].isConnected; });
+  }
+  var GUIDE = "#ff4d4f";
+  function drawMeasure() {
+    mo.textContent = "";
+    if (!M.on) return;
+    clean();
+    var hover = M.el && M.el.isConnected && !isOurs(M.el) ? M.el : null;
+    for (var i = 0; i < M.pins.length; i++) if (M.pins[i] !== hover) drawBox(boxOf(M.pins[i]), false);
+    for (var k = 0; k < M.links.length; k++) {
+      var ba = boxOf(M.links[k][0]);
+      var bb = boxOf(M.links[k][1]);
+      kit.gapGuides(ba.rect, bb.rect).forEach(function (g) { drawGuide(g, bb, GUIDE); });
+    }
+    var info = null;
+    if (hover) {
+      var hb = boxOf(hover);
+      drawBox(hb, true);
+      if (M.alt) {
+        var rb = refBox(hover);
+        if (rb) {
+          mk(rcss(rb.rect) + "outline:1px dashed " + GUIDE + ";outline-offset:-1px");
+          kit.gapGuides(rb.rect, hb.rect).forEach(function (g) { drawGuide(g, hb, GUIDE); });
+        }
+      } else {
+        kit.edgeGuides(hb.rect, window.innerWidth, window.innerHeight).forEach(function (g) { drawGuide(g, hb, M.accent); });
+      }
+      info = wireBox(hb);
+      info.text = sizeText(hb);
+    } else if (M.pins.length) info = wireBox(boxOf(M.pins[M.pins.length - 1]));
+    var key = JSON.stringify([info, M.pins.length, M.unit]);
+    if (key !== M.last) {
+      M.last = key;
+      post({ type: "measureInfo", box: info, pins: M.pins.length });
+    }
+  }
+  function mTarget(e) {
+    var t = e.target;
+    return t && t.nodeType === 1 && !isOurs(t) ? t : null;
+  }
+  function mStop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+  }
+  document.addEventListener("mousemove", function (e) {
+    if (!M.on) return;
+    mStop(e);
+    M.alt = e.altKey;
+    var t = mTarget(e);
+    if (t !== M.el) M.el = t;
+    schedule();
+  }, true);
+  document.addEventListener("mouseleave", function (e) {
+    if (M.on && (e.target === document.documentElement || e.target === document)) {
+      M.el = null;
+      schedule();
+    }
+  }, true);
+  ["mousedown", "mouseup", "auxclick", "dblclick", "contextmenu", "dragstart", "selectstart"].forEach(function (name) {
+    document.addEventListener(name, function (e) {
+      if (M.on && !isOurs(e.target)) mStop(e);
+    }, true);
+  });
+  document.addEventListener("click", function (e) {
+    if (!M.on || isOurs(e.target)) return;
+    mStop(e);
+    var t = mTarget(e);
+    if (!t) return;
+    var at = M.pins.indexOf(t);
+    if (at >= 0 && !e.shiftKey) {
+      M.pins.splice(at, 1);
+      M.links = M.links.filter(function (l) { return l[0] !== t && l[1] !== t; });
+    } else if (at < 0) {
+      var prev = M.pins.length ? M.pins[M.pins.length - 1] : null;
+      if (M.pins.length >= 6) M.pins.shift();
+      M.pins.push(t);
+      if (e.shiftKey && prev && prev !== t) M.links.push([prev, t]);
+    }
+    M.last = "";
+    schedule();
+  }, true);
+  window.addEventListener("keyup", function (e) {
+    if (e.key === "Alt" && M.alt) {
+      M.alt = false;
+      schedule();
+    }
+  }, true);
+  function copyText(text) {
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("style", "position:fixed;left:-9999px;top:0;opacity:0");
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = document.execCommand("copy");
+      ta.remove();
+      return ok;
+    } catch (err) {
+      return false;
+    }
+  }
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Alt" && !M.alt) {
+      M.alt = true;
+      schedule();
+    }
+    if (!M.on || textEl) return;
+    var mod = e.ctrlKey || e.metaKey;
+    var k = (e.key || "").toLowerCase();
+    if (e.key === "Escape") {
+      mStop(e);
+      if (M.pins.length) {
+        M.pins = [];
+        M.links = [];
+        M.last = "";
+        schedule();
+      } else post({ type: "measureExit" });
+    } else if (mod && !e.shiftKey && !e.altKey && k === "c") {
+      var b = M.el && M.el.isConnected ? boxOf(M.el) : M.pins.length ? boxOf(M.pins[M.pins.length - 1]) : null;
+      if (!b) return;
+      mStop(e);
+      var text = sizeText(b);
+      post({ type: "measureCopied", text: text, ok: copyText(text) });
+    } else if (!mod && !e.altKey && !e.shiftKey && k === "d") {
+      mStop(e);
+      M.details = !M.details;
+      schedule();
+      post({ type: "measureOpt", details: M.details });
+    }
+  }, true);
 
   // ---------------------------------------------------------------- picking
   var VOID = { area: 1, base: 1, br: 1, col: 1, embed: 1, hr: 1, img: 1, input: 1, link: 1, meta: 1, param: 1, source: 1, track: 1, wbr: 1 };
@@ -340,9 +612,10 @@ export function bridgeMain() {
     var forward = false;
     if (mod && /^[zyxcvdsjpbk\/]$/i.test(key)) forward = true;
     else if (mod && e.shiftKey && /^[ep]$/i.test(key)) forward = true;
-    else if (e.altKey && /^[1-4]$/.test(key)) forward = true;
+    else if (e.altKey && /^[1-5]$/.test(key)) forward = true;
     else if (edit && (key === "Delete" || key === "Backspace" || key === "Escape" || key === "F2" || key === "Enter")) forward = true;
     else if (key === "F1") forward = true;
+    else if (!mod && !e.altKey && !e.shiftKey && (key === "m" || key === "M") && !(e.target && (e.target.isContentEditable || /^(input|textarea|select)$/i.test(e.target.tagName || "")))) forward = true; // toggles the measure tool
     if (!forward) return;
     if (e.key === "Escape" && selectedId == null) return;
     e.preventDefault();
@@ -630,6 +903,30 @@ export function bridgeMain() {
         drop = null;
         schedule();
         break;
+      case "measure": {
+        // { on, unit, ppi, dprAware, details, accent }: everything is validated here, the page cannot reach this handler
+        // (messages must come from the parent window)
+        var wasOn = M.on;
+        M.on = !!m.on;
+        if (kit.UNITS.indexOf(m.unit) >= 0) M.unit = m.unit;
+        if (typeof m.ppi === "number" && m.ppi >= 20 && m.ppi <= 1000) M.ppi = m.ppi;
+        M.dprAware = !!m.dprAware;
+        M.details = !!m.details;
+        if (typeof m.accent === "string" && /^#[0-9a-f]{3,8}$/i.test(m.accent)) M.accent = m.accent;
+        if (!M.on) {
+          M.el = null;
+          M.pins = [];
+          M.links = [];
+        } else if (!wasOn) hoverId = null;
+        M.last = "";
+        schedule();
+        break;
+      }
+      case "measureBox": {
+        var me = byId(m.id);
+        post({ type: "measureBox", reqId: m.reqId, box: me ? wireBox(boxOf(me)) : null });
+        break;
+      }
       case "textEditStart":
         startTextEdit(m.id, null);
         break;
@@ -646,4 +943,4 @@ export function bridgeMain() {
 }
 
 /** Source text injected into the preview: the function body wrapped in an IIFE. */
-export const bridgeSource = `(${bridgeMain.toString()})();`;
+export const bridgeSource = `(${bridgeMain.toString()})((${measureKit.toString()})());`;

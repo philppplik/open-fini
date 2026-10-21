@@ -14,6 +14,8 @@
   --of-accent-soft: rgba(139, 124, 246, 0.18);
   --of-danger: #ef5b64;
   --of-ok: #3dd68c;
+  --of-on-accent: #111218; /* text on the accent: derived per theme (ui/themes.js) so it always reaches 4.5:1 */
+  --of-selection: rgba(139, 124, 246, 0.38);
 
   --of-bg-app: #1d1e22;
   --of-bg-bar: #25262b;
@@ -44,6 +46,10 @@
   --of-accent: #6b58e8;
   --of-accent-strong: #5a46de;
   --of-accent-soft: rgba(107, 88, 232, 0.14);
+  --of-on-accent: #ffffff;
+  --of-selection: rgba(107, 88, 232, 0.28);
+  --of-danger: #c62832;
+  --of-ok: #15803d;
   --of-bg-app: #e9eaee;
   --of-bg-bar: #f6f6f8;
   --of-bg-panel: #f1f1f4;
@@ -54,7 +60,7 @@
   --of-border-soft: #dfe0e6;
   --of-text: #1c1d22;
   --of-text-dim: #5d5f69;
-  --of-text-faint: #8b8d97;
+  --of-text-faint: #7c7e88;
   --of-hover: rgba(0, 0, 0, 0.06);
   --of-active: rgba(0, 0, 0, 0.1);
   --of-shadow: 0 8px 28px rgba(20, 20, 40, 0.2);

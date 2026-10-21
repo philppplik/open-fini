@@ -17,7 +17,10 @@ You do not need any of this to work on the web app. `npm start` is enough for th
 | `capabilities/default.json` | The permissions the main window gets. Nothing outside this list is reachable from JavaScript. |
 | `src/lib.rs`, `src/main.rs` | Plugin registration, single-instance forwarding, "open with" delivery. |
 | `icons/` | Generated from `app/icons/icon.svg` by `npm run icons`. Do not edit by hand. |
-| `linux/openfini-mime.xml` | Registers the `.ofini` MIME type in `.deb`, `.rpm` and AppImage packages. |
+| `linux/` | `openfini.desktop` (Exec with `%F`, MIME list), `openfini-mime.xml` (shared-mime-info) and the MIME icon, installed by `.deb`, `.rpm` and AppImage. |
+| `windows/open-with.nsh` | NSIS hook: "Open with" registration for non-owned types, document icon. |
+| `Info.plist`, `tauri.macos.conf.json` | macOS: document type icon for `.ofini` / `.ofext`. |
+| `src/cli.rs` | `--help`, `--version`, argument and `file://` URL parsing (with unit tests). |
 
 The frontend is built with `npm run build` into `../dist` and embedded (compressed) in the
 binary. `app.withGlobalTauri` is on, so `app/src/platform/tauri.js` uses `window.__TAURI__`
@@ -165,11 +168,13 @@ read and save them wherever they live. Files picked in the dialogs are added by 
 
 ## File associations
 
-`.ofini` is registered everywhere. Image formats (`svg`, `png`, `jpg`, `webp`) are registered on
-macOS (as *Alternate*, so OpenFini appears under "Open With" but never becomes the default) and on
-Linux (listed in the `.desktop` file). They are **not** registered on Windows: the Windows
-installer would make OpenFini the default program for those extensions for users who never picked
-one. `tauri.windows.conf.json` overrides the list for that reason.
+The complete description (what each installer registers, how to make OpenFini the default, the command line) is in
+[docs/os-integration.md](../docs/os-integration.md). In short: `.ofini` and `.ofext` are owned types; all other types
+are registered as alternates (macOS `LSHandlerRank` Alternate, Linux `MimeType=`, Windows through
+`windows/open-with.nsh`) so OpenFini shows up under "Open with" without taking over anything.
+`tauri.windows.conf.json` lists only the owned types because Tauri's NSIS and MSI templates write the default program
+for every listed extension. The list comes from `app/src/platform/file-types.js`; a test checks that every file stays in
+sync.
 
 ## Dependencies and the lockfile
 

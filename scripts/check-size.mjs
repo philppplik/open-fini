@@ -5,6 +5,7 @@
 //
 // Budgets live in scripts/size-budget.json (KiB of gzip bytes):
 //   shellJsGzipKiB   all JavaScript outside vendor/ (the app shell + service worker)
+//   startupJsGzipKiB JavaScript needed to start the app (index.html modules + their static imports)
 //   totalGzipKiB     everything the browser downloads, excluding fonts and license texts
 import { readFile, readdir } from "node:fs/promises";
 import { basename, dirname, extname, join, relative, resolve, sep } from "node:path";
@@ -13,9 +14,11 @@ import { brotliCompressSync, constants, gzipSync } from "node:zlib";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-const GROUPS = ["shell-js", "vendor-js", "css", "fonts", "images", "markup-data", "legal", "other"];
+const GROUPS = ["shell-js", "vendor-js", "on-demand", "css", "fonts", "images", "markup-data", "legal", "other"];
 /** Groups that do not count towards the "total download" budget. */
-const EXCLUDED_FROM_TOTAL = new Set(["fonts", "legal"]);
+/** `on-demand` holds large libraries (PDF import, KaTeX) that load only when a feature is used and are not precached. */
+const EXCLUDED_FROM_TOTAL = new Set(["fonts", "legal", "on-demand"]);
+const ON_DEMAND = /^vendor\/(pdfjs|katex)\//;
 
 /**
  * @param {string} rel posix path relative to the build folder
@@ -25,6 +28,7 @@ export function groupOf(rel) {
   const name = basename(rel);
   const ext = extname(name).toLowerCase();
   if (/^(LICENSE|COPYING|NOTICE)/i.test(name) || (rel.startsWith("vendor/") && [".md", ".txt"].includes(ext))) return "legal";
+  if (ON_DEMAND.test(rel)) return "on-demand";
   if (ext === ".js" || ext === ".mjs") return rel.startsWith("vendor/") ? "vendor-js" : "shell-js";
   if (ext === ".css") return "css";
   if ([".woff2", ".woff", ".ttf", ".otf"].includes(ext)) return "fonts";
@@ -71,7 +75,37 @@ export async function measure(root) {
     if (EXCLUDED_FROM_TOTAL.has(name)) continue;
     for (const key of Object.keys(total)) total[key] += g[key];
   }
-  return { groups, total, files };
+  return { groups, total, files, startup: await startupJs(root, files) };
+}
+
+/**
+ * Gzip size of the JavaScript the browser must load before the app is usable: the module scripts of index.html and
+ * everything they import statically (lazy `import()` chunks are not counted).
+ */
+export async function startupJs(root, files) {
+  const sizes = new Map(files.map((f) => [f.rel, f.gzip]));
+  let html = "";
+  try {
+    html = await readFile(join(root, "index.html"), "utf8");
+  } catch {
+    return null;
+  }
+  const seen = new Set();
+  const queue = [...html.matchAll(/<script[^>]*type="module"[^>]*src="\.\/([^"]+)"/g)].map((m) => m[1]);
+  while (queue.length) {
+    const rel = queue.pop();
+    if (seen.has(rel) || !sizes.has(rel)) continue;
+    seen.add(rel);
+    const code = await readFile(join(root, rel), "utf8");
+    // static imports/re-exports only: `from"./x.js"` and bare `import"./x.js"`
+    for (const m of code.matchAll(/(?:from|import)\s*"(\.\/[^"]+\.js)"/g)) {
+      if (code[m.index - 1] === "(") continue;
+      queue.push(join(dirname(rel), m[1]).split(sep).join("/"));
+    }
+  }
+  let gzip = 0;
+  for (const rel of seen) gzip += sizes.get(rel);
+  return { files: seen.size, gzip };
 }
 
 const kib = (bytes) => (bytes / 1024).toFixed(1).padStart(9);
@@ -123,6 +157,7 @@ async function main() {
 
   const checks = [
     { name: "shell JS (gzip)", actual: result.groups["shell-js"].gzip / 1024, limit: budget.shellJsGzipKiB },
+    { name: "startup JS (gzip)", actual: result.startup ? result.startup.gzip / 1024 : 0, limit: budget.startupJsGzipKiB },
     { name: "total download (gzip, no fonts)", actual: result.total.gzip / 1024, limit: budget.totalGzipKiB },
   ].filter((c) => typeof c.limit === "number");
   const failed = checks.filter((c) => c.actual > c.limit);

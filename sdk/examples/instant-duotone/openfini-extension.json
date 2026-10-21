@@ -1,0 +1,25 @@
+{
+  "$schema": "../../schema/openfini-extension.schema.json",
+  "id": "openfini-examples.instant-duotone",
+  "name": "Instant Duotone",
+  "version": "1.0.0",
+  "description": "Pixel: one command adds a duotone look as a non-destructive gradient-map adjustment layer.",
+  "engines": { "openfini": ">=0.3.0" },
+  "main": "main.js",
+  "permissions": ["document.write", "ui", "storage"],
+  "contributes": {
+    "commands": [
+      { "id": "apply", "title": "Instant Duotone", "category": "Pixel", "icon": "circle-half", "studios": ["pixel"], "requires": "document" },
+      { "id": "choose", "title": "Instant Duotone: Choose Colors…", "icon": "palette", "studios": ["pixel"], "requires": "document" }
+    ],
+    "menus": [
+      { "menu": "Filter", "command": "apply", "studios": ["pixel"] },
+      { "menu": "Filter", "command": "choose", "studios": ["pixel"] }
+    ],
+    "settings": {
+      "properties": {
+        "preset": { "type": "string", "title": "Default look", "description": "Used by the Instant Duotone command.", "default": "midnight", "enum": ["midnight", "sunset", "forest", "mono"] }
+      }
+    }
+  }
+}

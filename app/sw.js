@@ -9,6 +9,9 @@
  *   under a running editing session (see registerServiceWorker in
  *   src/platform/pwa.js).
  * - Old caches are deleted when a new version activates.
+ * - Web Share Target: a POST to <scope>/share (files shared from another app) is stored in the "ofshare-v1"
+ *   cache and answered with a redirect to ./?share=<id>; the page then opens the files and empties the cache.
+ *   That cache does not start with "openfini-", so version clean-up never touches it.
  * - Without injected tokens (the dev server serves this file as is) the worker
  *   does not intercept anything and removes itself, so development is never stale.
  */
@@ -25,6 +28,9 @@ const META = "openfini-cache-meta.json"; // pseudo URL that stores the revisions
 const BATCH = 24; // parallel downloads while precaching
 
 const scoped = (path) => new URL(path, self.registration.scope).href;
+
+const SHARE_CACHE = "ofshare-v1";
+const SHARE_PATH = "share";
 
 self.addEventListener("install", (event) => {
   if (DEV) return;
@@ -49,13 +55,35 @@ self.addEventListener("message", (event) => {
 self.addEventListener("fetch", (event) => {
   if (DEV) return;
   const { request } = event;
-  if (request.method !== "GET") return;
   const url = new URL(request.url);
+  if (request.method === "POST" && url.origin === self.location.origin && url.pathname === new URL(SHARE_PATH, self.registration.scope).pathname) {
+    event.respondWith(receiveShare(request));
+    return;
+  }
+  if (request.method !== "GET") return;
   if (url.origin !== self.location.origin) return;
   // The worker script and the build info must always come from the network.
   if (url.pathname === new URL(self.location.href).pathname || url.pathname.endsWith("/build-info.json")) return;
   event.respondWith(request.mode === "navigate" ? navigation(request) : asset(request));
 });
+
+/** Share target: keep the shared files for the page and send the browser to the app. */
+async function receiveShare(request) {
+  try {
+    const form = await request.formData();
+    const files = form.getAll("files").filter((f) => typeof f === "object" && f.size > 0);
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    const cache = await caches.open(SHARE_CACHE);
+    let n = 0;
+    for (const file of files) {
+      const key = scoped(`share-files/${id}/${n++}/${encodeURIComponent(file.name || "shared-file")}`);
+      await cache.put(key, new Response(file, { headers: { "content-type": file.type || "application/octet-stream" } }));
+    }
+    return Response.redirect(scoped(files.length ? `?share=${id}` : "./"), 303);
+  } catch {
+    return Response.redirect(scoped("./"), 303);
+  }
+}
 
 async function precache() {
   const cache = await caches.open(CACHE_NAME);
@@ -154,12 +182,21 @@ async function asset(request) {
   }
 }
 
+/** Minimal offline page. Texts are English plus a German variant picked from the browser language (see docs/i18n.md). */
+const OFFLINE_TEXT = {
+  en: { lang: "en-US", title: "OpenFini is offline", body: "The app has not been saved for offline use yet. Connect to the internet once, reload, and it will work without a connection from then on." },
+  de: { lang: "de-DE", title: "OpenFini ist offline", body: "Die App wurde noch nicht für die Offline-Nutzung gespeichert. Verbinde dich einmal mit dem Internet und lade die Seite neu. Danach funktioniert sie auch ohne Verbindung." },
+};
+
 function offlinePage() {
+  const langs = (self.navigator && (self.navigator.languages || [self.navigator.language])) || [];
+  const pick = langs.map((l) => String(l || "").toLowerCase().split(/[-_]/)[0]).find((l) => OFFLINE_TEXT[l]) || "en";
+  const tx = OFFLINE_TEXT[pick];
   const html =
-    '<!doctype html><html lang="en-US"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-    '<meta name="color-scheme" content="dark light"><title>OpenFini is offline</title>' +
+    `<!doctype html><html lang="${tx.lang}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
+    `<meta name="color-scheme" content="dark light"><title>${tx.title}</title>` +
     "<style>body{margin:0;display:grid;min-height:100vh;place-items:center;background:#1c1d21;color:#e6e6ea;font:16px system-ui,sans-serif}" +
     "main{max-width:28rem;padding:1.5rem;text-align:center}h1{font-size:1.25rem}</style>" +
-    "<main><h1>OpenFini is offline</h1><p>The app has not been saved for offline use yet. Connect to the internet once, reload, and it will work without a connection from then on.</p></main></html>";
+    `<main><h1>${tx.title}</h1><p>${tx.body}</p></main></html>`;
   return new Response(html, { status: 503, headers: { "content-type": "text/html; charset=utf-8" } });
 }

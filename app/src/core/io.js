@@ -10,14 +10,27 @@ import { importSVG } from "../engine/vector/svg-import.js";
 import { addNodes } from "./ops.js";
 import { addImportedText } from "./text-ops.js";
 import { canvasToBytes } from "./ofini.js";
+import { ImportReport, attachReport } from "./import-report.js";
+
+import { TEXT_DOC_EXTS } from "./text-docs.js";
 
 export const IMAGE_EXTS = ["png", "jpg", "jpeg", "webp", "gif", "bmp", "avif"];
+export const MORE_IMAGE_EXTS = ["tif", "tiff", "ora", "kra", "ico", "cur"];
+export const PALETTE_EXTS = ["gpl", "ase", "aco"];
+/** Word processor files the Office Studio opens (plus the files it explains: Google Docs shortcuts, .doc, .pages). */
+export const OFFICE_DOC_EXTS = ["docx", "odt", "rtf", "dotx", "ott", "fodt", "doc", "pages", "gdoc"];
 export const OPEN_FILTERS = [
-  { name: "All supported files", extensions: ["ofini", "psd", "psb", "idml", "svg", ...IMAGE_EXTS] },
+  { name: "All supported files", extensions: ["ofini", "pdf", "ai", "psd", "psb", "idml", "sketch", "svg", ...IMAGE_EXTS, ...MORE_IMAGE_EXTS, ...PALETTE_EXTS, ...TEXT_DOC_EXTS, ...OFFICE_DOC_EXTS] },
+  { name: "Word and text documents (DOCX, ODT, RTF)", extensions: OFFICE_DOC_EXTS },
+  { name: "Text and code (Markdown, LaTeX, JSON, YAML, …)", extensions: TEXT_DOC_EXTS },
   { name: "OpenFini documents", extensions: ["ofini"] },
   { name: "Photoshop (PSD, PSB)", extensions: ["psd", "psb"] },
   { name: "InDesign (IDML)", extensions: ["idml"] },
+  { name: "PDF and Illustrator (PDF, AI)", extensions: ["pdf", "ai"] },
+  { name: "Sketch", extensions: ["sketch"] },
   { name: "Images", extensions: IMAGE_EXTS },
+  { name: "TIFF, OpenRaster, Krita, ICO", extensions: MORE_IMAGE_EXTS },
+  { name: "Color palettes (GPL, ASE, ACO)", extensions: PALETTE_EXTS },
   { name: "SVG graphics", extensions: ["svg"] },
 ];
 export const PLACE_FILTERS = [{ name: "Images and SVG", extensions: ["svg", ...IMAGE_EXTS] }];
@@ -147,7 +160,12 @@ export function placeSvg(app, text, name = "SVG", { x, y, asNewDoc = false } = {
     doc.touch(group);
   }
   app.select([group]);
-  if (res.warnings.length) app.toast(`SVG imported with notes: ${res.warnings.join(" ")}`, "warning", 6000);
+  if (asNewDoc) {
+    const report = new ImportReport("SVG", name).kept("Shapes, paths, text and gradients as editable objects.");
+    for (const w of res.warnings) report.dropped(w);
+    attachReport(doc, report);
+  }
+  if (res.warnings.length) app.toast(`SVG imported with notes: ${res.warnings.join(" ")} File ▸ Import Report… lists them.`, "warning", 6000);
   return group;
 }
 

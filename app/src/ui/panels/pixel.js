@@ -1,6 +1,6 @@
-// Pixel-studio panels: Brush, Adjustments (adjustment / live filter / develop layers) and Histogram.
+// Pixel-studio panels: Brush and Adjustments (adjustment / live filter / develop layers). The Histogram and Info panels live in ui/histogram/.
 import { h, empty, clone, frameScheduler, debounce } from "../../core/util.js";
-import { listEffects, getEffect, histogram, autoLevels, autoContrast, autoColor } from "../../engine/pixel/index.js";
+import { listEffects, getEffect, autoLevels, autoContrast, autoColor } from "../../engine/pixel/index.js";
 import { addEffectLayer, mergeDown } from "../../core/raster.js";
 import { addLayerMask } from "../../core/pixel.js";
 import { buildControls, button, section, sliderField, switchField, iconButton } from "../controls.js";
@@ -80,6 +80,7 @@ export function createBrushPanel(app) {
 export function createAdjustmentsPanel(app) {
   const el = h("div.of-panel.of-adjust");
   let sig = "";
+  let cur = null; // the controls currently shown for the active adjustment layer
 
   const chip = (e) => {
     const b = h("button.of-chipbtn2", { type: "button", title: `Add ${e.label}` }, e.label);
@@ -129,12 +130,45 @@ export function createAdjustmentsPanel(app) {
       onInput: (k, v) => set({ [k]: v }, false),
       onChange: (k, v) => set({ [k]: v }, true),
     });
-    const strength = sliderField({ label: "Strength", value: Math.round(node.opacity * 100), min: 0, max: 100, step: 1, unit: "%", onInput: (v) => doc.tx("Strength", () => doc.set(node, { opacity: v / 100 }), { coalesce: `adjo:${node.id}` }), onChange: (v) => doc.set(node, { opacity: v / 100 }, "Strength") });
-    const on = switchField({ label: eff.label, value: node.visible, onChange: (v) => doc.set(node, { visible: v }, v ? "Show" : "Hide") });
-    const reset = button("Reset", () => doc.set(node, { params: clone(eff.defaults) }, "Reset Effect"));
-    const apply = button("Apply to layer", () => mergeDown(app, node));
+    const custom = eff.id === "levels" || eff.id === "curves";
+    if (custom) form.classList.add("hidden"); // replaced by the interactive widget as soon as it has loaded
+    const slot = h("div.of-adj__widget");
+    const strength = sliderField({ label: "Opacity", value: Math.round(node.opacity * 100), min: 0, max: 100, step: 1, unit: "%", onInput: (v) => doc.tx("Opacity", () => doc.set(node, { opacity: v / 100 }), { coalesce: `adjo:${node.id}` }), onChange: (v) => doc.set(node, { opacity: v / 100 }, "Opacity") });
+    const on = switchField({ label: "Enabled", value: node.visible, onChange: (v) => doc.set(node, { visible: v }, v ? "Show" : "Hide") });
+    const reset = button("Reset", () => doc.set(node, { params: clone(eff.defaults) }, "Reset Effect"), { title: "Restore the default values" });
+    const apply = button("Apply to layer", () => mergeDown(app, node), { title: "Bake this effect into the layer below" });
     const mask = iconButton({ icon: "circle-half", label: "Add mask to this effect", onClick: () => addLayerMask(app, node, app.state.pixelMask ? "selection" : "reveal") });
-    return section(eff.label, h("div.of-form", h("div.of-row", on.el, h("span.grow"), mask), strength.el, form, h("div.of-row", reset, apply)), { open: true });
+    // hold to compare with the effect switched off (not an undo step)
+    const cmp = button("Hold to compare", null, { title: "Press and hold to see the image without this effect" });
+    const restore = () => {
+      if (!node.visible && cmp._hidden) {
+        node.visible = true;
+        cmp._hidden = false;
+        doc.touch(node);
+        app.requestRender();
+      }
+    };
+    cmp.addEventListener("pointerdown", (e) => {
+      if (!node.visible) return;
+      cmp.setPointerCapture?.(e.pointerId);
+      cmp._hidden = true;
+      node.visible = false;
+      doc.touch(node);
+      app.requestRender();
+    });
+    for (const ev of ["pointerup", "pointercancel", "lostpointercapture", "blur"]) cmp.addEventListener(ev, restore);
+    cur = { node, eff, form, strength, on, widget: null };
+    import("../histogram/widgets.js")
+      .then((m) => {
+        if (cur?.node !== node) return;
+        const w = m.createAdjustWidget(app, node, eff, { params, set });
+        if (!w) return form.classList.remove("hidden");
+        cur.widget = w;
+        slot.append(w.el);
+        form.classList.toggle("hidden", !!w.replacesControls);
+      })
+      .catch(() => form.classList.remove("hidden"));
+    return section(eff.label, h("div.of-form", h("div.of-row", on.el, h("span.grow"), cmp, mask), strength.el, slot, form, h("div.of-row", reset, apply)), { open: true });
   }
 
   const s = frameScheduler(() => {
@@ -145,6 +179,15 @@ export function createAdjustmentsPanel(app) {
     build();
   });
   for (const ev of ["selection", "doc", "studio"]) app.on(ev, s);
+  // keep the controls in sync with undo / redo, Reset and edits made elsewhere
+  app.on("docchange", () => {
+    if (!cur || !app.doc || app.doc.find(cur.node.id) !== cur.node) return;
+    const p = { ...cur.eff.defaults, ...cur.node.params };
+    cur.form.update(p);
+    cur.widget?.update(p);
+    cur.on.set(cur.node.visible);
+    cur.strength.set(Math.round(cur.node.opacity * 100));
+  });
   build();
   return { el, show: () => { sig = ""; build(); } };
 }
@@ -158,50 +201,4 @@ function compositeImage(app, max = 512) {
   const hh = Math.max(1, Math.round(page.h * s));
   const c = renderToCanvas(buildPageDL(app.doc, page), { scale: s, width: w, height: hh, bg: page.bg });
   return ctx2d(c).getImageData(0, 0, w, hh);
-}
-
-// ------------------------------------------------------------------ histogram
-
-export function createHistogramPanel(app) {
-  const canvas = h("canvas.of-histogram", { width: 520, height: 160 });
-  const info = h("div.of-hint");
-  const channel = h("sl-select", { value: "rgb", size: "small", hoist: true, "aria-label": "Channel" });
-  for (const [v, l] of [["rgb", "RGB"], ["luma", "Luminosity"], ["r", "Red"], ["g", "Green"], ["b", "Blue"]]) channel.append(h("sl-option", { value: v }, l));
-  const el = h("div.of-panel.of-hist", h("div.of-row", channel), canvas, info);
-  let last = null;
-
-  function draw() {
-    const img = compositeImage(app, 400);
-    if (!img) return;
-    last = histogram(img);
-    paint();
-  }
-  function paint() {
-    if (!last) return;
-    const ctx = canvas.getContext("2d");
-    const W = canvas.width;
-    const H = canvas.height;
-    ctx.clearRect(0, 0, W, H);
-    const mode = channel.value || "rgb";
-    const series = mode === "rgb" ? [["r", "rgba(239,68,68,.65)"], ["g", "rgba(34,197,94,.6)"], ["b", "rgba(59,130,246,.65)"]] : mode === "luma" ? [["luma", "rgba(200,200,210,.8)"]] : [[mode, { r: "rgba(239,68,68,.8)", g: "rgba(34,197,94,.8)", b: "rgba(59,130,246,.8)" }[mode]]];
-    let max = 1;
-    for (const [k] of series) for (let i = 1; i < 255; i++) max = Math.max(max, last[k][i]);
-    ctx.globalCompositeOperation = "lighter";
-    for (const [k, col] of series) {
-      ctx.fillStyle = col;
-      ctx.beginPath();
-      ctx.moveTo(0, H);
-      for (let i = 0; i < 256; i++) ctx.lineTo((i / 255) * W, H - Math.min(1, last[k][i] / max) * (H - 4));
-      ctx.lineTo(W, H);
-      ctx.closePath();
-      ctx.fill();
-    }
-    ctx.globalCompositeOperation = "source-over";
-    info.textContent = `${last.count.toLocaleString("en-US")} pixels analyzed`;
-  }
-  channel.addEventListener("sl-change", paint);
-  const dd = debounce(draw, 300);
-  for (const ev of ["docchange", "doc", "page"]) app.on(ev, dd);
-  requestAnimationFrame(draw);
-  return { el, show: draw };
 }

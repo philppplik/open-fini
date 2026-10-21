@@ -6,6 +6,9 @@ import { parseColor, rgbToHex } from "../core/color.js";
 import { mul, ident, rectUnion } from "../core/math.js";
 import { layoutStory, createHyphenator } from "./layout/index.js";
 import { measurer, fontState } from "../core/fonts.js";
+import { renderTable } from "./layout/table-render.js";
+import { normalizeChart, resolveData, describeChart } from "./layout/chart-data.js";
+import { renderChart } from "./layout/chart-render.js";
 
 /** Bump when something outside a node changes what it draws (an asset finishes decoding, ...). */
 export const dlState = { version: 0 };
@@ -70,7 +73,7 @@ function strokeFrom(s, bbox, widthMul = 1) {
 const pathItem = (d, rule, fill, stroke) => ({ t: "path", d, rule, fill, stroke, m: ident() });
 const groupItem = (items, o = {}) => ({
   t: "group", items, m: o.m || ident(), opacity: o.opacity ?? 1, blend: o.blend || "normal",
-  clip: o.clip || null, isolate: !!o.isolate, fx: o.fx || null, mask: o.mask || null, b: o.b || null,
+  clip: o.clip || null, isolate: !!o.isolate, fx: o.fx || null, mask: o.mask || null, b: o.b || null, alt: o.alt || null,
 });
 
 // ------------------------------------------------------------------ node compilers
@@ -239,6 +242,43 @@ function textItems(node, ctx) {
   return runs.length ? [{ t: "text", runs, m: ident() }] : [];
 }
 
+// ------------------------------------------------------------------ tables and charts
+
+function invalidateBounds(node) {
+  for (let n = node; n; n = n._parent) n._lbk = -1;
+}
+
+function tableNodeItems(node, ctx) {
+  let res;
+  try {
+    res = renderTable(node, measurer, { fields: { pageNumber: String(ctx.pageNo || 1), pageCount: String(ctx.doc.pages.length) } });
+  } catch {
+    return [];
+  }
+  const b = node._bounds;
+  node._tl = res.layout;
+  node._bounds = { x: 0, y: 0, w: res.layout.w, h: res.layout.h };
+  if (!b || b.w !== node._bounds.w || b.h !== node._bounds.h) invalidateBounds(node);
+  const alt = node.alt ? { title: node.name, desc: node.alt } : null;
+  return alt ? [groupItem(res.items, { alt })] : res.items;
+}
+
+function chartNodeItems(node, ctx) {
+  if (!node.chart || !(node.w > 0) || !(node.h > 0)) return [];
+  try {
+    const chart = normalizeChart(node.chart);
+    const { data } = resolveData(chart, (id) => {
+      const t = ctx.doc.find(id);
+      return t && t.type === "table" ? t : null;
+    });
+    const r = renderChart(chart, data, node.w, node.h, measurer);
+    node._plot = r.plot;
+    return [groupItem(r.items, { alt: { title: chart.title || node.name, desc: node.alt || describeChart(chart, data) } })];
+  } catch {
+    return [];
+  }
+}
+
 // ------------------------------------------------------------------ main compiler
 
 function place(items, m) {
@@ -266,7 +306,9 @@ export function nodeItems(node, ctx) {
   if (!node.visible) return [];
   // master-page content depends on the page it is drawn on (page-number fields): never cached
   if (ctx.nocache) return compileNode(node, ctx);
-  const key = `${node._rev | 0}|${dlState.version}|${fontState.version}`;
+  let key = `${node._rev | 0}|${dlState.version}|${fontState.version}`;
+  // a chart linked to a table redraws when that table changes
+  if (node.type === "chart" && node.chart?.source) key += `|${ctx.doc.find(node.chart.source.tableId)?._rev | 0}`;
   if (node._dl && node._dl.key === key) return node._dl.items;
   const items = compileNode(node, ctx);
   node._dl = { key, items };
@@ -307,6 +349,12 @@ function compileNode(node, ctx) {
       break;
     case "pixel":
       own = pixelItems(node, ctx);
+      break;
+    case "table":
+      own = tableNodeItems(node, ctx);
+      break;
+    case "chart":
+      own = chartNodeItems(node, ctx);
       break;
   }
 

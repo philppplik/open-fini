@@ -31,6 +31,23 @@ const FILE_ICONS = {
   ogg: "file-earmark-music",
   pdf: "filetype-pdf",
   txt: "filetype-txt",
+  markdown: "filetype-md",
+  mdx: "filetype-md",
+  tex: "file-earmark-text",
+  latex: "file-earmark-text",
+  bib: "file-earmark-text",
+  sty: "file-earmark-text",
+  cls: "file-earmark-text",
+  csv: "file-earmark-text",
+  tsv: "file-earmark-text",
+  yaml: "file-earmark-code",
+  yml: "file-earmark-code",
+  toml: "file-earmark-code",
+  ini: "file-earmark-code",
+  ts: "filetype-js",
+  tsx: "filetype-js",
+  jsx: "filetype-js",
+  tmpl: "filetype-html",
 };
 
 export function fileIconName(path) {

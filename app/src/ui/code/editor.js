@@ -5,8 +5,10 @@ import * as CM from "../../../vendor/codemirror/codemirror.js";
 import { Emitter, h, empty, formatBytes } from "../../core/util.js";
 import { languageOf, parseHtml, parseCss, formatCss, resolveRef, dirname } from "../../engine/web/index.js";
 import { expandHtml, expandCss, abbreviationBefore } from "../../engine/web/emmet.js";
+import { tailwindClasses, BOOTSTRAP_CLASSES, TAILWIND_VARIANTS, splitVariant, attributeOptions, htmxValues } from "../../engine/web/index.js";
 import { fileIcon, fuzzyScore, trimmedChange } from "./util.js";
-import { showContextMenu } from "../menus.js";
+import { markContext } from "../context-menu/index.js";
+import { registerCodeContext, openEditorMenu } from "./context.js";
 
 const SNIPPETS_HTML = [
   { label: "html5", detail: "HTML document", template: `<!doctype html>\n<html lang="en-US">\n  <head>\n    <meta charset="utf-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1" />\n    <title>\${Title}</title>\n    <link rel="stylesheet" href="css/style.css" />\n  </head>\n  <body>\n    \${}\n    <script src="js/main.js"></script>\n  </body>\n</html>\n` },
@@ -35,13 +37,21 @@ function languageExtension(path) {
     case "css":
       return CM.css();
     case "javascript":
-      return CM.javascript();
+      return CM.javascript({ typescript: /\.tsx?$/i.test(path), jsx: /\.(jsx|tsx)$/i.test(path) });
     case "json":
       return CM.json();
     case "markdown":
       return CM.markdown();
     case "xml":
       return CM.xml();
+    case "latex":
+      return CM.StreamLanguage.define(CM.stex);
+    case "yaml":
+      return CM.StreamLanguage.define(CM.yaml);
+    case "toml":
+      return CM.StreamLanguage.define(CM.toml);
+    case "properties":
+      return CM.StreamLanguage.define(CM.properties);
     default:
       return [];
   }
@@ -71,7 +81,8 @@ export class CodeEditors extends Emitter {
     this.placeholder = h("div.of-editor__empty", h("sl-icon", { name: "code-slash" }), h("p", "Open a file from the Explorer"), h("p.of-hint", "Quick open  Ctrl+P · Commands  Ctrl+Shift+P"));
     this.host = h("div.of-editor__host");
     this.media = h("div.of-editor__media.hidden");
-    this.el = h("div.of-editor", this.tabsEl, this.host, this.media, this.placeholder);
+    this.fmtbar = h("div.of-fmtbar.hidden"); // formatting buttons for Markdown and LaTeX (see doctools.js)
+    this.el = h("div.of-editor", this.tabsEl, this.fmtbar, this.host, this.media, this.placeholder);
 
     // editor preferences (Settings ▸ Code studio) are global; the project keeps the effective values
     web.settings.tabSize = app.prefs.codeTabSize || web.settings.tabSize || 2;
@@ -87,6 +98,7 @@ export class CodeEditors extends Emitter {
       if (ev.kind === "remove") for (const p of ev.paths) this.close(p, true);
       else if (ev.kind === "rename") for (const [from, to] of ev.pairs) this.#renamed(from, to);
     });
+    registerCodeContext(this);
     this.#renderTabs();
   }
 
@@ -127,6 +139,7 @@ export class CodeEditors extends Emitter {
       CM.highlightSelectionMatches(),
       CM.search({ top: true }),
       CM.lintGutter(),
+      ...(this.extraExtensions?.(path) || []),
       CM.keymap.of([...keymapExtra, ...CM.closeBracketsKeymap, ...CM.defaultKeymap, ...CM.searchKeymap, ...CM.historyKeymap, ...CM.foldKeymap, ...CM.completionKeymap, ...CM.lintKeymap, CM.indentWithTab]),
       CM.indentUnit.of(" ".repeat(web.settings.tabSize || 2)),
       CM.EditorState.tabSize.of(web.settings.tabSize || 2),
@@ -149,29 +162,10 @@ export class CodeEditors extends Emitter {
       }),
       CM.EditorView.domEventHandlers({
         contextmenu(e, view) {
+          // Shift + right-click keeps the browser's own menu
+          if (e.shiftKey) return false;
           e.preventDefault();
-          const sel = view.state.selection.main;
-          const has = !sel.empty;
-          const items = [
-            { label: "Cut", icon: "scissors", disabled: !has, run: () => (view.focus(), document.execCommand("cut")) },
-            { label: "Copy", icon: "clipboard", disabled: !has, run: () => (view.focus(), document.execCommand("copy")) },
-            { label: "Paste", icon: "clipboard-plus", run: async () => { const t = await navigator.clipboard.readText().catch(() => ""); if (t) view.dispatch(view.state.replaceSelection(t)); } },
-            { label: "Select all", run: () => CM.selectAll(view) },
-            "-",
-            { label: "Format document", icon: "text-indent-left", run: () => self.format() },
-            { label: "Toggle comment", run: () => CM.toggleComment(view) },
-          ];
-          const ctx = () => {
-            const d = view.state.doc;
-            const s = view.state.selection.main;
-            const a = d.lineAt(s.from);
-            const b = d.lineAt(s.to);
-            const whole = s.empty;
-            return { path: self.active, fromLine: a.number, toLine: b.number, text: whole ? d.sliceString(a.from, a.to) : d.sliceString(s.from, s.to) };
-          };
-          const ai = self.app.aiQuick?.codeAiItems(self.app, ctx) || [];
-          if (ai.length) items.push("-", { label: "AI", icon: "stars", items: ai });
-          showContextMenu(self.app, e.clientX, e.clientY, items);
+          openEditorMenu(self, e, view); // providers: ./context.js (Cut/Copy/Paste, Transform, AI, extensions)
           return true;
         },
       }),
@@ -230,6 +224,8 @@ export class CodeEditors extends Emitter {
     return (context) => {
       const pos = context.pos;
       const before = context.state.sliceDoc(Math.max(0, pos - 400), pos);
+      // snippets contributed by extensions (docs/extensions.md)
+      const extSnips = (l) => (self.app.extensions?.snippets(l) || []).map((s) => CM.snippetCompletion(s.body, { label: s.label, detail: s.detail || s.ext, boost: -1 }));
       const fileOptions = (prefix) => {
         const dir = dirname(path);
         const out = [];
@@ -245,13 +241,38 @@ export class CodeEditors extends Emitter {
         if (m) {
           const token = /[^\s]*$/.exec(m[1])[0];
           const used = new Set(m[1].split(/\s+/));
-          return { from: pos - token.length, options: self.model.classNames().filter((c) => !used.has(c) || c === token).map((c) => ({ label: c, type: "class" })), validFor: /^[\w-]*$/ };
+          const own = self.model.classNames().filter((c) => !used.has(c) || c === token).map((c) => ({ label: c, type: "class" }));
+          const fw = self.model.frameworks();
+          if (fw.has("tailwind") || fw.has("bootstrap")) {
+            // framework classes: Tailwind variants (md:hover:) stay in front of the completed name
+            const { prefix, rest } = splitVariant(token);
+            const names = [...(fw.has("tailwind") ? tailwindClasses() : []), ...(fw.has("bootstrap") ? BOOTSTRAP_CLASSES : [])];
+            const options = [...own];
+            if (fw.has("tailwind") && !rest.includes(":")) for (const v of TAILWIND_VARIANTS) options.push({ label: v, type: "keyword", boost: -3 });
+            let n = 0;
+            for (const c of names) {
+              if (used.has(prefix + c)) continue;
+              if (rest && !c.startsWith(rest) && !c.includes(rest)) continue;
+              options.push({ label: c, type: "class", detail: fw.has("tailwind") ? "Tailwind" : "Bootstrap", boost: c.startsWith(rest) ? -1 : -2 });
+              if (++n > 400) break;
+            }
+            return { from: pos - rest.length, options, validFor: /^[\w./[\]-]*$/ };
+          }
+          return { from: pos - token.length, options: own, validFor: /^[\w-]*$/ };
         }
+        // Alpine.js / htmx attributes inside a start tag
+        const fwAttrs = /<[A-Za-z][\w-]*(?:\s+[^<>]*?)?\s(@[\w.:-]*|:[\w-]*|x-[\w.:-]*|hx-[\w.:-]*)$/.exec(before);
+        if (fwAttrs) {
+          const options = attributeOptions(self.model.frameworks());
+          if (options.length) return { from: pos - fwAttrs[1].length, options, validFor: /^[@:\w.-]*$/ };
+        }
+        const hxValue = /\s(hx-[\w-]+)\s*=\s*["']([^"']*)$/.exec(before);
+        if (hxValue && htmxValues(hxValue[1]).length) return { from: pos - hxValue[2].length, options: htmxValues(hxValue[1]).map((v) => ({ label: v, type: "text" })), validFor: /^[\w .:-]*$/ };
         m = /\s(?:href|src|poster|action|data|srcset)\s*=\s*["']([^"']*)$/i.exec(before);
         if (m) return { from: pos - m[1].length, options: fileOptions(""), validFor: /^[\w./#-]*$/ };
         const word = context.matchBefore(/[\w:>-]+/);
         if (word && word.text.length >= 2 && /(^|\n)\s*[\w:>-]*$/.test(before.slice(-80)) && !/<[^>]*$/.test(before)) {
-          const options = SNIPPETS_HTML.map((s) => CM.snippetCompletion(s.template, { label: s.label, detail: s.detail, boost: -1 }));
+          const options = SNIPPETS_HTML.map((s) => CM.snippetCompletion(s.template, { label: s.label, detail: s.detail, boost: -1 })).concat(extSnips("html"));
           return { from: word.from, options, validFor: /^[\w:>-]*$/ };
         }
       } else if (lang === "css") {
@@ -261,7 +282,7 @@ export class CodeEditors extends Emitter {
         if (m) return { from: pos - m[1].length, options: fileOptions(""), validFor: /^[\w./-]*$/ };
         const word = context.matchBefore(/[\w-]+/);
         if (word && word.text.length >= 3 && /(^|[;{}\n])\s*[\w-]*$/.test(before.slice(-60))) {
-          return { from: word.from, options: SNIPPETS_CSS.map((s) => CM.snippetCompletion(s.template, { label: s.label, detail: s.detail, boost: -1 })), validFor: /^[\w-]*$/ };
+          return { from: word.from, options: SNIPPETS_CSS.map((s) => CM.snippetCompletion(s.template, { label: s.label, detail: s.detail, boost: -1 })).concat(extSnips("css")), validFor: /^[\w-]*$/ };
         }
       }
       return null;
@@ -282,10 +303,12 @@ export class CodeEditors extends Emitter {
       const st = this.stateFor(path);
       if (st) {
         try {
-          CM.ensureSyntaxTree(st, st.doc.length, 60);
+          // an incomplete parse (time budget) ends in a zero-length error node: only trust finished parses
+          const tree = CM.ensureSyntaxTree(st, st.doc.length, 400);
           let n = 0;
-          CM.syntaxTree(st).iterate({
+          (tree || CM.syntaxTree(st)).iterate({
             enter: (node) => {
+              if (!tree) return false;
               if (n < 40 && node.type.isError) {
                 n++;
                 const from = Math.min(node.from, text.length);
@@ -443,6 +466,7 @@ export class CodeEditors extends Emitter {
           this.close(path);
         } }, h("sl-icon", { name: "x-lg" })),
       );
+      markContext(tab, "editor-tab", { path, editors: this });
       tab.addEventListener("click", () => this.openFile(path, { focus: true }));
       tab.addEventListener("auxclick", (e) => e.button === 1 && this.close(path));
       tab.addEventListener("dragstart", (e) => {

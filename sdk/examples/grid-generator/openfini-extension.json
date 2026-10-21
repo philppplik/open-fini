@@ -1,0 +1,37 @@
+{
+  "$schema": "../../schema/openfini-extension.schema.json",
+  "id": "openfini-examples.grid-generator",
+  "name": "Grid Generator",
+  "version": "1.0.0",
+  "description": "Vector and Layout: draws a grid of rectangles from a small form. Also adds a Vibe tool and a skill.",
+  "engines": { "openfini": ">=0.3.0" },
+  "main": "main.js",
+  "permissions": ["document.read", "document.write", "ui", "vibe"],
+  "contributes": {
+    "commands": [
+      { "id": "generate", "title": "Generate Grid…", "category": "Grid", "icon": "grid-3x3-gap", "studios": ["vector", "layout"], "requires": "document" }
+    ],
+    "menus": [
+      { "menu": "Shape", "command": "generate", "studios": ["vector", "layout"] },
+      { "menu": "context:canvas", "command": "generate", "studios": ["vector", "layout"] }
+    ],
+    "keybindings": [{ "command": "generate", "key": "Mod+Alt+Shift+G", "studios": ["vector", "layout"] }],
+    "vibeTools": [
+      {
+        "name": "make_grid",
+        "description": "Draws a grid of equally sized rectangles centered on the active page and groups them. Use for dot grids, tile patterns and layout guides.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "columns": { "type": "number", "minimum": 1, "maximum": 40 },
+            "rows": { "type": "number", "minimum": 1, "maximum": 40 },
+            "cell": { "type": "number", "description": "Cell size in px", "minimum": 4, "maximum": 400 },
+            "gap": { "type": "number", "minimum": 0, "maximum": 200 },
+            "color": { "type": "string", "description": "CSS color, default #7c6df2" }
+          }
+        }
+      }
+    ],
+    "vibeSkills": [{ "file": "skills/grid-layouts/SKILL.md" }]
+  }
+}

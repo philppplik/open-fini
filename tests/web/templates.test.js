@@ -9,13 +9,14 @@ import { buildSite } from "../../app/src/engine/web/site.js";
 import { resolveRef, extname } from "../../app/src/engine/web/paths.js";
 import { makeFiles } from "./_helpers.js";
 
+const BASE = TEMPLATES.filter((t) => !t.framework);
 const IDS = ["blank", "landing", "portfolio", "blog", "docs", "link-in-bio"];
 const lines = (s) => s.split("\n").length;
 
 test("six templates with the required metadata", () => {
-  assert.deepEqual(TEMPLATES.map((t) => t.id), IDS);
-  assert.deepEqual(TEMPLATES.map((t) => t.name), ["Blank", "Landing page", "Portfolio", "Blog", "Documentation", "Link in bio"]);
-  for (const t of TEMPLATES) {
+  assert.deepEqual(BASE.map((t) => t.id), IDS);
+  assert.deepEqual(BASE.map((t) => t.name), ["Blank", "Landing page", "Portfolio", "Blog", "Documentation", "Link in bio"]);
+  for (const t of BASE) {
     assert.ok(t.description.length > 20 && t.description.length < 160, t.id);
     assert.ok(["Starter", "Business", "Personal", "Content"].includes(t.category), t.id);
     assert.match(t.accent, /^#[0-9a-f]{6}$/);
@@ -29,7 +30,7 @@ test("six templates with the required metadata", () => {
   assert.equal(Object.keys(TEMPLATES.find((t) => t.id === "docs").files).filter((f) => f.endsWith(".html")).length, 2);
 });
 
-for (const tpl of TEMPLATES) {
+for (const tpl of BASE) {
   test(`${tpl.name}: HTML pages are valid, accessible and free of problems`, () => {
     const pages = Object.keys(tpl.files).filter((p) => p.endsWith(".html"));
     assert.ok(pages.length >= 1);

@@ -2,13 +2,28 @@
   "bundle": {
     "fileAssociations": [
       {
-        "ext": ["ofini"],
+        "ext": [
+          "ofini"
+        ],
         "name": "OpenFini.Document",
-        "description": "OpenFini document",
         "mimeType": "application/x-openfini",
         "role": "Editor",
-        "rank": "Owner"
+        "rank": "Owner",
+        "description": "OpenFini Document"
+      },
+      {
+        "ext": [
+          "ofext"
+        ],
+        "name": "OpenFini.Extension",
+        "mimeType": "application/x-openfini-extension",
+        "role": "Editor",
+        "rank": "Owner",
+        "description": "OpenFini Extension"
       }
-    ]
+    ],
+    "resources": {
+      "icons/ofini-doc.ico": "ofini-doc.ico"
+    }
   }
 }
