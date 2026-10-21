@@ -141,6 +141,11 @@ export const SETTINGS = [
   { key: "codeWordWrap", section: "code", type: "boolean", label: "Wrap long lines", check: bool },
   { key: "codeFontSize", section: "code", type: "integer", min: 10, max: 24, label: "Editor font size", check: int(10, 24) },
   { key: "codeFormatOnSave", section: "code", type: "boolean", label: "Format on save", check: bool },
+  { key: "codeLayout", section: "code", type: "enum", options: ["auto", "codeLeft", "codeRight", "codeTop", "codeBottom"], label: "Split layout of the Code studio", check: oneOf("auto", "codeLeft", "codeRight", "codeTop", "codeBottom") },
+  { key: "codeMeasureUnit", section: "code", type: "enum", options: ["px", "mm", "cm", "in", "pt", "rem", "em", "%"], label: "Measure tool unit", check: oneOf("px", "mm", "cm", "in", "pt", "rem", "em", "%") },
+  { key: "codeMeasurePpi", section: "code", type: "integer", min: 20, max: 1000, label: "Measure tool pixels per inch (96 = CSS reference)", check: int(20, 1000) },
+  { key: "codeMeasureDpr", section: "code", type: "boolean", label: "Measure tool counts device pixels", check: bool },
+  { key: "codeViewportSizes", section: "code", type: "json", label: "Saved preview sizes", check: (v) => Array.isArray(v) && v.length <= 12 && v.every((s) => s && typeof s.name === "string" && Number.isFinite(s.w) && Number.isFinite(s.h)) },
   // structured customization
   { key: "shortcuts", section: "keyboard", type: "json", label: "Keyboard shortcut overrides", check: (v) => validateOverrides(v).ok && isObj(v) },
   { key: "shortcutPreset", section: "keyboard", type: "string", label: "Shortcut preset", check: (v) => typeof v === "string" && /^[a-z]{1,16}$/.test(v) },

@@ -119,7 +119,9 @@ tested against recorded protocol fixtures and fake servers.
   approval; tokens are never shared with the assistant; see [git-and-publishing.md](git-and-publishing.md)).
 - **Frameworks, libraries and documents**: `list_templates`, `list_libraries`, `search_packages` and `add_library` (network, ask first), `render_markdown`, `convert_latex_preview`, `create_markdown_document`.
 - **Code and websites**: create a website from a template, read, write, edit, rename and delete files, page outline,
-  element inspection and insertion, class-based style edits with breakpoints, page meta, problem check.
+  element inspection and insertion, class-based style edits with breakpoints, page meta, problem check. View controls:
+  `set_viewport` (pixel-exact width/height or a device preset), `get_viewport` (size, active breakpoint, markers; read-only),
+  `measure_element` (box model in px, mm, cm, in, pt, rem, em or %; read-only) and `set_code_layout` (code left, right, above or below the preview).
 - **System and files**: `get_platform_info` (OS, desktop or browser, version, which file types OpenFini opens and how to
   make it the default) and `list_recent_files`, both read-only.
 - **Customization**: `get_settings`, `set_setting`, `list_shortcuts`, `set_shortcut` (approval), `export_profile` (settings and shortcuts only, never secrets; see [customization.md](customization.md)).

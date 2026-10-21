@@ -2,7 +2,9 @@
 // page being edited at the selected breakpoint width. It is double-buffered — a rebuilt document is swapped in
 // only once it reports "ready" — so typing in the editor never flashes. CSS-only edits are patched in place.
 import { Emitter, h } from "../../core/util.js";
-import { buildPreview, hotCss, BREAKPOINTS } from "../../engine/web/index.js";
+import { buildPreview, hotCss, BREAKPOINTS, breakpointForWidth, breakpointMarkers, clampSize, snapWidth, sanitizeBox, UNITS } from "../../engine/web/index.js";
+import { createViewportBar, createRulers, attachHandles } from "./viewport-ui.js";
+import { t } from "../../i18n/index.js";
 import { bridgeSource } from "./bridge.js";
 import { scriptsBlocked } from "../../core/security.js";
 import { withOfflinePreviewCsp } from "../../core/network.js";
@@ -32,8 +34,21 @@ export class PreviewPane extends Emitter {
     this.web = ws.web;
     this.app = ws.app;
     this.page = this.web.settings.page && this.web.has(this.web.settings.page) ? this.web.settings.page : this.web.entry;
-    this.bp = BREAKPOINTS.find((b) => b.id === this.web.settings.breakpoint) || BREAKPOINTS[0];
+    // viewport: width/height in CSS px (height null = fill the available space); the breakpoint always follows the width
+    const vp = this.web.settings.viewport;
+    const bp0 = BREAKPOINTS.find((b) => b.id === this.web.settings.breakpoint) || BREAKPOINTS[0];
+    this.vw = clampSize(vp?.w ?? bp0.width, "w");
+    this.vh = vp?.h ? clampSize(vp.h, "h") : null;
+    this.lockAspect = !!vp?.lock;
+    this.aspect = this.vh ? this.vh / this.vw : 0.625;
+    this.vhEff = this.vh || 800; // the height the frame has right now
+    this.bp = breakpointForWidth(this.vw);
+    this.dragging = null; // { scale } while a handle or the slider is being dragged: the zoom stays put
+    this.altHeld = false;
     this.zoomSetting = this.web.settings.zoom ?? "fit";
+    this.rulersOn = this.web.settings.rulers !== false;
+    this.measure = { on: false, unit: UNITS.includes(this.app.prefs.codeMeasureUnit) ? this.app.prefs.codeMeasureUnit : "px", ppi: this.app.prefs.codeMeasurePpi > 0 ? this.app.prefs.codeMeasurePpi : 96, dprAware: !!this.app.prefs.codeMeasureDpr, details: false, box: null, pins: 0 };
+    this.markerCache = { rev: -1, list: [] };
     this.edit = true;
     this.scale = 1;
     this.current = null; // { frame, last }
@@ -47,10 +62,24 @@ export class PreviewPane extends Emitter {
     this.timer = 0;
     this.label = h("div.of-prev__label");
     this.device = h("div.of-prev__device");
-    this.stage = h("div.of-prev__stage", this.device);
+    this.dwrap = h("div.of-prev__dwrap", this.device);
+    this.stage = h("div.of-prev__stage", this.dwrap);
     this.empty = h("div.of-prev__empty.hidden", h("sl-icon", { name: "window" }), h("p", "This project has no pages yet."), h("p.of-hint", "Create an HTML file in the Explorer."));
-    this.el = h("div.of-prev", this.label, this.stage, this.empty);
+    this.rulers = createRulers(this);
+    this.bar = createViewportBar(this);
+    this.body = h("div.of-prev__body", this.rulers.corner, this.rulers.h, this.rulers.v, this.stage);
+    this.body.classList.toggle("no-rulers", !this.rulersOn);
+    this.el = h("div.of-prev", this.bar.el, this.body, this.empty);
     this.el.prepend(protectedBanner(this)); // protected mode: "Enable scripts"
+    attachHandles(this, this.dwrap);
+    this.stage.addEventListener("scroll", () => this.rulers.draw(), { passive: true });
+    this.altKeys = (e) => {
+      if (e.key === "Alt") this.altHeld = e.type === "keydown";
+    };
+    window.addEventListener("keydown", this.altKeys);
+    window.addEventListener("keyup", this.altKeys);
+    this.onBlur = () => (this.altHeld = false);
+    window.addEventListener("blur", this.onBlur);
 
     this.onMessage = (e) => this.#message(e);
     window.addEventListener("message", this.onMessage);
@@ -71,28 +100,113 @@ export class PreviewPane extends Emitter {
   // ------------------------------------------------------------ geometry
 
   get width() {
-    return this.bp.width;
+    return this.vw;
   }
 
-  /** Re-computes the device box for the current breakpoint, zoom and available space. */
+  /** The viewport as the page sees it: { width, height, heightAuto, scale, breakpoint }. */
+  viewport() {
+    return { width: this.vw, height: this.vh || this.vhEff, heightAuto: !this.vh, scale: this.scale, breakpoint: { id: this.bp.id, label: this.bp.label, media: this.bp.media } };
+  }
+
+  /** Widths where the layout changes (editor breakpoints + @media conditions of the project's CSS), cached per revision. */
+  markers() {
+    if (this.markerCache.rev !== this.web.rev) {
+      const css = this.web.paths.filter((p) => /\.css$/i.test(p)).map((p) => this.web.text(p) || "");
+      this.markerCache = { rev: this.web.rev, list: breakpointMarkers(css) };
+    }
+    return this.markerCache.list;
+  }
+
+  /** Re-computes the device box for the current viewport, zoom and available space. */
   layout() {
     const sr = this.stage.getBoundingClientRect();
     if (!sr.width || !sr.height) return;
     const pad = 28;
     const availW = Math.max(120, sr.width - pad * 2);
-    const w = this.width;
-    this.scale = this.zoomSetting === "fit" ? Math.min(1, availW / w) : Math.max(0.1, Math.min(4, Number(this.zoomSetting) || 1));
     const availH = Math.max(120, sr.height - pad - 8);
-    const hPx = Math.floor(availH / this.scale);
-    this.device.style.width = `${Math.round(w * this.scale)}px`;
-    this.device.style.height = `${Math.round(hPx * this.scale)}px`;
+    const w = this.vw;
+    let scale;
+    if (this.dragging) scale = this.dragging.scale;
+    else if (this.zoomSetting === "fit") scale = Math.min(1, availW / w, this.vh ? availH / this.vh : Infinity);
+    else scale = Math.max(0.1, Math.min(4, Number(this.zoomSetting) || 1));
+    this.scale = scale;
+    const hPx = this.vh || Math.floor(availH / scale);
+    this.vhEff = hPx;
+    const dw = Math.round(w * scale);
+    const dh = Math.round(hPx * scale);
+    // whole pixels everywhere so that 100% is crisp: the device is centered with an integer offset
+    this.dwrap.style.width = `${dw}px`;
+    this.dwrap.style.height = `${dh}px`;
+    this.dwrap.style.marginLeft = `${Math.max(0, Math.floor((sr.width - pad * 2 - dw) / 2))}px`;
     for (const f of this.#frames()) {
       f.style.width = `${w}px`;
       f.style.height = `${hPx}px`;
-      f.style.transform = `scale(${this.scale})`;
+      f.style.transform = `scale(${scale})`;
     }
-    this.label.textContent = `${this.bp.label} · ${w} px${this.scale !== 1 ? ` · ${Math.round(this.scale * 100)}%` : ""}`;
-    this.emit("layout", { scale: this.scale, width: w });
+    this.label.textContent = `${this.bp.label}${scale !== 1 ? ` · ${Math.round(scale * 100)}%` : ""}`;
+    this.emit("layout", { scale, width: w, height: hPx });
+    this.bar.sync();
+    this.rulers.draw();
+  }
+
+  /**
+   * Sets the viewport size in CSS px. `h` null = fill the available height; `undefined` keeps it. The matching breakpoint
+   * follows the width (so the style panel edits the right @media block).
+   */
+  setSize(w, h) {
+    this.vw = clampSize(w ?? this.vw, "w");
+    if (h !== undefined) this.vh = h === null ? null : clampSize(h, "h");
+    this.#syncViewport();
+  }
+  /** User resize (handles, slider, fields): applies the aspect lock, snaps the width to breakpoint markers unless Alt is held. */
+  resizeTo({ w, h }, { from = "w", snap = true } = {}) {
+    let nw = w ?? this.vw;
+    let nh = h;
+    if (snap && w != null && !this.altHeld) nw = snapWidth(nw, this.markers(), 6).width;
+    if (this.lockAspect && this.aspect > 0) {
+      if (from === "h" && nh != null) nw = Math.round(nh / this.aspect);
+      else if (nh !== null) nh = Math.round(nw * this.aspect);
+    }
+    this.setSize(nw, nh);
+  }
+  setLockAspect(on) {
+    this.lockAspect = !!on;
+    if (this.lockAspect) this.aspect = this.vhEff / this.vw;
+    this.#persistViewport();
+    this.emit("viewport", this.viewport());
+  }
+  rotate() {
+    const h = this.vh || this.vhEff;
+    const w = this.vw;
+    this.vw = clampSize(h, "w");
+    this.vh = clampSize(w, "h");
+    if (this.lockAspect) this.aspect = this.vh / this.vw;
+    this.#syncViewport();
+  }
+  #persistViewport() {
+    this.web.settings.viewport = { w: this.vw, h: this.vh, lock: this.lockAspect };
+    this.web.settings.breakpoint = this.bp.id;
+  }
+  #syncViewport() {
+    const nb = breakpointForWidth(this.vw);
+    const changed = nb !== this.bp;
+    this.bp = nb;
+    if (this.lockAspect && this.vh) this.aspect = this.vh / this.vw;
+    this.#persistViewport();
+    this.layout();
+    this.bar.flashBadge();
+    this.emit("viewport", this.viewport());
+    if (changed) {
+      this.emit("breakpoint", nb);
+      this.selectionChanged();
+    }
+  }
+  setRulers(on) {
+    this.rulersOn = !!on;
+    this.web.settings.rulers = this.rulersOn;
+    this.body.classList.toggle("no-rulers", !this.rulersOn);
+    this.layout();
+    this.emit("viewport", this.viewport());
   }
 
   #frames() {
@@ -100,20 +214,16 @@ export class PreviewPane extends Emitter {
   }
 
   setBreakpoint(id) {
-    const bp = BREAKPOINTS.find((b) => b.id === id);
-    if (!bp || bp === this.bp) return;
-    this.bp = bp;
-    this.web.settings.breakpoint = id;
-    this.layout();
-    this.emit("breakpoint", bp);
-    this.selectionChanged();
+    const bp = BREAKPOINTS.find((x) => x.id === id);
+    if (!bp) return;
+    this.setSize(bp.width, undefined);
   }
 
   setZoom(z) {
-    this.zoomSetting = z;
-    this.web.settings.zoom = z;
+    this.zoomSetting = z === "fit" ? "fit" : Math.max(0.25, Math.min(4, Number(z) || 1));
+    this.web.settings.zoom = this.zoomSetting;
     this.layout();
-    this.emit("zoom", z);
+    this.emit("zoom", this.zoomSetting);
   }
 
   setMode(edit) {
@@ -165,6 +275,7 @@ export class PreviewPane extends Emitter {
     const empty = !this.page;
     this.empty.classList.toggle("hidden", !empty);
     this.device.classList.toggle("hidden", empty);
+    this.dwrap.classList.toggle("hidden", empty);
     if (empty) return;
     let res;
     try {
@@ -210,6 +321,7 @@ export class PreviewPane extends Emitter {
     this.ws.clearConsole(); // the console shows the output of the document that is on screen
     this.#post({ type: "scroll", x: this.scroll.x, y: this.scroll.y });
     this.#post({ type: "mode", edit: this.edit });
+    this.#postMeasure();
     this.selectionChanged();
     this.emit("swap");
   }
@@ -266,6 +378,71 @@ export class PreviewPane extends Emitter {
     });
   }
 
+  // ------------------------------------------------------------ measure tool
+
+  get measuring() {
+    return this.measure.on;
+  }
+  /** Turns the measure tool on or off (hover = box model overlay, click = pin, Alt = distance to the reference element). */
+  setMeasure(on) {
+    on = !!on;
+    if (on === this.measure.on) return;
+    this.measure.on = on;
+    if (!on) {
+      this.measure.box = null;
+      this.measure.pins = 0;
+    }
+    this.#postMeasure();
+    if (on) {
+      this.escOff = (e) => {
+        if (e.key !== "Escape" || e.defaultPrevented || e.target?.closest?.(".cm-editor, input, textarea, sl-select, sl-input")) return;
+        this.setMeasure(false);
+      };
+      window.addEventListener("keydown", this.escOff);
+    } else if (this.escOff) window.removeEventListener("keydown", this.escOff);
+    this.emit("measure", this.measure);
+  }
+  /** Changes unit / ppi basis / flags of the measure tool; unit and basis are remembered as preferences. */
+  setMeasureOptions(patch) {
+    const m = this.measure;
+    if (patch.unit && UNITS.includes(patch.unit)) {
+      m.unit = patch.unit;
+      this.app.setPref("codeMeasureUnit", m.unit);
+    }
+    if (patch.ppi > 0) {
+      m.ppi = Math.max(20, Math.min(1000, Number(patch.ppi)));
+      this.app.setPref("codeMeasurePpi", m.ppi);
+    }
+    if ("dprAware" in patch) {
+      m.dprAware = !!patch.dprAware;
+      this.app.setPref("codeMeasureDpr", m.dprAware);
+    }
+    if ("details" in patch) m.details = !!patch.details;
+    this.#postMeasure();
+    this.emit("measure", m);
+  }
+  #postMeasure() {
+    const m = this.measure;
+    const accent = getComputedStyle(document.documentElement).getPropertyValue("--of-accent").trim();
+    this.#post({ type: "measure", on: m.on, unit: m.unit, ppi: m.ppi, dprAware: m.dprAware, details: m.details, accent: /^#[0-9a-f]{6}$/i.test(accent) ? accent : "#4f8cff" });
+  }
+  /** The validated box model of an element (px values of the frame), or null. Used by the Vibe tool measure_element. */
+  measureBox(id) {
+    return new Promise((resolve) => {
+      if (!this.current || id == null) return resolve(null);
+      const reqId = this.reqSeq++;
+      const timer = setTimeout(() => {
+        this.reqs.delete(reqId);
+        resolve(null);
+      }, 800);
+      this.reqs.set(reqId, (m) => {
+        clearTimeout(timer);
+        resolve(sanitizeBox(m.box));
+      });
+      this.#post({ type: "measureBox", id, reqId });
+    });
+  }
+
   /** Converts client coordinates (parent window) to frame coordinates. Returns null when outside the frame. */
   toFrame(clientX, clientY) {
     const f = this.current?.frame;
@@ -318,11 +495,12 @@ export class PreviewPane extends Emitter {
         // the frame was reloaded by the browser (for example after being moved in the DOM): restore its state
         this.#post({ type: "scroll", x: this.scroll.x, y: this.scroll.y });
         this.#post({ type: "mode", edit: this.edit });
+        this.#postMeasure();
         this.selectionChanged();
       }
       return;
     }
-    if (m.type === "computed" || m.type === "dropTarget") {
+    if (m.type === "computed" || m.type === "dropTarget" || m.type === "measureBox") {
       this.reqs.get(m.reqId)?.(m);
       this.reqs.delete(m.reqId);
       return;
@@ -377,12 +555,42 @@ export class PreviewPane extends Emitter {
       case "submit":
         this.app.toast("Forms are not submitted in the preview.", "primary", 1800);
         break;
+      case "measureInfo":
+        // untrusted: the page's own scripts can post to the parent too, so everything is validated
+        if (!this.measure.on) break;
+        this.measure.box = m.box ? sanitizeBox(m.box) : null;
+        this.measure.pins = Number.isInteger(m.pins) && m.pins >= 0 && m.pins <= 99 ? m.pins : 0;
+        this.emit("measure", this.measure);
+        break;
+      case "measureExit":
+        this.setMeasure(false);
+        break;
+      case "measureOpt":
+        this.measure.details = !!m.details;
+        this.emit("measure", this.measure);
+        break;
+      case "measureCopied":
+        if (typeof m.text === "string" && m.text.length < 80) this.copyMeasure(m.text, m.ok === true);
+        break;
       default:
         break;
     }
   }
 
+  /** Copies a measurement ("320×48px") to the clipboard; `done` = the frame already did it. */
+  copyMeasure(text, done = false) {
+    const toast = () => this.app.toast(t("Copied {value}", { value: text }), "success", 1400);
+    if (done) return toast();
+    navigator.clipboard?.writeText(text).then(toast, () => this.app.toast(t("Could not copy to the clipboard."), "warning", 2400));
+  }
+
   destroy() {
+    window.removeEventListener("keydown", this.altKeys);
+    window.removeEventListener("keyup", this.altKeys);
+    window.removeEventListener("blur", this.onBlur);
+    if (this.escOff) window.removeEventListener("keydown", this.escOff);
+    this.bar.destroy?.();
+    this.rulers.destroy?.();
     clearTimeout(this.timer);
     window.removeEventListener("message", this.onMessage);
     this.ro.disconnect();

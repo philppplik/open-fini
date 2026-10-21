@@ -72,7 +72,7 @@ export const MENUS = [
   {
     label: "View",
     studios: ["code"],
-    items: ["code.viewDesign", "code.viewSplit", "code.viewCode", "-", "code.toggleSidebar", "code.toggleBottom", "code.previewMode", "code.reload", "-", { label: "Breakpoint", items: ["code.bp.desktop-2xl", "code.bp.desktop-xl", "code.bp.desktop", "code.bp.tablet", "code.bp.mobile-landscape", "code.bp.mobile-portrait"] }, "code.zoomFit", "code.zoomIn", "code.zoomOut", "code.zoom100", "-", "code.wordWrap", "code.spacingGuides", "-", "view.theme", "view.lowPower"],
+    items: ["code.viewDesign", "code.viewSplit", "code.viewCode", "-", "code.toggleSidebar", "code.toggleBottom", "code.previewMode", "code.reload", "code.measure", "-", { label: "Split Layout", items: ["code.layout.codeLeft", "code.layout.codeRight", "code.layout.codeTop", "code.layout.codeBottom", "-", "code.layout.auto"] }, "code.rulers", "code.viewportRotate", { label: "Breakpoint", items: ["code.bp.desktop-2xl", "code.bp.desktop-xl", "code.bp.desktop", "code.bp.tablet", "code.bp.mobile-landscape", "code.bp.mobile-portrait"] }, "code.zoomFit", "code.zoomIn", "code.zoomOut", "code.zoom100", "-", "code.wordWrap", "code.spacingGuides", "-", "view.theme", "view.lowPower"],
   },
   {
     label: "Go",
