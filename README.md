@@ -4,7 +4,7 @@
 
 # OpenFini
 
-**A lightweight, open-source creative suite — Vector, Pixel, Layout, Code and Vibe studios in one small app.**
+**A lightweight, open-source creative suite — Vector, Pixel, Layout, Code, Vibe and Office studios in one small app.**
 
 [![CI](https://github.com/philppplik/open-fini/actions/workflows/ci.yml/badge.svg)](https://github.com/philppplik/open-fini/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -24,6 +24,7 @@ OpenFini is a design and photo-editing suite built around **studios** — focuse
 | **Layout** | Brochures, books, print | Pages and master pages, text frames that flow across pages, styles, editable tables with formulas, linked charts, PDF import and export with bleed |
 | **Code** | Websites | Code editor and visual designer over the same HTML / CSS / JS files: explorer, Emmet, live canvas with breakpoints, class-based style panel, 13 framework starters, Git, one-click publishing, Markdown and LaTeX, static-site export |
 | **Vibe** | Describe it, an AI builds it | Chat assistant with 100 tools that works natively in every studio; bring your own model; skills, MCP, RAG, right-click AI. Off by default |
+| **Office** | Word documents and letters | Open and edit `.docx`, ODT, RTF, HTML and Markdown, tables, images, styles, page layout; export DOCX and PDF (reached through the *More* menu) |
 
 Switch studios at any time: a document can mix vector shapes, pixel layers, flowing text and a website project. **Export** is a button in the header (PNG / JPEG / WebP / SVG / PDF, slices, websites), not a studio of its own.
 
@@ -95,6 +96,13 @@ The **Export** button in the header opens a popup from any studio: PNG / JPEG / 
 
 ## Beyond the studios
 
+- **Several windows, several chats.** Move any studio or document into its own window (*File ▸ New Window*, tab right-click). Vibe can run several chats at once, start sub-agents for focused tasks, and shows an *AI is …* status pill while it works. See [docs/multi-window.md](docs/multi-window.md) and [docs/vibe-studio.md](docs/vibe-studio.md).
+- **Make it yours.** Rebind every shortcut, hide tools and menu items, save workspaces, pick which five studios the header shows, and share all of it as a profile. See [docs/customization.md](docs/customization.md).
+- **German, automatically.** The interface follows your system language (Deutsch is complete for the main surfaces; more languages are a translation file away). See [docs/i18n.md](docs/i18n.md).
+- **Right-click knows where you are**, including encode/decode tools for special characters in code.
+- **Five bundled extensions** (not installed by default): Palette Pro, Batch Export, Data Filler, Code Tools and an Accessibility Checker. See [docs/bundled-extensions.md](docs/bundled-extensions.md).
+- **Updates, your way.** *Settings ▸ About* can check for a new version; automatic checks are optional and off by default.
+
 - **Extensions with an SDK.** Add commands, menu items, dock panels, themes, templates and Vibe tools with sandboxed `.ofext` extensions. Every extension declares permissions, runs in its own sandbox and is undoable. See [docs/extensions.md](docs/extensions.md) and the [`sdk/`](sdk) folder.
 - **Themes.** Twelve themes, each with a light and a dark variant, plus accent colors, high contrast and thin themed scrollbars. See [docs/themes.md](docs/themes.md).
 - **Guided, not guessed.** A welcome tour, a mini tour per studio, tooltips that explain, *What's this?* (`Shift+F1`), a global command palette (`Ctrl+K`) and a What's new page.
@@ -137,6 +145,8 @@ The application itself has **no build step** in development: `app/` is served as
 | [Studios guide](docs/studios.md) | Tools, panels and shortcuts per studio |
 | [Code studio](docs/code-studio.md) · [Web engine](docs/web-engine.md) | Website workbench and its pure engine |
 | [Vibe Studio](docs/vibe-studio.md) · [AI engine](docs/ai-engine.md) | The AI studio, providers, tools, MCP, RAG, skills |
+| [Developer guide](docs/development.md) | **Start here if you want to contribute:** module map, recipes, testing, Git workflow |
+| [Office studio](docs/office-studio.md) · [Customization](docs/customization.md) · [Context menus](docs/context-menus.md) · [Multi-window](docs/multi-window.md) · [i18n](docs/i18n.md) | Newer areas |
 | [Extensions](docs/extensions.md) · [Themes](docs/themes.md) | Extension SDK, manifest and API; theme registry |
 | [Frameworks](docs/frameworks.md) · [Git and publishing](docs/git-and-publishing.md) | Code studio frameworks, Markdown/LaTeX, Git, deploy targets |
 | [Layout tables and charts](docs/layout-tables-charts.md) · [Pixel histogram](docs/pixel-histogram.md) · [PDF import](docs/pdf-import.md) | Studio features in depth |
