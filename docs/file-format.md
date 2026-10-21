@@ -37,6 +37,13 @@ Document.ofini
 }
 ```
 
+### `source` (display only)
+
+`"source": { "name": "notes.txt", "format": "txt" }` is written when the document was opened from a file and File ▸ Save
+still writes it in that format (see [file-compat.md](file-compat.md#saving-back-to-the-original-format)). It is metadata for
+display: readers must ignore it, and OpenFini never restores a file location from it (a path or handle is not part of the
+file). The key is absent for documents created in OpenFini or once the document became an `.ofini` document.
+
 ### Nodes
 
 Every node has `id`, `type`, `name`, `visible`, `locked`, `opacity` (0–1), `blend` (CSS blend-mode name),

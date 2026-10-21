@@ -200,6 +200,48 @@ Markdown (`.md`, `.markdown`, `.mdx`), LaTeX (`.tex`, `.latex`, `.bib`, `.sty`, 
 project (File ▸ Open, drag and drop; folders keep their structure). SVG still opens as a vector document. Files that contain
 NUL bytes are refused. See [frameworks.md](frameworks.md).
 
+## Saving back to the original format
+
+File ▸ Save (Ctrl+S) writes a file you opened with File ▸ Open in the format it came from: a `.txt` stays a `.txt`, a `.docx`
+stays a `.docx`. Only when your edits need more than that format can hold does the document become an `.ofini`. Turn the
+behavior off in Settings ▸ General ▸ *Save opened files in their original format when possible* (off: Save always writes `.ofini`).
+
+| Opened as | Saved back as | Stays that way while | When it no longer fits |
+| --- | --- | --- | --- |
+| Text and code files (`.txt`, `.md`, `.json`, `.csv`, `.css`, `.js`, `.html`, `.tex` ...) | the same file, UTF-8 | the project is still exactly that one file (no second file, no design pages, no attached images, no Git repository, not renamed) | one dialog |
+| Word processor and text files opened in the Office studio (`.docx`, `.odt`, `.rtf`, `.html`, `.md`, `.txt`) | the same format, written by the Office writers | always. After saving, a toast lists what the format cannot store (for example "Formatting is not stored in plain text") and offers *Save as .ofini* | not applicable |
+| SVG | SVG through the SVG exporter | the document is a single-page, plain vector drawing (no pixel layers, adjustment layers, masks, live effects, blend modes, master pages) | one dialog |
+| PNG, JPEG, WebP, GIF, TIFF ..., PSD, PDF, IDML, Illustrator, Sketch ... | never silently: Save writes `.ofini` | not applicable: writing the flat file back would destroy layers or data | Save As offers PNG, JPEG or WebP as a flattened export next to `.ofini` |
+
+Templates and macro-enabled Word files (`.dotx`, `.docm`) are not written back by a plain document, and neither are files
+the Office studio can only read through a guidance dialog.
+
+**The dialog.** When a document that had a source format outgrows it, the next Save shows exactly one dialog: *This document now
+has features that {format} cannot hold.* with *Save as .ofini (keeps everything)*, *Save a copy as {format} (flattened)* and
+*Cancel*. Choosing `.ofini` is remembered for that document (it is an `.ofini` document from then on and the tab shows the
+`.ofini` name); a copy leaves the document and its source untouched, so Save asks again.
+
+**What is written.**
+- Text keeps its encoding details: UTF-8 without BOM unless the original had one, and the original line endings (LF, CRLF or
+  CR). A file you did not change is written back **byte for byte** (even if it was not valid UTF-8); after an edit a file with
+  mixed line endings is written with LF.
+- Desktop: Save writes to the original path without a dialog. Browsers with the File System Access API (Chromium) keep the
+  file handle from File ▸ Open and write to the same file after a permission check; other browsers open the save dialog (or
+  download) with the original file name. Save As lists the source format first and `.ofini` as the alternative; the file type
+  you pick decides what is written.
+- The tab shows the file name with its extension, the status bar shows a badge with the save target (`.txt`, `.docx`,
+  `.ofini`) and its tooltip says why. After a successful save the toast reads *Saved as notes.txt*.
+
+**Limits (honest).** SVG goes through the importer and the exporter, so features the importer does not read (scripts, CSS
+animation, filters it cannot represent) are not in the written file; keep an original copy when the SVG came from another
+tool. The Office writers keep structure, styles, tables, lists, images, footnotes and links but are not byte-compatible with the
+original producer (Word rewrites a file the same way). A web handle exists only while the tab stays open: after a restart
+restored from autosave, the first Save asks for the file again.
+
+Implementation: `app/src/core/source-format.js` (pure decision and text codec, tests in `tests/core/source-format.test.js`),
+`app/src/commands/save-source.js` (writing and the dialog), `doc.source` on the `Doc`, `platform.saveFile({ bytesFor })` and
+`platform.saveFileTo(path | handle)`. The Vibe tool `get_save_target` reports the current target.
+
 ## Warnings
 
 `warnings` is an array of US English sentences describing everything that was skipped, approximated or damaged. A

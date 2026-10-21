@@ -502,7 +502,7 @@ export function exportOfficeDialog(app, ws, preset = "docx") {
 }
 
 /** Renders SVG / non-JPEG images to PNG or RGBA for writers that need them (DOCX fallback, RTF, PDF). */
-async function rasterize(media, { rgba = false } = {}) {
+export async function rasterize(media, { rgba = false } = {}) {
   const out = {};
   for (const [id, m] of Object.entries(media || {})) {
     if (!m.bytes) continue;

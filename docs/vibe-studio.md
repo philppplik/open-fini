@@ -107,7 +107,7 @@ tested against recorded protocol fixtures and fake servers.
 
 *Tools* ▸ lists them all; you can switch off any single tool.
 
-- **Documents**: new document, document info, studio switch, undo and redo, pages.
+- **Documents**: new document, document info, `get_save_target` (which file type Save would write and why), studio switch, undo and redo, pages.
 - **Layers and vector**: list layers, selection, screenshots, shapes, text, paths, SVG import, styles, transforms,
   grouping, ordering, alignment, boolean operations, duplicate, delete.
 - **Pixel**: effect catalog, pixel layers, adjustment and live filter layers, selections, image generation and image

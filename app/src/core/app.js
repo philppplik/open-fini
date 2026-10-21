@@ -40,6 +40,7 @@ const defaultPrefs = () => ({
   showRecent: true, // recent files on the start page
   recentLimit: 12, // recent files remembered (0-50)
   confirmClose: true,
+  saveOriginalFormat: true, // File ▸ Save writes an opened .txt / .md / .docx / .svg again in that format while it fits (core/source-format.js)
   // canvas and performance
   lowPower: "auto", // auto | on | off
   rulers: true,

@@ -98,6 +98,7 @@ export const SETTINGS = [
   { key: "autosave", section: "general", type: "boolean", label: "Autosave to this device", check: bool },
   { key: "autosaveSeconds", section: "general", type: "integer", label: "Autosave delay (seconds)", min: 2, max: 120, check: int(2, 120) },
   { key: "confirmClose", section: "general", type: "boolean", label: "Ask before closing unsaved documents", check: bool },
+  { key: "saveOriginalFormat", section: "general", type: "boolean", label: "Save opened files in their original format when possible", check: bool },
   // appearance
   { key: "theme", section: "appearance", type: "enum", options: ["dark", "light", "auto"], label: "Mode", check: oneOf("dark", "light", "auto") },
   { key: "themeId", section: "appearance", type: "string", label: "Color theme id", check: (v) => typeof v === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(v) },

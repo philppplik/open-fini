@@ -65,6 +65,7 @@ export class Doc extends Emitter {
     this.tableStyles = {}; // saved table styles {id: {name, style}} (engine/layout/table-styles.js)
     this.web = null; // website project of the Code studio (core/web.js), stored next to the design data
     this.office = null; // word-processing document of the Office Studio (core/office.js)
+    this.source = null; // the file this document was opened from, while File ▸ Save can write it back in that format (core/source-format.js)
     this.settings = { snap: true, snapObjects: true, snapGrid: false, grid: { size: 32, subdivisions: 4, visible: false }, guidesVisible: true };
     this.history = new History();
     this.rev = 0;
@@ -754,6 +755,7 @@ export class Doc extends Emitter {
           dpi: this.dpi,
           unit: this.unit,
           studio: this.studio,
+          source: this.source ? { name: this.source.name, format: this.source.format } : undefined, // display only (core/source-format.js)
           createdAt: this.createdAt,
           modifiedAt: this.modifiedAt,
           pages: this.pages,

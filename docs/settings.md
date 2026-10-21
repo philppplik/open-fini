@@ -9,7 +9,7 @@ device (`localStorage`); *Security and privacy ▸ Reset all settings* restores 
 
 | Section | What it controls |
 | --- | --- |
-| **General** | Restore the last session on start, autosave and its delay, ask before closing unsaved documents, *Save All*, *Open Folder…* **Language:** Automatic (system language), English (United States) or Deutsch; switches live and shows the detected language. See [i18n.md](i18n.md) |
+| **General** | Restore the last session on start, autosave and its delay, ask before closing unsaved documents, **save opened files in their original format when possible** (`saveOriginalFormat`, default on: a `.txt` or `.docx` opened with File ▸ Open is saved as that format; off = always `.ofini`; see [file-compat.md](file-compat.md#saving-back-to-the-original-format)), *Save All*, *Open Folder…* **Language:** Automatic (system language), English (United States) or Deutsch; switches live and shows the detected language. See [i18n.md](i18n.md) |
 | **Appearance** | Mode (dark / light / system), the color theme gallery (see [Themes](themes.md)), accent color override (20 presets or any color), density (compact / default / spacious), interface scale (80–160 %), interface text size, interface font, corner radius, animation speed, canvas pointer size |
 | **Accessibility** | High contrast, reduced motion (follows the system by default), always-visible focus outlines, tooltips on/off, interface scale |
 | **Onboarding and help** | Offer tours, hints in empty panels, restart the welcome or studio tour, reset tours and What's new, command palette tips |

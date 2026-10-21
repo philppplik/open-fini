@@ -147,7 +147,7 @@ export const platform = {
     return files;
   },
 
-  async saveFile({ suggestedName = "Untitled", bytes, filters = [] } = {}) {
+  async saveFile({ suggestedName = "Untitled", bytes, bytesFor, filters = [] } = {}) {
     let path;
     try {
       path = await api().dialog.save({
@@ -158,7 +158,7 @@ export const platform = {
       throw asError(err, "Could not open the save dialog");
     }
     if (!path) return null;
-    return writePath(path, bytes);
+    return writePath(path, bytesFor ? await bytesFor(basename(path)) : bytes);
   },
 
   async saveFileTo(path, bytes) {

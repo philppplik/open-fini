@@ -50,6 +50,7 @@ export function settingsSections(app) {
             sw("autosave", "Autosave to this device", "Keeps a recovery copy of every open document in this browser or app profile. It never replaces your file."),
             { ...num("autosaveSeconds", "Autosave delay", 2, 120, 1, "s", "How long after your last change the recovery copy is written."), when: () => app.prefs.autosave },
             sw("confirmClose", "Ask before closing unsaved documents", "Turn this off only if you rely on autosave and Save All."),
+            sw("saveOriginalFormat", "Save opened files in their original format when possible", "A .txt, .md or .docx you opened with File ▸ Open is saved as the same kind of file. When your edits need more than that format can hold, OpenFini asks before switching to .ofini. Off: Save always writes .ofini."),
           ],
         },
         {

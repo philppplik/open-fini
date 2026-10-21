@@ -14,6 +14,7 @@ import { isTextDocumentName } from "../core/text-docs.js";
 import { markUntrusted } from "../core/security.js";
 import { log } from "../core/log.js";
 import { singleFlight } from "../core/single-flight.js";
+import { describeSource, sourceSnapshot } from "../core/source-format.js";
 
 const SAVE_FILTERS = [{ name: "OpenFini document", extensions: ["ofini"] }];
 // keep in sync with OFFICE_ONLY_EXTS in engine/office/index.js (tests/office/routing.test.js checks it)
@@ -25,7 +26,19 @@ export function registerFileCommands(app) {
 
   def("file.new", "New…", (a) => a.emit("dialog", { id: "new" }), { shortcut: "Mod+N", icon: "file-earmark-plus" });
 
+  const ofiniDocs = new WeakSet(); // documents loaded from an .ofini file (any extension): they never get a source
+  // Opens a file (router below) and records where it came from, so File ▸ Save can write it back in the same format.
   async function openFile(file) {
+    const before = new Set(app.docs);
+    const res = await openFileRoute(file);
+    const doc = res?.pages ? res : app.docs.find((d) => !before.has(d));
+    if (doc && !doc.source && !/\.ofini$/i.test(file.name) && !doc.path && !ofiniDocs.has(doc)) {
+      doc.source = describeSource(file, doc);
+      if (doc.source) app.emit("docs"); // tab name and the save-target badge pick the source up
+    }
+    return res;
+  }
+  async function openFileRoute(file) {
     if (await app.importWithExtension?.(file)) return null; // a file type an installed extension imports
     // Word processor files, Google Docs shortcuts, Pages, legacy .doc and (not yet supported) spreadsheets and
     // presentations go to the Office Studio; in that studio HTML, Markdown, text and CSV open there too (ui/office/open.js)
@@ -64,6 +77,7 @@ export function registerFileCommands(app) {
       if (!doc.name || doc.name === "Untitled") doc.name = file.name.replace(/\.ofini$/i, "");
       doc.path = file.path || null;
       doc.saved = true;
+      ofiniDocs.add(doc);
       markUntrusted(app.prefs, doc); // protected mode: website scripts stay off in the preview until enabled
       app.setStudio(["pixel", "layout", "code", "office"].includes(doc.studio) ? doc.studio : "vector");
       app.openDoc(doc);
@@ -119,22 +133,32 @@ export function registerFileCommands(app) {
     if (a.studio === "code" && a.prefs.codeFormatOnSave && a.codeUI?.built) a.codeUI.editors.format();
     a.status("Saving…");
     try {
-      const bytes = await saveOfini(doc);
-      let res;
-      if (doc.path && platform.isDesktop && !forceDialog) res = await platform.saveFileTo(doc.path, bytes);
-      else res = await platform.saveFile({ suggestedName: downloadName(doc.name, "ofini"), bytes, mime: OFINI_MIME, filters: SAVE_FILTERS });
-      if (!res) return;
-      if (res.path) doc.path = res.path;
-      doc.name = res.name.replace(/\.ofini$/i, "") || doc.name;
-      doc.saved = true;
-      a.emit("saved");
-      a.emit("docchange", {});
-      addRecent({ name: res.name, bytes, path: res.path }).then((r) => a.emit("recents", r));
-      a.toast(`Saved ${res.name}`, "success", 1800);
+      // a document opened from a file is written back in that format while it still fits (core/source-format.js)
+      if (doc.source && (await (await import("./save-source.js")).saveBySource(a, doc, forceDialog)) === "done") return;
+      await writeOfini(a, doc, forceDialog);
     } finally {
       a.status("");
     }
   }
+  async function writeOfini(a, doc, forceDialog) {
+    const bytes = await saveOfini(doc);
+    let res;
+    if (doc.path && platform.isDesktop && !forceDialog) res = await platform.saveFileTo(doc.path, bytes);
+    else res = await platform.saveFile({ suggestedName: downloadName(doc.name, "ofini"), bytes, mime: OFINI_MIME, filters: SAVE_FILTERS });
+    if (!res) return;
+    if (res.path) doc.path = res.path;
+    doc.name = res.name.replace(/\.ofini$/i, "") || doc.name;
+    doc.saved = true;
+    if (doc.source && doc.source.kind !== "image" && doc.source.kind !== "foreign") doc.source = null; // it is an .ofini document now
+    a.emit("saved");
+    a.emit("docchange", {});
+    addRecent({ name: res.name, bytes, path: res.path }).then((r) => a.emit("recents", r));
+    a.toast(t("Saved as {name}", { name: res.name }), "success", 1800);
+  }
+  def("file.saveAsOfini", "Save as .ofini…", async (a) => {
+    const doc = a.doc;
+    if (doc) await writeOfini(a, doc, true);
+  }, { enabled: (a) => !!a.doc?.source });
   def("file.save", "Save", (a) => save(a, false), { shortcut: "Mod+S", enabled: hasDoc, icon: "save" });
   def("file.saveAll", "Save All", async (a) => {
     const keep = a.doc;
@@ -310,7 +334,7 @@ export function registerFileCommands(app) {
     if (!app.docs.length) return;
     try {
       const entries = [];
-      for (const d of app.docs) entries.push({ name: d.name, studio: d.studio, saved: d.saved, path: d.path || null, untrusted: !!d.untrusted && !d.scriptsOk, bytes: await saveOfini(d) });
+      for (const d of app.docs) entries.push({ name: d.name, studio: d.studio, saved: d.saved, path: d.path || null, source: sourceSnapshot(d.source), untrusted: !!d.untrusted && !d.scriptsOk, bytes: await saveOfini(d) });
       await saveSession(entries, app.docs.indexOf(app.doc), app.sessionKey); // pop-out windows use their own key
     } catch (err) {
       log.warn("storage", "Autosave failed", err);
@@ -329,6 +353,7 @@ export function registerFileCommands(app) {
         const doc = await loadOfini(e.bytes);
         doc.path = e.path;
         doc.saved = e.saved;
+        if (e.source && typeof e.source.name === "string" && typeof e.source.kind === "string") doc.source = { ...e.source }; // the file location survives a restart; bytes and handles do not
         if (e.untrusted) doc.untrusted = true; // still protected: the user has not enabled its scripts
         app.openDoc(doc, { activate: false });
         n++;

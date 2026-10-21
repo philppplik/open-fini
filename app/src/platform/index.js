@@ -14,6 +14,7 @@ import { platform as webPlatform } from "./web.js";
  * @typedef {Object} PlatformFile
  * @property {string} name        File name without folders.
  * @property {string} [path]      Absolute path. Desktop only; browsers never expose paths.
+ * @property {object} [handle]   File System Access handle (Chromium browsers), lets the app save back to the same file.
  * @property {Uint8Array} bytes   File content.
  * @property {string} mime        MIME type (from the file or guessed from the extension).
  */
@@ -31,11 +32,11 @@ import { platform as webPlatform } from "./web.js";
  * @property {'windows' | 'macos' | 'linux' | 'web'} os
  * @property {(options?: { accept?: FileFilter[], multiple?: boolean }) => Promise<PlatformFile[]>} openFiles
  *   Shows the open dialog. Resolves with [] when the user cancels.
- * @property {(options: { suggestedName?: string, bytes: Uint8Array | Blob, mime?: string, filters?: { name?: string, description?: string, extensions: string[] }[] }) => Promise<{ name: string, path?: string } | null>} saveFile
- *   Shows the save dialog (browsers without the File System Access API download
+ * @property {(options: { suggestedName?: string, bytes?: Uint8Array | Blob, bytesFor?: (name: string) => Promise<Uint8Array | Blob> | Uint8Array | Blob, mime?: string, filters?: { name?: string, description?: string, extensions: string[] }[] }) => Promise<{ name: string, path?: string, handle?: object } | null>} saveFile
+ *   `bytesFor(name)` replaces `bytes` when the content depends on the chosen file name (its extension). Shows the save dialog (browsers without the File System Access API download
  *   the file instead). Resolves with null when the user cancels.
- * @property {(path: string, bytes: Uint8Array | Blob) => Promise<{ name: string, path: string }>} saveFileTo
- *   Writes to a known path without a dialog. Desktop only: the web version throws.
+ * @property {(target: string | object, bytes: Uint8Array | Blob) => Promise<{ name: string, path?: string, handle?: object }>} saveFileTo
+ *   Writes to a known path (desktop) or File System Access handle (Chromium) without a dialog; otherwise it throws.
  * @property {(title: string) => Promise<void>} setTitle
  * @property {(url: string) => Promise<void>} openExternal
  *   Opens http(s) and mailto links in the default application.
