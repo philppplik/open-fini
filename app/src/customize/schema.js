@@ -13,6 +13,12 @@ const NAME_RE = /^[^\u0000-\u001f<>]{1,40}$/;
 /** Built-in quick actions of the header (more can be added: any command id). */
 export const QUICK_ACTIONS = ["undo", "redo", "theme", "export", "panels"];
 
+/** Shown by default (theme toggle and panel toggle are optional extras: Settings > Toolbox and menus). */
+export const DEFAULT_QUICK_ACTIONS = ["undo", "redo", "export"];
+
+/** The default of versions up to 0.5: stored unchanged by users who never customized it, so it is migrated. */
+export const LEGACY_QUICK_ACTIONS = ["undo", "redo", "theme", "export", "panels"];
+
 /** Defaults of the preferences added by the customization system (merged into `defaultPrefs()` in core/app.js). */
 export function customizationDefaults() {
   return {
@@ -32,7 +38,7 @@ export function customizationDefaults() {
     shortcutPreset: "default",
     toolbox: {},
     menus: { menus: [], items: [] },
-    quickActions: QUICK_ACTIONS.slice(),
+    quickActions: DEFAULT_QUICK_ACTIONS.slice(),
     layout: {},
     workspaces: {},
     newDocDefaults: {},

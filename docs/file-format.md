@@ -114,6 +114,14 @@ Run marks are `b`, `i`, `u`, `s`, `va` (`"sub"` / `"super"`), `color`, `highligh
 Covered cells of a merge are simply absent (HTML-style `colspan` / `rowspan`). Readers validate the object with
 `normalizeDoc()`, which drops unknown fields and clamps values.
 
+## Versioning and migration
+
+`document.json` carries `"version": N`. The code lives in `app/src/core/ofini-migrate.js` (pure, tested in `tests/core/ofini-migrate.test.js`):
+
+* **Old files always open.** `migrateDocumentJson` upgrades a document from its version to `FORMAT_VERSION` one step at a time (`MIGRATIONS[n]` turns version n into n + 1). Files without a version are format 0. The upgrade happens in memory; the file on disk is untouched until you save, and the toast on open says what changed.
+* **Newer files open best-effort.** A file from a newer OpenFini opens with what this version understands (unknown fields are ignored and kept in memory), the user is warned, and the first Save asks for confirmation because saving could drop data this version cannot see (use *Save As* to keep the original).
+* **Changing the format** (checklist): bump `FORMAT_VERSION`, add the step to `MIGRATIONS`, add a frozen sample of the old `document.json` to the tests (the version 1 sample is there already), describe the change here. Never rename zip entries without a migration that is told about the entries.
+
 ## Compatibility
 
 * Readers must ignore unknown fields.

@@ -11,6 +11,7 @@ import { Doc, createCanvas } from "./doc.js";
 import { WebProject, attachWeb } from "./web.js";
 import { OfficeProject } from "./office.js";
 import { walk } from "./nodes.js";
+import { migrateDocumentJson } from "./ofini-migrate.js";
 import { dlState, buildPageDL } from "../engine/dl.js";
 import { renderToCanvas } from "../engine/backends/canvas.js";
 
@@ -80,8 +81,18 @@ export async function loadOfini(bytes) {
     throw new Error("This file is not a valid OpenFini document.");
   }
   if (!entries["document.json"]) throw new Error("The document is missing its content (document.json).");
-  const json = JSON.parse(strFromU8(entries["document.json"]));
+  let json;
+  try {
+    json = JSON.parse(strFromU8(entries["document.json"]));
+  } catch {
+    throw new Error("The document content (document.json) is damaged and cannot be read.");
+  }
+  // old files are upgraded in memory (the file stays untouched until saved); newer files open best-effort
+  const mig = migrateDocumentJson(json);
+  json = mig.json;
   const doc = Doc.fromJSON(json);
+  doc.formatNotes = mig.notes;
+  doc.formatNewer = mig.newer;
   // assets
   for (const a of Object.values(doc.assets)) {
     const key = Object.keys(entries).find((k) => k.startsWith(`assets/${a.id}.`));

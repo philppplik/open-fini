@@ -92,7 +92,7 @@ URL:
 | Anthropic (Claude) | API key; native Messages API with tool use and extended thinking. |
 | DeepSeek, xAI (Grok), Mistral, Groq, Together AI, Google Gemini (OpenAI-compatible endpoint) | API key, OpenAI-compatible. |
 | Ollama, LM Studio (local) | No key; runs on your machine. The server must allow the app's origin (for Ollama: `OLLAMA_ORIGINS`). |
-| Custom | Any OpenAI-compatible `/v1` server (llama.cpp, vLLM, a company gateway …). |
+| Custom | Any OpenAI-compatible `/v1` server (llama.cpp, vLLM, a company gateway …), or an Anthropic-compatible one: choose the *API type* and add extra headers (one `Name: value` per line) in the connection form. If the server has no model list, type the model id in the model picker. |
 
 Keys are stored **on this device only** and are sent only to the base URL you entered. You can protect them with a
 passphrase (*Models ▸ Key protection*): they are then encrypted with AES-GCM (key derived with PBKDF2, 250 000

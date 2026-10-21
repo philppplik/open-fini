@@ -331,6 +331,15 @@ function control(app, item, rerender) {
         });
         wrap.append(b);
       }
+      // any color: a native color picker; choosing one switches the accent to "custom"
+      const picker = h("input.of-set__swatch.of-set__swatch--custom", { type: "color", title: t("Custom color"), "aria-label": t("Custom color"), value: /^#[0-9a-f]{6}$/i.test(app.prefs.accentCustom || "") ? app.prefs.accentCustom : "#7c3aed" });
+      picker.setAttribute("aria-pressed", String(cur === "custom"));
+      picker.addEventListener("input", () => {
+        app.setPref("accentCustom", picker.value);
+        app.setPref("accent", "custom");
+        for (const x of wrap.children) x.setAttribute("aria-pressed", String(x === picker));
+      });
+      wrap.append(picker);
       return wrap;
     }
     case "action": {
@@ -364,13 +373,15 @@ export function settingsDialog(app, sectionId = "general") {
   const nav = h("nav.of-set__nav", { "aria-label": t("Settings sections") });
   const body = h("div.of-set__body", { role: "region", "aria-live": "polite" });
   const search = h("input.of-set__search", { type: "search", placeholder: t("Search settings"), "aria-label": t("Search settings"), spellcheck: false });
+  // the search box lives OUTSIDE the re-rendered tab list: rebuilding it per keystroke dropped the focus after one letter
+  const tabs = h("div.of-set__tabs", { style: "display: contents" });
+  nav.append(search, tabs);
   let query = "";
 
   const matches = (s) => !query || `${tr(s.label)} ${s.label} ${s.keywords || ""} ${s.groups.flatMap((g) => g.items.map((i) => `${tr(i.label) || ""} ${tr(i.hint) || ""}`)).join(" ")}`.toLowerCase().includes(query);
 
   function renderNav() {
-    empty(nav);
-    nav.append(search);
+    empty(tabs);
     for (const s of sections.filter(matches)) {
       const b = h("button.of-set__tab", { type: "button", class: s.id === current ? "active" : "", "aria-current": s.id === current ? "page" : undefined }, iconEl(s.icon), h("span", tr(s.label)));
       b.addEventListener("click", () => {
@@ -378,7 +389,7 @@ export function settingsDialog(app, sectionId = "general") {
         renderNav();
         renderBody();
       });
-      nav.append(b);
+      tabs.append(b);
     }
   }
   function renderBody() {

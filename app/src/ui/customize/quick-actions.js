@@ -1,6 +1,7 @@
 // The header's quick actions: which buttons are shown and in which order (pref `quickActions`).
 // Built-in ids: undo, redo, theme, export, panels. Any other id is a command id and becomes an icon button.
 import { iconButton } from "../controls.js";
+import { LEGACY_QUICK_ACTIONS, DEFAULT_QUICK_ACTIONS } from "../../customize/schema.js";
 
 /** Commands behind the built-in buttons: their tooltip shows the effective (possibly rebound) shortcut. */
 const BUILTIN_COMMAND = { undo: "edit.undo", redo: "edit.redo", theme: "view.theme", export: "file.export" };
@@ -8,6 +9,9 @@ const BUILTIN_COMMAND = { undo: "edit.undo", redo: "edit.redo", theme: "view.the
 export const BUILTIN_LABELS = { undo: "Undo", redo: "Redo", theme: "Toggle light / dark", export: "Export", panels: "Show / hide panels (narrow windows)" };
 
 export function mountQuickActions(app, host, builtin) {
+  // users who never changed the old default list get the new one (no theme toggle, no panel toggle in the header)
+  const cur = app.prefs.quickActions;
+  if (Array.isArray(cur) && cur.length === LEGACY_QUICK_ACTIONS.length && cur.every((v, i) => v === LEGACY_QUICK_ACTIONS[i])) app.setPref("quickActions", DEFAULT_QUICK_ACTIONS.slice());
   const extra = new Map(); // command id → button
 
   function commandButton(id) {

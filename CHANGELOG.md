@@ -6,6 +6,20 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.6.0] — Safer files, quitting, providers
+
+### Added
+- **.ofini versioning and migration** (`app/src/core/ofini-migrate.js`): old documents are upgraded in memory when opened (the file stays untouched until you save), documents from a newer OpenFini open best-effort with a warning and a confirmation before the first Save. A frozen version 1 sample guards compatibility; the checklist for format changes is in docs/file-format.md.
+- **Quit with unsaved documents**: one dialog lists them with *Save All / Discard / Cancel* (desktop close button, Alt+F4, Cmd+Q); the browser/PWA arms the browser's leave-page warning.
+- **Custom AI provider**: pick the API type (OpenAI- or Anthropic-compatible) and extra headers; when a server has no model list you can type the model id.
+- **More accent colors**: 12 additional presets and a free color picker (Settings, Appearance).
+
+### Fixed
+- Settings search lost its focus after every typed letter.
+
+### Changed
+- The header no longer shows the light/dark toggle and the panel toggle by default (View menu, command palette and *Settings, Toolbox and menus, Quick actions* still offer them).
+
 ## [0.5.0] — Office, concurrent Vibe chats, multi-window, German
 
 **Small improvements**
