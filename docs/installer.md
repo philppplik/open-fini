@@ -1,8 +1,8 @@
 # Installer and app icon
 
 How the OpenFini installers are branded, what the Tauri bundler can and cannot do, and how to change it.
-Pinned versions: `@tauri-apps/cli` 2.12.2 (`package.json`: `^2.12.2`), which embeds `tauri-bundler` 2.10.2;
-the Rust crates are `tauri` 2.12 and `tauri-build` 2.7 (`src-tauri/Cargo.toml`). NSIS 3.11 and
+Pinned versions: `@tauri-apps/cli` 2.12.3 (`package.json`: `^2.12.3`), which embeds `tauri-bundler` 2.10.3;
+the Rust crates are `tauri` 2.12 and `tauri-build` 2.7 (`src-tauri/Cargo.toml`). NSIS 3.13 and
 `nsis_tauri_utils` 0.5.3 are downloaded by the bundler itself.
 
 ## App icon
@@ -18,10 +18,10 @@ by 99.5 % (the rest is anti-aliasing), so the vector path is the new mark and is
 from the SVGs with the Tauri CLI. The installer artwork follows the light look (off-white sidebar and DMG
 background, dark mark).
 
-## What the Tauri bundler supports (v2, bundler 2.10.2)
+## What the Tauri bundler supports (v2, bundler 2.10.3)
 
 Verified against `node_modules/@tauri-apps/cli/config.schema.json` and the bundler sources at tag
-`tauri-cli-v2.12.2` (`crates/tauri-bundler/src/bundle/windows/nsis/{installer.nsi,mod.rs}`).
+`tauri-cli-v2.12.3` (`crates/tauri-bundler/src/bundle/windows/nsis/{installer.nsi,mod.rs}`).
 
 | Target | Configurable keys | Notes |
 | --- | --- | --- |
@@ -68,7 +68,7 @@ browser with `OPENFINI_BROWSER`); PNG decoding and BMP/PNG encoding are done in 
 
 ### Windows (NSIS, `src-tauri/windows/installer.nsi`)
 
-This is a copy of the stock 2.10.2 template with blocks marked `OPENFINI`. Pages: welcome (custom text) ->
+This is a copy of the stock 2.10.3 template with blocks marked `OPENFINI`. Pages: welcome (custom text) ->
 license (the MIT `LICENSE`) -> install folder -> **Windows integration** -> install -> finish.
 
 - **Per user, no admin prompt:** `installMode: currentUser`, default folder `%LOCALAPPDATA%\OpenFini`. The
@@ -124,7 +124,7 @@ The custom NSIS template pins the behavior of the bundler version it was copied 
 
 - Tauri config schema shipped with the CLI: `node_modules/@tauri-apps/cli/config.schema.json`
 - Tauri bundler NSIS template and `mod.rs`:
-  <https://github.com/tauri-apps/tauri/tree/tauri-cli-v2.12.2/crates/tauri-bundler/src/bundle/windows/nsis>
+  <https://github.com/tauri-apps/tauri/tree/tauri-cli-v2.12.3/crates/tauri-bundler/src/bundle/windows/nsis>
 - Tauri Windows installer guide: <https://v2.tauri.app/distribute/windows-installer/>
 - Tauri DMG guide: <https://v2.tauri.app/distribute/dmg/>
 - NSIS Modern UI 2 reference: <https://nsis.sourceforge.io/Docs/Modern%20UI%202/Readme.html>

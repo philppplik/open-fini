@@ -1,4 +1,4 @@
-; OPENFINI: this is a modified copy of the stock NSIS template of tauri-bundler 2.10.2 (the version behind
+; OPENFINI: this is a modified copy of the stock NSIS template of tauri-bundler 2.10.3 (the version behind
 ; @tauri-apps/cli 2.12.x, see docs/installer.md). Every change is marked with "OPENFINI". Keep the
 ; Handlebars placeholders (double curly braces) intact; when the Tauri CLI is upgraded, diff against the upstream template
 ; (crates/tauri-bundler/src/bundle/windows/nsis/installer.nsi) and re-apply the marked blocks.
@@ -400,6 +400,15 @@ Function PageLeaveReinstall
       ; Other errors? show generic error message and return to select un/reinstall page
       MessageBox MB_ICONEXCLAMATION "$(unableToUninstall)"
       Abort
+    ${EndIf}
+
+    ; The NSIS uninstaller was run in place (`_?=`), so it cannot delete itself
+    ; and the install directory, clean them up here once the uninstall succeeded
+    ; https://nsis.sourceforge.io/Docs/Chapter3.html#:~:text=path%20contains%20spaces.-,3.2.3%20Examples,-installer.exe%20/NCRC
+    ${If} $WixMode = 0
+    ${AndIf} $4 != ""
+      Delete "$4\uninstall.exe"
+      RMDir "$4"
     ${EndIf}
   reinst_done:
 FunctionEnd
