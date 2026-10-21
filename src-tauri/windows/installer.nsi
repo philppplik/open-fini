@@ -474,10 +474,6 @@ FunctionEnd
 ; to the integration page above; here the checkbox opens the online quick-start guide (unchecked by default).
 !define MUI_FINISHPAGE_TITLE "$(finishTitle)"
 !define MUI_FINISHPAGE_TEXT "$(finishText)"
-$
-$
-$
-Click Finish to close this wizard."
 !if "${HOMEPAGE}" != ""
   !define MUI_FINISHPAGE_SHOWREADME
   !define MUI_FINISHPAGE_SHOWREADME_NOTCHECKED
