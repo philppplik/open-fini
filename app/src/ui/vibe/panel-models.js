@@ -130,6 +130,31 @@ export function createModelsPanel(vs) {
     shots.addEventListener("change", () => vibeStore.saveSettings({ sendScreenshots: shots.checked }));
     el.append(h("div.of-vcard", h("strong", "Assistant behavior"), h("p.of-hint", "Applies to every chat and to right-click AI actions."), field("Standing instructions", instr, "Added to every request."), field("Maximum steps per request", steps, "Stops runaway loops."), h("label.of-vrow", shots, h("span", "Let the assistant look at screenshots of my pages (sent to the provider)"))));
 
+    // engine: concurrent chats, sub-agents, skills (vibe/hub.js, vibe/agents.js)
+    const num = (key, min, max, def) => {
+      const i = h("input.of-vfield__in", { type: "number", min, max, value: String(s[key] ?? def) });
+      i.addEventListener("change", () => vibeStore.saveSettings({ [key]: Math.max(min, Math.min(max, Math.round(Number(i.value)) || def)) }));
+      i.addEventListener("keydown", (e) => e.stopPropagation());
+      return i;
+    };
+    const check = (key, label) => {
+      const c = h("input", { type: "checkbox", checked: s[key] !== false });
+      c.addEventListener("change", () => vibeStore.saveSettings({ [key]: c.checked }));
+      return h("label.of-vrow", c, h("span", label));
+    };
+    const usage = [...(vs.hub?.sessions.values() || [])].filter((x) => x.usage.input || x.usage.output);
+    el.append(h("div.of-vcard", h("strong", "Engine"), h("p.of-hint", "Several chats can run at the same time, each can start sub-agents for parallel parts of a job. Edits to the same document are queued so they never interleave inside one step."),
+      field("Chats running at the same time", num("maxChats", 1, 8, 4)),
+      field("Sub-agents running at once per chat", num("maxAgents", 1, 6, 3), "More are queued."),
+      field("Sub-agent model", text(s.agentModel, (v) => vibeStore.saveSettings({ agentModel: v }), "Same as the chat"), "A cheaper or faster model id on the chat's provider, e.g. gpt-4o-mini."),
+      field("Steps per sub-agent", num("agentSteps", 1, 40, 12)),
+      field("Sub-agent budget per request (steps)", num("agentBudgetSteps", 4, 400, 80), "All sub-agents of one request share it; they are stopped when it is spent."),
+      check("enforceSkillTools", "Enforce tool restrictions of skills that ask for it (enforce-tools)"),
+      check("suggestSkills", "Suggest a matching skill while I type"),
+      usage.length ? h("p.of-hint", `Tokens this session: ${usage.map((x) => `${x.chat.title.slice(0, 24)}: ${(x.usage.input + x.usage.output).toLocaleString("en-US")}`).join(" · ")}`) : null,
+      h("button.of-btn", { type: "button", onclick: () => app.toast(`Stopped ${vs.hub?.stopAll() || 0} AI task(s).`, "primary", 1500) }, iconEl("stop-fill"), "Stop all AI tasks"),
+    ));
+
     const vault = h("div.of-vcard", h("strong", "Key protection"), h("p.of-hint", vibeStore.settings.vault ? "Your keys are encrypted with your passphrase (AES-GCM). You unlock them once per session." : "Keys are stored unencrypted in this browser's or app's private storage. Add a passphrase to encrypt them."), h("button.of-btn", { type: "button", onclick: async () => {
       if (vibeStore.settings.vault) {
         if (await confirmDialog({ title: "Remove passphrase", message: "Store the keys without a passphrase again?", ok: "Remove" })) await vibeStore.setVault("");

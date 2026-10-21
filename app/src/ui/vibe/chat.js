@@ -73,7 +73,7 @@ export function createChat(vs) {
 
   let msgIndex = -1; // index in session.chat.messages of the message being rendered (-1: live, not stored yet)
   registerVibeContext(vs);
-  const tools = createToolCards({ settings: () => vibeStore.settings, saveSettings: (p) => vibeStore.saveSettings(p), onGrow: follow });
+  const tools = createToolCards({ settings: () => vibeStore.settings, saveSettings: (p) => vibeStore.saveSettings(p), onGrow: follow, cancelAgent: (id) => vs.hub.active?.agentMgr?.cancel(id, "Cancelled by you.") });
 
   // ------------------------------------------------------------ transcript
   let cur = null; // current assistant bubble { body, text, all, tail, group, thinking }
@@ -267,7 +267,8 @@ export function createChat(vs) {
   const modePill = h("button.of-pill-btn", { type: "button", ...ta({ tip: "How much Vibe may do without asking" }) });
   const thinkPill = h("button.of-pill-btn", { type: "button", ...ta({ tip: "Reasoning effort (models that support it)" }) });
   const slash = h("div.of-slash.hidden", { role: "listbox" });
-  const box = h("div.of-composer", chips, input, h("div.of-composer__bar", attach, mic, modelPill, modePill, thinkPill, h("span.of-composer__spacer"), sendBtn), slash);
+  const suggestEl = h("div.of-skillsug.hidden", { role: "status", "aria-live": "polite" });
+  const box = h("div.of-composer", suggestEl, chips, input, h("div.of-composer__bar", attach, mic, modelPill, modePill, thinkPill, h("span.of-composer__spacer"), sendBtn), slash);
   const root = h("div.of-vchat", main, h("div.of-vchat__dock", box, h("p.of-composer__hint", "Vibe can make mistakes. Changes can be undone in the Activity tab or with Ctrl+Z. Keys and chats stay on this device.")));
 
   // grows with the text up to 40% of the panel height (max 220 px), then scrolls inside
@@ -281,7 +282,31 @@ export function createChat(vs) {
   input.addEventListener("input", () => {
     autosize();
     slashMenu();
+    suggest();
   });
+
+  // "Use skill X?" chip: cheap BM25 match of the draft against skill names, descriptions, tags and when-to-use
+  let sugTimer = 0;
+  const dismissed = new Set();
+  function suggest() {
+    clearTimeout(sugTimer);
+    sugTimer = setTimeout(async () => {
+      const text = input.value.trim();
+      const hide = () => suggestEl.classList.add("hidden");
+      if (vibeStore.settings.suggestSkills === false || text.length < 12 || text.startsWith("/") || /^use the [“"]/i.test(text) || !skillCache.length) return hide();
+      const { suggestSkills } = await vs.hub.ai();
+      const best = suggestSkills(text, skillCache, { limit: 1, min: 2 })[0];
+      if (!best || dismissed.has(best.skill.name)) return hide();
+      const s = best.skill;
+      suggestEl.replaceChildren(
+        iconEl("mortarboard"),
+        h("span", "Use skill ", h("strong", s.name), "?"),
+        h("button.of-btn.of-btn--sm", { type: "button", onclick: () => { const rest = input.value; suggestEl.classList.add("hidden"); useSkill(s, rest).then(() => autosize()); } }, "Use"),
+        h("button.of-skillsug__x", { type: "button", "aria-label": `Do not suggest ${s.name} again in this chat`, onclick: () => { dismissed.add(s.name); hide(); } }, "×"),
+      );
+      suggestEl.classList.remove("hidden");
+    }, 300);
+  }
 
   let chipUrls = [];
   function renderChips() {
@@ -316,10 +341,29 @@ export function createChat(vs) {
   });
 
   // slash commands: /skill-name, /new, /undo, /clear
+  let skillCache = [];
+  const loadSkills = () => vs.allSkills?.().then((l) => (skillCache = l)).catch(() => {});
+  loadSkills();
+  vibeStore.on("change", (g) => (g === "skills" || g === "all") && loadSkills());
+  const useSkill = async (s, rest = "") => {
+    if (!s.params?.length) {
+      input.value = `Use the “${s.name}” skill. ${rest}`;
+      return;
+    }
+    const { skillArgsDialog } = await import("./skill-form.js");
+    const args = await skillArgsDialog(s);
+    if (!args) return;
+    input.value = `Use the “${s.name}” skill with args ${JSON.stringify(args)}. ${rest}`;
+    autosize();
+    input.focus();
+  };
+  vs.useSkill = useSkill;
   const COMMANDS = () => [
-    { name: "new", hint: "Start a new chat", run: () => session.newChat() },
-    { name: "undo", hint: "Undo the last AI run", run: () => app.toast(`Undid ${session.undoLastRun()} step(s).`, "success", 1500) },
-    ...(vs.skills() || []).map((s) => ({ name: s.name, hint: s.description, run: () => (input.value = `Use the “${s.name}” skill. ${input.value.replace(/^\/\S*\s*/, "")}`) })),
+    { name: "new", hint: "Start a new chat (other chats keep running)", run: () => session.newChat() },
+    { name: "undo", hint: "Undo the last AI run of this chat", run: () => { const n = session.undoLastRun(); app.toast(n ? `Undid ${n} step(s).` : session.lastUndoError || "Nothing to undo.", n ? "success" : "warning", 2500); } },
+    { name: "stop-all", hint: "Stop every running chat and sub-agent", run: () => app.toast(`Stopped ${vs.hub.stopAll()} chat(s).`, "primary", 1500) },
+    { name: "create-skill", hint: "Turn what Vibe did in this chat into a reusable skill (draft)", run: () => (input.value = "Distill the workflow you performed in this chat into a reusable skill: call create_skill with a concrete numbered workflow (exact tools and arguments that worked), rules with numbers, {{param}} placeholders for what changes between uses (declare them in params), token-saving tips and a ## Verify section. Keep it under 120 lines.") },
+    ...(skillCache.length ? skillCache : vs.skills() || []).map((s) => ({ name: s.name, hint: `${s.argumentHint ? `[${s.argumentHint}] ` : s.params?.length ? `[${s.params.map((p) => p.name).join(", ")}] ` : ""}${s.description}`, run: () => useSkill(s, input.value.replace(/^\/\S*\s*/, "")) })),
   ];
   let slashItems = [];
   let slashSel = 0;
@@ -388,6 +432,7 @@ export function createChat(vs) {
       input.value = "";
     }
     autosize();
+    suggestEl.classList.add("hidden");
     toBottom(true);
     input.focus({ preventScroll: true });
     try {
@@ -434,17 +479,22 @@ export function createChat(vs) {
   // ------------------------------------------------------------ pills
   const MODES = { careful: "Ask for every change", balanced: "Ask for risky steps", auto: "Auto-apply" };
   function paintPills() {
-    const s = vibeStore.settings;
+    const s = session.settings ? session.settings() : vibeStore.settings;
+    const ov = session.overrides || {};
     const p = s.activeProvider ? vibeStore.provider(s.activeProvider) : null;
-    modelPill.replaceChildren(iconEl("cpu"), h("span", s.activeProvider && s.model ? `${p?.label || "Provider"} · ${s.model.split("/").pop()}` : "Demo (offline)"), iconEl("chevron-down"));
-    modePill.replaceChildren(iconEl(s.approval === "auto" ? "lightning-charge" : s.approval === "careful" ? "shield-check" : "shield"), h("span", MODES[s.approval]));
+    modelPill.replaceChildren(iconEl("cpu"), h("span", `${s.activeProvider && s.model ? `${p?.label || "Provider"} · ${s.model.split("/").pop()}` : "Demo (offline)"}${ov.model ? " (this chat)" : ""}`), iconEl("chevron-down"));
+    modePill.replaceChildren(iconEl(s.approval === "auto" ? "lightning-charge" : s.approval === "careful" ? "shield-check" : "shield"), h("span", `${MODES[s.approval]}${ov.approval ? " (this chat)" : ""}`));
     thinkPill.replaceChildren(iconEl("lightbulb"), h("span", s.reasoning === "off" ? "Thinking off" : `Thinking ${s.reasoning}`));
     paintSend();
   }
   modelPill.addEventListener("click", () => vs.openModelPicker(modelPill));
   modePill.addEventListener("click", () => {
     const r = modePill.getBoundingClientRect();
-    showContextMenu(app, r.left, r.top - 130, Object.entries(MODES).map(([k, v]) => ({ label: v, checked: vibeStore.settings.approval === k, run: () => vibeStore.saveSettings({ approval: k }) })));
+    const own = session.overrides?.approval;
+    showContextMenu(app, r.left, r.top - 160, [
+      ...Object.entries(MODES).map(([k, v]) => ({ label: v, checked: (own || vibeStore.settings.approval) === k, run: () => (own ? session.setOverrides({ approval: k }) : vibeStore.saveSettings({ approval: k })) })),
+      { label: own ? "Use the default mode in this chat" : "Pin this mode to this chat (then changes apply only here)", run: () => session.setOverrides({ approval: own ? null : vibeStore.settings.approval }) },
+    ]);
   });
   thinkPill.addEventListener("click", () => {
     const r = thinkPill.getBoundingClientRect();
@@ -458,7 +508,13 @@ export function createChat(vs) {
     pending.classList.toggle("hidden", !on);
     if (on) follow();
   };
-  session.on("chat", renderHistory);
+  session.on("chat", () => {
+    renderHistory();
+    // switching to a chat that is still working: its live events are replayed next (hub SessionView)
+    if (session.running) showPending(true);
+    paintPills();
+    suggest();
+  });
   session.on("message", (m) => {
     if (thread.querySelector(".of-vempty")) empty(thread);
     thread.querySelectorAll(".of-vact--retry").forEach((x) => x.remove());
@@ -501,6 +557,12 @@ export function createChat(vs) {
       case "retry":
         note(`The provider is busy — retrying (${ev.attempt})…`);
         break;
+      case "agent_status":
+        tools.agentStatus(ev.agent);
+        break;
+      case "agent_event":
+        tools.agentEvent(ev);
+        break;
       default:
         break;
     }
@@ -508,6 +570,7 @@ export function createChat(vs) {
   session.on("approval", (req) => {
     showPending(false);
     if (tools.approve(req)) return;
+    if (req.agent && tools.agentApprove(req)) return;
     const b = assistantBubble();
     endText();
     tools.add(b, req.id, req.name, req.input);
@@ -544,5 +607,5 @@ export function createChat(vs) {
 
   renderHistory();
   paintPills();
-  return { el: root, focus: () => input.focus({ preventScroll: true }), setInput: (t) => { input.value = t; autosize(); input.focus(); }, send: (t, f) => session.send(t, f), paintPills, note, addFiles };
+  return { el: root, focus: () => input.focus({ preventScroll: true }), setInput: (t) => { input.value = t; autosize(); input.focus(); }, send: (t, f) => send(t), sendRaw: (t, f) => session.send(t, f), paintPills, note, addFiles, useSkill };
 }

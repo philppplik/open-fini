@@ -6,14 +6,16 @@ import { iconEl } from "../toolbox.js";
 import { showContextMenu } from "../menus.js";
 import { confirmDialog } from "../dialogs.js";
 import { vibeStore } from "../../vibe/store.js";
-import { VibeSession } from "../../vibe/session.js";
+import { getVibeHub } from "../../vibe/hub.js";
+import { chatRowExtras, chatListHead } from "./chat-list.js";
 import { createChat } from "./chat.js";
 import { createCanvasPanel } from "./panel-canvas.js";
 import { createActivityPanel } from "./panel-activity.js";
 import { createRunLog } from "./run-log.js";
 import { createModelsPanel } from "./panel-models.js";
 import { createToolsPanel } from "./panel-tools.js";
-import { createSkillsPanel, createKnowledgePanel } from "./panel-knowledge.js";
+import { createKnowledgePanel } from "./panel-knowledge.js";
+import { createSkillsPanel } from "./panel-skills.js";
 
 const TABS = [
   { id: "canvas", icon: "window", label: "Canvas" },
@@ -29,10 +31,27 @@ let instance = null;
 /** Vibe Studio is a singleton (one assistant for all open documents). */
 export function vibeStudio(app) {
   if (instance) return instance;
-  const session = new VibeSession(app);
-  const vs = { app, session, tab: "canvas", sideOpen: true, listOpen: true };
-  vs.timeline = createRunLog(session); // records the Activity log from the first message on, even while the tab is closed
+  const hub = getVibeHub(app);
+  const session = hub.view; // the active chat; forwards the active session's events (hub.js SessionView)
+  const vs = { app, session, hub, tab: "canvas", sideOpen: true, listOpen: true };
+  // one Activity log per chat, recording from the first message on (even while the tab is closed or the chat is in the background)
+  const timelines = new Map();
+  const timelineOf = (s) => {
+    if (!timelines.has(s.id)) timelines.set(s.id, createRunLog(s));
+    return timelines.get(s.id);
+  };
+  for (const s of hub.sessions.values()) if (!s.hidden) timelineOf(s);
+  hub.on("sessions", () => {
+    for (const s of hub.sessions.values()) if (!s.hidden) timelineOf(s);
+    for (const id of timelines.keys()) if (!hub.sessions.has(id)) timelines.delete(id);
+  });
+  Object.defineProperty(vs, "timeline", { get: () => (hub.active ? timelineOf(hub.active) : null) });
   vs.skills = () => session.ctx?.skills || [];
+  vs.allSkills = async () => {
+    const ai = await hub.ai();
+    const user = vibeStore.skills.filter((x) => x.enabled !== false).map((x) => ({ ...ai.parseSkill(ai.serializeSkill(x)), files: x.files, source: "user" }));
+    return [...user, ...ai.BUILTIN_SKILL_LIST.map((x) => ({ ...x, source: "builtin" })).filter((b) => !user.some((u) => u.name === b.name))];
+  };
   vs.openTab = (id) => {
     vs.tab = id;
     vs.sideOpen = true;
@@ -47,19 +66,38 @@ export function vibeStudio(app) {
 
   // ------------------------------------------------------------ chat list
   function renderList() {
+    const hadFocus = list.contains(document.activeElement) ? document.activeElement.dataset?.chat : null;
     empty(list);
+    // chats in memory that are not stored yet (a new chat that is about to run) come first, then the stored ones
+    const stored = new Set(vibeStore.chats.map((c) => c.id));
+    const live = [...hub.sessions.values()].filter((s) => !s.hidden && !stored.has(s.chat.id) && (s.chat.messages.length || s.running)).map((s) => ({ id: s.chat.id, title: s.chat.title, updated: Date.now() }));
+    const chats = [...live, ...vibeStore.chats];
     list.append(
-      h("div.of-vlist__head", h("strong", "Vibe"), iconButton({ icon: "pencil-square", label: "New chat", onClick: () => session.newChat() })),
-      h("div.of-vlist__items", vibeStore.chats.length ? vibeStore.chats.map((c) => {
-        const row = h("button.of-vlist__row", { type: "button", class: c.id === session.chat.id ? "active" : "" }, h("span", c.title), h("small", new Date(c.updated).toLocaleDateString("en-US", { month: "short", day: "numeric" })));
+      chatListHead(vs, iconButton({ icon: "pencil-square", label: "New chat", onClick: () => session.newChat() })),
+      h("div.of-vlist__items", chats.length ? chats.map((c) => {
+        const st = hub.statusOf(c.id);
+        const row = h("button.of-vlist__row", { type: "button", class: c.id === session.chat.id ? "active" : "", "data-chat": c.id, "aria-current": c.id === session.chat.id ? "true" : null }, h("span", c.title), ...chatRowExtras(vs, c, st), h("small", new Date(c.updated).toLocaleDateString("en-US", { month: "short", day: "numeric" })));
         row.addEventListener("click", () => session.openChat(c.id));
         row.addEventListener("contextmenu", (e) => {
           e.preventDefault();
-          showContextMenu(app, e.clientX, e.clientY, [{ label: "Delete chat", icon: "trash3", run: async () => { if (await confirmDialog({ title: "Delete chat", message: `Delete “${c.title}”?`, ok: "Delete", danger: true })) { await vibeStore.deleteChat(c.id); if (c.id === session.chat.id) session.newChat(); } } }]);
+          const s = hub.sessions.get(st.id);
+          const items = [];
+          if (st.running) items.push({ label: "Stop this chat", icon: "stop-fill", run: () => s?.abort() });
+          if (s) {
+            const ov = s.overrides || {};
+            const cur = vibeStore.settings;
+            items.push(
+              { label: ov.model ? `Model for this chat: ${ov.model} (use default)` : `Pin the current model (${cur.model || "demo"}) to this chat`, icon: "cpu", run: () => s.setOverrides(ov.model ? { model: null, activeProvider: null } : { model: cur.model || "demo", activeProvider: cur.activeProvider || null }) },
+              ...["careful", "balanced", "auto"].map((k) => ({ label: `Approval for this chat: ${k}`, checked: ov.approval === k, run: () => s.setOverrides({ approval: ov.approval === k ? null : k }) })),
+            );
+          }
+          items.push({ label: "Delete chat", icon: "trash3", run: async () => { if (await confirmDialog({ title: "Delete chat", message: `Delete “${c.title}”?`, ok: "Delete", danger: true })) { await vibeStore.deleteChat(c.id); if (st.id) hub.remove(st.id); } } });
+          showContextMenu(app, e.clientX, e.clientY, items);
         });
         return row;
       }) : h("div.of-empty", "Your chats appear here.")),
     );
+    if (hadFocus) list.querySelector(`[data-chat="${CSS.escape(hadFocus)}"]`)?.focus();
   }
 
   // ------------------------------------------------------------ side panel
@@ -154,7 +192,8 @@ export function vibeStudio(app) {
     if (g === "chats" || g === "all") renderList();
   });
   session.on("chat", renderList);
-  session.on("status", renderList);
+  let listRaf = 0;
+  hub.on("sessions", () => (listRaf ||= requestAnimationFrame(() => ((listRaf = 0), renderList()))));
 
   const ready = vibeStore.load().then(() => {
     chat = createChat(vs);

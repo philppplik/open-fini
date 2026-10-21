@@ -15,6 +15,7 @@ const K = {
   mcp: "vibe.mcp",
   memory: "vibe.memory",
   knowledge: "vibe.knowledge",
+  skillStats: "vibe.skillStats",
 };
 
 export const DEFAULT_SETTINGS = () => ({
@@ -32,6 +33,15 @@ export const DEFAULT_SETTINGS = () => ({
   extraInstructions: "",
   sendScreenshots: true,
   vault: false,
+  // engine (hub, sub-agents, skills); see docs/vibe-studio.md
+  maxChats: 4, // chats that may run at the same time
+  maxAgents: 3, // sub-agents running at once per chat (more are queued)
+  agentModel: "", // model id for sub-agents on the chat's provider ("" = same model as the chat)
+  agentSteps: 12, // step limit per sub-agent
+  agentBudgetSteps: 80, // total sub-agent steps per request
+  agentBudgetTokens: 400000, // total sub-agent tokens per request (when the provider reports usage)
+  enforceSkillTools: true, // honor `enforce-tools: true` in skills
+  suggestSkills: true, // show the "Use skill X?" chip under the composer
 });
 
 /** The single store instance; emits "change" with the key group that changed. */
@@ -44,13 +54,15 @@ class VibeStore extends Emitter {
   customTools = []; // { name, description, inputSchema, code, enabled }
   mcpServers = []; // { id, name, url, headers, enabled }
   memory = []; // [{ id, text, time }]
+  skillStats = {}; // { [skillName]: { uses, last } }
   loaded = false;
   locked = false; // vault enabled and not yet unlocked this session
   #sealed = null;
 
   async load() {
     if (this.loaded) return this;
-    const [settings, providers, secrets, chats, skills, tools, mcp, memory] = await Promise.all([K.settings, K.providers, K.secrets, K.chats, K.skills, K.tools, K.mcp, K.memory].map((k) => kvGet(k)));
+    const [settings, providers, secrets, chats, skills, tools, mcp, memory, skillStats] = await Promise.all([K.settings, K.providers, K.secrets, K.chats, K.skills, K.tools, K.mcp, K.memory, K.skillStats].map((k) => kvGet(k)));
+    this.skillStats = skillStats || {};
     this.settings = { ...DEFAULT_SETTINGS(), ...(settings || {}) };
     this.providers = providers || [];
     this.chats = chats || [];
@@ -161,6 +173,13 @@ class VibeStore extends Emitter {
     this.memory = list;
     return this.#save(K.memory, list, "memory");
   }
+  /** Counts a use of a skill (Skills panel shows "used N times, last …"). Local only. */
+  noteSkillUse(name) {
+    const s = (this.skillStats[name] ||= { uses: 0, last: 0 });
+    s.uses++;
+    s.last = Date.now();
+    return this.#save(K.skillStats, this.skillStats, "skillStats");
+  }
 
   // ---- chats
   async loadChat(id) {
@@ -194,7 +213,7 @@ class VibeStore extends Emitter {
   async clearAll() {
     for (const k of Object.values(K)) if (typeof k === "string") await kvDelete(k);
     for (const c of this.chats) await kvDelete(K.chat(c.id));
-    Object.assign(this, { settings: DEFAULT_SETTINGS(), providers: [], secrets: {}, chats: [], skills: [], customTools: [], mcpServers: [], memory: [], locked: false, passphrase: null });
+    Object.assign(this, { settings: DEFAULT_SETTINGS(), providers: [], secrets: {}, chats: [], skills: [], customTools: [], mcpServers: [], memory: [], skillStats: {}, locked: false, passphrase: null });
     this.emit("change", "all");
   }
 }
