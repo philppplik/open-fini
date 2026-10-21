@@ -27,6 +27,15 @@ content-editable elements are detected automatically (also inside Shoelace contr
 - The item you chose last in a kind of menu gets a small "last" marker (menus with more than five items).
 - Shift + right-click in a text field opens the browser's own menu. Spell-check suggestions exist only there; a web
   page cannot read them, so OpenFini does not fake them.
+- **Native menu policy** (`context-menu/native-policy.js`, `shouldAllowNativeContextMenu(target, event)`): OpenFini is an
+  app, so the OS/webview menu ("Back", "Reload", "Inspect") never appears in the chrome. Any right-click that no OpenFini
+  menu handled is `preventDefault()`ed (empty areas, panel backgrounds, disabled UI show nothing). The native menu is
+  allowed only for (1) website previews (an `<iframe>`: the sandboxed page is the user's own site), (2) Shift +
+  right-click in editable text (inputs, textareas, contenteditable, also inside Shoelace controls), and (3) elements
+  marked `data-native-menu`. Tests: `tests/ui/native-context-menu.test.js`.
+- Glass styles: the menu blur is painted by a `::before` on the dropdown panel / `.of-ctxmenu` host, never by `sl-menu`
+  itself (a `backdrop-filter` on a menu would trap the position:fixed submenu popups in the menu's scroll box). A test in
+  `tests/ui/glass.test.js` enforces this.
 - Touch: press and hold for about half a second.
 - Canvas: right-click selects the layer under the pointer first (like other design tools); on empty canvas it clears the
   selection.
