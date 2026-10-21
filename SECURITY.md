@@ -25,10 +25,9 @@ otherwise.
 
 ## Repository security settings
 
-Dependabot alerts, Dependabot security updates, secret scanning with push protection and CodeQL code scanning are enabled
-(Dependabot version updates are configured in `.github/dependabot.yml`). Owner checklist, Settings ▸ Code security: Dependabot
-alerts, Dependabot security updates, secret scanning and push protection, and **Private vulnerability reporting** (required for the
-advisory form above to work; the API did not expose it, so verify it manually).
+Dependabot alerts, Dependabot security updates, secret scanning with push protection, private vulnerability reporting
+(the advisory form above) and CodeQL code scanning are enabled. Dependabot version updates are configured in
+`.github/dependabot.yml`. If a setting is ever switched off, the owner can restore it under Settings ▸ Code security.
 
 ## What counts
 
