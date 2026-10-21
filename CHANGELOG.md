@@ -20,6 +20,16 @@ All notable changes to OpenFini are documented here. The format follows
 ### Added
 - **Wiki**: a 54-page user and developer manual in `wiki/` (installation, every studio, file formats, collaboration, Vibe, extensions, security, troubleshooting, developer guides, decision-record index), published to the GitHub wiki by `.github/workflows/wiki.yml` through `scripts/wiki-sync.mjs` on pushes to `main`. `npm run wiki:shortcuts` generates the keyboard-shortcut tables from the command registry; `tests/docs/wiki-links.test.js` checks links, reachability, structure and that the generated page is current. See `docs/wiki-maintenance.md`; the owner must create the first wiki page once in the web UI.
 
+### Added
+- **Tool pill**: a floating pill at the bottom of the canvas shows the active state with its actions: "Selection active · 1,240 × 860 px" with Deselect, Invert, Feather…, To layer mask and Fill for pixel selections; Deselect for layer selections in Vector, Layout and Pixel; Apply / Cancel for crop and liquify; Finish path / Close path for the pen; Done editing for text. Settings ▸ Canvas and editing ▸ *Show the tool pill* (default on). See [docs/studios.md](docs/studios.md).
+- **Vibe skill `about-the-developer`**: answers "who made OpenFini?" with publicly stated facts about Philipp Paulik and the project only, and points to philipp-paulik.de and GitHub for more.
+
+### Changed
+- The native webview / OS context menu no longer appears in the app chrome. Right-clicks that no OpenFini menu handles do nothing; the native menu remains for website previews and for Shift + right-click in editable text (`shouldAllowNativeContextMenu`, see [docs/context-menus.md](docs/context-menus.md)).
+
+### Fixed
+- Submenus of menus and context menus (File ▸ Quick Export, Open Recent, Swatches, ...) were clipped and needed horizontal scrolling in the Glass, Liquid glass and Sea glass styles. The blur now sits on the menu frame instead of the menu itself, so submenus open beside their parent, flip near screen edges and no longer scroll. A CSS test guards the rule.
+
 ## [0.7.0] — Collaboration, Code studio tools, glass
 
 ### Added

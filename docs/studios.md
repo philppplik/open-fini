@@ -86,6 +86,23 @@ Adjustments and live filters are **non-destructive layers** you can reorder, mas
 Enable *Apply to the selected layer only* in the Adjust panel to nest them under a layer instead of
 affecting everything below.
 
+### Tool pill
+
+A small floating pill at the bottom center of the canvas (above the status bar) names the active state in words and
+offers its actions. Pixel selection (marquee, lasso, wand, color range): "Selection active · 1,240 × 860 px" with
+**Deselect** (`Mod+D`), **Invert** (`Mod+Shift+I`), **Feather…**, **To layer mask** and **Fill** (the existing commands
+`select.none`, `select.invert`, `select.feather`, `select.toMask`, `pixel.fillForeground`). In Vector, Layout and Pixel
+a layer selection shows "3 objects selected" with **Deselect**. Tools in a modal-like state: **Apply / Cancel** for crop
+and liquify (Enter / Esc), **Finish path / Close path / Cancel** for the pen, **Done editing** for text. Turn it off in
+Settings ▸ Canvas and editing ▸ *Show the tool pill* (`toolPill`). The Vibe assistant needs no tool for it: the pill only
+calls commands it can already run.
+
+Architecture: the decision is a pure function in `app/src/ui/tool-pill-model.js` (`buildPillModel(snapshot)`, tests in
+`tests/ui/tool-pill.test.js`); `app/src/ui/tool-pill.js` renders it (lazy-loaded from `ui/shell.js`, styles in
+`styles/tool-pill.css`, glass aware). To give a tool a pill state, add `pillState()` (returns
+`{ key, params, actions: [{ id, label, key?, primary? }] }` or null) and `pillAction(id)` to the tool class; messages
+must also be listed in `PILL_MESSAGES` so `npm run i18n:extract` finds them.
+
 ## Layout studio
 
 * **Pages panel** — thumbnails (drag to reorder), add / duplicate / delete, **master pages**, and *Facing

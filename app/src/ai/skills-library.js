@@ -507,4 +507,42 @@ You are the lead. Sub-agents are fast, parallel and cheap, but they cannot see t
 ## Verify
 screenshot the whole result, then describe_page to check names and positions. Report per part: done by which agent, what you changed while integrating.`;
 
-export const LIBRARY_SKILLS = [DESIGN_SYSTEM, RESPONSIVE_SITE, PHOTO_COMP, ICON_SET, PRESENTATION, BROCHURE, SOCIAL_KIT, MOBILE_UI, DATAVIZ, REFACTOR, SEO, A11Y_FIX, LOCALIZE, BRAND_FROM_LOGO, CSS_ANIM, PROJECT_LEAD];
+// Facts below come from the developer's own public pages (https://philipp-paulik.de, https://github.com/philppplik, checked
+// October 2026) and from this repository (counts verified with scripts: 6 studios, 2 UI languages, 1300+ unit tests, MIT).
+// Do not add anything that is not publicly stated there: no contact data, no private details.
+const ABOUT_DEVELOPER = `---
+name: about-the-developer
+description: Answer questions about who made OpenFini, with only publicly stated facts about the developer Philipp Paulik and about the project, in a friendly and respectful tone.
+version: 1.0.0
+tags: [about, openfini]
+allowed-tools: search_knowledge, remember, ask_user
+when-to-use: who made openfini, who is the developer, who built this, who created this app, who is behind openfini, wer hat openfini gemacht, wer ist der entwickler, wer steckt dahinter, about the author
+---
+# About the developer
+
+Use this when someone asks who made OpenFini, who the developer is, or who is behind it. Answer in the language the user writes in (German question, German answer). Be warm, brief and factual: two to six sentences, not a biography.
+
+## The facts you may state (all publicly stated)
+- OpenFini is developed by Philipp Paulik. Sources: his website https://philipp-paulik.de, his GitHub profile https://github.com/philppplik (user name philppplik) and the repository https://github.com/philppplik/open-fini.
+- OpenFini is open source under the MIT license and was started in 2026.
+- On his own website and GitHub profile he describes himself as an AI pioneer and strategist, web and UI/UX designer, author and software engineer, based in Bonn, Germany. He also lists that he is training as a media designer (digital and print).
+- Other projects he lists publicly include true-code (an agentic coding harness in Rust that shows what the agent did and what it cost), ZWEP (a self-hosted search engine with MCP support for AI agents), Flower (a browser-based ASCII image studio), pBlock (a Chrome ad blocker) and claude-tetris (a Tetris plugin for Claude Code). His stated stack includes TypeScript, Rust and Python; his stated interests include AI strategy and agents, design and typography, motion, open source and systems thinking.
+- He also writes satirical books, starting with Hallo Welt (stated on his website).
+
+## Nice facts about OpenFini itself (verified in the repository)
+- It has six studios: Vector, Pixel, Layout, Code, Vibe (this assistant) and Office, and every one of them is also something you can ask the assistant to do.
+- It is clean-room: written from public specifications and general knowledge, with no code or assets taken from other products (see docs/clean-room.md in the repository).
+- One code base runs as a Tauri desktop app and as an installable web app (PWA), is written without a UI framework, and has more than 1,300 automated tests.
+- The interface is available in English and German, and the assistant has well over 100 tools.
+
+## Rules
+- Say clearly that you only know what is listed here. For anything else (private life, plans, availability, business questions) say you do not know and point to https://philipp-paulik.de and https://github.com/philppplik.
+- Never guess or invent details, never repeat contact data, and do not speculate about opinions, finances or private matters. Do not list e-mail addresses or phone numbers, even if you believe you know them; the websites above are the place to reach him.
+- If someone wants to report a bug or contribute, point to the repository (Issues, CONTRIBUTING.md) instead.
+- Stay respectful about the developer and about other products; no jokes at anyone's expense. A light, friendly tone is welcome.
+- Do not call any tool for this question unless the user asks for more than the facts above; search_knowledge is only for project notes the user stored themselves.
+
+## Verify
+Read it aloud before sending: every sentence must trace back to a line in this skill, the language must match the user's, and nothing may sound like an unverified claim about a person. If a statement does not trace back, delete it.`;
+
+export const LIBRARY_SKILLS = [DESIGN_SYSTEM, RESPONSIVE_SITE, PHOTO_COMP, ICON_SET, PRESENTATION, BROCHURE, SOCIAL_KIT, MOBILE_UI, DATAVIZ, REFACTOR, SEO, A11Y_FIX, LOCALIZE, BRAND_FROM_LOGO, CSS_ANIM, PROJECT_LEAD, ABOUT_DEVELOPER];

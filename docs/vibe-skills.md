@@ -4,7 +4,9 @@ A skill is a Markdown file (`SKILL.md` style) that teaches the Vibe assistant on
 rules with numbers, which tools to use and how to check the result. Vibe sees only a one-line catalog entry per skill
 and loads the full text with `use_skill` when a task matches, so skills cost almost nothing until they are used.
 
-OpenFini ships 26 built-in skills (Vibe ▸ Skills ▸ Built in). You can write your own, import them, share them as
+OpenFini ships 27 built-in skills (Vibe ▸ Skills ▸ Built in; among them `about-the-developer`, which answers "who made
+OpenFini?" with only the publicly stated facts about Philipp Paulik and the project, and sends everything else to
+philipp-paulik.de and GitHub). You can write your own, import them, share them as
 `.skill.md` files or `.skillpack` bundles, and let Vibe draft one from a chat.
 
 ## Format

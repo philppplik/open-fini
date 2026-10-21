@@ -11,8 +11,17 @@
 // Invariants: re-renders only when the signature changes; never steals focus from the canvas (buttons use pointerdown
 // preventDefault); respects reduced motion through CSS (.of-reduce-motion and prefers-reduced-motion).
 import { h, prettyShortcut } from "../core/util.js";
-import { t } from "../i18n/index.js";
+import { t, N_ } from "../i18n/index.js";
 import { buildPillModel, pillSignature } from "./tool-pill-model.js";
+
+// Messages built in the model and in the tools' pillState() are translated at render time; they are listed here so that
+// `npm run i18n:extract` finds them.
+// prettier-ignore
+export const PILL_MESSAGES = [
+  N_("Selection active · {w} × {h} px"), N_("{name} selected"), N_("1 object selected"), N_("{n} objects selected"),
+  N_("Crop · {w} × {h} px"), N_("Liquify in progress"), N_("Drawing a path · 1 point"), N_("Drawing a path · {n} points"), N_("Editing text"),
+  N_("Deselect"), N_("Invert"), N_("Feather…"), N_("To layer mask"), N_("Fill"), N_("Apply"), N_("Cancel"), N_("Finish path"), N_("Close path"), N_("Done editing"),
+];
 
 const STUDIOS = new Set(["pixel", "vector", "layout"]);
 
