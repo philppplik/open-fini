@@ -17,6 +17,9 @@ All notable changes to OpenFini are documented here. The format follows
 ### Fixed
 - Test-only regex and no-op `replace` calls flagged by code scanning were cleaned up.
 
+### Added
+- **Wiki**: a 54-page user and developer manual in `wiki/` (installation, every studio, file formats, collaboration, Vibe, extensions, security, troubleshooting, developer guides, decision-record index), published to the GitHub wiki by `.github/workflows/wiki.yml` through `scripts/wiki-sync.mjs` on pushes to `main`. `npm run wiki:shortcuts` generates the keyboard-shortcut tables from the command registry; `tests/docs/wiki-links.test.js` checks links, reachability, structure and that the generated page is current. See `docs/wiki-maintenance.md`; the owner must create the first wiki page once in the web UI.
+
 ## [0.7.0] — Collaboration, Code studio tools, glass
 
 ### Added

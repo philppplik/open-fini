@@ -50,6 +50,7 @@ Rules that explain most of the code:
 | Collaboration (rooms, chat, comments, versions, presence, relay) | pure `app/src/collab/`, UI `app/src/ui/collab/`, `scripts/relay.mjs` | [collaboration.md](collaboration.md), [ADR 0010](adr/0010-collaboration-e2e-relay.md) |
 | Security, logging, diagnostics | `app/src/core/{log,network,security,atrest}.js`, `app/src/ui/security-center.js` | [security.md](security.md), [troubleshooting.md](troubleshooting.md) |
 | Build, size budgets, installer, release | `scripts/`, `src-tauri/installer`, `.github/workflows/` | [building.md](building.md), [installer.md](installer.md), [release-process.md](release-process.md) |
+| The wiki (user and developer manual, published to the GitHub wiki) | `wiki/`, `scripts/wiki-sync.mjs`, `scripts/wiki-shortcuts.mjs`, `.github/workflows/wiki.yml`, `tests/docs/` | [wiki-maintenance.md](wiki-maintenance.md), `wiki/Wiki-Style-Guide.md` |
 
 ## 3. Recipes: how to add…
 
@@ -88,6 +89,7 @@ Rules that explain most of the code:
   `CHANGELOG.md`, `app/index.html`) are conflict hot spots when several people work in parallel: make small additive edits,
   put new code in new files and new CSS in your own stylesheet, merge `main` often.
 * Update the docs of the area you changed and add a bullet to `CHANGELOG.md` under `## [Unreleased]`.
+* The wiki lives in `wiki/` and is published to the GitHub wiki on merge to `main`; if you change a shortcut or command, run `npm run wiki:shortcuts` (a test fails when `wiki/Keyboard-Shortcuts.md` is stale) and update the affected wiki page ([wiki-maintenance.md](wiki-maintenance.md)).
 * Design decisions that are hard to reverse get an ADR in [adr/](adr/README.md) (context, decision, consequences).
 
 ## 6. Size, performance and low-power devices

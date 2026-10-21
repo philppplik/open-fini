@@ -1,0 +1,61 @@
+name: Publish wiki
+
+# Publishes the wiki/ folder to the repository's GitHub wiki (<repo>.wiki.git).
+# One-time setup by the owner: open the Wiki tab and create the first page (any content, Save). GitHub creates the
+# wiki repository only then. Until it exists this workflow succeeds with a notice and publishes nothing; the first
+# run after that fills the whole wiki. See docs/wiki-maintenance.md.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "wiki/**"
+      - "scripts/wiki-sync.mjs"
+      - ".github/workflows/wiki.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wiki
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate pages and links
+        run: node scripts/wiki-sync.mjs --check
+
+      - name: Does the wiki repository exist?
+        id: probe
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git -c "http.extraheader=AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)" ls-remote "https://github.com/${{ github.repository }}.wiki.git" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Wiki not initialized::Open the Wiki tab of the repository, click 'Create the first page' and save once. Then re-run this workflow."
+          fi
+
+      - name: Check out the wiki repository
+        if: steps.probe.outputs.exists == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki-repo
+          token: ${{ github.token }}
+
+      - name: Sync and push
+        if: steps.probe.outputs.exists == 'true'
+        run: node scripts/wiki-sync.mjs --dest wiki-repo --push

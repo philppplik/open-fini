@@ -43,6 +43,8 @@
     "mcp:gateway": "node scripts/mcp-gateway.mjs",
     "publish:helper": "node scripts/publish-helper.mjs",
     "relay": "node scripts/relay.mjs",
+    "wiki:shortcuts": "node scripts/wiki-shortcuts.mjs",
+    "wiki:check": "node scripts/wiki-sync.mjs --check",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
