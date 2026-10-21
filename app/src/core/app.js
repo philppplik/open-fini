@@ -57,6 +57,11 @@ const defaultPrefs = () => ({
   codeWordWrap: false,
   codeFontSize: 13,
   codeFormatOnSave: false,
+  codeLayout: "auto", // split arrangement: auto | codeLeft | codeRight | codeTop | codeBottom
+  codeMeasureUnit: "px", // unit of the measure tool
+  codeMeasurePpi: 96, // pixels per inch behind mm / cm / in / pt (96 = CSS reference)
+  codeMeasureDpr: false, // count device pixels (CSS px x device pixel ratio) for physical units
+  codeViewportSizes: [], // saved preview sizes [{ name, w, h }]
   gitName: "", // author of commits in Source Control
   gitEmail: "",
   previewScripts: true,

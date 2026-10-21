@@ -4,6 +4,7 @@
 import { Emitter, h, empty, debounce } from "../../core/util.js";
 import { ensureWeb } from "../../core/web.js";
 import * as E from "../../engine/web/index.js";
+import { t } from "../../i18n/index.js";
 import { createModel } from "./model.js";
 import { CodeEditors } from "./editor.js";
 import { PreviewPane } from "./preview.js";
@@ -147,7 +148,7 @@ export class CodeWorkspace extends Emitter {
     this.splitEl = h(
       "div.of-split",
       h("div.of-split__code", this.editors.el),
-      h("div.of-split__bar", { role: "separator", "aria-orientation": "vertical", title: "Drag to resize" }),
+      h("div.of-split__bar", { role: "separator", tabIndex: 0, "aria-orientation": "vertical", title: t("Drag to resize, double-click to reset, arrow keys to adjust"), "aria-label": t("Resize code and preview"), "aria-valuemin": "10", "aria-valuemax": "90" }),
       h("div.of-split__preview", this.preview.el, this.docPreview.el),
     );
     this.#wireSplitter();
@@ -247,32 +248,101 @@ export class CodeWorkspace extends Emitter {
     this.#renderSide();
   }
 
+  /**
+   * Split arrangement. The code pane is always the first DOM child; CSS reverses the flex direction for "codeRight" and
+   * "codeBottom". The choice is "auto" (code left, stacked on top below 900 px) or one of E.LAYOUTS, stored per project
+   * (web.settings.layout) and as the default for new projects (pref codeLayout). The ratio is the share of the code pane,
+   * remembered separately for side-by-side (splitH) and stacked (splitV) arrangements.
+   */
+  get layoutChoice() {
+    const c = this.web.settings.layout || this.app.prefs.codeLayout;
+    return E.LAYOUTS.includes(c) ? c : "auto";
+  }
+  /** The arrangement currently shown (auto resolved against the available width). */
+  get layout() {
+    return this.splitEl?.dataset.layout || "codeLeft";
+  }
+  setLayout(choice) {
+    const c = E.LAYOUTS.includes(choice) ? choice : "auto";
+    this.web.settings.layout = c === "auto" ? null : c;
+    this.app.setPref("codeLayout", c);
+    if (this.view !== "split") this.setView("split");
+    this.#applyLayout();
+    this.emit("layout", this.layout);
+  }
+  #splitKey(layout = this.layout) {
+    return E.isStacked(layout) ? "splitV" : "splitH";
+  }
+  #splitTotal() {
+    return E.isStacked(this.layout) ? this.splitEl.clientHeight : this.splitEl.clientWidth;
+  }
+  splitRatio() {
+    const st = this.web.settings;
+    const key = this.#splitKey();
+    return E.clampRatio(st[key] ?? (key === "splitH" ? st.split : undefined) ?? 0.5, this.#splitTotal(), 240);
+  }
+  #applyLayout() {
+    if (!this.splitEl) return;
+    const l = E.resolveLayout(this.layoutChoice, this.splitEl.clientWidth);
+    const changed = this.splitEl.dataset.layout !== l;
+    this.splitEl.dataset.layout = l;
+    this.splitEl.classList.toggle("vertical", E.isStacked(l));
+    const bar = this.splitEl.querySelector(".of-split__bar");
+    bar.setAttribute("aria-orientation", E.isStacked(l) ? "horizontal" : "vertical");
+    const r = this.splitRatio();
+    this.splitEl.style.setProperty("--split", String(r));
+    bar.setAttribute("aria-valuenow", String(Math.round(r * 100)));
+    if (changed) {
+      this.emit("layout", l);
+      requestAnimationFrame(() => {
+        this.preview?.layout();
+        this.editors?.view?.requestMeasure();
+      });
+    }
+  }
+  #setRatio(r) {
+    this.web.settings[this.#splitKey()] = +E.clampRatio(r, this.#splitTotal(), 240).toFixed(4);
+    this.#applyLayout();
+  }
   #wireSplitter() {
     const bar = this.splitEl.querySelector(".of-split__bar");
-    const apply = () => {
-      const f = Math.min(0.8, Math.max(0.2, this.web.settings.split ?? 0.45));
-      this.splitEl.style.setProperty("--split", String(f));
+    const relayout = () => {
+      this.preview.layout();
+      this.editors.view?.requestMeasure();
     };
-    apply();
     bar.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
       bar.setPointerCapture(e.pointerId);
-      const r = this.splitEl.getBoundingClientRect();
-      const vertical = this.splitEl.classList.contains("vertical");
       const mv = (ev) => {
-        this.web.settings.split = vertical ? (ev.clientY - r.top) / r.height : (ev.clientX - r.left) / r.width;
-        apply();
+        const r = this.splitEl.getBoundingClientRect();
+        const stacked = E.isStacked(this.layout);
+        const total = stacked ? r.height : r.width;
+        this.#setRatio(E.ratioFromPointer(this.layout, stacked ? ev.clientY - r.top : ev.clientX - r.left, total));
       };
       const up = () => {
         bar.removeEventListener("pointermove", mv);
         bar.removeEventListener("pointerup", up);
-        this.preview.layout();
+        bar.removeEventListener("pointercancel", up);
+        relayout();
       };
       bar.addEventListener("pointermove", mv);
       bar.addEventListener("pointerup", up);
+      bar.addEventListener("pointercancel", up);
     });
-    new ResizeObserver(() => {
-      this.splitEl.classList.toggle("vertical", this.splitEl.clientWidth < 760);
-    }).observe(this.splitEl);
+    bar.addEventListener("dblclick", () => {
+      this.#setRatio(0.5);
+      relayout();
+    });
+    bar.addEventListener("keydown", (e) => {
+      const next = E.stepRatio(this.splitRatio(), e.key, this.layout, e.shiftKey);
+      if (next == null) return;
+      e.preventDefault();
+      this.#setRatio(next);
+      relayout();
+    });
+    new ResizeObserver(() => this.#applyLayout()).observe(this.splitEl);
+    this.#applyLayout();
   }
 
   // ------------------------------------------------------------ view / layout
