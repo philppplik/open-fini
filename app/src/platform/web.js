@@ -115,7 +115,8 @@ export const platform = {
           multiple: Boolean(multiple),
           ...(types.length > 0 ? { types } : {}),
         });
-        return await Promise.all(handles.map(async (handle) => readFile(await handle.getFile())));
+        // the handle travels with the file so a document opened here can be saved back to the same file (core/source-format.js)
+        return await Promise.all(handles.map(async (handle) => ({ ...(await readFile(await handle.getFile())), handle })));
       } catch (err) {
         if (isAbort(err)) return [];
         // Anything else (SecurityError in iframes, ...): use the classic chooser.
@@ -125,8 +126,10 @@ export const platform = {
     return Promise.all(files.map(readFile));
   },
 
-  async saveFile({ suggestedName = "Untitled", bytes, mime, filters = [] } = {}) {
-    const blob = toBlob(bytes, mime || mimeFromName(suggestedName));
+  async saveFile({ suggestedName = "Untitled", bytes, bytesFor, mime, filters = [] } = {}) {
+    // `bytesFor(name)` produces the content after the user picked the file name (the type decides the format)
+    let blob = bytes == null ? null : toBlob(bytes, mime || mimeFromName(suggestedName));
+    const make = async (name) => (bytesFor ? toBlob(await bytesFor(name), mimeFromName(name)) : blob);
     if (typeof window.showSaveFilePicker === "function") {
       try {
         const types = pickerTypes(filters);
@@ -135,20 +138,26 @@ export const platform = {
           ...(types.length > 0 ? { types } : {}),
         });
         const writable = await handle.createWritable();
-        await writable.write(blob);
+        await writable.write(await make(handle.name));
         await writable.close();
-        return { name: handle.name };
+        return { name: handle.name, handle };
       } catch (err) {
         if (isAbort(err)) return null;
         // No user activation, sandboxed frame, ...: fall through to a download.
       }
     }
-    downloadBlob(blob, suggestedName);
+    downloadBlob(await make(suggestedName), suggestedName);
     return { name: suggestedName };
   },
 
-  async saveFileTo() {
-    throw new Error("saveFileTo() is only available in the desktop app.");
+  /** Writes to a File System Access handle (from openFiles / saveFile) without a dialog. Plain paths need the desktop app. */
+  async saveFileTo(target, bytes) {
+    if (!target || typeof target.createWritable !== "function") throw new Error("saveFileTo() is only available in the desktop app.");
+    if (target.queryPermission && (await target.queryPermission({ mode: "readwrite" })) !== "granted" && (await target.requestPermission?.({ mode: "readwrite" })) !== "granted") throw new Error("Permission to write the file was not granted.");
+    const writable = await target.createWritable();
+    await writable.write(toBlob(bytes, mimeFromName(target.name)));
+    await writable.close();
+    return { name: target.name, handle: target };
   },
 
   async setTitle(title) {
