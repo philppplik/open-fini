@@ -6,6 +6,9 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Save in the original format**: a file opened with File ▸ Open is saved again as the same kind of file (a `.txt` stays a `.txt`, a `.docx` stays a `.docx`, `.md`, `.json`, `.odt`, `.rtf`, `.html`, `.svg` too). Only when edits need more than the format can hold (a second file, design pages, pixel layers ...) does Save ask once whether to switch to `.ofini`. Text keeps its BOM and line endings and unchanged files are written byte for byte. Raster images, PSD and PDF are never overwritten (Save writes `.ofini`; Save As offers a flattened export). New setting *Save opened files in their original format when possible*, a save-target badge in the status bar, and the Vibe tool `get_save_target`. See [docs/file-compat.md](docs/file-compat.md).
+
 ## [0.6.0] — Safer files, quitting, providers
 
 ### Added
