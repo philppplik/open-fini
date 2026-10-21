@@ -128,8 +128,6 @@
 /* ------------------------------------------------------------------ floating surfaces: one blur each */
 :root[data-surface] sl-dialog::part(panel),
 :root[data-surface] sl-drawer::part(panel),
-:root[data-surface] sl-menu,
-:root[data-surface] sl-dropdown::part(panel),
 :root[data-surface] sl-select::part(listbox),
 :root[data-surface] sl-tooltip::part(body),
 :root[data-surface] sl-alert::part(base),
@@ -144,8 +142,26 @@
   backdrop-filter: var(--of-glass-filter);
 }
 :root[data-surface] sl-dialog::part(panel) { border-radius: calc(var(--of-radius) + 4px); }
-/* dropdown panels only frame their (already glass) menu: no second layer, no second border */
-:root[data-surface] sl-dropdown::part(panel) { background: transparent; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+/* MENUS. The blur must NOT sit on the <sl-menu> (or on any ancestor of a submenu): a backdrop-filter makes its element the
+   containing block of position:fixed descendants, so Shoelace's submenu popups were laid out inside the menu's own scroll
+   box (clipped, horizontal scrollbar). The glass is painted by a pseudo-element on the frame around the menu (the dropdown
+   panel or the .of-ctxmenu host); the menu itself stays transparent. Guarded by tests/ui/glass.test.js. */
+:root[data-surface] sl-dropdown::part(panel) { position: relative; background: transparent; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-surface] sl-dropdown:has(> sl-menu)::part(panel)::before,
+:root[data-surface] .of-ctxmenu::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: var(--sl-border-radius-medium, 4px);
+  background: var(--of-glass-grain) 0 0 / 160px 160px, var(--of-glass-fill-strong);
+  border: 1px solid var(--of-glass-edge);
+  box-shadow: var(--of-glass-shadow), inset 0 1px 0 var(--of-glass-hi);
+  -webkit-backdrop-filter: var(--of-glass-filter);
+  backdrop-filter: var(--of-glass-filter);
+}
+:root[data-surface] sl-dropdown > sl-menu, :root[data-surface] .of-ctxmenu > sl-menu { background: transparent; border-color: transparent; box-shadow: none; }
 :root[data-surface] sl-tooltip::part(body) { background: color-mix(in srgb, var(--of-bg-raised) 88%, transparent); color: var(--of-text); }
 :root[data-surface] sl-alert::part(base) { background: var(--of-glass-fill-strong); border-top-width: 3px; }
 :root[data-surface] .of-palette { background: rgba(0, 0, 0, 0.22); }
@@ -155,7 +171,7 @@
 :root[data-surface] sl-menu sl-menu,
 :root[data-surface] sl-dialog sl-menu,
 :root[data-surface] sl-dialog sl-select::part(listbox),
-:root[data-surface] sl-dialog sl-dropdown::part(panel),
+:root[data-surface] sl-dialog sl-dropdown > sl-menu,
 :root[data-surface] sl-dialog .of-popover,
 :root[data-surface] sl-drawer sl-menu,
 :root[data-surface] .of-palette__box sl-menu,
@@ -164,9 +180,9 @@
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-:root[data-surface] sl-dialog sl-dropdown::part(panel) { background: transparent; }
+:root[data-surface] sl-dialog sl-dropdown:has(> sl-menu)::part(panel)::before { display: none; }
+:root[data-surface] sl-dialog sl-dropdown > sl-menu { border-color: var(--of-glass-edge); }
 :root[data-surface] .of-popover .of-popover { background: var(--of-glass-fill-solid); -webkit-backdrop-filter: none; backdrop-filter: none; }
-:root[data-surface] .of-ctxmenu > sl-menu { background: var(--of-glass-grain) 0 0 / 160px 160px, var(--of-glass-fill-strong); }
 
 /* the document canvas, color pickers, artboards and the studio work areas stay exactly as they are: opaque, true colors */
 :root[data-surface] .of-canvasarea,
@@ -188,7 +204,8 @@
 :root[data-surface="liquid"] .of-header,
 :root[data-surface="liquid"] .of-contextbar { background-image: linear-gradient(to bottom, color-mix(in srgb, var(--of-glass-hi) 55%, transparent), transparent 55%); }
 :root[data-surface="liquid"] sl-dialog::part(panel),
-:root[data-surface="liquid"] sl-menu,
+:root[data-surface="liquid"] sl-dropdown:has(> sl-menu)::part(panel)::before,
+:root[data-surface="liquid"] .of-ctxmenu::before,
 :root[data-surface="liquid"] .of-palette__box,
 :root[data-surface="liquid"] .of-popover,
 :root[data-surface="liquid"] .of-coach,

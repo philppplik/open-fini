@@ -96,3 +96,19 @@ test("glass.css is scoped to the surface attribute and never blurs the document 
   assert.ok(/\.of-canvasarea[^{]*\{[^}]*backdrop-filter: none/.test(css), "canvas area explicitly unblurred");
   assert.ok(css.includes("prefers-reduced-transparency") && css.includes("prefers-contrast: more") && css.includes("@supports not"), "fallbacks present");
 });
+
+test("glass never puts a backdrop-filter on an <sl-menu> or an ancestor of a submenu (it would clip the submenu popups)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const css = readFileSync(new URL("../../app/styles/glass.css", import.meta.url), "utf8");
+  const rules = css.replace(/\/\*[\s\S]*?\*\//g, "").split("}").map((r) => r.trim()).filter(Boolean);
+  for (const r of rules) {
+    const [sel, body] = r.split("{");
+    if (!body || /^@/.test(sel.trim())) continue;
+    const m = body.match(/backdrop-filter\s*:\s*([^;]+)/);
+    if (!m || m[1].trim() === "none") continue;
+    for (const s of sel.split(",").map((x) => x.trim())) {
+      assert.ok(!/(^|[\s>])sl-menu($|[\s:.[])/.test(s), `backdrop-filter on a menu: ${s}`);
+      if (/sl-dropdown::part\(panel\)|\.of-ctxmenu/.test(s)) assert.ok(/::before$/.test(s), `backdrop-filter on a menu frame instead of its ::before: ${s}`);
+    }
+  }
+});
