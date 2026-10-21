@@ -271,7 +271,7 @@ export function registerFileCommands(app) {
   });
   app.on("recents", (r) => (recents = r));
   app.menuProviders = app.menuProviders || {};
-  app.menuProviders.recent = () => (recents.length ? recents.slice(0, 8).map((r) => ({ label: r.name, run: () => app.run("file.openRecent", r) })) : [{ label: t("No recent files"), disabled: true, run() {} }]);
+  app.menuProviders.recent = () => (recents.length ? [...recents.slice(0, 8).map((r) => ({ label: r.name, run: () => app.run("file.openRecent", r) })), "-", { label: t("Clear Recent"), run: () => app.run("file.clearRecent") }] : [{ label: t("No recent files"), disabled: true, run() {} }]);
 
   // ---- autosave + restore
   let saveTimer = 0;
@@ -285,7 +285,7 @@ export function registerFileCommands(app) {
     try {
       const entries = [];
       for (const d of app.docs) entries.push({ name: d.name, studio: d.studio, saved: d.saved, path: d.path || null, untrusted: !!d.untrusted && !d.scriptsOk, bytes: await saveOfini(d) });
-      await saveSession(entries, app.docs.indexOf(app.doc));
+      await saveSession(entries, app.docs.indexOf(app.doc), app.sessionKey); // pop-out windows use their own key
     } catch (err) {
       log.warn("storage", "Autosave failed", err);
     }
@@ -294,6 +294,7 @@ export function registerFileCommands(app) {
   app.on("docchange", schedule);
   app.on("docs", schedule);
   app.restoreSession = async () => {
+    if (app.popout) return false; // a pop-out gets its document by handoff, never the main session
     const s = await loadSession();
     if (!s?.docs?.length) return false;
     let n = 0;

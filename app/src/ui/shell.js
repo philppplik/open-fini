@@ -11,6 +11,7 @@ import { createContextBar } from "./contextbar.js";
 import { createDock } from "./dock.js";
 import { createStatusBar } from "./statusbar.js";
 import { createDocTabs } from "./tabs.js";
+import { visibleRecents } from "../core/recents.js";
 import { iconButton } from "./controls.js";
 import { STUDIOS, listStudios, onStudioRegistered, studioIconSpec } from "../studios/registry.js";
 import { createStudioBar } from "./studio-bar.js";
@@ -239,16 +240,25 @@ function createWelcome(app) {
       h("p.of-hint", { "data-i18n": "Tip: drop an image or SVG anywhere to start. Everything stays on your device." }, t("Tip: drop an image or SVG anywhere to start. Everything stays on your device.")),
     ),
   );
-  let lastRecents = [];
+  // recent files: Clear recent (with Undo, command file.clearRecent) and a remove button per entry
+  let recents = [];
+  const renderRecent = () => {
+    recent.replaceChildren();
+    const list = visibleRecents(recents, app.prefs.showRecent);
+    if (!list.length) return;
+    const clear = h("button.of-welcome__clear", { type: "button", onclick: () => app.run("file.clearRecent") }, t("Clear recent"));
+    const row = (r) => {
+      const open = h("button.of-welcome__recent-item", { type: "button", onclick: () => app.run("file.openRecent", r) }, h("sl-icon", { name: "file-earmark-image" }), h("span", r.name), h("small", formatDate(r.time)));
+      const x = h("button.of-welcome__recent-x", { type: "button", "aria-label": t("Remove {name} from recent files", { name: r.name }), title: t("Remove from recent files") }, h("sl-icon", { name: "x-lg" }));
+      x.addEventListener("click", async () => app.emit("recents", await (await import("../core/storage.js")).removeRecent(r.id)));
+      return markContext(h("div.of-welcome__recent-row", open, x), "welcome-recent", { recent: r });
+    };
+    recent.append(h("div.of-welcome__recent-head", h("h3", { "data-i18n": "Recent" }, t("Recent")), clear), ...list.map(row));
+  };
   app.on("recents", (list) => {
-    lastRecents = list || [];
+    recents = list || [];
     renderRecent();
   });
-  function renderRecent() {
-    const list = lastRecents;
-    recent.replaceChildren();
-    if (!list?.length) return;
-    recent.append(h("h3", { "data-i18n": "Recent" }, t("Recent")), ...list.slice(0, 6).map((r) => markContext(h("button.of-welcome__recent-item", { type: "button", onclick: () => app.run("file.openRecent", r) }, h("sl-icon", { name: "file-earmark-image" }), h("span", r.name), h("small", formatDate(r.time))), "welcome-recent", { recent: r })));
-  }
+  app.on("prefs", (k) => (k === "showRecent" || k === "*") && renderRecent());
   return { el };
 }

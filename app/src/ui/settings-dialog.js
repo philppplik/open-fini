@@ -39,6 +39,8 @@ export function settingsSections(app) {
           title: "Start-up",
           items: [
             sw("restoreSession", "Restore my last session", "Reopen the documents you had open when you quit, from the copy autosaved on this device."),
+            sw("showRecent", "Show recent files on the start page", "Lists the files you opened or saved lately. They are only a shortcut list; nothing leaves this device."),
+            num("recentLimit", "Number of recent files to remember", 0, 50, 1, "", "0 turns the list off and removes the stored copies. Lowering it trims the list now."),
             { type: "language" },
           ],
         },

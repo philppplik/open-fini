@@ -1,4 +1,5 @@
 // IndexedDB storage for autosave sessions and recent documents. Everything stays on the device.
+import { pushRecent, dropRecent, clampRecentLimit } from "./recents.js";
 const DB = "openfini";
 const STORE = "kv";
 
@@ -35,7 +36,7 @@ export const kvDelete = (key) => tx("readwrite", (s) => s.delete(key)).catch(() 
 /** Keys the app lock encrypts: the autosaved session, recent files, AI keys and chats. */
 export function isProtectedKey(key) {
   const k = String(key);
-  return k === "session" || k === "recents" || k.startsWith("recent:") || k === "vibe.secrets" || k === "publish.secrets" || k === "vibe.chats" || k.startsWith("vibe.chat.");
+  return k === "session" || k.startsWith("popout:") || k.startsWith("popout-session:") || k === "recents" || k.startsWith("recent:") || k === "vibe.secrets" || k === "publish.secrets" || k === "vibe.chats" || k.startsWith("vibe.chat.");
 }
 /** True for values written by the app lock. */
 export const isSealed = (v) => !!v && typeof v === "object" && v.__ofl === 1 && v.iv instanceof Uint8Array && v.data instanceof Uint8Array;
@@ -114,19 +115,53 @@ export async function getRecents() {
   return (await kvGet("recents")) || [];
 }
 
+let recentLimit = 12;
+/** How many recent files are remembered (Settings > General; 0 turns the list off). */
+export function setRecentLimit(n) {
+  recentLimit = clampRecentLimit(n);
+}
+
 export async function addRecent({ name, bytes, path }) {
   const list = await getRecents();
   const id = path || `${name}:${Date.now()}`;
-  const next = [{ id, name, path, time: Date.now(), size: bytes?.length || 0 }, ...list.filter((r) => r.id !== id && (r.path ? r.path !== path : r.name !== name))].slice(0, 12);
-  if (bytes && bytes.length <= MAX_RECENT_BYTES && !path) await kvSet(`recent:${id}`, bytes);
+  const next = pushRecent(list, { id, name, path, time: Date.now(), size: bytes?.length || 0 }, recentLimit);
+  if (recentLimit > 0 && bytes && bytes.length <= MAX_RECENT_BYTES && !path) await kvSet(`recent:${id}`, bytes);
   for (const gone of list.filter((r) => !next.some((n) => n.id === r.id))) await kvDelete(`recent:${gone.id}`);
   await kvSet("recents", next);
   return next;
 }
 
+/** Applies a smaller limit to the stored list right away. */
+export async function trimRecents() {
+  const list = await getRecents();
+  const next = list.slice(0, recentLimit);
+  for (const gone of list.slice(recentLimit)) await kvDelete(`recent:${gone.id}`);
+  if (next.length !== list.length) await kvSet("recents", next);
+  return next;
+}
+
+/** Empties the list and the stored copies. Returns a snapshot for `restoreRecents` (the Undo of "Clear recent"). */
+export async function clearRecents() {
+  const list = await getRecents();
+  const bytes = new Map();
+  for (const r of list) {
+    const b = await kvGet(`recent:${r.id}`);
+    if (b) bytes.set(r.id, b);
+    await kvDelete(`recent:${r.id}`);
+  }
+  await kvSet("recents", []);
+  return { list, bytes };
+}
+
+export async function restoreRecents({ list, bytes }) {
+  for (const [id, b] of bytes) await kvSet(`recent:${id}`, b);
+  await kvSet("recents", list);
+  return list;
+}
+
 /** Removes one entry (and its stored copy) from the recent list; returns the new list. */
 export async function removeRecent(id) {
-  const next = (await getRecents()).filter((r) => r.id !== id);
+  const next = dropRecent(await getRecents(), id);
   await kvDelete(`recent:${id}`);
   await kvSet("recents", next);
   return next;
@@ -135,8 +170,8 @@ export async function removeRecent(id) {
 export const getRecentBytes = (id) => kvGet(`recent:${id}`);
 
 /** Autosave session: every open document as .ofini bytes. */
-export async function saveSession(entries, active) {
-  await kvSet("session", { time: Date.now(), active, docs: entries });
+export async function saveSession(entries, active, key = "session") {
+  await kvSet(key, { time: Date.now(), active, docs: entries });
 }
 export const loadSession = () => kvGet("session");
 export const clearSession = () => kvDelete("session");

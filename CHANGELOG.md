@@ -13,6 +13,9 @@ All notable changes to OpenFini are documented here. The format follows
 
 ### Added
 
+**Pop-out windows and recent files** (docs/multi-window.md)
+- **Pop-out windows:** move or copy a document tab, or open a studio, in its own window (tab and studio-button right-click, File ▸ New Window, Detach Current Studio, Return to Main Window). Documents are handed over through IndexedDB and a BroadcastChannel; the source closes its copy only after the new window confirmed. Preferences stay in sync across windows. Desktop uses real Tauri windows; the browser uses a popup window.
+- **Recent files:** Clear recent on the start page with a 6-second Undo, a remove button per entry, File ▸ Open Recent ▸ Clear Recent, and settings for showing the list and how many files to remember (0-50).
 **More native file formats** (docs/file-format-research.md, docs/file-compat.md)
 - Research with sources and a legal / technical verdict per format (Affinity, Adobe, Figma, Krita, GIMP, TIFF, HEIC, fonts, palettes ...). Affinity (including the new single-app `.af`), InDesign, Figma and XD stay export routes; the guidance dialogs have updated steps and link to the research.
 - Open **TIFF** (multi-page, LZW / PackBits / Deflate, 1 to 16 bit, CMYK), **animated GIF** (frames as layers), **OpenRaster** (read and write with layers and blend modes), **Krita** (flattened), **ICO / CUR**, and the preview image of DOS **EPS** files, each with an import report.

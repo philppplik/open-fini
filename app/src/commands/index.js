@@ -14,6 +14,7 @@ import { registerHistogramCommands } from "./histogram.js";
 import { registerExtensionCommands } from "./extensions.js";
 import { registerOfficeCommands } from "./office.js";
 import { registerTextToolCommands } from "./text-tools.js";
+import { registerWindowCommands } from "./window.js";
 import { installAnts } from "../studios/tools/pixel-select.js";
 
 export function registerCommands(app) {
@@ -31,6 +32,7 @@ export function registerCommands(app) {
   registerOnboardingCommands(app);
   registerHistogramCommands(app);
   registerExtensionCommands(app);
+  registerWindowCommands(app);
   registerOfficeCommands(app);
   installAnts(app);
   app.emit("commands");
