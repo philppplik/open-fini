@@ -12,5 +12,5 @@ in place and are marked as such.
 | [0005](0005-display-list.md) | Scene graph compiled into a backend-neutral display list | Accepted |
 | [0006](0006-ofini-format.md) | `.ofini` is a ZIP of JSON plus original assets | Accepted |
 | [0007](0007-i18n-english-as-key.md) | Internationalization: the English text is the key | Accepted |
-| [0008](0009-bundled-extensions.md) | Bundled extensions are data, packed from source, installed on demand | Accepted |
+| [0009](0009-bundled-extensions.md) | Bundled extensions are data, packed from source, installed on demand | Accepted |
 | [0008](0008-vibe-hub.md) | Vibe hub: concurrent chats, fair write lock, tag-based run undo | Accepted |
