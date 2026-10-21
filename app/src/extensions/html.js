@@ -60,12 +60,14 @@ function removeAll(s, re) {
 /** Document of a panel frame: the extension's HTML with local resources inlined. */
 export function buildPanelDocument({ config, runtimeSrc, html, htmlPath, files }) {
   const cfg = `const __OFX_CFG = ${JSON.stringify({ ...config, panel: true }).replace(/</g, "\\u003c")};`;
+  // Note: this is not a sanitizer. The extension's own panel scripts are meant to run; they are inlined as data: URLs and the frame
+  // is sandboxed with a CSP that only allows data: scripts and no network. The removals below only drop tags that would escape that.
   let out = removeAll(removeAll(String(html), /<base\b[^>]*>/gi), /<meta\b[^>]*http-equiv\s*=\s*["']?refresh[^>]*>/gi)
-    .replace(/<script\b([^>]*?)\bsrc\s*=\s*("([^"]*)"|'([^']*)')([^>]*)>\s*<\/script\s*>/gi, (m, a, _q, d, s, b) => {
+    .replace(/<script\b([^>]*?)\bsrc\s*=\s*("([^"]*)"|'([^']*)')([^>]*)>\s*<\/script\b[^>]*>/gi, (m, a, _q, d, s, b) => {
       const p = resolveRef(d ?? s, htmlPath, files);
       return p ? `<script${a}src="${scriptUrl(text(files[p]))}"${b}></script>` : "";
     })
-    .replace(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi, (m, a, code) => (/\bsrc\s*=/i.test(a) ? m : `<script${a} src="${scriptUrl(code)}"></script>`))
+    .replace(/<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi, (m, a, code) => (/\bsrc\s*=/i.test(a) ? m : `<script${a} src="${scriptUrl(code)}"></script>`))
     .replace(/<link\b[^>]*>/gi, (m) => {
       if (!/rel\s*=\s*["']?stylesheet/i.test(m)) return "";
       const p = resolveRef(/href\s*=\s*["']([^"']*)["']/i.exec(m)?.[1], htmlPath, files);
