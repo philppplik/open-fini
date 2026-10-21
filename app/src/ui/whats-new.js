@@ -3,6 +3,20 @@
 
 export const WHATS_NEW = [
   {
+    version: "0.5.0",
+    title: "Office, several Vibe chats at once, windows, German",
+    items: [
+      { icon: "file-earmark-text", title: "Office Studio", text: "Open and edit Word documents (.docx), plus ODT, RTF, HTML and Markdown, and export to PDF. It lives in the More menu next to the studios; choose which five studios the header shows under Settings, Studios." },
+      { icon: "stars", title: "Vibe: chats, agents and skills", text: "Run several chats at once, let the assistant start sub-agents, and use 16 new skills with parameters. A status pill shows what the AI is doing." },
+      { icon: "box-arrow-up-right", title: "Pop-out windows", text: "Move a studio or document into its own window and work in several at once. File, New Window." },
+      { icon: "globe2", title: "German and automatic language", text: "OpenFini follows your system language. Deutsch is complete for menus, dialogs and settings; change it under Settings, General." },
+      { icon: "keyboard", title: "Customize everything", text: "Rebind shortcuts, hide tools, save workspaces and share settings as profiles. Settings, Shortcuts and Layout." },
+      { icon: "box", title: "Five bundled extensions", text: "Palette Pro, Batch Export, Data Filler, Code Tools and an Accessibility Checker. Install them from Extensions, Available extensions." },
+      { icon: "file-earmark", title: "More formats and tools", text: "TIFF, animated GIF, OpenRaster, ICO and color palettes open natively. Right-click menus know where you are, and the Code editor can encode special characters." },
+      { icon: "arrow-repeat", title: "Update check", text: "Settings, About can check for a new version. Automatic checks are optional and off by default." },
+    ],
+  },
+  {
     version: "0.4.0",
     title: "Extensions, Git, tables, charts, PDF and more",
     items: [
