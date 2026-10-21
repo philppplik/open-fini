@@ -71,22 +71,26 @@ export function readFolder(dir) {
   return ordered;
 }
 
+/** Zips { path: Uint8Array } (deterministic: fixed timestamps). Uses fflate when available, else a store-only writer. */
+export async function zipFiles(files) {
+  try {
+    const here = fileURLToPath(new URL(".", import.meta.url));
+    const { zipSync } = await import(pathToFileURL(join(here, "..", "app", "vendor", "fflate", "fflate.js")).href);
+    const entries = {};
+    for (const [k, v] of Object.entries(files)) entries[k] = [v, { level: v.length < 64 ? 0 : 6, mtime: 1577836800000 }];
+    return zipSync(entries);
+  } catch {
+    return zipStore(files);
+  }
+}
+
 /** Zips a folder; returns { bytes, manifest }. */
 export async function packFolder(dir) {
   const files = readFolder(dir);
   if (!files["openfini-extension.json"]) throw new Error(`${dir} has no openfini-extension.json`);
   const manifest = JSON.parse(new TextDecoder().decode(files["openfini-extension.json"]));
   if (!manifest.id || !manifest.version) throw new Error("openfini-extension.json needs an id and a version");
-  let bytes;
-  try {
-    const here = fileURLToPath(new URL(".", import.meta.url));
-    const { zipSync } = await import(pathToFileURL(join(here, "..", "app", "vendor", "fflate", "fflate.js")).href);
-    const entries = {};
-    for (const [k, v] of Object.entries(files)) entries[k] = [v, { level: v.length < 64 ? 0 : 6, mtime: 1577836800000 }];
-    bytes = zipSync(entries);
-  } catch {
-    bytes = zipStore(files);
-  }
+  const bytes = await zipFiles(files);
   return { bytes, manifest, count: Object.keys(files).length };
 }
 

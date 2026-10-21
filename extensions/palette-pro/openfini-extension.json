@@ -1,0 +1,23 @@
+{
+  "$schema": "../../sdk/schema/openfini-extension.schema.json",
+  "id": "openfini.palette-pro",
+  "name": "Palette Pro",
+  "version": "1.0.0",
+  "description": "Color palettes from your selection or an image, harmonies, a WCAG contrast checker with fix suggestions, and one-click apply.",
+  "icon": "icon.svg",
+  "license": "MIT",
+  "engines": { "openfini": ">=0.4.0" },
+  "main": "main.js",
+  "permissions": ["document.read", "document.write", "ui", "files", "storage"],
+  "contributes": {
+    "commands": [
+      { "id": "open", "title": "Palette Pro: Open Panel", "icon": "palette", "studios": ["vector", "pixel", "layout"] },
+      { "id": "from-selection", "title": "Palette Pro: Palette from Selection", "icon": "eyedropper", "studios": ["vector", "pixel", "layout"], "requires": "selection" },
+      { "id": "swatches", "title": "Palette Pro: Insert Harmony Swatches…", "icon": "grid-3x3-gap", "studios": ["vector", "pixel", "layout"], "requires": "document" },
+      { "id": "contrast", "title": "Palette Pro: Check Contrast of Selection", "icon": "circle-half", "studios": ["vector", "pixel", "layout"], "requires": "selection" }
+    ],
+    "panels": [
+      { "id": "palette", "title": "Palette Pro", "icon": "palette", "html": "panel/index.html", "studios": ["vector", "pixel", "layout"], "location": "bottom" }
+    ]
+  }
+}

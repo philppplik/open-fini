@@ -62,6 +62,7 @@ export const METHOD_PERMISSIONS = {
   "network.fetch": "", // decided per URL origin
   "files.open": "files",
   "files.save": "files",
+  "document.export": "export",
   "events.subscribe": "", // decided per event
   "vibe.registerTool": "vibe",
   "vibe.registerSkill": "vibe",

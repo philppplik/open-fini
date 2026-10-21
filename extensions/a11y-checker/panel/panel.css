@@ -1,0 +1,14 @@
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+.grow { margin-left: auto; display: inline-flex; gap: 6px; align-items: center; }
+.summary { margin: 6px 0; font-weight: 600; }
+.issues { list-style: none; margin: 0; padding: 0; }
+.issue { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 8px; padding: 6px; border: 1px solid var(--of-border-soft, #ddd); border-left-width: 4px; border-radius: 6px; margin-bottom: 6px; align-items: start; }
+.issue.error { border-left-color: var(--of-danger, #c62828); }
+.issue.warning { border-left-color: #b26a00; }
+.issue.info { border-left-color: var(--of-text-faint, #888); }
+.badge { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; padding: 1px 6px; border-radius: 8px; background: var(--of-bg-raised, #eee); }
+.issue.error .badge { background: var(--of-danger, #c62828); color: #fff; }
+.msg { min-width: 0; }
+.msg .where { display: block; color: var(--of-text-dim, #666); font-size: 11px; }
+.btns { display: flex; gap: 4px; }
+.hint { color: var(--of-text-dim, #666); font-size: 11px; }

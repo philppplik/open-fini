@@ -1,0 +1,7 @@
+section { margin-bottom: 14px; }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; }
+.grid label { display: flex; flex-direction: column; gap: 2px; }
+pre { white-space: pre-wrap; word-break: break-word; max-height: 160px; overflow: auto; margin: 0; padding: 6px 8px; border: 1px solid var(--of-border-soft, #ccc); border-radius: 6px; font: inherit; }
+.status { color: var(--of-text-dim, #666); min-height: 16px; }
+[hidden] { display: none !important; }

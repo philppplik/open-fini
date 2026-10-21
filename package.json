@@ -39,6 +39,7 @@
     "installer:assets": "node scripts/installer-assets.mjs",
     "ext:create": "node sdk/create-extension.mjs",
     "ext:pack": "node sdk/pack.mjs",
+    "ext:pack-all": "node scripts/pack-extensions.mjs",
     "mcp:gateway": "node scripts/mcp-gateway.mjs",
     "publish:helper": "node scripts/publish-helper.mjs",
     "tauri": "tauri",

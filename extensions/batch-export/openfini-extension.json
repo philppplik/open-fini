@@ -1,0 +1,26 @@
+{
+  "$schema": "../../sdk/schema/openfini-extension.schema.json",
+  "id": "openfini.batch-export",
+  "name": "Batch Export & Rename",
+  "version": "1.0.0",
+  "description": "Export layers or pages in several sizes and formats at once with a naming template, and bulk-rename layers.",
+  "icon": "icon.svg",
+  "license": "MIT",
+  "engines": { "openfini": ">=0.4.0" },
+  "main": "main.js",
+  "permissions": ["document.read", "document.write", "export", "files", "ui"],
+  "contributes": {
+    "commands": [
+      { "id": "open", "title": "Batch Export: Open Panel", "icon": "images", "studios": ["vector", "pixel", "layout"] },
+      { "id": "export", "title": "Batch Export…", "icon": "box-arrow-up-right", "studios": ["vector", "pixel", "layout"], "requires": "document" },
+      { "id": "rename", "title": "Batch Rename Layers…", "icon": "input-cursor-text", "studios": ["vector", "pixel", "layout"], "requires": "selection" }
+    ],
+    "menus": [
+      { "menu": "File", "command": "export", "studios": ["vector", "pixel", "layout"] },
+      { "menu": "Layer", "command": "rename", "studios": ["vector", "pixel", "layout"] }
+    ],
+    "panels": [
+      { "id": "batch", "title": "Batch Export", "icon": "images", "html": "panel/index.html", "studios": ["vector", "pixel", "layout"], "location": "bottom" }
+    ]
+  }
+}

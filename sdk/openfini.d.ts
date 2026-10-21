@@ -14,6 +14,7 @@ export type Permission =
   | "ui"
   | "storage"
   | "files"
+  | "export"
   | "vibe"
   | "commands"
   | `network:${"http" | "https"}://${string}`;
@@ -185,6 +186,17 @@ export interface LayerInfo {
   [key: string]: unknown;
 }
 
+export interface ExportResult {
+  mime: string;
+  ext: string;
+  width: number;
+  height: number;
+  /** Encoded image bytes (SVG: UTF-8 text). */
+  data: Uint8Array;
+  /** false when the layers could not be rendered alone (nested layers) and the page region was rendered instead. */
+  isolated: boolean;
+}
+
 export interface PageInfo {
   name: string;
   index: number;
@@ -269,6 +281,11 @@ export interface OpenFiniApi {
     listTools(): Promise<ToolInfo[]>;
     /** Calls a tool such as add_shape, add_text, set_style, apply_adjustment or insert_html. Arguments are validated against its schema. */
     callTool<T = any>(name: string, args?: Record<string, unknown>): Promise<T>;
+    /**
+     * Renders layers or a whole page to image data (needs "export"; pair it with "files" to save the result).
+     * `ids` renders those layers on their own, cropped to their bounds; without `ids` the page is rendered.
+     */
+    export(options: { format?: "png" | "jpg" | "webp" | "svg"; scale?: number; ids?: string[]; page?: number; quality?: number; background?: string | null }): Promise<ExportResult>;
   };
 
   readonly studio: {

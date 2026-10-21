@@ -548,6 +548,7 @@ export class ExtensionHost extends Emitter {
     H["document.readLayers"] = (p) => this.runTool("list_layers", v.obj(p));
     H["document.listTools"] = async () => [...(await this.#tools()).values()].filter((t) => classifyTool(t) !== "denied").map((t) => ({ name: t.name, description: t.description, readOnly: !!t.readOnly, inputSchema: t.inputSchema }));
     H["document.callTool"] = (p) => this.runTool(v.str(p.name, "name", { max: 64 }), v.obj(p.args, "args"), { ext });
+    H["document.export"] = async (p) => (await import("./export-api.js")).exportForExtension(app, p);
     H["studio.current"] = () => app.studio;
     H["studio.list"] = () => STUDIO_IDS.map((id) => ({ id, label: STUDIOS[id].label }));
     H["studio.set"] = (p) => (app.setStudio(v.oneOf(p.id, "id", STUDIO_IDS)), null);

@@ -1,0 +1,25 @@
+{
+  "$schema": "../../sdk/schema/openfini-extension.schema.json",
+  "id": "openfini.a11y-checker",
+  "name": "Accessibility Checker",
+  "version": "1.0.0",
+  "description": "Audits the open document: text contrast, font sizes, alt text and reading order in designs; alt text, labels, headings, landmarks, links, focus and CSS contrast in websites. One-click fixes and a Markdown report.",
+  "icon": "icon.svg",
+  "license": "MIT",
+  "engines": { "openfini": ">=0.4.0" },
+  "main": "main.js",
+  "permissions": ["document.read", "document.write", "ui", "files", "storage"],
+  "contributes": {
+    "commands": [
+      { "id": "open", "title": "Accessibility Checker: Open Panel", "icon": "universal-access", "studios": ["vector", "pixel", "layout", "code"] },
+      { "id": "audit", "title": "Check Accessibility", "icon": "universal-access-circle", "studios": ["vector", "pixel", "layout", "code"], "requires": "document" },
+      { "id": "report", "title": "Export Accessibility Report…", "icon": "file-earmark-text", "studios": ["vector", "pixel", "layout", "code"], "requires": "document" }
+    ],
+    "menus": [
+      { "menu": "Document", "command": "audit" }
+    ],
+    "panels": [
+      { "id": "a11y", "title": "Accessibility", "icon": "universal-access", "html": "panel/index.html", "studios": ["vector", "pixel", "layout", "code"], "location": "bottom" }
+    ]
+  }
+}

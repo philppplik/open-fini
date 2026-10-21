@@ -1,0 +1,29 @@
+{
+  "$schema": "../../sdk/schema/openfini-extension.schema.json",
+  "id": "openfini.data-filler",
+  "name": "Lorem & Data Filler",
+  "version": "1.0.0",
+  "description": "Fill text layers with lorem ipsum, names, emails, addresses, dates and prices, deterministic by seed; fake-data lists, tables and card grids for the Code studio.",
+  "icon": "icon.svg",
+  "license": "MIT",
+  "engines": { "openfini": ">=0.4.0" },
+  "main": "main.js",
+  "permissions": ["document.read", "document.write", "ui"],
+  "contributes": {
+    "commands": [
+      { "id": "open", "title": "Data Filler: Open Panel", "icon": "magic", "studios": ["vector", "pixel", "layout", "code"] },
+      { "id": "fill", "title": "Fill Selected Text with Placeholder Data…", "icon": "text-paragraph", "studios": ["vector", "pixel", "layout"], "requires": "selection" },
+      { "id": "avatars", "title": "Insert Initials Avatars…", "icon": "person-circle", "studios": ["vector", "layout"], "requires": "document" },
+      { "id": "html-list", "title": "Insert HTML List with Fake Data…", "icon": "list-ul", "studios": ["code"], "requires": "document" },
+      { "id": "html-table", "title": "Insert HTML Table with Fake Data…", "icon": "table", "studios": ["code"], "requires": "document" },
+      { "id": "html-cards", "title": "Insert HTML Card Grid with Fake Data…", "icon": "grid", "studios": ["code"], "requires": "document" }
+    ],
+    "menus": [
+      { "menu": "Text", "command": "fill", "studios": ["vector", "pixel", "layout"] },
+      { "menu": "Insert", "command": "html-cards", "studios": ["code"] }
+    ],
+    "panels": [
+      { "id": "filler", "title": "Data Filler", "icon": "magic", "html": "panel/index.html", "studios": ["vector", "layout", "pixel", "code"], "location": "bottom" }
+    ]
+  }
+}

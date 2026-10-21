@@ -90,7 +90,7 @@ function details(app, host, ext) {
   const [stLabel, stCls] = STATE[ext.state] || ["", "dim"];
   const box = h("div.of-ext-detail");
   box.append(
-    h("div.of-ext-detail__head", h("div", h("h2", ext.name), h("small", `${ext.id}${m ? ` · v${m.version}` : ""} · ${ext.rec.source?.type === "url" ? "from URL" : ext.rec.source?.type === "unpacked" ? "unpacked folder" : ext.rec.source?.type === "assistant" ? "written by Vibe" : "from file"}`)), h("div.of-ext-detail__ctl", h("span", { class: `of-ext-badge ${stCls}` }, stLabel), ext.valid ? toggle(ext.rec.enabled !== false, `Enable ${ext.name}`, (on) => run(app, () => host.setEnabled(ext.id, on))) : null)),
+    h("div.of-ext-detail__head", h("div", h("h2", ext.name), h("small", `${ext.id}${m ? ` · v${m.version}` : ""} · ${ext.rec.source?.type === "url" ? "from URL" : ext.rec.source?.type === "unpacked" ? "unpacked folder" : ext.rec.source?.type === "assistant" ? "written by Vibe" : ext.rec.source?.type === "bundled" ? "bundled with OpenFini" : "from file"}`)), h("div.of-ext-detail__ctl", h("span", { class: `of-ext-badge ${stCls}` }, stLabel), ext.valid ? toggle(ext.rec.enabled !== false, `Enable ${ext.name}`, (on) => run(app, () => host.setEnabled(ext.id, on))) : null)),
   );
   if (m?.description) box.append(h("p", m.description));
   if (ext.error) box.append(h("pre.of-ext-error", ext.error));
@@ -142,6 +142,10 @@ export function openExtensionManager(app, { select } = {}) {
   const listEl = h("div.of-ext-list", { role: "listbox", "aria-label": "Installed extensions" });
   const detailEl = h("div.of-ext-pane");
   const toolbar = h("div.of-ext-toolbar");
+  const galleryEl = h("div.of-ext-gallery", { hidden: true });
+  const bodyEl = h("div.of-ext-body", listEl, detailEl);
+  let view = "installed"; // "installed" | "gallery"
+  let drawGallery = null;
   let host = null;
   let current = select || null;
   let off = null;
@@ -160,12 +164,24 @@ export function openExtensionManager(app, { select } = {}) {
       });
       listEl.append(b);
     }
-    if (!list.length) listEl.append(h("div.of-empty", "No extensions installed yet. Install one from a file or a link, or write your own (see the SDK in the sdk folder of the OpenFini repository)."));
+    if (!list.length) listEl.append(h("div.of-empty", "No extensions installed yet. Browse the extensions that ship with OpenFini under Available extensions, install one from a file or a link, or write your own (see the SDK in the sdk folder of the OpenFini repository)."));
     const scroll = detailEl.scrollTop;
     empty(detailEl);
     const ext = host.get(current);
     detailEl.append(ext ? details(app, host, ext) : h("div.of-empty", "Select an extension."));
     detailEl.scrollTop = scroll;
+    renderToolbar();
+    drawGallery?.();
+  };
+
+  const showView = async (next) => {
+    view = next;
+    bodyEl.hidden = view === "gallery";
+    galleryEl.hidden = view !== "gallery";
+    if (view === "gallery" && !drawGallery && host) {
+      const { renderGallery } = await import("./gallery.js");
+      drawGallery = renderGallery(app, host, galleryEl);
+    }
     renderToolbar();
   };
 
@@ -173,6 +189,7 @@ export function openExtensionManager(app, { select } = {}) {
     empty(toolbar);
     const dev = !!app.prefs.extDeveloper;
     toolbar.append(...[
+      button(view === "gallery" ? "Installed extensions" : "Available extensions", () => showView(view === "gallery" ? "installed" : "gallery"), { icon: view === "gallery" ? "list-ul" : "grid" }),
       button("Install from file…", () => installFromFile(app), { icon: "file-earmark-zip" }),
       button("From URL…", () => installFromUrl(app), { icon: "link-45deg" }),
       button("From folder…", () => installFromFolder(app), { icon: "folder2-open" }),
@@ -201,7 +218,7 @@ export function openExtensionManager(app, { select } = {}) {
   renderToolbar();
   openDialog({
     title: "Extensions",
-    body: h("div.of-ext", toolbar, h("div.of-ext-body", listEl, detailEl)),
+    body: h("div.of-ext", toolbar, bodyEl, galleryEl),
     width: 980,
     cls: "of-ext-manager",
     buttons: [{ label: "Done", variant: "primary", onClick: (c) => c() }],

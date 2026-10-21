@@ -1,0 +1,107 @@
+{
+  "version": 1,
+  "extensions": [
+    {
+      "id": "openfini.a11y-checker",
+      "name": "Accessibility Checker",
+      "description": "Audits the open document: text contrast, font sizes, alt text and reading order in designs; alt text, labels, headings, landmarks, links, focus and CSS contrast in websites. One-click fixes and a Markdown report.",
+      "version": "1.0.0",
+      "engines": ">=0.4.0",
+      "permissions": [
+        "document.read",
+        "document.write",
+        "ui",
+        "files",
+        "storage"
+      ],
+      "studios": [
+        "vector",
+        "pixel",
+        "layout",
+        "code"
+      ],
+      "icon": "universal-access",
+      "file": "packages/openfini.a11y-checker-1.0.0.ofext"
+    },
+    {
+      "id": "openfini.batch-export",
+      "name": "Batch Export & Rename",
+      "description": "Export layers or pages in several sizes and formats at once with a naming template, and bulk-rename layers.",
+      "version": "1.0.0",
+      "engines": ">=0.4.0",
+      "permissions": [
+        "document.read",
+        "document.write",
+        "export",
+        "files",
+        "ui"
+      ],
+      "studios": [
+        "vector",
+        "pixel",
+        "layout"
+      ],
+      "icon": "images",
+      "file": "packages/openfini.batch-export-1.0.0.ofext"
+    },
+    {
+      "id": "openfini.code-tools",
+      "name": "Code Snippets & Formatter",
+      "description": "Code studio: a snippet pack, Format document for HTML, CSS, JS and JSON, Sort CSS properties, Minify, and a manager for your own snippets.",
+      "version": "1.0.0",
+      "engines": ">=0.4.0",
+      "permissions": [
+        "document.read",
+        "document.write",
+        "ui",
+        "storage"
+      ],
+      "studios": [
+        "code"
+      ],
+      "icon": "braces",
+      "file": "packages/openfini.code-tools-1.0.0.ofext"
+    },
+    {
+      "id": "openfini.data-filler",
+      "name": "Lorem & Data Filler",
+      "description": "Fill text layers with lorem ipsum, names, emails, addresses, dates and prices, deterministic by seed; fake-data lists, tables and card grids for the Code studio.",
+      "version": "1.0.0",
+      "engines": ">=0.4.0",
+      "permissions": [
+        "document.read",
+        "document.write",
+        "ui"
+      ],
+      "studios": [
+        "vector",
+        "pixel",
+        "layout",
+        "code"
+      ],
+      "icon": "magic",
+      "file": "packages/openfini.data-filler-1.0.0.ofext"
+    },
+    {
+      "id": "openfini.palette-pro",
+      "name": "Palette Pro",
+      "description": "Color palettes from your selection or an image, harmonies, a WCAG contrast checker with fix suggestions, and one-click apply.",
+      "version": "1.0.0",
+      "engines": ">=0.4.0",
+      "permissions": [
+        "document.read",
+        "document.write",
+        "ui",
+        "files",
+        "storage"
+      ],
+      "studios": [
+        "vector",
+        "pixel",
+        "layout"
+      ],
+      "icon": "palette",
+      "file": "packages/openfini.palette-pro-1.0.0.ofext"
+    }
+  ]
+}
