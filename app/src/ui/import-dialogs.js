@@ -141,6 +141,10 @@ export function foreignFormatDialog(info, ctx) {
       ctx.app.run("file.open");
     },
   });
+  buttons.unshift({
+    label: "Why? Format research",
+    onClick: async () => (await import("./links.js")).openLink("https://github.com/philppplik/open-fini/blob/main/docs/file-format-research.md", { app: ctx.app }),
+  });
   buttons.push({ label: "Close", variant: "primary", onClick: (close) => close() });
   return openDialog({ title: info.title, body, width: 520, buttons });
 }

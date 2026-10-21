@@ -4,7 +4,7 @@
 // cancel) and `undefined` when the file is not one of its formats.
 import { foreignFormatInfo } from "./foreign.js";
 
-export const FOREIGN_EXT = /\.(pdf|ai|eps|sketch|afdesign|afphoto|afpub|aftemplate|afpackage|indd|indt|fig|xd|cdr|pxd|kra|xcf)$/i;
+export const FOREIGN_EXT = /\.(pdf|ai|eps|sketch|af|afdesign|afphoto|afpub|aftemplate|afpackage|afbrushes|afbook|indd|indt|fig|xd|cdr|pxd|kra|xcf)$/i;
 
 const isPdfMagic = (b) => b.length > 5 && b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46;
 
@@ -106,6 +106,16 @@ export async function openForeign(app, file) {
     const isAi = /\.ai$/i.test(name);
     const at = isPdfMagic(bytes) ? 0 : findPdfStart(bytes);
     if (at >= 0) return openPdfFile(app, file, { format: isAi ? "Illustrator (AI)" : /\.eps$/i.test(name) ? "EPS (PDF inside)" : "PDF", offset: at });
+    // EPS from Windows tools: a binary header may point at an embedded TIFF preview (low resolution, flattened)
+    const { dosEpsParts } = await import("../engine/formats/index.js");
+    const parts = /\.eps$/i.test(name) ? dosEpsParts(bytes) : null;
+    if (parts?.tiff) {
+      const { openTiff } = await import("./import-raster.js");
+      const [off, len] = parts.tiff;
+      const doc = await openTiff(app, { ...file, bytes: bytes.subarray(off, off + len) }, { format: "EPS (preview image)", note: "Only the preview image stored inside the EPS file was opened. The PostScript artwork itself cannot be rendered, so it is flattened and low resolution." });
+      doc.name = `${name.replace(/\.[^.]+$/, "")} (preview only)`;
+      return doc;
+    }
     const info = foreignFormatInfo(name);
     if (info) {
       (await dialogs()).foreignFormatDialog(info, { app });

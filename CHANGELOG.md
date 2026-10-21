@@ -13,6 +13,13 @@ All notable changes to OpenFini are documented here. The format follows
 
 ### Added
 
+**More native file formats** (docs/file-format-research.md, docs/file-compat.md)
+- Research with sources and a legal / technical verdict per format (Affinity, Adobe, Figma, Krita, GIMP, TIFF, HEIC, fonts, palettes ...). Affinity (including the new single-app `.af`), InDesign, Figma and XD stay export routes; the guidance dialogs have updated steps and link to the research.
+- Open **TIFF** (multi-page, LZW / PackBits / Deflate, 1 to 16 bit, CMYK), **animated GIF** (frames as layers), **OpenRaster** (read and write with layers and blend modes), **Krita** (flattened), **ICO / CUR**, and the preview image of DOS **EPS** files, each with an import report.
+- Color palettes: import and export **GPL, ASE and ACO** through File > Swatches.
+- Fonts: WOFF is unwrapped, TrueType collections (.ttc) are split, WOFF2 works on screen (PDF export falls back).
+- Vibe tools `list_supported_formats`, `import_palette_from_text`, `export_palette`.
+
 **Internationalization, German first** (docs/i18n.md, ADR 0007)
 - The interface follows the system language automatically (`navigator.languages`, `de-AT`/`de-CH` match German) and ships in US English and **German**; Settings ▸ General ▸ Language switches live without a reload and shows the detected language. Menus, command labels, the palette, settings, new document / about / shortcuts dialogs, welcome screen, status bar, studio bar, title bar, tours, What's new, context menus, common toasts and the Vibe composer are translated; the rest falls back to English (known gaps are listed in docs/i18n.md).
 - Core in `app/src/i18n/` (`t()` with the English text as key, ICU-lite plurals and placeholders, lazy locale files, `<html lang>`/`dir`, `Intl` helpers); `npm run i18n:extract` and `i18n:check` keep the catalog and translations consistent in CI. Adding a language is one `LOCALES` entry plus a JSON file.

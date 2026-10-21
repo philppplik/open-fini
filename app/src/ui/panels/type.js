@@ -98,14 +98,18 @@ export function createTypePanel(app) {
     const drop = numField({ label: "Drop cap", value: p.dropCap?.lines || 0, min: 0, max: 8, step: 1, precision: 0, unit: "lines", wide: true, onChange: (v) => para({ dropCap: v >= 2 ? { lines: Math.round(v), chars: 1 } : null }) });
 
     const addFont = button("Add font file…", async () => {
-      const input = h("input", { type: "file", accept: ".ttf,.otf,.woff", style: { display: "none" } });
+      const input = h("input", { type: "file", accept: ".ttf,.otf,.woff,.woff2,.ttc,.otc", style: { display: "none" } });
       document.body.append(input);
       input.addEventListener("change", async () => {
         const file = input.files[0];
         input.remove();
         if (!file) return;
         try {
-          const bytes = new Uint8Array(await file.arrayBuffer());
+          let bytes = new Uint8Array(await file.arrayBuffer());
+          const { unwrapFont } = await import("../../engine/formats/fontwrap.js");
+          const wrapped = unwrapFont(bytes); // WOFF -> TTF/OTF, collections -> first font; WOFF2 stays as is
+          bytes = wrapped.fonts[0];
+          if (wrapped.note) app.toast(wrapped.note, "primary", 6000);
           const name = file.name.replace(/\.[^.]+$/, "").replace(/[-_]?(Regular|Bold|Italic)$/i, "");
           await registerFont(name, bytes.buffer.slice(0));
           app.fonts.set(name, bytes);

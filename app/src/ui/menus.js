@@ -10,7 +10,7 @@ const DESIGN = ["vector", "pixel", "layout"];
 export const MENUS = [
   {
     label: "File",
-    items: ["file.new", "file.open", "file.openFolder", { label: "Open Recent", dynamic: "recent" }, "-", "file.save", "file.saveAs", "file.saveAll", "-", "file.export", { label: "Quick Export", items: ["file.exportPNG", "file.exportJPG", "file.exportWEBP", "file.exportSVG", "file.exportPDF"] }, "-", "file.place", "file.insertPdf", "file.extractPages", "file.importReport", "file.docSetup", "-", "file.close"],
+    items: ["file.new", "file.open", "file.openFolder", { label: "Open Recent", dynamic: "recent" }, "-", "file.save", "file.saveAs", "file.saveAll", "-", "file.export", { label: "Quick Export", items: ["file.exportPNG", "file.exportJPG", "file.exportWEBP", "file.exportSVG", "file.exportPDF", "file.exportOra"] }, "-", "file.place", "file.insertPdf", "file.extractPages", "file.importReport", { label: "Swatches", items: ["file.importPalette", "-", "file.exportPalette.gpl", "file.exportPalette.ase", "file.exportPalette.aco"] }, "file.docSetup", "-", "file.close"],
   },
   {
     label: "Edit",

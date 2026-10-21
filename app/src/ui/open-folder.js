@@ -10,7 +10,7 @@ import { pickFiles, entriesFromPicked, entriesFromDrop, MAX_IMPORT_BYTES } from 
 import { isTextPath, normalizePath } from "../engine/web/paths.js";
 
 const WEB = /\.(html?|css|m?js|json|svg|webmanifest|txt|md|markdown|mdx|tex|latex|bib|ya?ml|xml|csv|toml|ini|tsx?|jsx)$/i;
-export const OPENABLE = /\.(ofini|svg|png|jpe?g|gif|webp|avif|bmp|psd|psb|idml|pdf|ai|docx|odt|rtf)$/i;
+export const OPENABLE = /\.(ofini|svg|png|jpe?g|gif|webp|avif|bmp|psd|psb|idml|pdf|ai|tiff?|ora|docx|odt|rtf)$/i;
 
 /**
  * Opens a folder given as [{ path, file }] (paths relative to the folder or including its name).
