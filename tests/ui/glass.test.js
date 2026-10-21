@@ -80,3 +80,19 @@ test("settings are clamped and fall back to the style defaults", () => {
   assert.equal(effectiveBackdrop(glassSettings({ surfaceStyle: "sea", glassBackdrop: "image" }), true), "image");
   assert.equal(effectiveBackdrop(glassSettings({ surfaceStyle: "glass", glassBackdrop: "dusk" }), true), "dusk");
 });
+
+test("glass.css is scoped to the surface attribute and never blurs the document canvas", async () => {
+  const { readFileSync } = await import("node:fs");
+  const css = readFileSync(new URL("../../app/styles/glass.css", import.meta.url), "utf8");
+  const rules = css.replace(/\/\*[\s\S]*?\*\//g, "").split("}").map((r) => r.trim()).filter(Boolean);
+  for (const r of rules) {
+    const [sel, body] = r.split("{");
+    if (!body || /^@/.test(sel.trim())) continue;
+    for (const s of sel.split(",").map((x) => x.trim())) {
+      const m = body.match(/backdrop-filter\s*:\s*([^;]+)/);
+      if (m && m[1].trim() !== "none") assert.ok(!/canvasarea|\.cv\b/.test(s), `blur on the canvas: ${s}`);
+    }
+  }
+  assert.ok(/\.of-canvasarea[^{]*\{[^}]*backdrop-filter: none/.test(css), "canvas area explicitly unblurred");
+  assert.ok(css.includes("prefers-reduced-transparency") && css.includes("prefers-contrast: more") && css.includes("@supports not"), "fallbacks present");
+});

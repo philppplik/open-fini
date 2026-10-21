@@ -16,13 +16,13 @@
 // Invariants
 //   * Text stays AA: the fill opacity is never below `minAlpha()`, whatever the Transparency slider says. The check uses
 //     white, black and the accent as backdrops, after the always-present scrim (the theme's app color drawn over the
-//     backdrop layer, at least 70%), so any wallpaper the user picks is bounded by that worst case.
+//     backdrop layer, at least 60%), so any wallpaper the user picks is bounded by that worst case.
 //   * With effects off (low power, high contrast, reduced transparency, no backdrop-filter) the fill is opaque and keeps
 //     the style's tint: same look, nothing to blur.
 import { mix, contrast, luminance, ensureContrast } from "./themes.js";
 
 export const SURFACE_STYLES = ["solid", "glass", "liquid", "sea"];
-export const MIN_SCRIM = 0.7;
+export const MIN_SCRIM = 0.6;
 
 /**
  * blur px, transparency % (how see-through the fill is), saturate factor, tint (null or per mode) and tint amount %.
@@ -32,7 +32,7 @@ export const STYLE_DEFS = Object.freeze({
   solid: { id: "solid", name: "Solid", description: "Opaque panels. The default, fastest look.", blur: 0, transparency: 0, saturate: 1, tint: null, tintAmount: 0, backdrop: "aurora" },
   glass: { id: "glass", name: "Glass", description: "Frosted glass: blurred, translucent panels with a thin light edge.", blur: 18, transparency: 30, saturate: 1.5, tint: null, tintAmount: 0, backdrop: "aurora" },
   liquid: { id: "liquid", name: "Liquid glass", description: "Thick, refractive glass with bevelled edges and a soft specular sheen.", blur: 26, transparency: 40, saturate: 1.8, tint: null, tintAmount: 0, backdrop: "ocean" },
-  sea: { id: "sea", name: "Sea glass", description: "Muted green-teal, matte and softly grained, like weathered sea glass.", blur: 14, transparency: 22, saturate: 1.05, tint: { dark: "#1b5a54", light: "#b4e0d5" }, tintAmount: 22, backdrop: "seaglass" },
+  sea: { id: "sea", name: "Sea glass", description: "Muted green-teal, matte and softly grained, like weathered sea glass.", blur: 14, transparency: 22, saturate: 1.05, tint: { dark: "#1b5a54", light: "#86cfbd" }, tintAmount: 26, backdrop: "seaglass" },
 });
 
 /** Background layers. "auto" picks the style's own; "image" is the user's picture (ignored when none is stored). */

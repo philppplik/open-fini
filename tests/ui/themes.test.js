@@ -128,3 +128,26 @@ test("the default theme matches the CSS defaults in theme.css and code.css", () 
     for (const [k, v] of Object.entries(DEFAULT_VARS[mode])) if (k in css) assert.equal(norm(css[k]), norm(v), `${mode} ${k}`);
   }
 });
+
+test("surface styles: the optional `surface` field is validated and kept, and glass variants keep AA text on every theme", async () => {
+  const ok = { id: "s", name: "S", light: { vars: {} }, dark: { vars: {} } };
+  for (const surface of ["none", "solid", "glass", "liquid", "sea"]) assert.deepEqual(validateTheme({ ...ok, surface }), [], surface);
+  assert.ok(validateTheme({ ...ok, surface: "frosty" }).length);
+  const off = registerTheme({ ...ok, id: "surface-test", surface: "none" });
+  assert.equal(getTheme("surface-test").surface, "none");
+  off();
+  assert.equal(getTheme("slate").surface, null, "built-in themes do not opt out");
+  const { resolveGlass, glassFill, stressBackdrops, STYLE_DEFS } = await import("../../app/src/ui/glass.js");
+  for (const t of listThemes()) {
+    for (const m of MODES) {
+      const v = resolveVars(t, m);
+      for (const style of ["glass", "liquid", "sea"]) {
+        const g = resolveGlass(v, { surfaceStyle: style, glassTransparency: 50 }, {});
+        for (const bd of stressBackdrops(v)) {
+          const fill = glassFill(v["--of-bg-panel"], bd, { alpha: g.alpha, tint: STYLE_DEFS[style].tint?.[m], tintAmount: STYLE_DEFS[style].tintAmount });
+          assert.ok(contrast(g.vars["--of-text"], fill) >= 4.5, `${t.id}/${m}/${style} text over ${bd}`);
+        }
+      }
+    }
+  }
+});

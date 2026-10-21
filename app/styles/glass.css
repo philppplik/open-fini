@@ -1,0 +1,256 @@
+/* OpenFini surface styles ("glass", "liquid glass", "sea glass"). See docs/themes.md ▸ Surface styles.
+
+   How it works
+   - ui/glass-dom.js sets <html data-surface="glass|liquid|sea"> (absent = solid, nothing here applies), <html data-glass-fx="on|off">,
+     data-glass-bd (background layer id) and the --of-glass-* variables (ui/glass.js computes them: fill opacity with an AA floor,
+     lifted text colors, blur, tint).
+   - ONE blur layer covers the whole window chrome (.of-layout::before, behind everything). The bars and docks only paint
+     translucent fills on top of it, so a header and a dock never blur twice. The document canvas, pasteboard and artboards
+     are opaque and sit above that layer: color accuracy is never affected.
+   - Floating surfaces (dialogs, menus, popovers, palette, coach marks, toasts) blur once each, directly on their own box.
+     RULE: a blurred surface never contains another blurred surface (nested backdrop-filter shows nothing and costs a lot).
+     Menus inside menus and everything inside a dialog use a solid-ish fill instead, see "no nesting" below.
+   - With data-glass-fx="off" (low power, high contrast, reduced transparency, no backdrop-filter) the same rules draw
+     opaque panels: the variables are alpha 1 and blur 0, the tint stays. */
+
+/* ------------------------------------------------------------------ tokens */
+:root[data-surface] {
+  --of-glass-edge: rgba(255, 255, 255, 0.16);
+  --of-glass-hi: rgba(255, 255, 255, 0.22);
+  --of-glass-lo: rgba(0, 0, 0, 0.22);
+  --of-glass-shadow: 0 10px 34px rgba(0, 0, 0, 0.32);
+  --of-glass-grain: none;
+  --of-glass-fill-bar: color-mix(in srgb, color-mix(in srgb, var(--of-bg-bar), var(--of-glass-tint) var(--of-glass-tint-amt)) calc(var(--of-glass-alpha) * 100%), transparent);
+  --of-glass-fill-app: color-mix(in srgb, color-mix(in srgb, var(--of-bg-app), var(--of-glass-tint) var(--of-glass-tint-amt)) calc(var(--of-glass-alpha) * 100%), transparent);
+  --of-glass-fill-panel: color-mix(in srgb, color-mix(in srgb, var(--of-bg-panel), var(--of-glass-tint) var(--of-glass-tint-amt)) calc(var(--of-glass-alpha) * 100%), transparent);
+  --of-glass-fill-strong: color-mix(in srgb, color-mix(in srgb, var(--of-bg-raised), var(--of-glass-tint) var(--of-glass-tint-amt)) calc(var(--of-glass-alpha-strong) * 100%), transparent);
+  --of-glass-fill-solid: color-mix(in srgb, var(--of-bg-raised), var(--of-glass-tint) var(--of-glass-tint-amt));
+  --of-glass-fill-editor: color-mix(in srgb, var(--of-editor-bg) calc(var(--of-glass-alpha-editor) * 100%), transparent);
+  --of-glass-filter: blur(var(--of-glass-blur)) saturate(var(--of-glass-sat));
+}
+:root.sl-theme-light[data-surface] {
+  --of-glass-edge: rgba(255, 255, 255, 0.7);
+  --of-glass-hi: rgba(255, 255, 255, 0.85);
+  --of-glass-lo: rgba(0, 0, 0, 0.1);
+  --of-glass-shadow: 0 10px 34px rgba(30, 40, 70, 0.18);
+}
+:root[data-surface="glass"] { --of-radius: 8px; --of-radius-sm: 5px; }
+:root[data-surface="liquid"] {
+  --of-radius: 11px;
+  --of-radius-sm: 8px;
+  --of-glass-shadow: 0 14px 44px rgba(0, 0, 0, 0.36), 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+:root[data-surface="sea"] {
+  --of-radius: 9px;
+  --of-radius-sm: 6px;
+  --of-glass-edge: rgba(214, 245, 236, 0.22);
+  --of-glass-hi: rgba(214, 245, 236, 0.2);
+  --of-glass-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.32'/%3E%3C/svg%3E");
+}
+:root.sl-theme-light[data-surface="sea"] { --of-glass-edge: rgba(255, 255, 255, 0.75); --of-glass-hi: rgba(255, 255, 255, 0.8); }
+/* user radius choice (Customize ▸ Corner radius) is an inline style on <html> and still wins */
+
+/* ------------------------------------------------------------------ background layer */
+#of-backdrop { display: none; }
+:root[data-surface][data-glass-fx="on"] #of-backdrop {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--of-bg-app);
+}
+#of-backdrop > i {
+  position: absolute;
+  inset: -12%;
+  background-size: cover;
+  background-position: center;
+  filter: saturate(1.7) brightness(1.1); /* the scrim below is what guarantees contrast, so the picture itself may be vivid */
+  will-change: auto;
+}
+/* the scrim: the theme's app color over the layer. ui/glass.js assumes at least 60% when it guarantees contrast */
+#of-backdrop::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--of-bg-app) calc(var(--of-glass-scrim, 0.6) * 100%), transparent); }
+
+:root { --of-glass-mesh-aurora: radial-gradient(48% 42% at 14% 18%, #8b5cf6 0%, transparent 70%), radial-gradient(42% 38% at 86% 12%, #14d3b4 0%, transparent 70%),
+    radial-gradient(46% 44% at 72% 92%, #ff5fa8 0%, transparent 70%), radial-gradient(40% 40% at 8% 88%, #3b82f6 0%, transparent 70%), linear-gradient(135deg, #1b1245, #0f3a4f); }
+:root { --of-glass-mesh-ocean: radial-gradient(52% 44% at 80% 14%, #22d3ee 0%, transparent 70%), radial-gradient(50% 46% at 12% 30%, #2563eb 0%, transparent 72%),
+    radial-gradient(46% 40% at 55% 95%, #06b6d4 0%, transparent 70%), linear-gradient(160deg, #0a2a5e, #064e6b); }
+:root { --of-glass-mesh-dusk: radial-gradient(50% 44% at 16% 12%, #fb923c 0%, transparent 70%), radial-gradient(46% 42% at 88% 30%, #d946ef 0%, transparent 70%),
+    radial-gradient(52% 46% at 40% 96%, #6366f1 0%, transparent 70%), linear-gradient(150deg, #3b0f5c, #7a1d4f); }
+:root { --of-glass-mesh-seaglass: radial-gradient(50% 44% at 20% 16%, #7fd1c0 0%, transparent 70%), radial-gradient(46% 42% at 86% 24%, #b7e4d3 0%, transparent 70%),
+    radial-gradient(52% 46% at 60% 94%, #3f9b94 0%, transparent 70%), linear-gradient(150deg, #2c7a74, #5fb8a8); }
+:root { --of-glass-mesh-mono: radial-gradient(50% 44% at 18% 16%, #d4d7de 0%, transparent 70%), radial-gradient(46% 42% at 86% 40%, #8b909b 0%, transparent 70%),
+    radial-gradient(50% 46% at 50% 96%, #b0b4be 0%, transparent 70%), linear-gradient(150deg, #4b5060, #8a8f9c); }
+:root { --of-glass-mesh-accent: radial-gradient(50% 44% at 16% 16%, var(--of-accent) 0%, transparent 70%), radial-gradient(46% 42% at 86% 30%, color-mix(in srgb, var(--of-accent) 50%, #ff5fa8) 0%, transparent 70%),
+    radial-gradient(52% 46% at 50% 96%, color-mix(in srgb, var(--of-accent) 55%, #22d3ee) 0%, transparent 70%), linear-gradient(150deg, color-mix(in srgb, var(--of-accent) 55%, #000), color-mix(in srgb, var(--of-accent) 35%, #14202f)); }
+:root { --of-glass-mesh-image: var(--of-glass-img, linear-gradient(#444, #222)); --of-glass-mesh-auto: var(--of-glass-mesh-aurora); }
+:root[data-glass-bd="aurora"] #of-backdrop > i { background-image: var(--of-glass-mesh-aurora); }
+:root[data-glass-bd="ocean"] #of-backdrop > i { background-image: var(--of-glass-mesh-ocean); }
+:root[data-glass-bd="dusk"] #of-backdrop > i { background-image: var(--of-glass-mesh-dusk); }
+:root[data-glass-bd="seaglass"] #of-backdrop > i { background-image: var(--of-glass-mesh-seaglass); }
+:root[data-glass-bd="mono"] #of-backdrop > i { background-image: var(--of-glass-mesh-mono); }
+:root[data-glass-bd="accent"] #of-backdrop > i { background-image: var(--of-glass-mesh-accent); }
+:root[data-glass-bd="image"] #of-backdrop > i { background-image: var(--of-glass-mesh-image); }
+
+@keyframes of-glass-drift {
+  from { transform: translate3d(-2.5%, -1.5%, 0) scale(1.04) rotate(0deg); }
+  50% { transform: translate3d(2.5%, 2%, 0) scale(1.14) rotate(2deg); }
+  to { transform: translate3d(-1%, 2.5%, 0) scale(1.08) rotate(-1.5deg); }
+}
+:root[data-glass-anim="on"] #of-backdrop > i { animation: of-glass-drift 48s ease-in-out infinite alternate; will-change: transform; }
+
+/* ------------------------------------------------------------------ window chrome: one blur layer, translucent fills */
+:root[data-surface] body { background: transparent; }
+:root[data-surface][data-glass-fx="off"] body { background: var(--of-bg-app); }
+:root[data-surface] .of-layout { position: relative; }
+:root[data-surface] .of-layout::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  -webkit-backdrop-filter: var(--of-glass-filter);
+  backdrop-filter: var(--of-glass-filter);
+  background: var(--of-glass-grain) 0 0 / 160px 160px, var(--of-glass-fill-app);
+}
+:root[data-surface] .of-header { background: var(--of-glass-fill-bar); border-bottom-color: var(--of-glass-edge); }
+:root[data-surface] .of-doctabs { background: transparent; border-bottom-color: var(--of-glass-edge); }
+:root[data-surface] .of-contextbar { background: var(--of-glass-fill-bar); border-bottom-color: var(--of-glass-edge); }
+:root[data-surface] .of-toolbox { background: var(--of-glass-fill-bar); border-right-color: var(--of-glass-edge); }
+:root[data-surface] .of-dock { background: var(--of-glass-fill-panel); border-left-color: var(--of-glass-edge); }
+:root[data-surface] .of-dock__tabs { background: transparent; border-bottom-color: var(--of-glass-edge); }
+:root[data-surface] .of-dock__tab.active { background: color-mix(in srgb, var(--of-bg-panel) 55%, transparent); }
+:root[data-surface] .of-doctab.active { background: var(--of-glass-fill-bar); }
+:root[data-surface] .of-status { background: var(--of-glass-fill-bar); border-top-color: var(--of-glass-edge); }
+:root[data-surface] .cv__corner { background: var(--of-bg-bar); }
+
+/* ------------------------------------------------------------------ floating surfaces: one blur each */
+:root[data-surface] sl-dialog::part(panel),
+:root[data-surface] sl-drawer::part(panel),
+:root[data-surface] sl-menu,
+:root[data-surface] sl-dropdown::part(panel),
+:root[data-surface] sl-select::part(listbox),
+:root[data-surface] sl-tooltip::part(body),
+:root[data-surface] sl-alert::part(base),
+:root[data-surface] .of-palette__box,
+:root[data-surface] .of-popover,
+:root[data-surface] .of-flyout,
+:root[data-surface] .of-coach {
+  background: var(--of-glass-grain) 0 0 / 160px 160px, var(--of-glass-fill-strong);
+  border: 1px solid var(--of-glass-edge);
+  box-shadow: var(--of-glass-shadow), inset 0 1px 0 var(--of-glass-hi);
+  -webkit-backdrop-filter: var(--of-glass-filter);
+  backdrop-filter: var(--of-glass-filter);
+}
+:root[data-surface] sl-dialog::part(panel) { border-radius: calc(var(--of-radius) + 4px); }
+/* dropdown panels only frame their (already glass) menu: no second layer, no second border */
+:root[data-surface] sl-dropdown::part(panel) { background: transparent; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-surface] sl-tooltip::part(body) { background: color-mix(in srgb, var(--of-bg-raised) 88%, transparent); color: var(--of-text); }
+:root[data-surface] sl-alert::part(base) { background: var(--of-glass-fill-strong); border-top-width: 3px; }
+:root[data-surface] .of-palette { background: rgba(0, 0, 0, 0.22); }
+
+/* no nesting: anything inside a blurred surface paints a plain fill (a second backdrop-filter inside the first one would
+   only see the parent's own content) */
+:root[data-surface] sl-menu sl-menu,
+:root[data-surface] sl-dialog sl-menu,
+:root[data-surface] sl-dialog sl-select::part(listbox),
+:root[data-surface] sl-dialog sl-dropdown::part(panel),
+:root[data-surface] sl-dialog .of-popover,
+:root[data-surface] sl-drawer sl-menu,
+:root[data-surface] .of-palette__box sl-menu,
+:root[data-surface] .of-coach sl-menu {
+  background: var(--of-glass-fill-solid);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+:root[data-surface] sl-dialog sl-dropdown::part(panel) { background: transparent; }
+:root[data-surface] .of-popover .of-popover { background: var(--of-glass-fill-solid); -webkit-backdrop-filter: none; backdrop-filter: none; }
+:root[data-surface] .of-ctxmenu > sl-menu { background: var(--of-glass-grain) 0 0 / 160px 160px, var(--of-glass-fill-strong); }
+
+/* the document canvas, color pickers, artboards and the studio work areas stay exactly as they are: opaque, true colors */
+:root[data-surface] .of-canvasarea,
+:root[data-surface] sl-color-picker::part(base),
+:root[data-surface] .of-picker { -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* the code editor and the website preview: higher-opacity fill, never the preview iframe */
+:root[data-surface] .cm-editor, :root[data-surface] .of-code__editor { background: var(--of-glass-fill-editor); }
+:root[data-surface] iframe { background-clip: border-box; }
+
+/* ------------------------------------------------------------------ Liquid glass: bevel, specular edge, soft sheen */
+:root[data-surface="liquid"] .of-header,
+:root[data-surface="liquid"] .of-dock,
+:root[data-surface="liquid"] .of-toolbox,
+:root[data-surface="liquid"] .of-contextbar,
+:root[data-surface="liquid"] .of-status {
+  box-shadow: inset 0 1px 0 var(--of-glass-hi), inset 0 -1px 0 var(--of-glass-lo), inset 1px 0 0 color-mix(in srgb, var(--of-glass-hi) 40%, transparent);
+}
+:root[data-surface="liquid"] .of-header,
+:root[data-surface="liquid"] .of-contextbar { background-image: linear-gradient(to bottom, color-mix(in srgb, var(--of-glass-hi) 55%, transparent), transparent 55%); }
+:root[data-surface="liquid"] sl-dialog::part(panel),
+:root[data-surface="liquid"] sl-menu,
+:root[data-surface="liquid"] .of-palette__box,
+:root[data-surface="liquid"] .of-popover,
+:root[data-surface="liquid"] .of-coach,
+:root[data-surface="liquid"] sl-alert::part(base) {
+  background-image: linear-gradient(to bottom, color-mix(in srgb, var(--of-glass-hi) 70%, transparent), transparent 22%), radial-gradient(120% 60% at 50% -10%, color-mix(in srgb, var(--of-glass-hi) 50%, transparent), transparent 60%);
+  box-shadow: var(--of-glass-shadow), inset 0 1.5px 0 var(--of-glass-hi), inset 0 -1.5px 0 var(--of-glass-lo), inset 1.5px 0 0 color-mix(in srgb, var(--of-glass-hi) 45%, transparent), inset -1.5px 0 0 color-mix(in srgb, var(--of-glass-hi) 25%, transparent);
+}
+/* sheen sweeping across a control on hover or press (a background-image only: the control keeps its own fill) */
+:root[data-surface="liquid"] :is(.of-btn, .of-ibtn, .of-menubtn, .of-studio, .of-tool, .of-seg__btn, .of-dock__tab) {
+  background-image: linear-gradient(115deg, transparent 35%, color-mix(in srgb, var(--of-glass-hi) 90%, transparent) 50%, transparent 65%);
+  background-repeat: no-repeat;
+  background-size: 260% 100%;
+  background-position: 130% 0;
+  transition: background-position 0.7s ease;
+}
+:root[data-surface="liquid"] :is(.of-btn, .of-ibtn, .of-menubtn, .of-studio, .of-tool, .of-seg__btn, .of-dock__tab):is(:hover, :active, :focus-visible) { background-position: -30% 0; }
+:root[data-surface="liquid"] .of-btn:active, :root[data-surface="liquid"] .of-ibtn:active { transform: scale(0.97); }
+
+/* ------------------------------------------------------------------ Sea glass: matte, a little less contrast and a soft grain */
+:root[data-surface="sea"] .of-header, :root[data-surface="sea"] .of-dock, :root[data-surface="sea"] .of-toolbox, :root[data-surface="sea"] .of-contextbar, :root[data-surface="sea"] .of-status {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--of-glass-edge) 40%, transparent);
+}
+
+/* ------------------------------------------------------------------ fallbacks: same tint, no blur */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  :root[data-surface] { --of-glass-blur: 0px !important; --of-glass-sat: 1 !important; --of-glass-alpha: 1 !important; --of-glass-alpha-strong: 1 !important; --of-glass-alpha-editor: 1 !important; }
+  #of-backdrop { display: none !important; }
+  :root[data-surface] body { background: var(--of-bg-app); }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root[data-surface] { --of-glass-blur: 0px !important; --of-glass-sat: 1 !important; --of-glass-alpha: 1 !important; --of-glass-alpha-strong: 1 !important; --of-glass-alpha-editor: 1 !important; }
+  #of-backdrop { display: none !important; }
+  :root[data-surface] body { background: var(--of-bg-app); }
+}
+:root.of-high-contrast[data-surface] :is(.of-header, .of-dock, .of-toolbox, .of-contextbar, .of-status, sl-dialog::part(panel), sl-menu) { background-image: none; }
+:root.of-reduce-motion #of-backdrop > i { animation: none !important; }
+:root.of-reduce-motion[data-surface="liquid"] :is(.of-btn, .of-ibtn, .of-menubtn, .of-studio, .of-tool, .of-seg__btn, .of-dock__tab) { transition: none; background-image: none; }
+
+/* ------------------------------------------------------------------ Settings ▸ Appearance: surface gallery */
+.of-surfaces { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 2px 0 4px; }
+.of-surface {
+  position: relative; display: flex; flex-direction: column; gap: 8px; padding: 8px; text-align: left;
+  border: 1px solid var(--of-border); border-radius: 10px; background: var(--of-bg-raised); color: var(--of-text); cursor: pointer;
+}
+.of-surface:hover { border-color: var(--of-text-faint); }
+.of-surface:focus-visible { outline: 2px solid var(--of-accent); outline-offset: 2px; }
+.of-surface[aria-checked="true"] { border-color: var(--of-accent); box-shadow: 0 0 0 1px var(--of-accent); }
+.of-surface__name { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; }
+.of-surface__name sl-icon { margin-left: auto; color: var(--of-accent); font-size: 14px; opacity: 0; }
+.of-surface[aria-checked="true"] .of-surface__name sl-icon { opacity: 1; }
+.of-surface__desc { font-size: 11px; line-height: 1.35; color: var(--of-text-dim); min-height: 4em; }
+.of-surface__pv { position: relative; aspect-ratio: 16 / 10; border-radius: 6px; overflow: hidden; border: 1px solid var(--of-border); background: var(--sp-bg); }
+.of-surface__pv::before { content: ""; position: absolute; inset: 0; background: var(--sp-mesh); }
+.of-surface__pv i { position: absolute; display: block; border: 1px solid var(--sp-edge); background: var(--sp-fill); -webkit-backdrop-filter: blur(var(--sp-blur)) saturate(1.4); backdrop-filter: blur(var(--sp-blur)) saturate(1.4); border-radius: var(--sp-r); box-shadow: var(--sp-shadow); }
+.of-surface__pv i:nth-child(1) { inset: 0 0 auto 0; height: 16%; border-radius: 0; border-width: 0 0 1px; }
+.of-surface__pv i:nth-child(2) { inset: 22% auto 6% 5%; width: 22%; }
+.of-surface__pv i:nth-child(3) { inset: 22% 5% 6% 33%; background: var(--sp-canvas); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.of-surface-ctl { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.of-bdchoices { display: flex; flex-wrap: wrap; gap: 8px; }
+.of-bdchoice { width: 64px; display: flex; flex-direction: column; gap: 4px; align-items: center; padding: 4px; border: 1px solid var(--of-border); border-radius: 8px; background: var(--of-bg-raised); color: var(--of-text-dim); font-size: 10.5px; cursor: pointer; }
+.of-bdchoice i { display: block; width: 100%; aspect-ratio: 16 / 10; border-radius: 5px; background: var(--bd); background-size: cover; background-position: center; }
+.of-bdchoice:hover { border-color: var(--of-text-faint); }
+.of-bdchoice:focus-visible { outline: 2px solid var(--of-accent); outline-offset: 2px; }
+.of-bdchoice[aria-checked="true"] { border-color: var(--of-accent); box-shadow: 0 0 0 1px var(--of-accent); color: var(--of-text); }
+.of-surface-note { font-size: 11.5px; color: var(--of-text-dim); }

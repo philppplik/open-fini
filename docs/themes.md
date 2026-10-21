@@ -66,6 +66,88 @@ const unregister = registerTheme({
 The full list with descriptions is `THEME_VARS` in `app/src/ui/themes.js`. In component CSS always use these variables
 and `color-mix()` for tints; never hard-code colors.
 
+## Surface styles
+
+An optional second axis next to the color theme: how the *chrome* is drawn. Settings ▸ Appearance ▸ **Surface style**:
+**Solid** (default, the unchanged look), **Glass** (frosted glassmorphism), **Liquid glass** (thicker bevels, specular top
+edge, a soft sheen sweeping over controls on hover/press, larger corners) and **Sea glass** (muted green-teal tint, matte,
+light grain, slightly lower-contrast backdrop). Each combines with every color theme and both modes.
+
+Controls: **Blur** (0-40 px), **Transparency** (0-50 %: how see-through the fill is), **Dim** (darkens the background
+layer, 0-80 %), **Slowly move the background** and the **background layer**: Aurora, Ocean, Dusk, Sea glass, Mono, an
+accent-derived mesh, or **My image** (file picker; stored only as a Blob in IndexedDB under `ui.glassImage`, downscaled to
+1920 px plus a blurred 480 px copy; never in prefs, profiles or exports). Preferences: `surfaceStyle`, `glassBlur`,
+`glassTransparency`, `glassBackdrop`, `glassDim`, `glassAnimate` (`null` blur/transparency = the style's default). They are
+ordinary customization settings, so profiles carry them (except the image).
+
+### Architecture / where things live
+
+| File | Role |
+| --- | --- |
+| `app/src/ui/glass.js` | **Pure** math and decisions: `blend`, `glassFill`, `stressBackdrops`, `liftedText`, `minAlpha`, `fxState`, `resolveGlass` (returns the `--of-glass-*` variables). Header comment lists the invariants. |
+| `app/src/ui/glass-dom.js` | Writes variables and `data-surface` / `data-glass-fx` / `data-glass-bd` / `data-glass-anim` on `<html>`, owns `#of-backdrop` and the user image. Called from `appearance.js` after the theme. |
+| `app/src/ui/surface-gallery.js` | The Settings block (cards, sliders, background choices). |
+| `app/styles/glass.css` | All visuals; everything is scoped to `:root[data-surface]`, so solid is untouched. |
+| `tests/ui/glass.test.js`, `tests/ui/themes.test.js` | Math, AA guarantees for every theme/mode/style, `surface` validation. |
+
+How it renders: `#of-backdrop` (a fixed layer behind the app: a mesh gradient or image, plus a *scrim* of the theme's app
+color, at least 60 %) is the "world" behind the glass. **One** backdrop-filter layer (`.of-layout::before`) blurs it for the
+whole chrome; header, bars, docks and the status bar only paint translucent fills over it. The document canvas, the Pixel/Vector
+artboards, color pickers and swatches, the studio work areas (Code preview, Vibe, Office documents) are opaque and sit above
+that layer, so color accuracy is never affected. Floating surfaces (dialogs, menus, dropdown lists, command palette,
+popovers, coach marks, toasts) blur once each, on their own box. Shoelace parts (`sl-dialog::part(panel)`, `sl-select::part(listbox)`,
+`sl-alert::part(base)` ...) are styled with `::part()`; menus and dialogs use a higher-opacity fill (`--of-glass-alpha-strong`),
+the code editor an even higher one (`--of-glass-alpha-editor`, never tinted).
+
+### CSS variables (`--of-glass-*`, written on `<html>`)
+
+| Variable | Meaning |
+| --- | --- |
+| `--of-glass-blur`, `--of-glass-sat` | blur radius and saturation boost of the backdrop-filter (`0px` / `1` when effects are off) |
+| `--of-glass-alpha`, `--of-glass-alpha-strong`, `--of-glass-alpha-editor` | fill opacity of bars/docks, of menus/dialogs, of the editor |
+| `--of-glass-tint`, `--of-glass-tint-amt` | sea glass tint color and mix percentage (`transparent`, `0%` for the others) |
+| `--of-glass-scrim` | opacity of the app color drawn over the background layer (0.6-0.95) |
+| `--of-glass-fill-bar/-app/-panel/-strong/-solid/-editor` | ready-made translucent fills (derived in glass.css) |
+| `--of-glass-edge`, `--of-glass-hi`, `--of-glass-lo`, `--of-glass-shadow`, `--of-glass-grain` | 1 px light border, bevel highlight/shadow, elevation, grain image |
+| `--of-glass-mesh-<id>` | the background presets (also used by the Settings previews) |
+
+`--of-text`, `--of-text-dim` and `--of-text-faint` are *lifted* (moved towards white in dark mode, black in light mode) just far
+enough while a glass style is active; they are written inline after the theme.
+
+### Accessibility and performance
+
+* **Contrast.** The fill opacity never goes below `minAlpha()`, and the text colors are lifted so that text and dim text are 4.5:1
+  on every panel surface over the worst-case backdrops: white, black and the accent, after the 60 % scrim. The editor
+  (text 4.5:1, syntax colors by their usual thresholds) is checked the same way. `tests/ui/glass.test.js` runs this for every
+  theme, both modes and all three styles at the most transparent setting. Honest limit: blur and the saturation boost are not
+  modeled (they only move colors between the tested extremes), and your own image is bounded by the scrim, not analysed.
+* **Automatic fallbacks** (same tint, opaque panels, background hidden): Low-power mode (`app.perf.low`), the *High contrast*
+  preference and `prefers-contrast: more`, `prefers-reduced-transparency: reduce`, no `backdrop-filter` support
+  (`CSS.supports` and an `@supports` rule). Settings shows why blur is off. The animation stops with Reduce motion, in
+  Low-power mode and when the surface is solid; the liquid sheen is a static highlight under Reduce motion.
+* **Layer budget.** One chrome layer plus at most one floating surface at a time (a menu or dialog or the palette). The
+  background mesh is a single composited layer; the animation only transforms it.
+
+### Rules for contributors
+
+1. **Never nest backdrop-filters.** A blurred surface must not contain another blurred surface (it would only blur its parent's
+   own pixels and cost a lot). Inside a dialog, a menu, the palette or a coach mark use `--of-glass-fill-solid` and
+   `backdrop-filter: none` (see the "no nesting" block in glass.css).
+2. **Never blur rows.** Large scrolling lists (layers, files, history, chat) paint plain backgrounds; the list *container* is
+   already on glass.
+3. **Never glass the document.** Canvas, artboards, previews, color pickers/swatches and thumbnails stay opaque.
+4. New chrome: use the `--of-glass-fill-*` variables (or leave the usual `--of-bg-*` background on an opaque work area); do not
+   hard-code colors or write your own `backdrop-filter`.
+5. Test a new surface in Glass, Liquid and Sea, light and dark, and with *High contrast* and *Low-power mode* on.
+
+### Themes and extensions
+
+`registerTheme({ ..., surface })` is optional and additive: `"none"` opts the theme out (surface styles never apply with it,
+the Settings block says so), `"glass" | "liquid" | "sea" | "solid"` is a recommendation shown as a hint (it never overrides the
+user's choice). `validateTheme` rejects other values.
+
+Vibe: `set_theme({ surface })` and `list_themes` (field `surfaces`, `current.surface`).
+
 ## Scrollbars
 
 `app/styles/themes.css` styles every scrollbar: thin, rounded thumb, transparent track, `--of-scroll-thumb`,
