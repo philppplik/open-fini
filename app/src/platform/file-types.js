@@ -27,6 +27,7 @@
 export const FILE_TYPES = [
   { id: "document", name: "OpenFini Document", ext: ["ofini"], mime: "application/x-openfini", role: "Editor", own: true, kind: "document" },
   { id: "extension", name: "OpenFini Extension", ext: ["ofext"], mime: "application/x-openfini-extension", role: "Editor", own: true, kind: "extension" },
+  { id: "vsix", name: "VS Code Extension", ext: ["vsix"], mime: "application/vsix", role: "Viewer", own: false, kind: "extension" },
   { id: "psd", name: "Photoshop Document", ext: ["psd"], mime: "image/vnd.adobe.photoshop", role: "Editor", own: false, kind: "import" },
   { id: "psb", name: "Photoshop Large Document", ext: ["psb"], mime: "image/vnd.adobe.photoshop-large", role: "Viewer", own: false, kind: "import" },
   { id: "idml", name: "InDesign Markup", ext: ["idml"], mime: "application/vnd.adobe.indesign-idml-package", role: "Viewer", own: false, kind: "import" },

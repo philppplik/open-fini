@@ -102,6 +102,16 @@
       },
       {
         "ext": [
+          "vsix"
+        ],
+        "name": "VS Code Extension",
+        "description": "VS Code Extension",
+        "mimeType": "application/vsix",
+        "role": "Viewer",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
           "psd"
         ],
         "name": "Photoshop Document",
