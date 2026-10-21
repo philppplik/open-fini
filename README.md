@@ -96,6 +96,8 @@ The **Export** button in the header opens a popup from any studio: PNG / JPEG / 
 
 ## Beyond the studios
 
+- **Your files stay yours.** A file opened with *File ▸ Open* (`.txt`, `.md`, `.docx`, `.svg` …) is saved back in its own format with `Ctrl+S`; OpenFini only asks for `.ofini` when the document outgrows that format. Older `.ofini` files are upgraded when opened (see [docs/file-format.md](docs/file-format.md)), and quitting with unsaved documents shows one *Save All / Discard / Cancel* dialog.
+
 - **Several windows, several chats.** Move any studio or document into its own window (*File ▸ New Window*, tab right-click). Vibe can run several chats at once, start sub-agents for focused tasks, and shows an *AI is …* status pill while it works. See [docs/multi-window.md](docs/multi-window.md) and [docs/vibe-studio.md](docs/vibe-studio.md).
 - **Make it yours.** Rebind every shortcut, hide tools and menu items, save workspaces, pick which five studios the header shows, and share all of it as a profile. See [docs/customization.md](docs/customization.md).
 - **German, automatically.** The interface follows your system language (Deutsch is complete for the main surfaces; more languages are a translation file away). See [docs/i18n.md](docs/i18n.md).
