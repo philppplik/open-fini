@@ -384,8 +384,8 @@ export function bridgeMain(kit) {
     if (t !== M.el) M.el = t;
     schedule();
   }, true);
-  document.addEventListener("mouseleave", function () {
-    if (M.on) {
+  document.addEventListener("mouseleave", function (e) {
+    if (M.on && (e.target === document.documentElement || e.target === document)) {
       M.el = null;
       schedule();
     }

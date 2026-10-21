@@ -92,11 +92,11 @@ test("ruler ticks adapt to the zoom", () => {
   assert.ok(rulerTicks(0, 1e9, 1).ticks.length <= 4000);
 });
 
-test("layout resolution: explicit wins, auto stacks below 900 px", () => {
+test("layout resolution: explicit wins, auto stacks below 760 px", () => {
   for (const l of LAYOUTS) assert.equal(resolveLayout(l, 400), l);
   assert.equal(resolveLayout("auto", 1200), "codeLeft");
-  assert.equal(resolveLayout(null, 899), "codeTop");
-  assert.equal(resolveLayout(undefined, 900), "codeLeft");
+  assert.equal(resolveLayout(null, 759), "codeTop");
+  assert.equal(resolveLayout(undefined, 760), "codeLeft");
   assert.equal(resolveLayout("bogus", 0), "codeLeft");
   assert.ok(isStacked("codeTop") && isStacked("codeBottom") && !isStacked("codeLeft"));
   assert.ok(codeFirst("codeLeft") && codeFirst("codeTop") && !codeFirst("codeRight") && !codeFirst("codeBottom"));

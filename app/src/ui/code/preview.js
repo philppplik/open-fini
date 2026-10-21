@@ -557,6 +557,7 @@ export class PreviewPane extends Emitter {
         break;
       case "measureInfo":
         // untrusted: the page's own scripts can post to the parent too, so everything is validated
+        if (!this.measure.on) break;
         this.measure.box = m.box ? sanitizeBox(m.box) : null;
         this.measure.pins = Number.isInteger(m.pins) && m.pins >= 0 && m.pins <= 99 ? m.pins : 0;
         this.emit("measure", this.measure);

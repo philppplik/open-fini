@@ -166,6 +166,7 @@ export class CodeWorkspace extends Emitter {
     this.editors.on("cursor", (c) => this.#onCursor(c));
     this.on("cursor", () => this.app.emit("codestatus"));
     this.preview.on("breakpoint", () => this.app.emit("codestatus"));
+    this.preview.on("viewport", () => this.app.emit("codestatus"));
     this.editors.on("active", () => {
       this.#syncDocMode();
       this.emit("active");
@@ -250,7 +251,7 @@ export class CodeWorkspace extends Emitter {
 
   /**
    * Split arrangement. The code pane is always the first DOM child; CSS reverses the flex direction for "codeRight" and
-   * "codeBottom". The choice is "auto" (code left, stacked on top below 900 px) or one of E.LAYOUTS, stored per project
+   * "codeBottom". The choice is "auto" (code left, stacked on top below 760 px) or one of E.LAYOUTS, stored per project
    * (web.settings.layout) and as the default for new projects (pref codeLayout). The ratio is the share of the code pane,
    * remembered separately for side-by-side (splitH) and stacked (splitV) arrangements.
    */
@@ -986,7 +987,7 @@ export class CodeWorkspace extends Emitter {
     if (c) parts.push(`Ln ${c.line}, Col ${c.col}${c.selected ? ` (${c.selected} selected)` : ""}`);
     if (c) parts.push(({ html: "HTML", css: "CSS", javascript: "JavaScript", json: "JSON", markdown: "Markdown", xml: "XML", latex: "LaTeX", yaml: "YAML", toml: "TOML", properties: "INI", text: "Plain text" })[E.languageOf(c.path)] || "Plain text");
     parts.push(`Spaces: ${this.web.settings.tabSize || 2}`, "UTF-8");
-    parts.push(`${this.preview.bp.label} ${this.preview.bp.width}px`);
+    parts.push(`${this.preview.bp.label} ${this.preview.vw}px`);
     return parts.join("   ·   ");
   }
 

@@ -127,11 +127,11 @@ export const codeFirst = (layout) => layout === "codeLeft" || layout === "codeTo
 
 /**
  * The arrangement to show: an explicit choice wins; "auto" (or nothing chosen) puts code left, and stacks it on top
- * when the workbench is narrower than 900 px.
+ * when the workbench (the split area, not the window) is narrower than 760 px.
  */
 export function resolveLayout(choice, containerWidth) {
   if (LAYOUTS.includes(choice)) return choice;
-  return containerWidth > 0 && containerWidth < 900 ? "codeTop" : "codeLeft";
+  return containerWidth > 0 && containerWidth < 760 ? "codeTop" : "codeLeft";
 }
 
 /** Clamps a code-pane ratio so that both panes keep at least `minPx` of `total`, and never leave 10..90 %. */
