@@ -5,6 +5,8 @@
 .of-vsx { display: flex; flex-direction: column; gap: 8px; min-height: 0; flex: 1; border-radius: var(--of-radius); outline: 2px dashed transparent; outline-offset: 2px; }
 .of-vsx.drop { outline-color: var(--of-accent); }
 .of-vsx .of-ext-body { flex: 1; min-height: 0; }
+.of-vsx-note summary { cursor: pointer; }
+.of-vsx-note p { margin: 6px 0 0; }
 .of-vsx-note { margin: 0; padding: 8px 10px; font-size: 12px; color: var(--of-text-dim); background: var(--of-bg-input); border: 1px solid var(--of-border-soft); border-radius: var(--of-radius-sm); }
 .of-vsx-bar sl-input { flex: 1 1 220px; min-width: 160px; }
 .of-vsx-bar sl-select { width: 190px; }

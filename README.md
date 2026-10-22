@@ -108,6 +108,7 @@ The **Export** button in the header opens a popup from any studio: PNG / JPEG / 
 - **Five bundled extensions** (not installed by default): Palette Pro, Batch Export, Data Filler, Code Tools and an Accessibility Checker. See [docs/bundled-extensions.md](docs/bundled-extensions.md).
 - **Updates, your way.** *Settings ▸ About* can check for a new version; automatic checks are optional and off by default.
 
+- **VS Code extensions** from Open VSX or a `.vsix`: color themes, snippets and language settings, and web extensions such as Prettier run sandboxed against a subset of the VS Code API, with an honest compatibility badge. See [docs/vscode-extensions.md](docs/vscode-extensions.md).
 - **Extensions with an SDK.** Add commands, menu items, dock panels, themes, templates and Vibe tools with sandboxed `.ofext` extensions. Every extension declares permissions, runs in its own sandbox and is undoable. See [docs/extensions.md](docs/extensions.md) and the [`sdk/`](sdk) folder.
 - **Themes.** Twelve themes, each with a light and a dark variant, plus accent colors, high contrast and thin themed scrollbars. See [docs/themes.md](docs/themes.md).
 - **Guided, not guessed.** A welcome tour, a mini tour per studio, tooltips that explain, *What's this?* (`Shift+F1`), a global command palette (`Ctrl+K`) and a What's new page.

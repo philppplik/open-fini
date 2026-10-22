@@ -100,6 +100,12 @@ describe("vscode API shim", () => {
     assert.deepEqual(msg, { kind: "info", text: "Hello from Hallo", items: [], modal: false, detail: "" });
   });
 
+  it("exposes configuration values as own properties (spread like VS Code)", async () => {
+    const f = frame(`const v = require("vscode"); exports.activate = () => { const c = v.workspace.getConfiguration("a"); globalThis.cfg = { ...c, nested: c.get("b.c"), has: c.has("x") }; };`, { cfg: { defaults: { "a.enable": true, "a.b.c": 2 }, settings: { "a.enable": false } } });
+    await f.ready;
+    assert.deepEqual(JSON.parse(JSON.stringify(f.ctx.cfg)), { enable: false, b: { c: 2 }, nested: 2, has: false });
+  });
+
   it("reports and refuses unsupported APIs with a helpful error", async () => {
     const code = `const vscode = require("vscode");
 exports.activate = async () => {

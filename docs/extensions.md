@@ -13,6 +13,9 @@ examples).
 
 Five ready-made extensions ship with OpenFini but are not installed by default; see [bundled-extensions.md](bundled-extensions.md).
 
+**VS Code extensions** (themes, snippets, language settings and web extensions from Open VSX or a `.vsix`) are installed
+from the *VS Code extensions* tab of the same manager; see [vscode-extensions.md](vscode-extensions.md).
+
 ### Installing
 
 *Studio ▸ Extensions…* (or *Settings ▸ Extensions*) opens the manager:

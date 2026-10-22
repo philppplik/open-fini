@@ -268,7 +268,7 @@ export function renderVscodeTab(app, container) {
     return b;
   };
   const bar = h("div.of-ext-toolbar.of-vsx-bar");
-  const note = h("p.of-vsx-note", t("VS Code extensions were written for VS Code: OpenFini runs only the declarative parts (themes, snippets, language settings) and a subset of the web extension API. Extensions come from Open VSX (open-vsx.org), not the Visual Studio Marketplace, whose terms allow its extensions only in Microsoft's products. Drop a .vsix file here to install it."));
+  const note = h("details.of-vsx-note", h("summary", t("VS Code extensions were written for VS Code: OpenFini runs only the declarative parts and a subset of the web extension API.")), h("p", t("Themes, snippets and language settings work for every extension. The code of web extensions runs in a sandbox against a subset of the VS Code API; extensions that need Node.js only add their declarative parts. Extensions come from Open VSX (open-vsx.org), not the Visual Studio Marketplace, whose terms allow its extensions only in Microsoft's products. Drop a .vsix file here to install it.")));
   const body = h("div.of-ext-body", listEl, pane);
   const root = h("div.of-vsx", note, bar, body);
   container.replaceChildren(root);
