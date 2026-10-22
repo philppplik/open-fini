@@ -1,0 +1,54 @@
+/* Tool pill (ui/tool-pill.js): floating context actions at the bottom center of the canvas area. */
+.of-toolpill {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 32px);
+  padding: 5px 6px 5px 14px;
+  border-radius: 999px;
+  background: var(--of-bg-raised);
+  color: var(--of-text);
+  border: 1px solid var(--of-border);
+  box-shadow: 0 6px 22px rgb(0 0 0 / 0.28);
+  font-size: 12px;
+  line-height: 1.2;
+  opacity: 0;
+  transform: translate(-50%, 8px);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+.of-toolpill[hidden] { display: none; }
+.of-toolpill.is-in { opacity: 1; transform: translate(-50%, 0); }
+.of-toolpill__text { white-space: nowrap; color: var(--of-text-dim); font-variant-numeric: tabular-nums; }
+.of-toolpill__actions { display: flex; align-items: center; gap: 2px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+.of-toolpill__btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--of-text);
+  font: inherit;
+  padding: 5px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.of-toolpill__btn:hover:not(:disabled) { background: var(--of-hover); }
+.of-toolpill__btn:focus-visible { outline: 2px solid var(--of-accent); outline-offset: 1px; }
+.of-toolpill__btn:disabled { opacity: 0.4; cursor: default; }
+.of-toolpill__btn.is-primary { background: var(--of-accent-soft); color: var(--of-accent); font-weight: 600; }
+.of-toolpill__btn.is-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--of-accent) 28%, transparent); }
+@media (max-width: 640px) { .of-toolpill__text { display: none; } .of-toolpill { padding-left: 6px; } }
+@media (prefers-reduced-motion: reduce) { .of-toolpill { transition: none; } }
+.of-reduce-motion .of-toolpill { transition: none; }
+/* glass styles: one blur, directly on the pill (it is a floating surface, never inside another blurred one) */
+:root[data-surface] .of-toolpill {
+  background: var(--of-glass-grain) 0 0 / 160px 160px, var(--of-glass-fill-strong);
+  border-color: var(--of-glass-edge);
+  box-shadow: var(--of-glass-shadow), inset 0 1px 0 var(--of-glass-hi);
+  -webkit-backdrop-filter: var(--of-glass-filter);
+  backdrop-filter: var(--of-glass-filter);
+}
+:root[data-surface] .of-toolpill__text { color: var(--of-text); }

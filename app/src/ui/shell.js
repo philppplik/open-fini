@@ -69,6 +69,7 @@ export function createShell(app, root) {
   const layout = h("div.of-layout", header, tabs.el, context.el, toolbox.el, codeSide, canvasArea, dock.el, status.el);
   root.append(layout);
   app.dock = dock;
+  import("./tool-pill.js").then((m) => m.mountToolPill(app, canvasArea)).catch((err) => console.error(err)); // lazy: floating context actions
 
   // Vibe Studio (the AI workspace) is also loaded on first use; it does not need an open document
   const vibeArea = h("div.of-vibearea");

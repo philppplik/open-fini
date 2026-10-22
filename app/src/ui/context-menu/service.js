@@ -5,6 +5,7 @@
 // `showContextMenu` (ui/menus.js). See docs/context-menus.md.
 import { showContextMenu, closeContextMenu } from "../menus.js";
 import { log } from "../../core/log.js";
+import { shouldAllowNativeContextMenu } from "./native-policy.js";
 
 /**
  * Target kinds. A kind is a plain string; providers match on it (or on anything else in the context).
@@ -174,8 +175,11 @@ export function installContextMenus(app) {
     let partial = null;
     if (field) partial = { kind: "text-field", target: field, selection: selectedTextOf(field), data: { field, readOnly: field.readOnly || field.disabled || (field.isContentEditable === false && !(field instanceof HTMLInputElement) && !(field instanceof HTMLTextAreaElement)) } };
     else if (marked) partial = { kind: marked.dataset.ctx, target: marked, data: marked.__ctx || {} };
-    if (!partial) return;
-    if (!openContextMenu(app, { ...partial, x, y, event: e })) return;
+    if (!partial || !openContextMenu(app, { ...partial, x, y, event: e })) {
+      // Nothing of ours to show: never let the webview's own menu appear in the app chrome (see native-policy.js)
+      if (!shouldAllowNativeContextMenu(e.target, e)) e.preventDefault();
+      return;
+    }
     e.preventDefault();
   };
 

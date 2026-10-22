@@ -108,3 +108,15 @@ test("the built-in library has at least 26 skills, 16 of them new workflows with
     assert.doesNotMatch(r.text, /\{\{/, `${id}: every placeholder is declared`);
   }
 });
+
+test("about-the-developer is suggested for who-made-it questions and states only listed facts", () => {
+  const top = (q) => suggestSkills(q, BUILTIN_SKILL_LIST, { limit: 1 })[0]?.skill.id;
+  assert.equal(top("who made OpenFini?"), "about-the-developer");
+  assert.equal(top("wer hat openfini gemacht"), "about-the-developer");
+  const s = BUILTIN_SKILL_LIST.find((x) => x.id === "about-the-developer");
+  assert.match(s.body, /Philipp Paulik/);
+  assert.match(s.body, /philipp-paulik\.de/);
+  assert.match(s.body, /github\.com\/philppplik\/open-fini/);
+  assert.match(s.body, /only know what is listed/i);
+  assert.doesNotMatch(s.body, /@[a-z0-9-]+\.[a-z]{2,}/i, "no e-mail address");
+});
