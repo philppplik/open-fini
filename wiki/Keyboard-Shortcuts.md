@@ -10,7 +10,7 @@ A tool key is a single letter pressed while the canvas has focus. Several tools 
 
 | Key | Tool | Studio |
 | --- | --- | --- |
-| `\` | Line | vector, layout, pixel |
+| `\\` | Line | vector, layout, pixel |
 | `A` | Node | vector, layout |
 | `B` | Paint Brush | pixel |
 | `B` | Pixel Pencil | pixel |
@@ -218,7 +218,7 @@ A tool key is a single letter pressed while the canvas has focus. Several tools 
 
 | Command | Shortcut | Alternative | Id |
 | --- | --- | --- | --- |
-| Edit Mask / Layer | `\` |  | `layer.editMask` |
+| Edit Mask / Layer | `\\` |  | `layer.editMask` |
 | Merge Down | `Mod+E` |  | `layer.mergeDown` |
 | New Pixel Layer | `Mod+Shift+N` |  | `layer.newPixel` |
 
