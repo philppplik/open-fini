@@ -67,7 +67,7 @@ const GROUP_TITLES = {
 };
 
 function fmt(s) {
-  return s ? "`" + s.replace(/\|/g, "\\|") + "`" : "";
+  return s ? "`" + s.replace(/\\/g, "\\\\").replace(/\|/g, "\\|") + "`" : "";
 }
 
 /** Static tool shortcuts per studio, read from the tool classes. */
