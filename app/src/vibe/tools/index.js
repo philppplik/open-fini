@@ -54,5 +54,5 @@ export const TOOL_GROUPS = {
   "Power tools": ["run_plan", "query_layers", "describe_page", "describe_selection", "apply_to_many", "evaluate", "screenshot_layers", "compare_screenshots", "grid_layout", "distribute_layers", "snap_layers", "make_component"],
   Agents: ["spawn_agent", "wait_agent", "list_agents", "cancel_agent"],
   Attachments: ["list_attachments", "open_attachment"],
-  Collaboration: ["get_collab_status", "read_chat", "post_chat_message", "list_comments", "add_comment", "reply_comment", "resolve_comment", "list_versions", "save_version"],
+  Collaboration: ["get_collab_status", "read_chat", "post_chat_message", "list_comments", "add_comment", "reply_comment", "resolve_comment", "list_versions", "save_version", "share_document", "get_sharing_status", "list_shared_documents"],
 };

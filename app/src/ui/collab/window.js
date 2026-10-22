@@ -54,6 +54,7 @@ function createWindow(app, c) {
   let commentFilter = { status: "open", mine: false };
   let focusThread = null;
   let pendingAnchor = null;
+  let showQr = false; // People ▸ join link QR code shown
 
   const title = h("h2.of-collab-win__title", t("Collaboration"));
   const pill = h("span.of-collab-pill", { role: "status" });
@@ -210,7 +211,28 @@ function createWindow(app, c) {
 
     const where = h("select.of-collab-input", { "aria-label": t("Where") }, h("option", { value: "local" }, t("This device: other windows and tabs")), h("option", { value: "relay" }, t("Relay server (local network or internet)")));
     const relay = h("input.of-collab-input", { value: app.prefs.collabRelay || "ws://127.0.0.1:8787/", spellcheck: false, "aria-label": t("Relay address"), placeholder: "wss://relay.example.org/" });
-    const relayRow = h("label.of-collab-field", h("span", t("Relay address")), relay);
+    // relay: loopback warning, "Test connection" with a diagnosis, and how to start one
+    const loopNote = h("p.of-collab-note", { hidden: true }, icon("info-circle"), t("localhost is this computer only. Other devices join through this computer's network address: after creating the room, pick it under People ▸ Invite."));
+    const diag = h("ul.of-relay-diag", { "aria-live": "polite" });
+    const testBtn = btn(t("Test connection"), async (e, b) => {
+      b.disabled = true;
+      diag.replaceChildren(h("li", t("Checking…")));
+      try {
+        const { diagnose } = await import("./network.js");
+        const r = await diagnose(relay.value.trim(), { app });
+        diag.replaceChildren(...r.steps.map((s) => h("li", { class: s.ok ? "is-ok" : "is-bad" }, icon(s.ok ? "check-circle" : "exclamation-triangle"), h("span", s.text, s.fix ? h("span.of-relay-diag__fix", ` ${s.fix}`) : null))));
+      } finally {
+        b.disabled = false;
+      }
+    }, { ic: "activity" });
+    const help = btn(t("How to start a relay"), () => app.run("collab.relayHelp"), { ic: "terminal" });
+    const relayRow = h("div.of-collab-field", h("label.of-collab-field", h("span", t("Relay address")), relay), loopNote, h("div.of-collab-actions", testBtn, help), diag);
+    const checkLoop = async () => {
+      const { isLoopbackRelay } = await import("./network.js");
+      loopNote.hidden = !isLoopbackRelay(relay.value.trim());
+    };
+    relay.addEventListener("input", checkLoop);
+    checkLoop();
     const role = h("select.of-collab-input", { "aria-label": t("New members join as") }, ...["editor", "commenter", "viewer"].map((r) => h("option", { value: r }, roleLabel(r))));
     const sync = () => (relayRow.hidden = where.value !== "relay");
     where.addEventListener("change", sync);
@@ -231,6 +253,11 @@ function createWindow(app, c) {
     }, { variant: "primary", ic: "plus-lg" });
 
     const code = h("textarea.of-collab-input", { rows: 3, spellcheck: false, placeholder: "wss://host:8787/#ofc1.…", "aria-label": t("Invite code") });
+    const fromLink = c.prefillInvite ? h("p.of-collab-note", icon("link-45deg"), t("Filled in from a join link. Check that you expected an invitation, then choose Join.")) : null;
+    if (c.prefillInvite) {
+      code.value = c.prefillInvite;
+      c.prefillInvite = "";
+    }
     const join = btn(t("Join…"), async (e, b) => {
       err.textContent = "";
       let host;
@@ -269,9 +296,9 @@ function createWindow(app, c) {
         me,
         offline,
         h("section.of-collab-card", h("h3", t("Start a room")), h("label.of-collab-field", h("span", t("Where")), where), relayRow, h("label.of-collab-field", h("span", t("New members join as")), role), h("div.of-collab-actions", create)),
-        h("section.of-collab-card", h("h3", t("Join with an invite code")), code, h("div.of-collab-actions", join)),
+        h("section.of-collab-card", h("h3", t("Join with an invite code")), fromLink, code, h("div.of-collab-actions", join)),
         err,
-        h("p.of-collab-hint", t("Everything in a room is end-to-end encrypted with a key that only travels inside the invite code. A relay is a tiny server you run yourself: npm run relay (see docs/collaboration.md). Comments and versions also work without a room.")),
+        h("p.of-collab-hint", t("Everything in a room is end-to-end encrypted with a key that only travels inside the invite code. A relay is a tiny server you run yourself: npm run relay -- --lan for your network (see How to start a relay). Comments and versions also work without a room.")),
       ),
     );
   }
@@ -564,31 +591,80 @@ function createWindow(app, c) {
     const words = h("p.of-collab-words", { "aria-label": t("Verification words") }, ...s.fingerprint.map((w) => h("span", w)));
     const inviteBox = h("div.of-collab-invite");
     const showInvite = btn(t("Show invite code"), () => {
-      inviteBox.replaceChildren(h("textarea.of-collab-input", { readOnly: true, rows: 3, value: s.inviteCode, "aria-label": t("Invite code") }), h("p.of-collab-hint", t("Anyone with this code can join until the host changes the key. Share it privately (not in public channels). It is never saved by OpenFini.")));
+      inviteBox.replaceChildren(h("textarea.of-collab-input", { readOnly: true, rows: 3, value: s.shareInviteCode, "aria-label": t("Invite code") }), h("p.of-collab-hint", t("Anyone with this code can join until the host changes the key. Share it privately (not in public channels). It is never saved by OpenFini.")));
     }, { ic: "eye" });
-    const copy = btn(t("Copy invite code"), async () => {
+    const copyText = async (text, done) => {
       try {
-        await navigator.clipboard.writeText(s.inviteCode);
-        app.toast("Invite code copied. Share it privately.", "success", 2200);
+        await navigator.clipboard.writeText(text);
+        app.toast(done, "success", 2200);
       } catch {
         app.toast("Copying failed. Use “Show invite code” and copy it by hand.", "warning", 3000);
       }
-    }, { ic: "copy" });
+    };
+    const copy = btn(t("Copy invite code"), () => copyText(s.shareInviteCode, t("Invite code copied. Share it privately.")), { ic: "copy" });
     const leave = btn(t("Leave"), () => app.run("collab.leave"), { ic: "box-arrow-up-right", variant: "danger" });
-    const share = app.doc && canDo(s.myRole, "file-offer") ? btn(t("Share this document"), () => c.shareDoc(app.doc).catch((e) => app.toast(e.message, "danger", 5000)), { ic: "share" }) : null;
+    const share = app.doc && canDo(s.myRole, "file-offer") ? btn(t("Share this document…"), () => c.shareFlow(app.doc).catch((e) => app.toast(e.message, "danger", 5000)), { ic: "share" }) : null;
+    // rooms across the network: the address other devices use, join link and QR code (from the relay's /info)
+    const lanBox = h("div.of-collab-lan");
+    if (s.invite.relay !== "local") {
+      import("./network.js").then(async (net) => {
+        const info = await net.relayInfo(s.invite.relay);
+        const addrs = net.inviteAddresses(info, s.invite.relay);
+        const parts = [];
+        if (net.isLoopbackRelay(s.invite.relay) && !s.inviteRelay) parts.push(h("p.of-collab-note", icon("exclamation-triangle"), t("This invite points to localhost, which other devices cannot reach. Choose this computer's network address below.")));
+        if (addrs.length) {
+          const cur = s.inviteRelay || s.invite.relay;
+          const sel = h("select.of-collab-input", { "aria-label": t("Address for other devices") }, h("option", { value: s.invite.relay }, t("{url} (as entered)", { url: s.invite.relay })), ...addrs.map((a) => h("option", { value: a.url, selected: a.url === cur }, a.label)));
+          sel.addEventListener("change", () => {
+            try {
+              if (sel.value === s.invite.relay) s.inviteRelay = null;
+              else s.setInviteRelay(sel.value);
+              renderPeople();
+            } catch (e) {
+              app.toast(e.message, "danger", 4000);
+            }
+          });
+          parts.push(h("label.of-collab-field", h("span", t("Address for other devices")), sel));
+        } else if (!info && net.isLoopbackRelay(s.invite.relay)) parts.push(h("p.of-collab-hint", t("The relay's network addresses could not be read. Start it with npm run relay -- --lan, or type this computer's IP address into the relay address.")));
+        const link = net.joinLink(info, s.shareInviteCode);
+        if (link) {
+          const qrBox = h("div.of-collab-qr");
+          const qrBtn = btn(showQr ? t("Hide QR code") : t("Show QR code"), () => ((showQr = !showQr), renderPeople()), { ic: "phone" });
+          qrBtn.setAttribute("aria-pressed", String(showQr));
+          if (showQr) qrBox.replaceChildren(net.qrSvg(link, t("QR code of the join link")), h("p.of-collab-hint", t("Scan with a phone or tablet on the same network. Anyone who can see this code can join the room.")));
+          parts.push(h("div.of-collab-actions", btn(t("Copy join link"), () => copyText(link, t("Join link copied. It contains the room key: share it privately.")), { ic: "link-45deg" }), qrBtn), qrBox);
+        }
+        lanBox.replaceChildren(...parts);
+      });
+    }
     const status = h("section.of-collab-card",
       h("div.of-collab-status", icon(st.connected ? "shield-check" : "exclamation-triangle"), h("span", st.connected ? t("Connected to {host}, end-to-end encrypted, {n, plural, one {# member} other {# members}}.", { host: s.relayHost, n: st.members }) : t("Not connected ({state}).", { state: s.state }))),
       h("h3", t("Verification words")),
       words,
       h("p.of-collab-hint", t("Everyone in the room sees the same six words. Compare them by phone or in person: if they differ, someone is not in the room you think, so leave.")),
       h("div.of-collab-actions", showInvite, copy, share, leave),
+      lanBox,
       inviteBox,
     );
+    // documents shared in this room ("Edit together", beta)
+    const sharedBox = h("div");
+    c.live().then((live) => {
+      const list = live.list();
+      if (!list.length) return;
+      const row = (d) => {
+        const acts = d.open
+          ? [btn(d.ownedByMe ? t("Stop sharing") : t("Leave"), () => live.stop(d.doc).catch((e) => app.toast(e.message, "danger")), { ic: "x-circle" })]
+          : [btn(t("Open live"), () => live.openLive(d.doc).catch((e) => app.toast(e.message, "danger", 5000)), { variant: "primary" }), btn(t("Open copy"), () => live.openCopy(d.doc).catch((e) => app.toast(e.message, "danger", 5000)))];
+        const meta = d.open ? (d.paused ? t("Live · paused · {n, plural, one {# person} other {# people}}", { n: d.people }) : t("Live · {n, plural, one {# person} other {# people}}", { n: d.people })) : t("Shared by {name}", { name: d.from });
+        return h("li.of-collab-member", icon(d.kind === "text" ? "code-slash" : "file-earmark"), h("div.of-collab-member__meta", h("strong", d.name), h("span", meta)), h("div.of-collab-member__acts", ...acts));
+      };
+      sharedBox.replaceChildren(h("section.of-collab-card", h("h3", t("Shared documents (Edit together, beta)")), h("ul.of-collab-members", ...list.map(row))));
+    });
     const rows = [];
     rows.push(memberRow({ id: s.id, profile: s.profile, presence: c.presencePayload(), online: true }, true));
     for (const m of s.members) rows.push(memberRow(m, false));
     const filesBox = c.received.size ? h("section.of-collab-card", h("h3", t("Received files")), ...[...c.received.values()].map(({ transfer }) => h("div.of-filecard", icon("file-earmark"), h("div.of-filecard__meta", h("strong", transfer.name), h("span", formatBytes(transfer.size))), h("div.of-filecard__acts", btn(t("Open"), async () => (await confirmDialog({ title: "Open received file", message: t("Open “{name}”? Only open files from people you trust.", { name: transfer.name }), ok: "Open" })) && c.openReceived(transfer.fid, "copy").catch((e) => app.toast(e.message, "danger"))), btn(t("Save…"), () => c.saveReceived(transfer.fid)), btn("", () => c.dismissReceived(transfer.fid), { ic: "x", title: t("Dismiss") }))))) : null;
-    body.replaceChildren(h("div.of-collab-people", status, h("section.of-collab-card", h("h3", t("Members")), h("ul.of-collab-members", ...rows)), filesBox));
+    body.replaceChildren(h("div.of-collab-people", status, sharedBox, h("section.of-collab-card", h("h3", t("Members")), h("ul.of-collab-members", ...rows)), filesBox));
   }
 
   function memberRow(m, isMe) {
