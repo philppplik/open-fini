@@ -1,0 +1,50 @@
+/* Shared documents, "Edit together" (beta) and rooms across the network (app/src/ui/collab/live.js, network.js).
+   Theme via --of-* variables; works in light and dark. */
+
+/* "Mia shared “Poster”" cards (bottom left, above the status bar) */
+.of-live-cards { position: fixed; left: 16px; bottom: calc(var(--of-status-h, 24px) + 56px); z-index: 950; display: grid; gap: 8px; width: min(380px, calc(100vw - 32px)); }
+.of-live-card { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: start; padding: 10px 12px; border: 1px solid var(--of-accent); border-radius: var(--of-radius, 8px); background: var(--of-bg-panel); color: var(--of-text); box-shadow: var(--of-shadow, 0 8px 24px rgba(0, 0, 0, 0.3)); font: 13px/1.4 var(--of-font, system-ui, sans-serif); }
+.of-live-card > sl-icon { font-size: 18px; color: var(--of-accent-strong, var(--of-accent)); margin-top: 2px; }
+.of-live-card__text { display: grid; gap: 2px; min-width: 0; }
+.of-live-card__text strong { overflow-wrap: anywhere; }
+.of-live-card__text span { font-size: 12px; color: var(--of-text-dim); }
+.of-live-card__acts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+
+/* the "Editing together · N people" bar, bottom center above the status bar (never covers toolbars) */
+.of-live-bar { position: fixed; z-index: 800; left: 50%; bottom: calc(var(--of-status-h, 24px) + 12px); transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100vw - 32px); padding: 4px 6px 4px 12px; border: 1px solid var(--of-accent); border-radius: 999px; background: var(--of-bg-panel); color: var(--of-text); box-shadow: var(--of-shadow, 0 6px 16px rgba(0, 0, 0, 0.25)); font: 12px/1.3 var(--of-font, system-ui, sans-serif); white-space: nowrap; }
+.of-live-bar > sl-icon { color: var(--of-accent-strong, var(--of-accent)); }
+.of-live-bar__text { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.of-live-bar__beta, .of-live-bar__note { font-size: 10.5px; padding: 1px 6px; border-radius: 999px; background: var(--of-accent-soft, var(--of-hover)); color: var(--of-text); text-transform: uppercase; letter-spacing: 0.04em; }
+.of-live-bar__note { background: color-mix(in srgb, var(--of-danger, #e5484d) 16%, transparent); text-transform: none; letter-spacing: 0; }
+.of-live-bar .of-collab-btn { padding: 2px 8px; border-radius: 999px; }
+
+/* shared badge on a document tab */
+.of-doctab__live { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--of-accent-soft, var(--of-hover)); color: var(--of-text); font-size: 11px; line-height: 16px; }
+.of-doctab__live sl-icon { font-size: 11px; color: var(--of-accent-strong, var(--of-accent)); }
+.of-doctab__live.is-paused { background: color-mix(in srgb, var(--of-danger, #e5484d) 16%, transparent); }
+
+/* relay diagnosis, LAN addresses, QR code, relay help */
+.of-relay-diag { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 12px; }
+.of-relay-diag:empty { display: none; }
+.of-relay-diag li { display: flex; gap: 6px; align-items: flex-start; }
+.of-relay-diag li sl-icon { flex: none; margin-top: 2px; }
+.of-relay-diag li.is-ok sl-icon { color: var(--of-ok, #46a758); }
+.of-relay-diag li.is-bad sl-icon { color: var(--of-danger, #e5484d); }
+.of-relay-diag__fix { color: var(--of-text-dim); }
+.of-collab-lan { display: grid; gap: 8px; }
+.of-collab-lan:empty { display: none; }
+.of-collab-qr { display: grid; gap: 6px; justify-items: center; }
+.of-collab-qr:empty { display: none; }
+.of-qr { width: min(220px, 100%); height: auto; border-radius: 6px; image-rendering: pixelated; shape-rendering: crispEdges; }
+.of-relay-help { display: grid; gap: 10px; }
+.of-relay-help > p { margin: 0; }
+.of-relay-help__cmd { display: flex; gap: 8px; align-items: center; }
+.of-relay-help__cmd code { flex: 1; min-width: 0; overflow-x: auto; padding: 6px 8px; border-radius: var(--of-radius-sm, 4px); background: var(--of-bg-input, var(--of-bg-app)); color: var(--of-text); font: 12px/1.4 var(--of-mono, ui-monospace, monospace); white-space: nowrap; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .of-live-card { animation: of-live-in 160ms ease-out; }
+  @keyframes of-live-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+}
+@media (forced-colors: active) {
+  .of-live-bar, .of-live-card, .of-doctab__live { border: 1px solid CanvasText; }
+}
