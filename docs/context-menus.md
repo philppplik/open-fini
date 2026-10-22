@@ -86,6 +86,8 @@ clear guides), recent files on the welcome screen, text inputs everywhere (undo,
 Transform submenu), the code editor, website elements, Vibe chat messages (copy, copy as Markdown, retry, branch chat
 from here, delete turn) and tool cards (copy input and result).
 
+The section `collab.share` (priority 10, registered in `commands/collab.js`) adds *Share with collaboration room…*, *Share as linked live document*, *Share a copy (snapshot)* and *Stop sharing* to document tabs, the empty canvas, Code explorer files and tabs and the Office editor.
+
 Not done: a units submenu for rulers (documents store a unit, but the rulers do not use it yet).
 
 ## Code editor: Transform
