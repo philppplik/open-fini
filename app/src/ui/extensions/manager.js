@@ -192,9 +192,14 @@ export function openExtensionManager(app, { select } = {}) {
   function renderToolbar() {
     empty(toolbar);
     const dev = !!app.prefs.extDeveloper;
+    if (view === "vscode") {
+      // the VS Code tab has its own toolbar (search, .vsix install); only the way back is shown here
+      toolbar.append(button("OpenFini extensions", () => showView("installed"), { icon: "puzzle" }), button("Available extensions", () => showView("gallery"), { icon: "grid" }));
+      return;
+    }
     toolbar.append(...[
       button(view === "gallery" ? "Installed extensions" : "Available extensions", () => showView(view === "gallery" ? "installed" : "gallery"), { icon: view === "gallery" ? "list-ul" : "grid" }),
-      button(view === "vscode" ? "OpenFini extensions" : "VS Code", () => showView(view === "vscode" ? "installed" : "vscode"), { icon: view === "vscode" ? "puzzle" : "code-square", title: "VS Code extensions from Open VSX or a .vsix file" }),
+      button("VS Code extensions", () => showView("vscode"), { icon: "code-square", title: "VS Code extensions from Open VSX or a .vsix file" }),
       button("Install from file…", () => installFromFile(app), { icon: "file-earmark-zip" }),
       button("From URL…", () => installFromUrl(app), { icon: "link-45deg" }),
       button("From folder…", () => installFromFolder(app), { icon: "folder2-open" }),

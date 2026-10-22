@@ -439,26 +439,36 @@ function vscodeRuntime() {
   const defaults = CFG.defaults || {};
   function getConfiguration(section) {
     const pre = section ? `${section}.` : "";
+    // like VS Code, the section's values are own properties of the object (extensions spread or destructure it)
+    const tree = {};
+    for (const [k, v] of Object.entries({ ...defaults, ...settings })) {
+      if (pre && !k.startsWith(pre)) continue;
+      const parts = k.slice(pre.length).split(".");
+      let o = tree;
+      for (const p of parts.slice(0, -1)) o = o[p] && typeof o[p] === "object" && !Array.isArray(o[p]) ? o[p] : (o[p] = {});
+      o[parts[parts.length - 1]] = v;
+    }
     const val = (k) => {
       const full = pre + k;
       if (full in settings) return settings[full];
       if (full in defaults) return defaults[full];
-      // nested objects: getConfiguration("a").get("b") also finds keys "a.b.c" as an object
-      const sub = {};
-      let hit = false;
-      for (const src of [defaults, settings]) for (const [kk, v] of Object.entries(src)) if (kk.startsWith(`${full}.`)) { sub[kk.slice(full.length + 1)] = v; hit = true; }
-      return hit ? sub : undefined;
+      let o = tree;
+      for (const p of String(k).split(".")) {
+        if (o === null || typeof o !== "object") return undefined;
+        o = o[p];
+      }
+      return o;
     };
-    const cfg = {
-      get(k, d) {
-        const v = val(k);
-        return v === undefined ? d : v;
-      },
-      has: (k) => val(k) !== undefined,
-      inspect: (k) => ({ key: pre + k, defaultValue: defaults[pre + k], globalValue: settings[pre + k] }),
-      update: (k, v) => call("config.update", { key: pre + k, value: v === undefined ? null : v }).then(() => undefined),
-    };
-    return new Proxy(cfg, { get: (t, k) => (k in t ? t[k] : typeof k === "string" ? val(k) : undefined) });
+    const cfg = JSON.parse(JSON.stringify(tree));
+    const def = (name, value) => Object.defineProperty(cfg, name, { value, enumerable: false });
+    def("get", (k, d) => {
+      const v = val(k);
+      return v === undefined ? d : v;
+    });
+    def("has", (k) => val(k) !== undefined);
+    def("inspect", (k) => ({ key: pre + k, defaultValue: defaults[pre + k], globalValue: settings[pre + k] }));
+    def("update", (k, v) => call("config.update", { key: pre + k, value: v === undefined ? null : v }).then(() => undefined));
+    return cfg;
   }
 
   // ---------------------------------------------------------------- providers and commands
@@ -705,6 +715,9 @@ function vscodeRuntime() {
       return !!(await call("workspace.applyEdit", { files: wireWsEdit(we) }));
     },
     asRelativePath: (x) => (typeof x === "string" ? x : pathOfUri(x) || String(x)),
+    // degraded: the project has one root folder, and file watchers never fire (OpenFini has no file system events)
+    getWorkspaceFolder: (uri) => (pathOfUri(uri) !== null ? workspace.workspaceFolders[0] : undefined),
+    createFileSystemWatcher: () => ({ ignoreCreateEvents: true, ignoreChangeEvents: true, ignoreDeleteEvents: true, onDidCreate: new EventEmitter().event, onDidChange: new EventEmitter().event, onDidDelete: new EventEmitter().event, dispose() {} }),
   };
   const languages = {
     registerCompletionItemProvider: (sel, prov, ...triggers) => register("completion", sel, prov, { triggers: triggers.map(String).slice(0, 20) }),
@@ -736,6 +749,8 @@ function vscodeRuntime() {
     match: (sel, doc) => (sel === "*" || sel === doc.languageId || sel?.language === doc.languageId || (Array.isArray(sel) && sel.some((s) => s === doc.languageId || s?.language === doc.languageId)) ? 10 : 0),
     setLanguageConfiguration: () => new Disposable(() => {}),
     getDiagnostics: () => [],
+    // degraded: language status items are accepted but not shown
+    createLanguageStatusItem: (id, selector) => ({ id, selector, name: "", text: "", detail: "", severity: 0, busy: false, command: undefined, accessibilityInformation: undefined, dispose() {} }),
     onDidChangeDiagnostics: new EventEmitter().event,
   };
   const commandsNs = {
@@ -803,6 +818,7 @@ function vscodeRuntime() {
     CompletionItemKind,
     CompletionTriggerKind: enumOf(["Invoke", "TriggerCharacter", "TriggerForIncompleteCompletions"]),
     DiagnosticSeverity: enumOf(["Error", "Warning", "Information", "Hint"]),
+    LanguageStatusSeverity: enumOf(["Information", "Warning", "Error"]),
     StatusBarAlignment: enumOf(["Left", "Right"], 1),
     ConfigurationTarget: enumOf(["Global", "Workspace", "WorkspaceFolder"], 1),
     EndOfLine: enumOf(["LF", "CRLF"], 1),
@@ -900,7 +916,7 @@ function vscodeRuntime() {
       if (typeof activate === "function") extSelf.exports = await activate(context);
       send({ t: "ready" });
     } catch (err) {
-      send({ t: "ready", error: String((err && (err.stack || err.message)) || err).slice(0, 600) });
+      send({ t: "ready", error: String((err && err.message) || err).slice(0, 600) });
     }
   };
 }

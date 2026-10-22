@@ -411,18 +411,18 @@ export class VscodeHost extends Emitter {
     }, switched ? 0 : 150);
   }
 
-  #providersFor(kind, languageId) {
+  #providersFor(kind, path) {
+    const languageId = this.languageIdOf(path);
     const out = [];
-    for (const e of this.exts.values()) if (e.state === "active") for (const [handle, p] of e.providers) if (p.kind === kind && selectorMatches(p.selector, languageId)) out.push({ ext: e, handle, p });
+    for (const e of this.exts.values()) if (e.state === "active") for (const [handle, p] of e.providers) if (p.kind === kind && selectorMatches(p.selector, languageId, path)) out.push({ ext: e, handle, p });
     return out;
   }
   #hasProviders(kind, path = this.path) {
-    return !!path && this.#providersFor(kind, this.languageIdOf(path)).length > 0;
+    return !!path && this.#providersFor(kind, path).length > 0;
   }
 
   async #callProviders(kind, path, extra) {
-    const languageId = this.languageIdOf(path);
-    const list = this.#providersFor(kind, languageId);
+    const list = this.#providersFor(kind, path);
     if (!list.length) return [];
     const doc = this.#snapshot(path);
     if (!doc) return [];
@@ -445,7 +445,7 @@ export class VscodeHost extends Emitter {
   }
   triggerCharacters(path) {
     const out = new Set();
-    for (const { p } of this.#providersFor("completion", this.languageIdOf(path))) for (const c of p.triggers || []) out.add(c);
+    for (const { p } of this.#providersFor("completion", path)) for (const c of p.triggers || []) out.add(c);
     return out;
   }
   async complete(path, pos, trigger) {
@@ -465,7 +465,7 @@ export class VscodeHost extends Emitter {
     const tabSize = this.app.prefs?.codeTabSize || 2;
     for (const kind of ["format", "rangeFormat"]) {
       const res = await this.#callProviders(kind, path, { tabSize });
-      const hit = res.find(({ r }) => Array.isArray(r));
+      const hit = res.find(({ r }) => Array.isArray(r) && r.length) || (kind === "rangeFormat" ? res.find(({ r }) => Array.isArray(r)) : null);
       if (hit) {
         if (hit.r.length) this.#applyEdits(path, hit.r, null, `Format with ${hit.ext.manifest.displayName}`);
         this.app.status(`Formatted with ${hit.ext.manifest.displayName}`);

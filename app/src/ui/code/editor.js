@@ -236,8 +236,10 @@ export class CodeEditors extends Emitter {
   refreshContributions() {
     for (const [p, st] of this.states) {
       const effects = this.contrib.reconfigure(this.#contributions(p));
-      if (p === this.active && this.view) this.view.dispatch({ effects });
-      else this.states.set(p, st.update({ effects }).state);
+      if (p === this.active && this.view) {
+        this.view.dispatch({ effects });
+        this.states.set(p, this.view.state); // effect-only transactions are not stored by the update listener
+      } else this.states.set(p, st.update({ effects }).state);
     }
   }
 

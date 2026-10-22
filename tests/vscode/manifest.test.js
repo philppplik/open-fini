@@ -61,6 +61,19 @@ describe("vscode manifest", () => {
     assert.equal(compatibility(pack).level, "none");
   });
 
+  it("does not try to run an unbundled web entry", () => {
+    const web = norm({ browser: "lib/index.js", contributes: { snippets: [{ language: "js", path: "s.json" }] } });
+    const c = compatibility(web, { code: "const g = require('./helpers/generate');" });
+    assert.equal(c.runsCode, false);
+    assert.match(c.label, /not bundled/);
+  });
+
+  it("matches pattern selectors against the project path", () => {
+    assert.ok(selectorMatches({ pattern: "//**/*.{css,js}" }, "javascript", "js/a.js"));
+    assert.ok(!selectorMatches({ pattern: "**/*.css" }, "javascript", "js/a.js"));
+    assert.ok(!selectorMatches({}, "javascript", "a.js"), "an empty filter matches nothing");
+  });
+
   it("records runtime-detected unsupported APIs", () => {
     const web = norm({ browser: "e.js" });
     assert.deepEqual(compatibility(web, { runtimeUnsupported: ["window.createTreeView"] }).apis, ["window.createTreeView"]);

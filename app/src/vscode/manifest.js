@@ -160,8 +160,8 @@ export function resolveEntry(entry, names) {
 /** Members of supported namespaces OpenFini does not implement and that popular extensions use. */
 const KNOWN_UNSUPPORTED = {
   window: ["createWebviewPanel", "registerWebviewViewProvider", "registerWebviewPanelSerializer", "createTreeView", "registerTreeDataProvider", "createTerminal", "registerTerminalProfileProvider", "registerTerminalLinkProvider", "registerUriHandler", "registerCustomEditorProvider", "createQuickPick", "createInputBox", "showOpenDialog", "showSaveDialog", "showWorkspaceFolderPick", "registerFileDecorationProvider", "showNotebookDocument", "tabGroups", "createWebviewTextEditorInset"],
-  workspace: ["registerFileSystemProvider", "createFileSystemWatcher", "registerTaskProvider", "registerTextDocumentContentProvider", "registerNotebookSerializer", "updateWorkspaceFolders", "openNotebookDocument", "registerTimelineProvider", "saveAll", "save", "saveAs", "getWorkspaceFolder"],
-  languages: ["registerDefinitionProvider", "registerReferenceProvider", "registerRenameProvider", "registerDocumentSymbolProvider", "registerWorkspaceSymbolProvider", "registerSignatureHelpProvider", "registerFoldingRangeProvider", "registerDocumentSemanticTokensProvider", "registerDocumentRangeSemanticTokensProvider", "registerInlayHintsProvider", "registerCodeLensProvider", "registerDocumentLinkProvider", "registerColorProvider", "registerInlineCompletionItemProvider", "registerOnTypeFormattingEditProvider", "registerSelectionRangeProvider", "registerCallHierarchyProvider", "registerTypeHierarchyProvider", "registerLinkedEditingRangeProvider", "registerDocumentHighlightProvider", "registerImplementationProvider", "registerTypeDefinitionProvider", "registerDeclarationProvider", "registerEvaluatableExpressionProvider", "registerInlineValuesProvider", "setTextDocumentLanguage", "createLanguageStatusItem"],
+  workspace: ["registerFileSystemProvider", "registerTaskProvider", "registerTextDocumentContentProvider", "registerNotebookSerializer", "updateWorkspaceFolders", "openNotebookDocument", "registerTimelineProvider", "saveAll", "save", "saveAs"],
+  languages: ["registerDefinitionProvider", "registerReferenceProvider", "registerRenameProvider", "registerDocumentSymbolProvider", "registerWorkspaceSymbolProvider", "registerSignatureHelpProvider", "registerFoldingRangeProvider", "registerDocumentSemanticTokensProvider", "registerDocumentRangeSemanticTokensProvider", "registerInlayHintsProvider", "registerCodeLensProvider", "registerDocumentLinkProvider", "registerColorProvider", "registerInlineCompletionItemProvider", "registerOnTypeFormattingEditProvider", "registerSelectionRangeProvider", "registerCallHierarchyProvider", "registerTypeHierarchyProvider", "registerLinkedEditingRangeProvider", "registerDocumentHighlightProvider", "registerImplementationProvider", "registerTypeDefinitionProvider", "registerDeclarationProvider", "registerEvaluatableExpressionProvider", "registerInlineValuesProvider", "setTextDocumentLanguage"],
   env: ["asExternalUri", "createTelemetryLogger"],
 };
 /** Namespaces OpenFini does not implement at all. */
@@ -210,6 +210,9 @@ export function compatibility(m, { code = "", names = [], runtimeUnsupported = [
   const hasCode = !!(m.browser || m.main);
   const web = !!m.browser;
   const apis = web ? [...new Set([...scanApiUsage(code), ...runtimeUnsupported])].sort() : [];
+  // VS Code web extensions must be bundled into one file; an entry that requires sibling modules cannot start
+  const unbundled = web && /\brequire\(\s*["']\.{1,2}\//.test(String(code).slice(0, 2 * 1024 * 1024));
+  if (unbundled) reasons.push("Its web code is not bundled into one file (it requires other modules), so it cannot start; its other contributions work.");
   if (unsupportedContribs.length) reasons.push(`Not supported contributions: ${unsupportedContribs.join(", ")}.`);
   if (native.length) reasons.push(`Contains native binaries (${native.join(", ")}).`);
   if (m.dependencies.length) reasons.push(`Depends on other extensions that are not installed automatically: ${m.dependencies.slice(0, 5).join(", ")}.`);
@@ -228,6 +231,9 @@ export function compatibility(m, { code = "", names = [], runtimeUnsupported = [
       level = "full";
       label = "Fully supported: declarative only";
     }
+  } else if (web && unbundled) {
+    level = "partial";
+    label = "Partially supported: contributions only (its web code is not bundled)";
   } else if (web) {
     if (apis.length || unsupportedContribs.length) {
       level = "partial";
@@ -245,7 +251,7 @@ export function compatibility(m, { code = "", names = [], runtimeUnsupported = [
     label = "Not supported: needs Node or native code";
     reasons.push("Its code (main) needs the Node.js extension host of VS Code, which a browser or webview cannot provide.");
   }
-  return { level, label, runsCode: web, declarative, unsupportedContributions: unsupportedContribs, apis, reasons, engine: m.engine || null, engineOk: engineSatisfied(m.engine) };
+  return { level, label, runsCode: web && !unbundled, declarative, unsupportedContributions: unsupportedContribs, apis, reasons, engine: m.engine || null, engineOk: engineSatisfied(m.engine) };
 }
 
 /** Does `^1.80.0`-style `engines.vscode` accept COMPAT_VSCODE_VERSION? Unknown syntax counts as satisfied. */
@@ -273,13 +279,28 @@ export function languageIdOf(path, languages = []) {
   return BUILTIN_LANGS[ext] || "plaintext";
 }
 
-/** Does a VS Code document selector match a language id? Supports strings, {language}, {scheme} and arrays. */
-export function selectorMatches(selector, languageId) {
+/**
+ * Does a VS Code document selector match a document? Supports strings, {language, scheme, pattern} and arrays.
+ * `pattern` globs are matched against the project path (leading slashes ignored on both sides).
+ */
+export function selectorMatches(selector, languageId, path = "") {
   if (!selector) return false;
-  if (Array.isArray(selector)) return selector.some((s) => selectorMatches(s, languageId));
+  if (Array.isArray(selector)) return selector.some((s) => selectorMatches(s, languageId, path));
   if (typeof selector === "string") return selector === "*" || selector === languageId;
-  if (typeof selector === "object") return (!selector.language || selector.language === "*" || selector.language === languageId) && (!selector.scheme || ["file", "untitled", "openfini", "*"].includes(selector.scheme));
-  return false;
+  if (typeof selector !== "object") return false;
+  if (!selector.language && !selector.scheme && !selector.pattern) return false;
+  if (selector.language && selector.language !== "*" && selector.language !== languageId) return false;
+  if (selector.scheme && !["file", "untitled", "openfini", "*"].includes(selector.scheme)) return false;
+  if (selector.pattern) {
+    const pat = typeof selector.pattern === "string" ? selector.pattern : selector.pattern?.pattern;
+    if (typeof pat !== "string") return false;
+    try {
+      return globToRegExp(pat.replace(/^\/+/, "")).test(String(path).replace(/^\/+/, ""));
+    } catch {
+      return false;
+    }
+  }
+  return true;
 }
 
 /** A VS Code glob ("**\/*.{js,ts}", "src/*.md") as a RegExp over project paths without a leading slash. */

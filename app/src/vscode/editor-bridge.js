@@ -48,7 +48,8 @@ function completionSource(host, path) {
     const from = word ? word.from : ctx.pos;
     const options = [];
     const snippets = host.snippetsFor(lid);
-    if (snippets.length && (word || ctx.explicit)) {
+    const afterTrigger = !word && host.hasCompletion(path) && host.triggerCharacters(path).has(ctx.state.sliceDoc(ctx.pos - 1, ctx.pos));
+    if (snippets.length && (word || ctx.explicit) && !afterTrigger) {
       const vars = varsFor(ctx.state, path);
       for (const s of snippets) for (const prefix of s.prefix) options.push(CM.snippetCompletion(toCodeMirror(s.body, vars), { label: prefix, detail: s.label === prefix ? s.ext : s.label, info: s.description || undefined, type: "text", boost: -1 }));
     }
@@ -164,12 +165,13 @@ export function installEditorBridge(app, host) {
       };
     });
     const plainText = languageOf(path) === "text";
+    const source = completionSource(host, path); // one function per file: CodeMirror tracks async sources by identity
     return [
       tracker,
       hoverPlugin(host, path),
       CM.EditorState.languageData.of(() => {
         const data = plainText ? host.languageDataFor(host.languageIdOf(path)) : null;
-        return [{ autocomplete: completionSource(host, path) }, ...(data ? [data] : [])];
+        return [{ autocomplete: source }, ...(data ? [data] : [])];
       }),
     ];
   });
