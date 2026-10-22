@@ -151,12 +151,32 @@ class LiveManager {
       if (event === "live") return this.#onLive(p);
       if (event === "op") return this.#onOp(p);
       if (event === "file") return this.#onFile(p);
-      if (event === "members") return this.changed();
+      if (event === "members") return this.#onMembers();
       if (event === "left") return this.#onLeft();
     } catch (e) {
       log.warn("collab", `Live editing: ${e.message}`);
     }
   }
+
+  /** Someone new joined: tell them about my shared documents (late joiners would not know about them otherwise). */
+  async #onMembers() {
+    const s = this.session;
+    if (s?.state === "open") {
+      const online = s.members.map((m) => m.id);
+      const fresh = online.some((id) => !this.known.has(id));
+      this.known = new Set(online);
+      if (fresh) {
+        for (const b of this.bindings.values()) {
+          if (b.owner === s.id) {
+            for (const a of b.paused ? ["start", "pause"] : ["start"]) await s.send("share", { doc: b.doc.id, docName: cleanText(b.doc.name, LIMITS.docName), kind: b.kind, a, studio: this.app.studio }).catch(() => {});
+          }
+          await s.send("live", { doc: b.doc.id, a: "have" }).catch(() => {});
+        }
+      }
+    }
+    this.changed();
+  }
+  known = new Set();
 
   #onShare({ sender, msg, isHost }) {
     const b = this.bindings.get(msg.doc);

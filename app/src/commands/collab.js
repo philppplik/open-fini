@@ -47,14 +47,17 @@ export function registerCollabCommands(app) {
   });
 
   // join links: http(s)://<relay>/#join=<invite code> (the code stays in the fragment, which browsers never send)
-  try {
-    const m = /^#join=(.+)$/.exec(location.hash || "");
-    if (m) {
+  const checkJoin = (delay) => {
+    try {
+      const m = /^#join=(.+)$/.exec(location.hash || "");
+      if (!m) return;
       history.replaceState(null, "", location.pathname + location.search); // keep the secret out of the address bar
       const code = decodeURIComponent(m[1]);
-      setTimeout(() => rt().then((r) => r.openJoin(app, code)), 900);
+      setTimeout(() => rt().then((r) => r.openJoin(app, code)), delay);
+    } catch {
+      /* no location (tests) or a malformed link */
     }
-  } catch {
-    /* no location (tests) */
-  }
+  };
+  checkJoin(900);
+  globalThis.addEventListener?.("hashchange", () => checkJoin(0));
 }
