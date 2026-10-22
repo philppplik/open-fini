@@ -123,5 +123,29 @@ export function collabTools(app) {
       const m = await app.collab.session.chat(a.text, a.reply_to ? { reply: a.reply_to } : {});
       return { posted: m.id };
     }, { needsApproval: (a) => `Send “${String(a.text).slice(0, 120)}” to everyone in the room?` }),
+
+    // ---- shared documents and "Edit together" (beta), docs/collaboration.md ▸ Live editing
+    tool("share_document", "Shares the active document with the collaboration room: mode “live” makes it a linked live document that everyone with the Editor role edits together (beta; Vector, Pixel structure, Layout and Code; Office documents are shared as a copy), mode “copy” sends a snapshot others can open on their own. Only while the user is in a room.", {
+      mode: S.str("live (edit together) or copy (snapshot)", { enum: ["live", "copy"] }),
+    }, ["mode"], async (a) => {
+      const doc = requireDoc(app);
+      if (!inRoom(app)) throw new Error("The user is not in a collaboration room. They can start or join one with Studio ▸ Collaborate…");
+      const c = await rt(app);
+      await c.shareFlow(doc, a.mode === "copy" ? "copy" : "live");
+      return { shared: doc.name, mode: a.mode, status: c.liveStatus(doc) };
+    }, { needsApproval: (a) => `Share the document “${app.doc?.name || "?"}” with everyone in the room${a.mode === "copy" ? " as a copy" : " as a live document they can edit"}?` }),
+
+    tool("get_sharing_status", "Tells whether the active document is shared with the room: live or not, how many people edit it, whether editing is paused, who shared it, and whether this user may edit it.", {}, [], async () => {
+      const doc = requireDoc(app);
+      const st = app.collab?.liveStatus ? app.collab.liveStatus(doc) : { shared: false };
+      return { document: doc.name, inRoom: inRoom(app), ...st };
+    }, { readOnly: true }),
+
+    tool("list_shared_documents", "Lists the documents shared in the collaboration room: the ones open here as live documents and the ones others shared that the user has not opened.", {}, [], async () => {
+      if (!inRoom(app)) return { inRoom: false, documents: [] };
+      const c = await rt(app);
+      const live = await c.live();
+      return { inRoom: true, documents: live.list().map((d) => ({ name: d.name, kind: d.kind, openHere: d.open, ...(d.open ? { people: d.people, paused: d.paused, sharedByMe: d.ownedByMe } : { sharedBy: d.from }) })) };
+    }, { readOnly: true }),
   ];
 }

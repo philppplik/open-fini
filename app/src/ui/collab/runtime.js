@@ -8,8 +8,9 @@
 //
 // Public API (used by commands/collab.js, the Vibe tools in vibe/tools/collab.js and the settings section):
 //   getCollab(app) → controller          openCollab(app, tab)   addComment(app, opts)   saveVersionDialog(app, opts)
-//   shareDoc(app)   leaveRoom(app)
+//   shareDoc(app)   leaveRoom(app)   shareDocument(app, {doc, mode})   stopSharing(app, {doc})   resyncDocument(app, {doc})
 //   controller: .session .profile() .createRoom({relay, defaultRole}) .joinRoom(code) .leave()
+//     .shareFlow(doc, mode) .live() → live-document manager (live.js) .liveStatus(doc)
 //     .threads(doc) .commentOp(doc, op) .addThread(doc, anchor, text) .reply(doc, threadId, text) .setResolved(doc, id, on)
 //     .versions .saveVersion(doc, {name, note, auto, reason}) .restoreVersion(id, {inPlace}) .sendVersion(id)
 //     .follow(memberId|null) .jump(link) .status()
@@ -70,6 +71,38 @@ export async function shareDoc(app) {
   const c = getCollab(app);
   await c.ready;
   return c.shareDoc(app.doc);
+}
+
+/** "How to start a relay" (copyable commands). */
+export async function relayHelp(app) {
+  return (await import("./network.js")).relayHelpDialog(app);
+}
+
+/** Opens the join form with an invite code from a join link (…/#join=<code>); the user still confirms. */
+export async function openJoin(app, code) {
+  const c = getCollab(app);
+  await c.ready;
+  c.prefillInvite = String(code || "").trim().slice(0, 600);
+  await openCollab(app, "people");
+}
+
+/** Share a document with the room (`mode` "live" | "copy" | undefined = ask). Starts the room flow when needed. */
+export async function shareDocument(app, { doc = app.doc, mode } = {}) {
+  const c = getCollab(app);
+  await c.ready;
+  return c.shareFlow(doc, mode);
+}
+
+/** Stop sharing (owner) or leave the live session (others) of a document. */
+export async function stopSharing(app, { doc = app.doc } = {}) {
+  const c = getCollab(app);
+  if (doc) return (await c.live()).stop(doc.id);
+}
+
+/** Ask for the current state of a live document again. */
+export async function resyncDocument(app, { doc = app.doc } = {}) {
+  const c = getCollab(app);
+  if (doc) return (await c.live()).resync(doc.id);
 }
 
 export async function leaveRoom(app) {
@@ -176,11 +209,62 @@ class CollabController {
     }
     this.sendPresence();
     this.changed("status");
+    // "Share with collaboration room…" started before there was a room: share now
+    const ps = this.pendingShare;
+    this.pendingShare = null;
+    if (ps && this.app.docs.includes(ps.doc)) setTimeout(() => this.shareFlow(ps.doc, ps.mode).catch((e) => this.app.toast(e.message, "danger", 5000)), 300);
+  }
+
+  // ------------------------------------------------------------------ shared documents ("Edit together", beta)
+
+  /** The live-document manager (ui/collab/live.js), loaded on first use. */
+  async live() {
+    if (!this.liveMgr) this.liveMgr = (await import("./live.js")).getLive(this);
+    return this.liveMgr;
+  }
+
+  #liveQ = Promise.resolve();
+  /** Hands session events to live.js strictly in arrival order (the module loads lazily). */
+  #live(event, payload) {
+    this.#liveQ = this.#liveQ.then(async () => (await this.live()).handle(event, payload)).catch((e) => log.warn("collab", `Live editing: ${e.message}`));
+    return this.#liveQ;
+  }
+
+  /** Sharing status of a document without loading anything (false until live.js was used). */
+  liveStatus(doc) {
+    return this.liveMgr ? this.liveMgr.status(doc) : { shared: false };
+  }
+
+  /**
+   * Shares a document with the room. `mode`: "live" (linked, Edit together beta), "copy" (snapshot) or undefined
+   * (asks). Without a room, opens the start/join panel first and shares once a room is ready.
+   */
+  async shareFlow(doc = this.app.doc, mode) {
+    if (!doc) return;
+    if (!this.session || this.session.state !== "open") {
+      this.pendingShare = { doc, mode };
+      await openCollab(this.app, "people");
+      this.app.toast(t("Create or join a room: “{name}” is shared as soon as you are in.", { name: doc.name }), "primary", 5000);
+      return;
+    }
+    if (!mode) {
+      const kind = doc.web ? "text" : doc.office ? "office" : "tree";
+      const choice = await confirmDialog({
+        title: "Share with collaboration room",
+        message: kind === "office" ? t("Share “{name}” with the room as a copy? Office documents are not edited live yet.", { name: doc.name }) : t("Share “{name}” with the room? A linked live document is edited together by everyone with the Editor role (beta); a copy is a snapshot others can open on their own.", { name: doc.name }),
+        ok: kind === "office" ? "Share a copy" : "Share live",
+        extra: kind === "office" ? undefined : "Share a copy",
+      });
+      if (!choice) return;
+      mode = choice === true && kind !== "office" ? "live" : "copy";
+    }
+    return (await this.live()).share(doc, mode);
   }
 
   async leave(quiet = false) {
     const s = this.session;
     if (!s) return;
+    if (this.liveMgr) await this.liveMgr.handle("left", {});
     this.session = null;
     this.followId = null;
     this.presenceThrottle?.cancel();
@@ -230,11 +314,20 @@ class CollabController {
     });
     s.on("file", ({ transfer, bytes }) => {
       this.transfers.delete(transfer.fid);
+      if (transfer.purpose === "live") {
+        // a live-document snapshot this window asked for (ui/collab/live.js checks that it did)
+        this.changed("files");
+        return this.#live("file", { transfer, bytes });
+      }
       this.received.set(transfer.fid, { transfer, bytes });
       this.changed("files");
     });
+    // shared documents and "Edit together" (beta): handled in order by the lazily loaded live.js
+    for (const ev of ["share", "live", "op"]) s.on(ev, (p) => this.#live(ev, p));
+    s.on("members", () => this.liveMgr && this.#live("members", {}));
     s.on("removed", ({ rotated } = {}) => {
       this.session = null;
+      if (this.liveMgr) this.#live("left", {});
       this.changed("status");
       app.toast(rotated ? t("The room key changed while you were away. Ask the host for a new invite code.") : t("The host removed you from the room."), "warning", 8000);
     });

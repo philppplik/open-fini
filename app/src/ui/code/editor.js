@@ -92,7 +92,7 @@ export class CodeEditors extends Emitter {
       if (!!app.prefs.codeWordWrap !== !!web.settings.wordWrap) this.setWordWrap(!!app.prefs.codeWordWrap);
     });
     web.on("text", ({ path, origin }) => {
-      if (origin !== "editor" && origin !== "visual") this.#syncFromProject(path);
+      if (origin !== "editor" && origin !== "visual") this.#syncFromProject(path, origin);
     });
     web.on("tree", (ev) => {
       if (ev.kind === "remove") for (const p of ev.paths) this.close(p, true);
@@ -427,14 +427,37 @@ export class CodeEditors extends Emitter {
     this.#persist();
   }
 
-  #syncFromProject(path) {
+  #syncFromProject(path, origin) {
     const text = this.web.text(path);
     if (text == null) return;
     const st = this.states.get(path);
     if (!st || st.doc.toString() === text) return;
     const ch = trimmedChange(st.doc.toString(), text);
-    if (path === this.active && this.view) this.view.dispatch({ changes: ch, userEvent: "input.external" });
-    else this.states.set(path, st.update({ changes: ch, userEvent: "input.external" }).state);
+    // edits of other room members ("Edit together") are not part of this user's undo history
+    const spec = { changes: ch, userEvent: "input.external", ...(origin === "collab" ? { annotations: CM.Transaction.addToHistory.of(false) } : {}) };
+    if (path === this.active && this.view) this.view.dispatch(spec);
+    else this.states.set(path, st.update(spec).state);
+  }
+
+  /**
+   * Applies edits of other room members (ui/collab/live.js): `changes` are sequential ({from,to,insert}, each relative
+   * to the text after the previous one). Selections and cursors are mapped through them; nothing enters the undo
+   * history. Returns false when this file has no editor state (the caller then writes the project text directly).
+   */
+  applyRemote(path, changes) {
+    const st = this.states.get(path);
+    if (!st) return false;
+    const annotations = CM.Transaction.addToHistory.of(false);
+    if (path === this.active && this.view) {
+      for (const c of changes) this.view.dispatch({ changes: { from: c.from, to: c.to, insert: c.insert }, annotations, userEvent: "input.collab" });
+      return true;
+    }
+    let next = st;
+    for (const c of changes) next = next.update({ changes: { from: c.from, to: c.to, insert: c.insert }, annotations, userEvent: "input.collab" }).state;
+    this.states.set(path, next);
+    this.web.setText(path, next.doc.toString(), "visual");
+    this.emit("doc", { path, origin: "visual" });
+    return true;
   }
 
   #persist() {
