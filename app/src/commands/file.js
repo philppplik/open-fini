@@ -40,6 +40,8 @@ export function registerFileCommands(app) {
   }
   async function openFileRoute(file) {
     if (await app.importWithExtension?.(file)) return null; // a file type an installed extension imports
+    // extension packages (OpenFini .ofext, VS Code .vsix) dropped on the window or picked in File ▸ Open: install flow
+    if (/\.(ofext|vsix)$/i.test(file.name) && typeof app.installExtensionFile === "function") return void (await app.installExtensionFile(file));
     // Word processor files, Google Docs shortcuts, Pages, legacy .doc and (not yet supported) spreadsheets and
     // presentations go to the Office Studio; in that studio HTML, Markdown, text and CSV open there too (ui/office/open.js)
     if (OFFICE_FILE.test(file.name) || (app.studio === "office" && /\.(html?|xhtml|md|markdown|txt|text|csv|tsv)$/i.test(file.name))) return (await import("../ui/office/open.js")).openOfficeFile(app, file);
