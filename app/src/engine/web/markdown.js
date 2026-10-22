@@ -384,7 +384,7 @@ function htmlBlockKind(line, canInterrupt) {
 const HTML_END = [
   null,
   /<\/(?:script|pre|style|textarea)\s*>/i,
-  /-->/,
+  /--!?>/,
   /\?>/,
   />/,
   /\]\]>/,
