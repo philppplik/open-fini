@@ -6,6 +6,9 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Refactoring audit 1 ([docs/refactoring-audit.md](docs/refactoring-audit.md)): bundle, import-graph and dead-export analysis scripts (`scripts/analyze-bundle.mjs`, `scripts/import-report.mjs`, `scripts/find-dead-exports.mjs`) with the measured baseline, a risk-ranked list of candidates and the ideas that were rejected, with reasons.
+
 ## [0.8.0] — Live editing, VS Code extensions, wiki
 
 ### Security
