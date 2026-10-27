@@ -376,6 +376,10 @@ export async function runAgent(o) {
           emit({ type: "usage", input: ev.input || 0, output: ev.output || 0, ...(ev.cachedInput != null ? { cachedInput: ev.cachedInput } : {}), total: { ...usage } });
           break;
         }
+        case "route_fallback":
+        case "route_retry": // from a routed provider (ai/routing.js)
+          emit(ev);
+          break;
         case "done":
           message = ev.message;
           stopReason = ev.stopReason || "end";
