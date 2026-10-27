@@ -25,6 +25,7 @@ import { updateReferences } from "./refs.js";
 import { importInto } from "./import.js";
 import { gitServiceFor } from "./git-service.js";
 import { gitGutter, refreshGutter } from "./git-gutter.js";
+import { syncHighlight, SyncController } from "./sync.js";
 import { platform } from "../../platform/index.js";
 import { DocPreview, docKind } from "./docpreview.js";
 import { createDocTools } from "./doctools.js";
@@ -116,13 +117,14 @@ export class CodeWorkspace extends Emitter {
     this.editors = new CodeEditors({ app: this.app, web, model: this.model, keys: this.#editorKeys() });
     // Source Control: the service is cheap; the engine and the panel load when a repository exists or the pane opens
     this.git = gitServiceFor(this.app, web);
-    this.editors.extraExtensions = (path) => gitGutter(path, (p) => this.git.baseText(p));
+    this.editors.extraExtensions = (path) => [gitGutter(path, (p) => this.git.baseText(p)), syncHighlight];
     this.git.on("change", () => this.editors.view?.dispatch({ effects: refreshGutter.of(null) }));
     if (this.git.exists) this.git.refresh();
     const gitEl = h("div.of-side__pane.of-gitpane");
     let gitMounted = false;
     this.gitPane = { el: gitEl, show: () => !gitMounted && ((gitMounted = true), import("./git-panel.js").then((m) => m.mountGit(this, gitEl))) };
     this.preview = new PreviewPane(this);
+    this.sync = new SyncController(this); // selection/hover/CSS-rule sync + breadcrumb bar (ui/code/sync.js)
     // Markdown / LaTeX / BibTeX files get a document preview instead of the canvas (docpreview.js)
     this.docPreview = new DocPreview(this);
     const libsEl = h("div.of-side__pane.of-libspane");
@@ -1003,6 +1005,7 @@ export class CodeWorkspace extends Emitter {
     if (!this.built) return;
     this.preview.destroy();
     this.docPreview?.destroy();
+    this.sync?.destroy();
     this.editors.destroy();
   }
 }

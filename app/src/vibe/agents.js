@@ -24,7 +24,7 @@ const CHILD_EXCLUDED = new Set(["ask_user", "create_tool", "remember", "create_s
 export const TOOLSETS = {
   design: ["get_document_info", "list_layers", "get_selection", "select_layers", "screenshot", "add_shape", "add_text", "add_path", "import_svg", "set_style", "transform_layers", "group_layers", "duplicate_layers", "reorder_layers", "align_layers", "boolean_layers", "query_layers", "describe_page", "describe_selection", "apply_to_many", "grid_layout", "distribute_layers", "make_component", "screenshot_layers", "run_plan", "evaluate"],
   pixel: ["list_effects", "add_pixel_layer", "apply_adjustment", "select_area", "generate_image", "edit_image", "get_histogram", "auto_correct_suggestion", "screenshot", "list_layers"],
-  web: ["list_files", "read_file", "write_file", "edit_file", "rename_file", "get_page_outline", "select_element", "inspect_element", "list_elements", "insert_element", "insert_html", "set_element_style", "set_element_attributes", "set_page_meta", "show_page", "check_problems", "screenshot"],
+  web: ["list_files", "read_file", "write_file", "edit_file", "format_file", "rename_file", "get_page_outline", "select_element", "inspect_element", "list_elements", "insert_element", "insert_html", "set_element_style", "set_element_attributes", "set_page_meta", "show_page", "check_problems", "screenshot"],
   layout: ["add_page", "add_table", "edit_table", "read_table", "list_tables", "add_chart", "edit_chart", "read_chart", "add_text", "screenshot", "list_layers", "query_layers"],
   knowledge: ["search_knowledge", "use_skill"],
 };

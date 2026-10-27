@@ -40,7 +40,7 @@ export function cssRuleAt(parsed, offset) {
   return best;
 }
 
-const STATE = /:(hover|focus|focus-visible|focus-within|active|visited|target|checked|disabled|enabled)\b/gi;
+const STATE = /:(hover|focus-visible|focus-within|focus|active|visited|target|checked|disabled|enabled)(?![\w-])/gi;
 const PSEUDO_EL = /::?(before|after|first-line|first-letter|marker|placeholder|selection|backdrop|file-selector-button)\b/gi;
 
 /** Selector usable with querySelectorAll: states and pseudo-elements are removed, nesting selectors give null. */

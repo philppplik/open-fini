@@ -107,6 +107,33 @@ export function webTools(app) {
       return { ok: true, replaced: changes.length };
     }),
 
+    tool("format_file", "Formats a project file with the built-in formatter (HTML, CSS, JavaScript, JSON, Markdown): consistent indentation and wrapping, no change to what the page renders. Optionally only the lines startLine..endLine.", {
+      path: S.str("File path"), startLine: S.num("First line to format (1-based)", { minimum: 1 }), endLine: S.num("Last line to format", { minimum: 1 }),
+    }, ["path"], async (a) => {
+      const ws = await workspace();
+      const text = ws.web.text(a.path);
+      if (text == null) throw new Error(`“${a.path}” does not exist. Call list_files.`);
+      const lang = E.languageOf(a.path);
+      if (!E.canFormat(lang)) throw new Error(`There is no formatter for ${lang} files (HTML, CSS, JavaScript, JSON and Markdown are supported).`);
+      const opts = ws.editors.formatOptions();
+      let change = null;
+      if (a.startLine) {
+        const lines = text.split("\n");
+        const from = lines.slice(0, a.startLine - 1).join("\n").length + (a.startLine > 1 ? 1 : 0);
+        const to = lines.slice(0, Math.min(lines.length, a.endLine || a.startLine)).join("\n").length;
+        const r = E.formatRange(lang, text, from, Math.max(from, to), opts);
+        if (!r.ok) throw new Error(r.error);
+        change = { from: r.from, to: r.to, insert: r.insert };
+      } else {
+        const r = E.formatText(lang, text, opts);
+        if (!r.ok) throw new Error(r.error);
+        if (r.text !== text) change = trimmedChange(text, r.text);
+      }
+      if (change && text.slice(change.from, change.to) !== change.insert) ws.editors.applyChanges(a.path, [change], { userEvent: "input.ai" });
+      else change = null;
+      return { ok: true, changed: !!change };
+    }),
+
     tool("delete_file", "Deletes a project file or folder.", { path: S.str("Path") }, ["path"], async (a) => {
       const ws = await workspace();
       return { deleted: ws.web.remove(a.path) };
