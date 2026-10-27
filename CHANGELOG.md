@@ -20,6 +20,14 @@ All notable changes to OpenFini are documented here. The format follows
 - Model routing with fallback: an ordered fallback chain behind the model menu (Settings ▸ Artificial intelligence ▸ Models). Retries with backoff, per-target circuit breaker, first-token timeout, continuation of cut-off answers, tool/vision/context-aware skipping, notices in chat, Activity log and progress pill, per-chat toggle, presets, success rates, auto-suggestion, "Test route". Authentication and invalid-request errors are never hidden. Provider errors now carry a normalized `category`. Sub-agents and quick actions use the chain too. Vibe tools `get_model_route` and `set_model_route`. See [ADR 0014](docs/adr/0014-model-routing-fallback.md).
 - OpenCode: "OpenCode Zen" provider preset, import of connections from `opencode.json` (keys are never read), and an experimental "OpenCode (local server)" adapter for `opencode serve` (documented endpoints only, non-streaming). Health check (Test button) for every connection.
 - The Demo provider can inject failures (`createMockProvider({ failures })`) for testing routing.
+- Liquid glass now refracts: dialogs, menus, context menus, the command palette, popovers and toasts bend what is behind them
+  (displacement-map SVG filter, optional chromatic dispersion) on Chromium-based engines (Chrome, Edge, the Windows app); other
+  engines keep blur plus a specular edge. New Settings > Appearance > Surface style controls: Refraction strength, Edge
+  thickness, Specular highlight, Chromatic dispersion (`glassRefraction`, `glassBevel`, `glassSpecular`, `glassDispersion`, part
+  of profiles). Offline, no library: own code (`ui/refraction*.js`, ADR 0015), lazy-loaded, maps cached per size class.
+- Sea glass follows the active accent (any theme, accent preset, custom accent) instead of being only turquoise; new **Sea tint**
+  setting (Follow accent, Teal classic, Own hue) and soft caustic highlights. Surface gallery previews reflect the accent.
+- Vibe `set_theme` accepts `seaTint` and `refraction`.
 
 ## [0.8.0] — Live editing, VS Code extensions, wiki
 

@@ -23,6 +23,12 @@ const defaultPrefs = () => ({
   glassTransparency: null, // 0-50 %, null = the style's default
   glassBackdrop: "auto", // auto | aurora | ocean | dusk | seaglass | mono | accent | image
   glassDim: 0, // 0-80 %, darkens the background layer
+  seaTint: "accent", // sea glass tint: accent | teal | custom
+  seaHue: 174, // 0-359, used by the custom sea tint
+  glassRefraction: 60, // Liquid glass refraction strength, 0-100 % (0 = off)
+  glassBevel: 16, // Liquid glass edge thickness, 4-40 px
+  glassSpecular: 60, // Liquid glass specular highlight, 0-100 %
+  glassDispersion: 20, // Liquid glass chromatic dispersion, 0-100 %
   glassAnimate: false, // slowly drifting mesh gradient
   density: "default", // compact | default | spacious
   uiScale: 100, // percent
