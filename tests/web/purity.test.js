@@ -7,7 +7,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "app", "src", "engine", "web");
-const MODULES = ["paths", "bytes", "html", "css", "edit", "css-props", "preview", "site", "templates", "elements", "highlight", "markdown", "latex", "libs", "frameworks", "ssg", "measure", "viewport", "format", "index"];
+const MODULES = ["paths", "bytes", "html", "css", "edit", "css-props", "preview", "site", "templates", "elements", "highlight", "markdown", "latex", "libs", "frameworks", "ssg", "measure", "viewport", "format", "sync", "index"];
 
 /**
  * Source text without comments, string literals, template literals and regular expression literals (a small scanner,

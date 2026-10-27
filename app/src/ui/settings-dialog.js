@@ -196,7 +196,12 @@ export function settingsSections(app) {
             seg("codeTabSize", "Tab size", [{ value: 2, label: "2 spaces", text: "2" }, { value: 4, label: "4 spaces", text: "4" }, { value: 8, label: "8 spaces", text: "8" }], "Applies to editor tabs you open from now on."),
             sw("codeWordWrap", "Wrap long lines"),
             num("codeFontSize", "Font size", 10, 24, 1, "px"),
-            sw("codeFormatOnSave", "Format the open file when saving", "CSS and JSON are rewritten; other languages are re-indented."),
+            sw("codeFormatOnSave", "Format the open file when saving", "HTML, CSS, JavaScript, JSON and Markdown use the built-in formatter."),
+            sw("codeFormatOnPaste", "Format pasted code", "Re-indents a pasted block of HTML, CSS, JavaScript or JSON to fit its surroundings."),
+            sw("codeUseTabs", "Indent with tabs when formatting"),
+            num("codeLineWidth", "Formatter line width", 40, 240, 10, "", "Long HTML start tags wrap one attribute per line beyond this width."),
+            seg("codeQuoteStyle", "Attribute quotes", [{ value: "keep", label: "Keep", text: "Keep" }, { value: "double", label: "Double", text: '"' }, { value: "single", label: "Single", text: "'" }], "HTML formatter only; never changes a value that contains the chosen quote."),
+            sw("codeSyncHighlight", "Sync highlighting between preview and code", "Hovering or selecting an element highlights its source lines; the caret in a CSS rule outlines the elements it matches."),
           ],
         },
         {

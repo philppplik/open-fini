@@ -350,6 +350,7 @@ export class PreviewPane extends Emitter {
     this.#post({ type: "mode", edit: this.edit });
     this.#postMeasure();
     this.#post({ type: "viewportOpts", scrollbar: this.showScrollbar }); // also asks the frame for fresh layout metrics
+    if (this.matchSel) this.#post({ type: "matchSel", selector: this.matchSel });
     this.selectionChanged();
     this.emit("swap");
   }
@@ -369,6 +370,12 @@ export class PreviewPane extends Emitter {
   }
   hover(id) {
     this.#post({ type: "hover", id });
+  }
+  /** Outlines every element matching `selector` in the frame (null clears); the count arrives as a "matchCount" event. */
+  matchSelector(selector) {
+    this.matchSel = selector || null;
+    if (!selector) this.matchInfo = null;
+    this.#post({ type: "matchSel", selector: selector || "" });
   }
   reveal(id) {
     this.#post({ type: "reveal", id });
@@ -543,6 +550,12 @@ export class PreviewPane extends Emitter {
       return;
     }
     switch (m.type) {
+      case "matchCount":
+        if (m.selector === (this.matchSel || "") && Number.isInteger(m.count)) {
+          this.matchInfo = { selector: m.selector, count: m.count };
+          this.emit("matchCount", this.matchInfo);
+        }
+        break;
       case "layoutMetrics":
         this.metrics = sanitizeLayoutMetrics(m);
         this.updateLabel();

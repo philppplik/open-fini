@@ -73,6 +73,8 @@ export function registerCodeCommands(app) {
 
   // ---- editing
   def("code.format", "Format Document", () => ws().editors.format(), { shortcut: "Shift+Alt+F", icon: "text-indent-left" });
+  def("code.formatSelection", "Format Selection", () => ws().editors.formatSelection(), { icon: "text-indent-left" });
+  def("code.syncHighlight", "Sync Highlighting between Preview and Code", (a) => a.setPref("codeSyncHighlight", !a.prefs.codeSyncHighlight), { checked: (a) => a.prefs.codeSyncHighlight !== false });
   def("code.toggleComment", "Toggle Line Comment", () => ws().editors.toggleComment(), { shortcut: "Mod+/" });
   def("code.foldAll", "Fold All", () => ws().editors.foldAll());
   def("code.unfoldAll", "Unfold All", () => ws().editors.unfoldAll());

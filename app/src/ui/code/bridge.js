@@ -189,8 +189,26 @@ export function bridgeMain(kit) {
     label.style.top = (top < 2 ? r.top + 2 : top) + "px";
   }
   var raf = 0;
+  // elements matched by the CSS rule at the editor caret ("matchSel"): dashed outlines, drawn by redraw()
+  var matchEls = [];
+  var matchLayer = document.createElement("div");
+  matchLayer.setAttribute("style", "position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:hidden");
+  ov.appendChild(matchLayer);
+  function drawMatches() {
+    while (matchLayer.firstChild) matchLayer.removeChild(matchLayer.firstChild);
+    for (var i = 0; i < matchEls.length; i++) {
+      var el = matchEls[i];
+      if (!el.isConnected) continue;
+      var r = el.getBoundingClientRect();
+      if (r.width <= 0 && r.height <= 0) continue;
+      var d = document.createElement("div");
+      d.setAttribute("style", "position:fixed;box-sizing:border-box;outline:1px dashed " + ACCENT + ";outline-offset:-1px;background:rgba(79,140,255,.10);left:" + r.left + "px;top:" + r.top + "px;width:" + r.width + "px;height:" + r.height + "px");
+      matchLayer.appendChild(d);
+    }
+  }
   function redraw() {
     raf = 0;
+    drawMatches();
     var hov = hoverId != null && hoverId !== selectedId && !M.on ? byId(hoverId) : null;
     place("hover", hov && edit ? hov.getBoundingClientRect() : null);
     var sel = edit ? byId(selectedId) : null;
@@ -970,6 +988,24 @@ export function bridgeMain(kit) {
           M.links = [];
         } else if (!wasOn) hoverId = null;
         M.last = "";
+        schedule();
+        break;
+      }
+      case "matchSel": {
+        // { selector }: outlines every element matching a CSS selector (the host sends the rule at the caret); reports the count
+        var found = [];
+        var count = 0;
+        if (typeof m.selector === "string" && m.selector.length < 500) {
+          try {
+            var nl = document.querySelectorAll(m.selector);
+            count = nl.length;
+            for (var mi = 0; mi < nl.length && found.length < 300; mi++) if (!isOurs(nl[mi])) found.push(nl[mi]);
+          } catch (e) {
+            count = -1; // not a valid selector for querySelectorAll (for example a pseudo-element)
+          }
+        }
+        matchEls = found;
+        post({ type: "matchCount", selector: typeof m.selector === "string" ? m.selector.slice(0, 200) : "", count: count });
         schedule();
         break;
       }
