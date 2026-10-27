@@ -42,7 +42,7 @@ them.
 Before tagging
 
 - [ ] `main` is green: CI passed on Ubuntu, Windows and macOS, and the Rust job passed.
-- [ ] Open the hosted PWA (GitHub Pages) and the desktop app from `npm run tauri:dev`; open, edit,
+- [ ] Serve the PWA build (`npm run build`, then any static server on `dist/`) and open it, and open the desktop app from `npm run tauri:dev`; open, edit,
       export and save a document in each studio, open the Code studio, create a website from a template and export it.
 - [ ] `node scripts/version.mjs set <version>` and commit ("Release <version>"). Push to `main` and
       wait for CI.

@@ -2,6 +2,7 @@
 import { h, prettyShortcut, empty } from "../core/util.js";
 import { OFFICE_MENUS } from "../studios/office.js";
 import { t } from "../i18n/index.js";
+import { menuVisible } from "./menubar-select.js";
 
 // Labels in this table are English source text: extracted by scripts/i18n-extract.mjs and translated with t() at render time.
 const DESIGN = ["vector", "pixel", "layout"];
@@ -216,20 +217,23 @@ export function createMenubar(app) {
       }
     });
     dd.dataset.studios = m.studios ? m.studios.join(" ") : "";
+    dd._entry = m;
     dd.dataset.menu = m.label;
     dropdowns.push(dd);
     bar.append(dd);
   }
   const syncStudio = () => {
     for (const dd of dropdowns) {
-      const list = dd.dataset.studios;
-      dd.classList.toggle("hidden", (!!list && !list.split(" ").includes(app.studio)) || !!app.customize?.isMenuHidden(dd.dataset.menu));
+      // start page (no document): File, View, Studio, Help only (ui/menubar-select.js)
+      const show = menuVisible(dd._entry, { doc: app.doc, studio: app.studio });
+      dd.classList.toggle("hidden", !show || !!app.customize?.isMenuHidden(dd.dataset.menu));
     }
   };
   app.on("locale", () => {
     for (const b of bar.querySelectorAll(".of-menubtn")) b.textContent = t(b.dataset.src);
   });
   app.on("studio", syncStudio);
+  app.on("doc", syncStudio);
   app.on("menuschanged", syncStudio);
   syncStudio();
   return bar;

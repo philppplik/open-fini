@@ -128,7 +128,7 @@ describe("custom NSIS template", () => {
   });
 
   it("the app icon is the light tile with a dark mark everywhere", () => {
-    for (const f of ["icon.svg", "icon-maskable.svg", "doc-icon.svg"]) {
+    for (const f of ["icon.svg", "icon-macos.svg", "icon-maskable.svg", "doc-icon.svg"]) {
       const svg = read(`app/icons/${f}`);
       assert.ok(svg.includes("#111114"), `${f} has the dark mark`);
       assert.ok(!svg.includes("linearGradient"), `${f} has no gradient`);

@@ -7,7 +7,7 @@ OpenFini installs as a per-user desktop app on Windows, macOS and Linux, or runs
 | Route | Best for | Notes |
 | --- | --- | --- |
 | Desktop installer | Daily use, large files, native file dialogs | Uses the operating system's web view, so the installer is small. Works offline always. |
-| PWA (browser) | Trying it out, Chromebooks, locked-down machines | Hosted at <https://philppplik.github.io/open-fini/>. Works offline after the first visit. |
+| PWA (browser) | Trying it out, Chromebooks, locked-down machines | Self-hosted from the PWA zip of the release. Works offline after the first visit. |
 | From source | Contributors | See [[Development Setup]]. |
 
 ## Windows
@@ -42,7 +42,7 @@ OpenFini needs WebKitGTK 4.1 on the host (preinstalled on most desktops). AppIma
 
 ## Browser and PWA
 
-Open <https://philppplik.github.io/open-fini/>. In Chrome, Edge, Brave or Opera use the install icon in the address bar. On Safari 16.4 or newer use Add to Home Screen (iOS, iPadOS) or Add to Dock (Safari 17 on macOS). Firefox runs the app in a tab and works offline through the service worker but cannot install it on desktop. Only Chromium browsers can save back to the same file (File System Access API); other browsers download a file on save. See [[Platform Support]] for the full comparison.
+Download `OpenFini-pwa-x.y.z.zip` from the release, unpack it on any HTTPS static host (or `localhost`) and open it. In Chrome, Edge, Brave or Opera use the install icon in the address bar. On Safari 16.4 or newer use Add to Home Screen (iOS, iPadOS) or Add to Dock (Safari 17 on macOS). Firefox runs the app in a tab and works offline through the service worker but cannot install it on desktop. Only Chromium browsers can save back to the same file (File System Access API); other browsers download a file on save. See [[Platform Support]] for the full comparison.
 
 ## Verify a download
 
