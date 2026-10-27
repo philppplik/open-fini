@@ -262,6 +262,7 @@ export async function build({
   const scriptMap = new Map(); // original src attribute -> { url, preloads[] }
   const extraCss = [];
   let outputs = {};
+  let appMetafile = null; // esbuild metafile of the app bundle, returned for scripts/analyze-bundle.mjs
   if (scriptEntries.length > 0) {
     const names = new Map();
     const entryPoints = scriptEntries.map(({ file }) => {
@@ -280,6 +281,7 @@ export async function build({
       chunkNames: "chunk-[hash]",
       plugins: makePlugins(assetsDir),
     });
+    appMetafile = result.metafile;
     outputs = Object.fromEntries(Object.entries(result.metafile.outputs).map(([k, v]) => [resolve(root, k), v]));
     for (const input of Object.keys(result.metafile.inputs)) inlinedSources.add(resolve(root, input));
 
@@ -432,7 +434,7 @@ export async function build({
 
   log(`build: ${relative(projectRoot, root) || "."} -> ${relative(projectRoot, out) || "."}`);
   log(`build: version ${buildVersion}, ${manifest.length} precached files, ${(totalBytes / 1024).toFixed(1)} KiB total`);
-  return { out, version: buildVersion, files: manifest.length, totalBytes, manifest };
+  return { out, version: buildVersion, files: manifest.length, totalBytes, manifest, metafile: appMetafile, root };
 }
 
 // ------------------------------------------------------------------------- CLI
