@@ -38,8 +38,77 @@ Comments and versions also work **without** a room: comments are saved in the do
    and the invite code changes too.
 7. **Leave**: *People ▸ Leave*, the *Leave room* command, or *Settings ▸ Security and privacy ▸ Collaboration*.
 
-Shortcuts: *Add Comment* `Ctrl+Alt+M`, *Room Chat* `Ctrl+Alt+C` (both rebindable). Comment markers on the canvas follow
-their layer; click one to open its thread.
+Shortcuts: *Add Comment Here…* `Ctrl+Alt+M`, *Room Chat* `Ctrl+Alt+C` (both rebindable).
+
+## Comments on the canvas, in code and in text
+
+Right-click where the comment belongs and choose **Add comment here…** (also `Ctrl+Alt+M` at the pointer or selection,
+or the command palette: *Add Comment Here…*). It works in the Vector, Pixel and Layout canvas, the layers panel, the
+Code editor, the Office editor and website elements, with or without a room (comments are saved in the document and sync
+when a room is active). A small composer opens at the click: type, `@` suggests room members, `Ctrl+Enter` posts, `Esc`
+cancels.
+
+* **Pins** are numbered (creation order) and use the author's color. They follow zoom, pan, page position and the layer
+  they were placed on. Click, `Enter` or hover opens the thread popover: replies, resolve/reopen, edit and delete of your
+  own messages, "Open in Comments". Drag a pin to re-anchor it (thread author or host; a new `reanchor` comment op). In
+  the Code and Office editors the commented range is highlighted and a pin sits at its start.
+* **Comment mode** (command *Comment Mode*, status bar button): click anywhere on the canvas or editor to place a comment;
+  `C` or `Esc` leaves it. The status bar button next to the zoom shows the number of open comments and hides/shows all
+  pins and highlights (command *Show or Hide All Comments*, preference `collabPins`).
+* **Keyboard**: pins are buttons (Tab); `]` and `[` move to the next/previous comment while a pin or popover has focus;
+  focus returns to the pin when a popover closes; popovers are non-modal dialogs with an accessible name.
+* A comment needs the *Commenter* or *Editor* role when you are in a room; Viewers see pins but cannot add.
+
+### Anchoring model per studio
+
+The anchor is stored in the thread (`doc.comments`, `.ofini` document.json) and sent unchanged in `comment` ops. Fields
+were added to the existing `ANCHOR` (all optional, old clients and files stay valid): `pin`, `off`, `elem`, `col`,
+`endCol`. Builders and the resolution rules live in `app/src/collab/anchors.js` (pure, `tests/collab/comment-ux.test.js`).
+
+| Studio | `kind` | Stored | Resolution |
+| --- | --- | --- | --- |
+| Vector, Pixel, Layout canvas, layer under the pointer | `node` | `node`, `page`, `pin` (clicked page point), `off` (point relative to the layer's box, 0..1), `quote` (layer name) | `off` x current layer bounds: the pin follows the layer when it moves or resizes; if the layer is deleted the pin stays at `pin` on its page |
+| Canvas, empty spot | `region` | `page`, `pin`, `rect` (zero-size) | fixed page coordinates |
+| Layers panel row | `node` | like the canvas, point = top right of the layer | as above |
+| Code editor | `line` | `path`, `line`, `col`, optional `endLine`, `endCol` (a range), `quote` | line/column to document offsets at draw time; a caret comment underlines the whole line. Lines are not tracked through edits: if the text moves above, the comment stays on its line number and the quote shows what it was about |
+| Office editor | `text` | `path` (paragraph path as JSON), `from`, `to`, `quote` | same as before: offsets in the block at `path` |
+| Website element | `element` | `elem` (the website designer's element id), `quote` | listed in Comments; *Show where* selects the element. Pins are not drawn over the preview (the sandboxed frame is not touched) |
+
+Limits: there is no operational transform for anchors, so heavy concurrent editing can move a code or Office comment off
+its text (the quote is kept for display); drag a pin or re-comment to fix it. Pins over the website preview are not drawn.
+
+## The Collaboration window
+
+The window decides its layout from **its own width** (container based, not the app window):
+
+| Width | Layout |
+| --- | --- |
+| < 520 px | top tabs (Chat, People, Comments, Versions) |
+| >= 520 px | left side rail with icon + label: the tabs plus *Share* and *Settings* |
+| >= 900 px | rail plus a list column (members next to Chat, threads next to Comments) and the content on the right |
+
+Header buttons: *Compact density* (icon-only rail, tighter rows), *Pop out*, *Maximize/Restore* (also double-click the
+header), *Close*. Drag the header (it snaps to the edges of the app window), or focus it and use the arrow keys (Shift =
+bigger steps). Resize with the corner. Position, size, maximized and compact are remembered per browser profile
+(`openfini.collab.window`). The rail is one roving tab stop (arrows, Home/End); transitions respect reduced motion; colors
+come from the `--of-*` tokens, so themes and glass styles apply. Pure decisions (`layoutMode`, `clampRect`,
+`snapRect`, stored state) are in `app/src/ui/collab/layout-mode.js` (tested).
+
+A web page cannot draw outside its own window, so the in-app window can never leave the main window. The real answer is
+the pop-out below.
+
+### Pop-out window
+
+*Pop out* (or the command *Pop Out Collaboration Window*) opens `?popout=collab` in an OS window (a popup in the
+browser, a `WebviewWindow` labeled `popout-<n>` in the desktop app). The main window **keeps the one room connection**:
+the pop-out is a UI-only remote view of the room (chat, people, comments of the active document) that talks to the main
+window over `BroadcastChannel("openfini-collab-ui")`. No secret, key or invite code crosses that channel, and no second
+identity joins the room. Unread badges, mention toasts and the title counter stay in the main window. *Dock back* or
+closing the pop-out shows the floating window again; closing the main window closes the pop-out. Why not a second
+connection: [ADR 0013](adr/0013-collab-popout.md). Code: `app/src/collab/remote-ui.js` (protocol, tested),
+`ui/collab/remote-host.js`, `ui/collab/remote-view.js`. Limits: the pop-out has no canvas, so a comment added there is
+anchored to the main window's current selection; the Tauri `WebviewWindow` path cannot be exercised in CI and needs a
+manual check.
 
 ## Architecture
 
@@ -47,6 +116,10 @@ their layer; click one to open its thread.
 app/src/collab/                 pure, Node-tested (tests/collab/)
   crypto.js        invite codes, HKDF room keys, signed AES-GCM envelope, replay guard, fingerprint words, ECDH wrapping
   wordlist.js      256 words for the verification code (frozen)
+  anchors.js       comment anchor builders/resolution per studio, pin numbers, popover placement (tests/collab/comment-ux.test.js)
+  remote-ui.js     protocol of the UI-only pop-out: action whitelist, bounded snapshots (same test file)
+  (ui/collab/) comment-ui.js composer, thread popover, pins, comment mode; layout-mode.js responsive decisions;
+               remote-host.js / remote-view.js the two sides of the pop-out
   protocol.js      message types, limits, roles/permissions, strict validation, mention parsing, file-name sanitizing
   room.js          membership state machine: host, roles, removal, expiry
   chat.js          chat store: threads, replies, reactions, edits, unread, activity grouping

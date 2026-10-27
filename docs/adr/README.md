@@ -17,3 +17,4 @@ in place and are marked as such.
 | [0010](0010-collaboration-e2e-relay.md) | Collaboration through a dumb relay with end-to-end encryption | Accepted |
 | [0011](0011-live-editing-sync.md) | Live editing: state-diffed tree registers and an RGA for text | Accepted (beta) |
 | [0012](0012-vscode-extensions.md) | VS Code extensions from Open VSX: declarative parts plus a sandboxed web-extension API subset | Accepted |
+| [0013](0013-collab-popout.md) | The Collaboration window pops out as a UI-only remote view | Accepted |

@@ -7,6 +7,7 @@
 //   popoutDoc(app, doc, { mode })              "move" (default) or "copy" a document into a new window
 //   popoutStudio(app, studioId)                new window showing a studio (hands over the current doc if it belongs there)
 //   newWindow(app)                             empty new window on the current studio
+//   popoutCollab(app)                          the Collaboration UI in its own window (?popout=collab, UI-only remote view, ADR 0013)
 //   returnToMain(app)                          send every document of this popout back to the main window
 //   isPopoutWindow()                           true inside a pop-out
 // Invariants: a document is only closed in the source window after the receiving window confirmed ("adopted");

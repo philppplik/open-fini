@@ -1,7 +1,7 @@
 // The Collaboration UI in its own OS window (?popout=collab): a remote view of the main window's room. UI only: this
 // window has no identity, keys or connection; it renders snapshots received over BroadcastChannel("openfini-collab-ui")
 // and sends a whitelist of actions back (protocol: collab/remote-ui.js, host: ui/collab/remote-host.js, design:
-// docs/adr/0010-collab-popout.md). The responsive layout (top tabs / left rail / list column) is the same as the
+// docs/adr/0013-collab-popout.md). The responsive layout (top tabs / left rail / list column) is the same as the
 // floating window's (ui/collab/layout-mode.js).
 //
 // Public API: bootCollabPopout(app, params)   called by boot.js instead of the studio pop-out boot

@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { canvasAnchor, resolvePin, moveAnchor, codeAnchor, codeRange, officeAnchor, elementAnchor, pinNumbers, stepThread, popoverPosition } from "../../app/src/collab/anchors.js";
-import { validateThread } from "../../app/src/collab/protocol.js";
+import { validateThread, validateMessage } from "../../app/src/collab/protocol.js";
+import { applyCommentOp, newThread } from "../../app/src/collab/comments.js";
 import { layoutMode, clampRect, snapRect, maximizedRect, readLayoutState } from "../../app/src/ui/collab/layout-mode.js";
 import { isUiMessage, validateAction, makeSnapshot, readSnapshot } from "../../app/src/collab/remote-ui.js";
 
@@ -98,4 +99,18 @@ test("pop-out remote view protocol: whitelist and bounded snapshots", () => {
   assert.equal(s.me.color, "#888888");
   assert.equal(JSON.stringify(s).includes("SECRET"), false);
   assert.equal(readSnapshot(null), null);
+});
+
+test("new anchors travel in comment ops; reanchor is limited to the author or the host", () => {
+  const anchor = canvasAnchor({ pageId: "p1", node: { id: "n1", name: "Logo" }, bounds: { x: 0, y: 0, w: 10, h: 10 }, point: { x: 5, y: 5 } });
+  const th = newThread({ id: "t9", anchor, author, text: "look", ts: 5 });
+  assert.equal(validateMessage({ t: "comment", ts: 1, doc: "d1", op: { op: "add", thread: th } }).ok, true);
+  const moved = moveAnchor(anchor, { point: { x: 90, y: 90 } });
+  assert.equal(validateMessage({ t: "comment", ts: 1, doc: "d1", op: { op: "reanchor", threadId: "t9", anchor: moved } }).ok, true);
+  const threads = [th];
+  const other = "o2o2o2o2o2o2o2o2o2o2o2";
+  assert.equal(applyCommentOp(threads, { op: "reanchor", threadId: "t9", anchor: moved }, { sender: other }), false);
+  assert.equal(applyCommentOp(threads, { op: "reanchor", threadId: "t9", anchor: moved }, { sender: author.id }), true);
+  assert.deepEqual(threads[0].anchor.pin, { x: 90, y: 90 });
+  assert.equal(applyCommentOp(threads, { op: "reanchor", threadId: "t9", anchor }, { sender: other, isHost: true }), true);
 });

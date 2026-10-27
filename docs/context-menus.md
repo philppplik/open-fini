@@ -88,6 +88,8 @@ from here, delete turn) and tool cards (copy input and result).
 
 The section `collab.share` (priority 10, registered in `commands/collab.js`) adds *Share with collaboration room…*, *Share as linked live document*, *Share a copy (snapshot)* and *Stop sharing* to document tabs, the empty canvas, Code explorer files and tabs and the Office editor.
 
+The section `collab.comment` (priority 12, also in `commands/collab.js`) adds **Add comment here…** to the canvas kinds (empty, layers, text, table, chart), layers panel rows, the code editor, the Office editor (`office-document`) and website elements (`web-element`). It runs the command `collab.addCommentHere` with `{ctx: {kind, x, y, data}}`; the anchor is built from the target (`ui/collab/comment-ui.js`, `collab/anchors.js`), see [collaboration.md](collaboration.md#comments-on-the-canvas-in-code-and-in-text).
+
 Not done: a units submenu for rulers (documents store a unit, but the rulers do not use it yet).
 
 ## Code editor: Transform

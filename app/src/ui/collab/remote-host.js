@@ -1,6 +1,6 @@
 // Main-window side of the UI-only Collaboration pop-out (lazy). The main window stays the ONLY owner of the room
 // connection, identity, keys, unread counters and notifications; the pop-out window (remote-view.js) gets bounded
-// snapshots and may send a whitelist of actions. Protocol and limits: collab/remote-ui.js. Design: docs/adr/0010-collab-popout.md.
+// snapshots and may send a whitelist of actions. Protocol and limits: collab/remote-ui.js. Design: docs/adr/0013-collab-popout.md.
 //
 // Public API
 //   popOut(app, c) → Promise<boolean>   opens the pop-out window (user gesture!) and docks the floating window away

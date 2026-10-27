@@ -1,5 +1,5 @@
 // Protocol of the UI-only Collaboration pop-out (pure, no DOM; unit tested in tests/collab/remote-ui.test.js).
-// Design: docs/adr/0010-collab-popout.md and docs/collaboration.md ("Pop-out window").
+// Design: docs/adr/0013-collab-popout.md and docs/collaboration.md ("Pop-out window").
 //
 // The main window keeps the ONE room connection (keys, identity, relay socket). The pop-out window is a remote view:
 // it receives bounded, plain-data snapshots over BroadcastChannel("openfini-collab-ui") and sends a small whitelist of

@@ -143,6 +143,7 @@ function createWindow(app, c) {
     if (el.hidden) return;
     if (layout.maximized) applyRect(maximizedRect(vp()));
     else if (el.style.left) applyRect(clampRect(rectOf(), vp()));
+    applyMode();
   });
 
   // dragging by the header (pointer) or with the arrow keys; snaps to the edges of the app window

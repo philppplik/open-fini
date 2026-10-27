@@ -37,6 +37,9 @@ Pop-outs autosave to their own key `popout-session:<windowId>` (the main window 
 - Documents are never shared live; there is no co-editing between windows.
 - Studio Vibe chats and other in-memory state are per window.
 
+## Collaboration pop-out
+`?popout=collab` is not a studio pop-out: `boot.js` hands it to `ui/collab/remote-view.js`, a UI-only remote view of the main window's room (no document handoff, no second connection or identity). It uses its own channel `openfini-collab-ui`, not the handoff protocol above. Design and limits: [ADR 0013](adr/0013-collab-popout.md), [collaboration.md](collaboration.md#pop-out-window). `popoutCollab(app)` in `ui/popout.js` opens it (560x720 window, minimum 340x320).
+
 ## Recent files
 Start page: **Clear recent** (confirm, then an Undo toast for 6 seconds that restores the list and the stored copies), a remove button per entry (hover or keyboard focus). File ▸ Open Recent ends with **Clear Recent**. Command `file.clearRecent`. Settings ▸ General: "Show recent files on the start page" (`showRecent`) and "Number of recent files to remember" (`recentLimit`, 0-50; 0 stores nothing; lowering trims at once). Pure list logic: `app/src/core/recents.js` (tests: `tests/core/recents.test.js`). No Vibe tool: neither feature acts on documents.
 
