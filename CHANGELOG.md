@@ -11,7 +11,7 @@ All notable changes to OpenFini are documented here. The format follows
 - Dependabot alerts and security updates are now enabled for the repository; `docs/security.md` lists the vendored libraries with their versions and the date they were checked against known advisories.
 
 ### Changed
-- Tauri CLI 2.12.3 (bundler 2.10.3, NSIS 3.13): the custom installer template picked up the upstream uninstaller clean-up fix (the in-place uninstaller leaves no stray `uninstall.exe`/install folder after an upgrade).
+- Tauri CLI 2.12.4 (bundler 2.10.4, NSIS 3.13): the custom installer template picked up the upstream fixes (uninstaller clean-up after an in-place upgrade, shared WiX detection, file-association icon quoting).
 - GitHub Actions: `dtolnay/rust-toolchain` pin updated.
 
 ### Fixed
