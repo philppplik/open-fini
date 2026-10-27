@@ -1,7 +1,5 @@
 // Code studio commands (palette, views, files, breakpoints, element editing). They only exist in the Code studio:
 // `studios: ["code"]` keeps their shortcuts from clashing with the design studios' commands.
-import { exportDialog } from "../ui/export-dialog.js";
-
 export function registerCodeCommands(app) {
   const ws = () => app.codeUI;
   const live = (a) => a.studio === "code" && !!a.codeUI?.built;
@@ -58,7 +56,7 @@ export function registerCodeCommands(app) {
   def("code.upload", "Upload Files…", () => ws().explorer.upload(), { icon: "upload" });
   def("code.importFolder", "Import Website Folder…", () => ws().explorer.importFolder(), { icon: "folder2-open" });
   def("code.setHome", "Set Current Page as Home Page", () => ws().web.setEntry(ws().page), { enabled: (a) => live(a) && !!a.codeUI.page && a.codeUI.page !== a.codeUI.web.entry });
-  def("code.publish", "Export Website…", (a) => exportDialog(a, { tab: "website" }), { icon: "globe2" });
+  def("code.publish", "Export Website…", (a) => import("../ui/export-dialog.js").then((m) => m.exportDialog(a, { tab: "website" })), { icon: "globe2" });
 
   // ---- libraries, documents (Markdown, LaTeX) and Markdown sites
   def("code.libraries", "Libraries…", () => import("../ui/code/libraries-ui.js").then((m) => m.openLibrariesDialog(ws())), { icon: "stack" });

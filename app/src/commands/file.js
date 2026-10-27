@@ -1,6 +1,5 @@
 // File and document commands: new, open, save, export, place, paste, close, document setup.
 import { confirmDialog, openDialog, toPx, fromPx, UNITS } from "../ui/dialogs.js";
-import { exportDialog, runExport } from "../ui/export-dialog.js";
 import { numField, selectField } from "../ui/controls.js";
 import { h, downloadName } from "../core/util.js";
 import { t, N_ } from "../i18n/index.js";
@@ -178,9 +177,11 @@ export function registerFileCommands(app) {
   }, { shortcut: "Mod+Alt+S", enabled: (a) => a.docs.length > 0, icon: "save2" });
   def("file.saveAs", "Save As…", (a) => save(a, true), { shortcut: "Mod+Shift+S", enabled: hasDoc });
 
-  def("file.export", "Export…", (a) => (a.studio === "office" && a.doc?.office ? a.run("office.export") : exportDialog(a)), { shortcut: "Mod+Shift+E", enabled: hasDoc, icon: "box-arrow-up" });
+  // The export dialog (and its zip, slices, website and publish tabs) loads on first use, not at start-up.
+  const exportUI = () => import("../ui/export-dialog.js");
+  def("file.export", "Export…", (a) => (a.studio === "office" && a.doc?.office ? a.run("office.export") : exportUI().then((m) => m.exportDialog(a))), { shortcut: "Mod+Shift+E", enabled: hasDoc, icon: "box-arrow-up" });
   for (const [fmt, label] of [["png", N_("Export as PNG")], ["jpeg", N_("Export as JPEG")], ["webp", N_("Export as WebP")], ["svg", N_("Export as SVG")], ["pdf", N_("Export as PDF")]]) {
-    def(`file.export${fmt === "jpeg" ? "JPG" : fmt.toUpperCase()}`, label, (a) => runExport(a, { format: fmt, scope: "page", scale: 1, quality: 0.9, transparent: false, bleed: false, marks: false, rasterDpi: 200 }).catch((e) => a.toast(e.message, "danger", 6000)), { enabled: hasDoc });
+    def(`file.export${fmt === "jpeg" ? "JPG" : fmt.toUpperCase()}`, label, (a) => exportUI().then((m) => m.runExport(a, { format: fmt, scope: "page", scale: 1, quality: 0.9, transparent: false, bleed: false, marks: false, rasterDpi: 200 })).catch((e) => a.toast(e.message, "danger", 6000)), { enabled: hasDoc });
   }
 
   def("file.openFolder", "Open Folder…", async (a) => (await import("../ui/open-folder.js")).openFolderDialog(a), { shortcut: "Mod+Shift+O", icon: "folder-symlink" });
