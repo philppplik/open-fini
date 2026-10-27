@@ -226,18 +226,20 @@ export function settingsSections(app) {
       label: "Artificial intelligence",
       icon: "stars",
       lead: "Control over AI features.",
-      keywords: "ai artificial intelligence assistant model privacy data",
+      keywords: "ai artificial intelligence assistant model privacy data vibe models connections provider api key tools mcp skills knowledge memory",
       groups: [
         {
           title: "AI features",
           items: [
             { type: "note", text: "Vibe Studio and the right-click AI functions work with the AI providers you connect yourself (OpenRouter, OpenAI, Anthropic, DeepSeek, xAI, Gemini, local models and more). Nothing leaves this device until you turn the switch on and add a connection." },
             sw("aiEnabled", "Enable AI features", "When on, your messages — and what the assistant reads through tools, such as layer names, screenshots of the page or project files — are sent to the provider you selected. Off by default."),
-            { type: "action", label: "Vibe Studio", hint: "Chat, models and connections, tools and MCP servers, skills and knowledge.", button: "Open Vibe Studio", run: () => app.setStudio("vibe") },
-            { type: "info", label: "Where your keys live", text: "API keys are stored in this browser's or app's private storage and sent only to the provider's address. You can protect them with a passphrase in Vibe Studio ▸ Models." },
+            { type: "action", label: "Vibe Studio", hint: "Chat with the assistant; the Canvas and Activity panels sit beside the chat.", button: "Open Vibe Studio", run: () => app.setStudio("vibe") },
+            { type: "info", label: "Where your keys live", text: "API keys are stored in this browser's or app's private storage and sent only to the provider's address. You can protect them with a passphrase under Models and connections below." },
             { type: "action", label: "AI data", hint: "Deletes chats, connections and keys, skills, custom tools, MCP servers, memory and the knowledge index.", button: "Delete…", danger: true, run: async () => { if (await confirmDialog({ title: "Delete AI data", message: "Delete all Vibe chats, API keys, skills, tools, MCP servers, memory and knowledge from this device?", ok: "Delete", danger: true })) { const { vibeStore } = await import("../vibe/store.js"); await vibeStore.load(); await vibeStore.clearAll(); app.toast("AI data deleted.", "success", 1800); } } },
           ],
         },
+        // Vibe's models, tools, skills and knowledge (formerly side-panel tabs of Vibe Studio), loaded lazily
+        { title: "Vibe Studio", items: [{ type: "custom", label: "Models, tools, skills and knowledge", render: () => aiPanelsHost(app) }] },
       ],
     },
     securitySection(app),
@@ -275,6 +277,15 @@ export function settingsSections(app) {
       custom: () => aboutPane(app),
     },
   ]);
+}
+
+let aiTab = null; // sub-tab requested by settings.open { section: "ai", tab }
+function aiPanelsHost(app) {
+  const host = h("div.of-set__aihost");
+  const tab = aiTab;
+  aiTab = null;
+  import("./vibe/settings-ai.js").then((m) => host.replaceChildren(m.aiSettingsPanels(app, tab)));
+  return host;
 }
 
 function aboutPane(app) {
@@ -379,7 +390,8 @@ function row(app, item, rerender) {
   return h("div.of-set__row", h("div", h("div.of-set__label", tr(item.label)), item.hint ? h("div.of-set__hint", tr(item.hint)) : null), h("div.of-set__ctl", ctl, resetButton(app, item, rerender)));
 }
 
-export function settingsDialog(app, sectionId = "general") {
+export function settingsDialog(app, sectionId = "general", { tab = null } = {}) {
+  aiTab = tab;
   const sections = settingsSections(app);
   let current = sections.some((s) => s.id === sectionId) ? sectionId : "general";
   const nav = h("nav.of-set__nav", { "aria-label": t("Settings sections") });

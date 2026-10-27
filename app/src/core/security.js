@@ -29,7 +29,7 @@ export function evaluateSecurity(status = {}) {
 
   // AI
   if (!ai.enabled) add("ai", "AI", "AI features are off", "ok", "Nothing is sent to an AI provider. Vibe Studio only offers the offline demo assistant.");
-  else if (!providers.length) add("ai", "AI", "AI features are on, no provider connected", "info", "Nothing is sent until you connect a provider in Vibe Studio ▸ Models.");
+  else if (!providers.length) add("ai", "AI", "AI features are on, no provider connected", "info", "Nothing is sent until you connect a provider in Settings ▸ Artificial intelligence ▸ Models.");
   else add("ai", "AI", "AI features are on", remote.length ? "warn" : "info", remote.length ? `Your messages and what the assistant reads through tools (layer names, screenshots, project files) are sent to: ${remote.map((p) => p.label).join(", ")}.` : `Connected providers run on this device: ${providers.map((p) => p.label).join(", ")}.`);
   if (ai.keysLocked) add("keys", "AI", "API keys are locked", "ok", "Stored keys are encrypted with a passphrase and not unlocked in this session.");
   else if (keyed.length && ai.keysEncrypted) add("keys", "AI", "API keys are encrypted", "ok", `${keyed.length} stored key${keyed.length === 1 ? " is" : "s are"} sealed with a passphrase (AES-GCM).`);

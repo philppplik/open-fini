@@ -1,4 +1,4 @@
-// Vibe Studio ▸ Models: connections to AI providers (OpenRouter, OpenAI, Anthropic, DeepSeek, xAI, Gemini, Groq,
+// Settings ▸ Artificial intelligence ▸ Models: connections to AI providers (OpenRouter, OpenAI, Anthropic, DeepSeek, xAI, Gemini, Groq,
 // Ollama and any OpenAI-compatible endpoint), keys, default models and the key vault.
 import { h, empty } from "../../core/util.js";
 import { vibeStore } from "../../vibe/store.js";

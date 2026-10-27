@@ -27,7 +27,7 @@ export function metaTools(app, ctx) {
       return s.body;
     }, { readOnly: true }),
 
-    tool("create_skill", "Saves a reusable skill (SKILL.md) distilled from the work in this chat, as a DRAFT the user reviews in Vibe ▸ Skills before it is used. Write a concrete workflow: numbered steps with the exact tools, rules with numbers, token-saving tips and a “## Verify” section. Use {{param}} placeholders for things that change between uses and declare them in params.", {
+    tool("create_skill", "Saves a reusable skill (SKILL.md) distilled from the work in this chat, as a DRAFT the user reviews in Settings ▸ Artificial intelligence ▸ Skills before it is used. Write a concrete workflow: numbered steps with the exact tools, rules with numbers, token-saving tips and a “## Verify” section. Use {{param}} placeholders for things that change between uses and declare them in params.", {
       name: S.str("lowercase-with-dashes", { pattern: "^[a-z0-9][a-z0-9-]{1,63}$" }),
       description: S.str("One sentence: what it does and when to use it"),
       body: S.str("Markdown instructions (Workflow, Rules, Verify)"),
@@ -38,7 +38,7 @@ export function metaTools(app, ctx) {
     }, ["name", "description", "body"], async (a) => {
       if (!ctx.saveSkillDraft) throw new Error("Skills cannot be saved here.");
       const r = await ctx.saveSkillDraft(a);
-      return { ok: true, ...r, note: "Saved as a draft (disabled). The user can review, edit and enable it in Vibe ▸ Skills." };
+      return { ok: true, ...r, note: "Saved as a draft (disabled). The user can review, edit and enable it in Settings ▸ Artificial intelligence ▸ Skills." };
     }, { needsApproval: (a) => `Save a new skill draft “${a.name}”?` }),
 
     tool("ask_user", "Asks the user a clarifying question and waits for the answer. Use it sparingly, only when a missing detail would change the result a lot.", {
@@ -61,7 +61,7 @@ export function metaTools(app, ctx) {
     }, ["name", "description", "code"], async (a) => {
       await ctx.customTools?.save({ name: a.name, description: a.description, inputSchema: a.inputSchema || { type: "object", properties: {} }, code: a.code });
       return { ok: true, note: "Saved. It is available from the next message on." };
-    }, { needsApproval: (a) => `Create a new tool “${a.name}”? Review its code in Vibe Studio ▸ Tools afterwards.` }),
+    }, { needsApproval: (a) => `Create a new tool “${a.name}”? Review its code in Settings ▸ Artificial intelligence ▸ Tools afterwards.` }),
   ];
   return T;
 }

@@ -26,7 +26,7 @@ Where contributions appear:
 - Themes: the theme picker in *Settings ▸ Appearance*.
 - Templates, importers, exporters: the *File* menu (*New from…*, *Import with…*, *Export with…*); importers also handle dropped files of their type.
 - Snippets: Code studio completion.
-- Vibe tools and skills: *Vibe ▸ Tools* and *Skills*; tools **always ask for approval**.
+- Vibe tools and skills: *Settings ▸ Artificial intelligence ▸ Tools* and *Skills*; tools **always ask for approval**.
 
 While offline mode is on, extensions cannot use the network and URL installs are refused.
 

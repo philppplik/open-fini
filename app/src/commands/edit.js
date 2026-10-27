@@ -88,6 +88,8 @@ export function registerEditCommands(app) {
     a.clearSelection();
   }, { shortcut: "Mod+D", enabled: hasDoc });
   def("edit.preferences", "Settings…", (a) => a.emit("dialog", { id: "preferences" }), { shortcut: "Mod+,", icon: "gear" });
+  // deep link: app.run("settings.open", { section: "ai", tab: "models" })
+  def("settings.open", "Open Settings Section…", (a, args) => a.emit("dialog", { id: "preferences", section: args?.section, tab: args?.tab }), { icon: "gear" });
 
   // ---- arrange
   def("arrange.group", "Group", (a) => ops.groupSelection(a), { shortcut: "Mod+G", enabled: hasSel, icon: "collection" });

@@ -35,7 +35,7 @@ function ready(app) {
     return false;
   }
   if (!vibeStore.settings.activeProvider && vibeStore.settings.model !== "demo") {
-    app.toast("Connect a model first: Vibe Studio ▸ Models.", "warning", 4000);
+    app.toast("Connect a model first: Settings ▸ Artificial intelligence ▸ Models.", "warning", 4000);
     app.setStudio("vibe");
     return false;
   }

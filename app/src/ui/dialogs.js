@@ -275,8 +275,8 @@ export function createDocument(app, o) {
 
 // ------------------------------------------------------------------ preferences / about / shortcuts
 
-export function preferencesDialog(app, section) {
-  import("./settings-dialog.js").then((m) => m.settingsDialog(app, section));
+export function preferencesDialog(app, section, opts) {
+  import("./settings-dialog.js").then((m) => m.settingsDialog(app, section, opts));
 }
 
 export function aboutDialog() {

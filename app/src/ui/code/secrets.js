@@ -15,7 +15,7 @@ async function readAll() {
   const raw = (await kvGet(KEY)) || {};
   if (!raw.sealed) return raw;
   const v = await vault();
-  if (!v.passphrase) throw new Error("Your key vault is locked. Unlock it in Vibe Studio ▸ Models first.");
+  if (!v.passphrase) throw new Error("Your key vault is locked. Unlock it in Settings ▸ Artificial intelligence ▸ Models first.");
   const { decryptJson } = await import("../../ai/index.js");
   return decryptJson(raw.sealed, v.passphrase);
 }
@@ -23,7 +23,7 @@ async function readAll() {
 async function writeAll(all) {
   const v = await vault();
   if (v.settings.vault) {
-    if (!v.passphrase) throw new Error("Your key vault is locked. Unlock it in Vibe Studio ▸ Models first.");
+    if (!v.passphrase) throw new Error("Your key vault is locked. Unlock it in Settings ▸ Artificial intelligence ▸ Models first.");
     const { encryptJson } = await import("../../ai/index.js");
     await kvSet(KEY, { sealed: await encryptJson(all, v.passphrase) });
   } else await kvSet(KEY, all);

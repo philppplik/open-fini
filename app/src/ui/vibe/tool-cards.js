@@ -398,6 +398,15 @@ export function createToolCards({ settings, saveSettings, onGrow, cancelAgent })
     agentEvent,
     agentApprove,
     has: (id) => recs.has(id),
+    /** Adds an element (e.g. the "View changes" button) to the card of a call. */
+    decorate: (id, node) => {
+      const r = recs.get(id);
+      if (!r) return false;
+      r.el.querySelector(".of-tcall__extra")?.remove();
+      r.el.insertBefore(h("div.of-tcall__extra", node), r.detail);
+      onGrow?.();
+      return true;
+    },
     running: () => live.size,
     /** Stops timers and forgets all cards (history re-render). */
     reset() {
