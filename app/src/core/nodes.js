@@ -231,6 +231,29 @@ export function walk(node, fn, parent = null) {
   if (node.mask) walk(node.mask, fn, node);
 }
 
+/**
+ * After cloning nodes (duplicate / paste), charts that were linked to a table that is part of the same copy are
+ * re-linked to the table's clone. `originals` and `clones` are parallel arrays of top-level nodes.
+ * (Lives here rather than in data-nodes.js so core/ops.js can use it without an import cycle.)
+ */
+export function remapLinks(originals, clones) {
+  const map = new Map();
+  originals.forEach((o, i) => {
+    const pairs = [];
+    const a = [];
+    const b = [];
+    walk(o, (n) => a.push(n));
+    walk(clones[i], (n) => b.push(n));
+    for (let k = 0; k < Math.min(a.length, b.length); k++) pairs.push([a[k], b[k]]);
+    for (const [x, y] of pairs) map.set(x.id, y.id);
+  });
+  for (const c of clones) {
+    walk(c, (n) => {
+      if (n.type === "chart" && n.chart?.source && map.has(n.chart.source.tableId)) n.chart.source.tableId = map.get(n.chart.source.tableId);
+    });
+  }
+}
+
 export function* iterate(node) {
   yield node;
   if (node.children) for (const c of node.children) yield* iterate(c);

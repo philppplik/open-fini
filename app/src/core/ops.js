@@ -1,12 +1,11 @@
 // Editing operations on the document/selection. Used by tools, menus, panels and shortcuts.
 // Every function groups its changes into one undoable step.
 import { clone, uid } from "./util.js";
-import { createNode, shapeGeometry, isShape, localBounds, worldMatrix, solid, defaultStroke, walk } from "./nodes.js";
+import { createNode, shapeGeometry, isShape, localBounds, worldMatrix, solid, defaultStroke, walk, remapLinks } from "./nodes.js";
 import { mul, invert, translate, scaleAbout, apply, ident, rectUnion, rectTransform, isIdentity } from "./math.js";
 import { pageBounds, pageBoundsOf, nudge } from "./transform.js";
 import { booleanPaths, expandStroke } from "../engine/vector/boolean.js";
 import { transformPath, pathToData } from "../engine/vector/path.js";
-import { remapLinks } from "./data-nodes.js";
 
 export const LABELS = { rect: "Rectangle", ellipse: "Ellipse", polygon: "Polygon", star: "Star", path: "Curve", text: "Text", image: "Image", pixel: "Pixel Layer", group: "Group", adjust: "Adjustment" };
 
