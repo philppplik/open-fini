@@ -90,6 +90,7 @@ const defaultPrefs = () => ({
   collabActivity: true, // post my edits as activity lines in the room chat
   collabCursors: "auto", // show other members' cursors: auto (off in low-power mode) | on | off
   collabNotify: true, // toast + title badge for @mentions and replies
+  collabPins: true, // show comment pins and highlights on the canvas and in the editors
   // customization (customize/schema.js): fonts, shortcuts, toolbox, layout, workspaces, defaults
   ...customizationDefaults(),
 });

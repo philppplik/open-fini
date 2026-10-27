@@ -157,13 +157,18 @@ const RECT = V.obj({ x: V.num(-1e7, 1e7), y: V.num(-1e7, 1e7), w: V.num(0, 1e7),
 /** Where a comment thread is anchored. See collab/comments.js. */
 export const ANCHOR = V.obj(
   {
-    kind: V.oneOf("doc", "page", "node", "region", "text", "line"),
+    kind: V.oneOf("doc", "page", "node", "region", "text", "line", "element"),
     page: V.id(), // page id (page, node, region)
     node: V.id(), // layer id (node)
     rect: RECT, // page coordinates (region), or a hint position for node/page
+    pin: V.obj({ x: V.num(-1e7, 1e7), y: V.num(-1e7, 1e7) }, ["x", "y"]), // clicked point in page coordinates (fallback when the layer is gone)
+    off: V.obj({ x: V.num(-1000, 1000), y: V.num(-1000, 1000) }, ["x", "y"]), // the point relative to the layer / element box (0..1 = inside)
+    elem: V.str(256), // website element id (Code studio preview) the comment is attached to
     path: V.str(512), // file path (Code studio) or paragraph path as JSON (Office studio)
     line: V.int(1, 10_000_000), // first line (Code studio)
     endLine: V.int(1, 10_000_000),
+    col: V.int(0, 1e7), // columns (Code studio), 0-based
+    endCol: V.int(0, 1e7),
     from: V.int(0, 1e9), // text offsets (Office studio: offsets in the block at `path`)
     to: V.int(0, 1e9),
     quote: V.text(200), // the commented text, for display when the anchor moved
@@ -178,8 +183,9 @@ export const THREAD = V.obj(
 );
 const COMMENT_OP = V.obj(
   {
-    op: V.oneOf("add", "reply", "edit", "delete", "resolve", "reopen", "drop"),
+    op: V.oneOf("add", "reply", "edit", "delete", "resolve", "reopen", "drop", "reanchor"),
     thread: THREAD, // add
+    anchor: ANCHOR, // reanchor (a dragged pin)
     threadId: V.id(),
     msg: COMMENT_MSG, // reply
     msgId: V.id(),

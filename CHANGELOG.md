@@ -9,6 +9,10 @@ All notable changes to OpenFini are documented here. The format follows
 ### Changed
 - Refactoring audit 1 ([docs/refactoring-audit.md](docs/refactoring-audit.md)): bundle, import-graph and dead-export analysis scripts (`scripts/analyze-bundle.mjs`, `scripts/import-report.mjs`, `scripts/find-dead-exports.mjs`) with the measured baseline, a risk-ranked list of candidates and the ideas that were rejected, with reasons.
 
+### Added
+- **Collaboration UX**: *Add comment here…* in the right-click menu of the canvas, layers panel, Code editor, Office editor and website elements (`Ctrl+Alt+M`, comment mode, status bar toggle). An inline composer with @mention suggestions, numbered pins that follow layers, zoom and pan (drag to re-anchor), highlights for code and text ranges, thread popovers and `]` / `[` navigation. Comment anchors gained `pin`, `off`, `elem`, `col`, `endCol` and a `reanchor` op (additive). Vibe: `add_comment` takes an optional `at` anchor.
+- **Responsive Collaboration window**: top tabs below 520 px, a left side rail from 520 px, a list column from 900 px; compact density, maximize, edge snapping, keyboard moving, remembered size and position. *Pop out* opens the Collaboration UI in its own OS window (a UI-only remote view; the main window keeps the room connection, see ADR 0013).
+
 ## [0.8.0] — Live editing, VS Code extensions, wiki
 
 ### Security

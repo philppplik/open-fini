@@ -7,7 +7,8 @@
 //
 // Thread = { id, anchor, author, nick, color, ts, resolved?, resolvedBy?, resolvedAt?, messages: [Message] }
 // Message = { id, author, nick, color, text, ts, edited?, deleted?, mentions? }
-// Anchor = { kind: "doc"|"page"|"node"|"region"|"text"|"line", page?, node?, rect?, path?, line?, endLine?, from?, to?, quote? }
+// Anchor = { kind: "doc"|"page"|"node"|"region"|"text"|"line"|"element", page?, node?, rect?, pin?, off?, elem?, path?, line?, endLine?, col?, endCol?, from?, to?, quote? }
+//          (how each studio builds one: collab/anchors.js)
 //
 // Public API
 //   newThread({ id, anchor, author, text, ts, msgId, mentions }) → Thread
@@ -88,6 +89,13 @@ export function applyCommentOp(threads, op, { sender, isHost = false } = {}) {
         delete t.resolvedBy;
         delete t.resolvedAt;
       }
+      return true;
+    }
+    case "reanchor": {
+      // dragging a pin to another place: only the thread's author or the host
+      const t = findThread(threads, op.threadId);
+      if (!t || !op.anchor || (t.author !== sender && !isHost)) return false;
+      t.anchor = structuredCloneSafe(op.anchor);
       return true;
     }
     case "drop": {

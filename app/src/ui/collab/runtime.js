@@ -48,7 +48,15 @@ export function getCollab(app) {
 export async function openCollab(app, tab) {
   const c = getCollab(app);
   await c.ready;
+  if (c.poppedOut && (await import("./remote-host.js")).noteIfPoppedOut(app, c)) return; // the UI lives in its own window
   (await import("./window.js")).showCollabWindow(app, c, tab);
+}
+
+/** Moves the Collaboration UI into its own OS window (UI-only remote view; this window keeps the connection). */
+export async function popOutCollab(app) {
+  const c = getCollab(app);
+  await c.ready;
+  return (await import("./remote-host.js")).popOut(app, c);
 }
 
 export async function addComment(app, opts = {}) {
@@ -57,6 +65,18 @@ export async function addComment(app, opts = {}) {
   if (!app.doc) return;
   const w = (await import("./window.js")).showCollabWindow(app, c, "comments");
   w.startComment(opts.anchor || c.currentAnchor(), opts.text);
+}
+
+/**
+ * "Add comment here…": builds the anchor from where the user clicked (`opts.kind/x/y/data/selection` of a context menu
+ * target, or nothing: the current selection) and opens the inline composer there. Works without a room.
+ */
+export async function addCommentHere(app, opts = {}) {
+  const c = getCollab(app);
+  await c.ready;
+  if (!app.doc) return;
+  const ui = await c.commentUI();
+  ui.composeFor(opts);
 }
 
 export async function saveVersionDialog(app, opts = {}) {
@@ -689,6 +709,18 @@ class CollabController {
     this.commentOp(doc, { op: "add", thread });
     return thread;
   }
+
+  /** Moves a thread's anchor (a dragged pin). Only the thread's author or the host may do this. */
+  reanchor(doc, threadId, anchor) {
+    return this.commentOp(doc, { op: "reanchor", threadId, anchor });
+  }
+
+  /** The inline comment UI (composer, thread popovers, pins, keyboard): loaded on first use, then shared. */
+  commentUI() {
+    this.#cui ||= import("./comment-ui.js").then((m) => m.installCommentUI(this.app, this));
+    return this.#cui;
+  }
+  #cui = null;
 
   reply(doc, threadId, text) {
     const clean = cleanText(text, LIMITS.commentText).trim();

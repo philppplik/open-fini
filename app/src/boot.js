@@ -19,6 +19,12 @@ export async function boot(app) {
   if (app.safeMode) import("./ui/error-indicator.js").then((m) => m.installSafeBanner(app));
   const studio = params.get("studio");
   const popout = parsePopoutParams(location.search);
+  // ?popout=collab: the Collaboration UI alone in its own window, a remote view of the main window's room (docs/collaboration.md)
+  const collabPopout = popout?.studio === "collab";
+  if (collabPopout) {
+    (await import("./ui/collab/remote-view.js")).bootCollabPopout(app, popout);
+    return;
+  }
   const windowing = await import("./ui/popout.js"); // pop-out windows, document handoff, shared prefs (docs/multi-window.md)
   windowing.installWindowing(app);
   if (popout) await windowing.bootPopout(app, popout);
