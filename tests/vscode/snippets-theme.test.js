@@ -42,7 +42,8 @@ describe("vscode snippet syntax", () => {
   });
 
   it("provides VS Code variables", () => {
-    const v = snippetVariables({ path: "src/app/main.js", selection: "sel", now: new Date(2026, 0, 5, 9, 3, 7), random: () => 0.5 });
+    const v = snippetVariables({ path: "src/app/main.js", selection: "sel", now: new Date(2026, 0, 5, 9, 3, 7), randomBytes: (n) => new Uint8Array(n).fill(7) });
+    assert.equal(v.RANDOM, "777777");
     assert.equal(v.TM_FILENAME, "main.js");
     assert.equal(v.TM_FILENAME_BASE, "main");
     assert.equal(v.TM_DIRECTORY, "src/app");

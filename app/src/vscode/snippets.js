@@ -131,16 +131,22 @@ export function toCodeMirror(body, vars = {}) {
   return render(nodes);
 }
 
-/** A uniform number in [0, 1) from the Web Crypto API (UUID and RANDOM snippet variables). */
-const cryptoRandom = () => globalThis.crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296;
+/** Random bytes from the Web Crypto API (UUID, RANDOM and RANDOM_HEX snippet variables). */
+const cryptoBytes = (n) => globalThis.crypto.getRandomValues(new Uint8Array(n));
 
 /** Values of the VS Code snippet variables for a file and selection. */
-export function snippetVariables({ path = "", selection = "", line = "", word = "", now = new Date(), lineComment = "//", blockComment = ["/*", "*/"], random = cryptoRandom } = {}) {
+export function snippetVariables({ path = "", selection = "", line = "", word = "", now = new Date(), lineComment = "//", blockComment = ["/*", "*/"], randomBytes = cryptoBytes } = {}) {
   const file = String(path).split("/").pop();
   const pad = (n) => String(n).padStart(2, "0");
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const hexd = (n) => Array.from({ length: n }, () => Math.floor(random() * 16).toString(16)).join("");
+  // unbiased: 16 divides 256 for hex digits; decimal digits use rejection sampling (bytes >= 250 are skipped)
+  const hexd = (n) => Array.from(randomBytes(n), (b) => (b & 15).toString(16)).join("");
+  const decimals = (n) => {
+    let out = "";
+    while (out.length < n) for (const b of randomBytes(n * 2)) if (b < 250 && out.length < n) out += String(b % 10);
+    return out;
+  };
   return {
     TM_FILENAME: file,
     TM_FILENAME_BASE: file.replace(/\.[^.]*$/, ""),
@@ -166,9 +172,9 @@ export function snippetVariables({ path = "", selection = "", line = "", word = 
     CURRENT_MINUTE: pad(now.getMinutes()),
     CURRENT_SECOND: pad(now.getSeconds()),
     CURRENT_SECONDS_UNIX: String(Math.floor(now.getTime() / 1000)),
-    RANDOM: String(Math.floor(random() * 1e6)).padStart(6, "0"),
+    RANDOM: decimals(6),
     RANDOM_HEX: hexd(6),
-    UUID: `${hexd(8)}-${hexd(4)}-4${hexd(3)}-${"89ab"[Math.floor(random() * 4)]}${hexd(3)}-${hexd(12)}`,
+    UUID: `${hexd(8)}-${hexd(4)}-4${hexd(3)}-${"89ab"[randomBytes(1)[0] & 3]}${hexd(3)}-${hexd(12)}`,
     LINE_COMMENT: lineComment,
     BLOCK_COMMENT_START: blockComment[0],
     BLOCK_COMMENT_END: blockComment[1],
