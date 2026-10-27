@@ -23,13 +23,14 @@ import { agentTools } from "./agents.js";
 import { attachmentTools } from "./attachments.js";
 import { saveTargetTools } from "./save-target.js";
 import { collabTools } from "./collab.js";
+import { vscodeTools } from "./vscode.js";
 
 /**
  * @param {import("../../core/app.js").App} app
  * @param {object} ctx session context: { images, knowledge, memory, skills, ask, plan, customTools }
  */
 export function createOpenFiniTools(app, ctx = {}) {
-  return [...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...formatTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx)];
+  return [...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...formatTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...vscodeTools(app, ctx)];
 }
 
 /** Tools grouped for the UI. */
@@ -45,6 +46,7 @@ export const TOOL_GROUPS = {
   "Imported documents": ["get_import_report", "list_pdf_pages", "describe_document_pages", "extract_pdf_text"],
   "System and files": ["get_platform_info", "list_recent_files"],
   Extensions: ["list_extensions", "run_extension_command", "install_extension_from_url", "create_extension"],
+  "VS Code extensions": ["search_vscode_extensions", "install_vscode_extension", "list_vscode_extensions", "describe_vscode_extension"],
   "Appearance and help": ["list_themes", "set_theme", "start_tour", "list_commands"],
   "File formats": ["list_supported_formats", "import_palette_from_text", "export_palette"],
   Customization: ["get_settings", "set_setting", "list_shortcuts", "set_shortcut", "export_profile"],

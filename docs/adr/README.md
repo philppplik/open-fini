@@ -16,3 +16,4 @@ in place and are marked as such.
 | [0008](0008-vibe-hub.md) | Vibe hub: concurrent chats, fair write lock, tag-based run undo | Accepted |
 | [0010](0010-collaboration-e2e-relay.md) | Collaboration through a dumb relay with end-to-end encryption | Accepted |
 | [0011](0011-live-editing-sync.md) | Live editing: state-diffed tree registers and an RGA for text | Accepted (beta) |
+| [0012](0012-vscode-extensions.md) | VS Code extensions from Open VSX: declarative parts plus a sandboxed web-extension API subset | Accepted |

@@ -143,11 +143,13 @@ export function openExtensionManager(app, { select } = {}) {
   const detailEl = h("div.of-ext-pane");
   const toolbar = h("div.of-ext-toolbar");
   const galleryEl = h("div.of-ext-gallery", { hidden: true });
+  const vscodeEl = h("div.of-ext-vscode", { hidden: true }); // VS Code extensions (./vscode.js, lazy)
+  let vscodeTab = null;
   const bodyEl = h("div.of-ext-body", listEl, detailEl);
-  let view = "installed"; // "installed" | "gallery"
+  let view = select === "vscode" ? "vscode" : "installed"; // "installed" | "gallery" | "vscode"
   let drawGallery = null;
   let host = null;
-  let current = select || null;
+  let current = select && select !== "vscode" ? select : null;
   let off = null;
 
   const render = () => {
@@ -176,8 +178,10 @@ export function openExtensionManager(app, { select } = {}) {
 
   const showView = async (next) => {
     view = next;
-    bodyEl.hidden = view === "gallery";
+    bodyEl.hidden = view !== "installed";
     galleryEl.hidden = view !== "gallery";
+    vscodeEl.hidden = view !== "vscode";
+    if (view === "vscode" && !vscodeTab) vscodeTab = (await import("./vscode.js")).renderVscodeTab(app, vscodeEl);
     if (view === "gallery" && !drawGallery && host) {
       const { renderGallery } = await import("./gallery.js");
       drawGallery = renderGallery(app, host, galleryEl);
@@ -188,8 +192,14 @@ export function openExtensionManager(app, { select } = {}) {
   function renderToolbar() {
     empty(toolbar);
     const dev = !!app.prefs.extDeveloper;
+    if (view === "vscode") {
+      // the VS Code tab has its own toolbar (search, .vsix install); only the way back is shown here
+      toolbar.append(button("OpenFini extensions", () => showView("installed"), { icon: "puzzle" }), button("Available extensions", () => showView("gallery"), { icon: "grid" }));
+      return;
+    }
     toolbar.append(...[
       button(view === "gallery" ? "Installed extensions" : "Available extensions", () => showView(view === "gallery" ? "installed" : "gallery"), { icon: view === "gallery" ? "list-ul" : "grid" }),
+      button("VS Code extensions", () => showView("vscode"), { icon: "code-square", title: "VS Code extensions from Open VSX or a .vsix file" }),
       button("Install from file…", () => installFromFile(app), { icon: "file-earmark-zip" }),
       button("From URL…", () => installFromUrl(app), { icon: "link-45deg" }),
       button("From folder…", () => installFromFolder(app), { icon: "folder2-open" }),
@@ -218,12 +228,13 @@ export function openExtensionManager(app, { select } = {}) {
   renderToolbar();
   openDialog({
     title: "Extensions",
-    body: h("div.of-ext", toolbar, bodyEl, galleryEl),
+    body: h("div.of-ext", toolbar, bodyEl, galleryEl, vscodeEl),
     width: 980,
     cls: "of-ext-manager",
     buttons: [{ label: "Done", variant: "primary", onClick: (c) => c() }],
-    onClose: () => off?.(),
+    onClose: () => (off?.(), vscodeTab?.dispose()),
   });
+  if (view === "vscode") showView("vscode");
 }
 
 /** The Settings ▸ Extensions section. */

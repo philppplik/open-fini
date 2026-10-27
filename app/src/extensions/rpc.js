@@ -91,9 +91,10 @@ const METHOD_RE = /^[a-z][A-Za-z]{0,24}(\.[a-z][A-Za-z]{0,24})?$/;
 /**
  * @param {{handlers: Record<string, ((params: any, meta: any) => any) & {interactive?: boolean}>, granted: Iterable<string>,
  *   limits?: Partial<typeof DEFAULT_LIMITS>, now?: () => number, toolKind?: (name: string) => "read"|"write"|"denied",
- *   onViolation?: (kind: string) => void, onCall?: (method: string, ok: boolean, ms: number) => void}} o
+ *   onViolation?: (kind: string) => void, onCall?: (method: string, ok: boolean, ms: number) => void,
+ *   check?: typeof checkPermission}} o  `check` replaces the OpenFini permission table (the VS Code host has its own)
  */
-export function createDispatcher({ handlers, granted, limits = {}, now = Date.now, toolKind, onViolation, onCall }) {
+export function createDispatcher({ handlers, granted, limits = {}, now = Date.now, toolKind, onViolation, onCall, check: checkFn = checkPermission }) {
   const L = { ...DEFAULT_LIMITS, ...limits };
   let grants = new Set(granted);
   let tokens = L.burst;
@@ -129,7 +130,7 @@ export function createDispatcher({ handlers, granted, limits = {}, now = Date.no
     if (params === null || typeof params !== "object" || Array.isArray(params)) return fail(id, "BAD_REQUEST", "params must be an object.");
     const kind = msg.m === "document.callTool" && toolKind ? await toolKind(params.name) : undefined;
     if (kind === "denied") return fail(id, "PERMISSION_DENIED", `The tool “${params.name}” is not available to extensions.`);
-    const check = checkPermission(grants, msg.m, params, { toolKind: kind });
+    const check = checkFn(grants, msg.m, params, { toolKind: kind });
     if (!check.ok) return fail(id, check.code, check.message);
     if (!handler) return fail(id, "UNKNOWN_METHOD", `Unknown method “${msg.m}”.`);
 

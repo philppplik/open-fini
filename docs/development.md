@@ -42,6 +42,7 @@ Rules that explain most of the code:
 | Vibe (AI) | runtime `app/src/ai/`, hub/session/tools `app/src/vibe/`, UI `app/src/ui/vibe/` | [vibe-studio.md](vibe-studio.md), [ai-engine.md](ai-engine.md), [vibe-skills.md](vibe-skills.md) |
 | File formats / importers | `app/src/engine/formats/`, `app/src/core/import-*.js`, `app/src/platform/file-types.js` (single source of truth for types) | [file-compat.md](file-compat.md), [pdf-import.md](pdf-import.md), [file-format-research.md](file-format-research.md) |
 | Extensions + SDK | `app/src/extensions/`, `app/src/ui/extensions/`, `sdk/`, `extensions/` (bundled) | [extensions.md](extensions.md), [bundled-extensions.md](bundled-extensions.md) |
+| VS Code extensions (Open VSX, `.vsix`, `vscode` API shim) | pure `app/src/vscode/`, UI `app/src/ui/extensions/vscode*.js` | [vscode-extensions.md](vscode-extensions.md), [ADR 0012](adr/0012-vscode-extensions.md) |
 | Themes, onboarding, command palette | `app/src/ui/themes.js`, `tour*.js`, `command-palette.js` | [themes.md](themes.md), [design-system.md](design-system.md) |
 | Settings and customization | `app/src/ui/settings-dialog.js`, `app/src/customize/` | [settings.md](settings.md), [customization.md](customization.md) |
 | Context menus | `app/src/ui/context-menu/` | [context-menus.md](context-menus.md) |

@@ -57,6 +57,9 @@
         "application/x-openfini-extension": [
           ".ofext"
         ],
+        "application/vsix": [
+          ".vsix"
+        ],
         "image/vnd.adobe.photoshop": [
           ".psd"
         ],

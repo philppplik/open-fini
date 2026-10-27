@@ -40,6 +40,7 @@
   WriteRegStr SHCTX "Software\OpenFini\Capabilities" "ApplicationDescription" "A lightweight, open-source creative suite."
   WriteRegStr SHCTX "Software\OpenFini\Capabilities\FileAssociations" ".ofini" "OpenFini.Document"
   WriteRegStr SHCTX "Software\OpenFini\Capabilities\FileAssociations" ".ofext" "OpenFini.Extension"
+  !insertmacro OPENFINI_OPENWITH_ADD "vsix"
   !insertmacro OPENFINI_OPENWITH_ADD "psd"
   !insertmacro OPENFINI_OPENWITH_ADD "psb"
   !insertmacro OPENFINI_OPENWITH_ADD "idml"
@@ -87,6 +88,7 @@
 !macroend
 
 !macro NSIS_HOOK_PREUNINSTALL
+  !insertmacro OPENFINI_OPENWITH_REMOVE "vsix"
   !insertmacro OPENFINI_OPENWITH_REMOVE "psd"
   !insertmacro OPENFINI_OPENWITH_REMOVE "psb"
   !insertmacro OPENFINI_OPENWITH_REMOVE "idml"

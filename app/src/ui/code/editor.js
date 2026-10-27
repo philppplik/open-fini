@@ -77,6 +77,7 @@ export class CodeEditors extends Emitter {
     this.active = null;
     this.view = null;
     this.wrap = new CM.Compartment();
+    this.contrib = new CM.Compartment(); // app.editorContributions (VS Code extensions, see vscode/editor-bridge.js)
     this.tabsEl = h("div.of-etabs", { role: "tablist", "aria-label": "Open files" });
     this.placeholder = h("div.of-editor__empty", h("sl-icon", { name: "code-slash" }), h("p", "Open a file from the Explorer"), h("p.of-hint", "Quick open  Ctrl+P · Commands  Ctrl+Shift+P"));
     this.host = h("div.of-editor__host");
@@ -99,6 +100,7 @@ export class CodeEditors extends Emitter {
       else if (ev.kind === "rename") for (const [from, to] of ev.pairs) this.#renamed(from, to);
     });
     registerCodeContext(this);
+    this.offContrib = app.on("editor-contrib", () => this.refreshContributions());
     this.#renderTabs();
   }
 
@@ -140,6 +142,7 @@ export class CodeEditors extends Emitter {
       CM.search({ top: true }),
       CM.lintGutter(),
       ...(this.extraExtensions?.(path) || []),
+      this.contrib.of(this.#contributions(path)),
       CM.keymap.of([...keymapExtra, ...CM.closeBracketsKeymap, ...CM.defaultKeymap, ...CM.searchKeymap, ...CM.historyKeymap, ...CM.foldKeymap, ...CM.completionKeymap, ...CM.lintKeymap, CM.indentWithTab]),
       CM.indentUnit.of(" ".repeat(web.settings.tabSize || 2)),
       CM.EditorState.tabSize.of(web.settings.tabSize || 2),
@@ -214,6 +217,30 @@ export class CodeEditors extends Emitter {
     const from = line.from + found.from;
     view.dispatch({ changes: { from, to: pos, insert: text }, selection: { anchor: from + out.cursor + k * base.length }, userEvent: "input.emmet", scrollIntoView: true });
     return true;
+  }
+
+  /** Editor extensions other modules add for a file (`app.editorContributions`: functions (path, editors) => Extension[]). */
+  #contributions(path) {
+    const out = [];
+    for (const fn of this.app.editorContributions || []) {
+      try {
+        out.push(...(fn(path, this) || []));
+      } catch (err) {
+        console.error("[editor] contribution failed", err);
+      }
+    }
+    return out;
+  }
+
+  /** Re-reads `app.editorContributions` for every open file state (keeps undo history). */
+  refreshContributions() {
+    for (const [p, st] of this.states) {
+      const effects = this.contrib.reconfigure(this.#contributions(p));
+      if (p === this.active && this.view) {
+        this.view.dispatch({ effects });
+        this.states.set(p, this.view.state); // effect-only transactions are not stored by the update listener
+      } else this.states.set(p, st.update({ effects }).state);
+    }
   }
 
   // ------------------------------------------------------------ completions
@@ -625,6 +652,12 @@ export class CodeEditors extends Emitter {
   /** Formats the active file: CSS and JSON are rewritten, other languages are re-indented. */
   format(path = this.active) {
     if (!path || !this.view) return false;
+    // formatters contributed at run time (VS Code extensions) win over the built-in ones
+    const fmt = (this.app.codeFormatters || []).find((f) => f.match(path));
+    if (fmt) {
+      Promise.resolve(fmt.format(path)).then((ok) => ok || this.app.toast(`${fmt.name} could not format ${path}.`, "warning"), (err) => this.app.toast(`Cannot format ${path}: ${err.message}`, "warning"));
+      return true;
+    }
     const text = this.web.text(path);
     const lang = languageOf(path);
     try {
@@ -694,6 +727,7 @@ export class CodeEditors extends Emitter {
 
   destroy() {
     this.offPrefs?.();
+    this.offContrib?.();
     this.#hideMedia();
     this.view?.destroy();
     this.view = null;
