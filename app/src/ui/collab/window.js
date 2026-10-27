@@ -16,7 +16,14 @@ import { filterThreads, threadTitle, threadCounts } from "../../collab/comments.
 import { avatarEl, colorFor } from "./runtime.js";
 import { confirmDialog, openDialog } from "../dialogs.js";
 
+import { layoutMode, clampRect, snapRect, maximizedRect, readLayoutState } from "./layout-mode.js";
+
 const POS_KEY = "openfini.collab.window";
+// items below the tabs in the side rail (hidden in the narrow layout): they open the share flow and the settings
+const NAV_ACTIONS = [
+  { id: "share", label: "Share", icon: "share", command: "collab.shareDocument" },
+  { id: "settings", label: "Settings", icon: "gear", command: "collab.profile" },
+];
 const TABS = [
   { id: "chat", label: "Chat", icon: "chat" },
   { id: "people", label: "People", icon: "people" },
@@ -32,7 +39,12 @@ export function showCollabWindow(app, c, tab) {
   return win;
 }
 
-const fmtTime = (ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+/** Hides the floating window (while the UI lives in a pop-out window). */
+export function hideCollabWindow() {
+  win?.hide();
+}
+
+const fmtTime =(ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 const fmtDate = (ts) => new Date(ts).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
 const icon = (name) => h("sl-icon", { name, "aria-hidden": "true" });
 const btn = (label, onClick, { cls = "", ic, title, variant } = {}) => {
@@ -56,88 +68,188 @@ function createWindow(app, c) {
   let pendingAnchor = null;
   let showQr = false; // People ▸ join link QR code shown
 
-  const title = h("h2.of-collab-win__title", t("Collaboration"));
-  const pill = h("span.of-collab-pill", { role: "status" });
-  const close = btn("", () => hide(), { ic: "x-lg", title: t("Close") });
-  const head = h("div.of-collab-win__head", icon("people"), title, pill, close);
-  const tablist = h("div.of-collab-tabs", { role: "tablist", "aria-label": t("Collaboration sections") });
-  const body = h("div.of-collab-win__body");
-  const live = h("div.of-sr-only", { "aria-live": "polite", role: "log" }); // announces new messages
-  const el = h("section.of-collab-win", { role: "dialog", "aria-modal": "false", "aria-labelledby": "of-collab-title", tabIndex: -1 }, head, tablist, body, live);
-  title.id = "of-collab-title";
-  document.body.append(el);
-
-  // ---- position (per-viewer convenience) and dragging
+  // ---- layout state (per browser profile): position, size, maximized, compact density
+  let layout = readLayoutState(null);
   try {
-    const p = JSON.parse(localStorage.getItem(POS_KEY) || "null");
-    if (p && Number.isFinite(p.x)) Object.assign(el.style, { left: `${Math.max(0, Math.min(innerWidth - 200, p.x))}px`, top: `${Math.max(0, Math.min(innerHeight - 120, p.y))}px`, ...(p.w ? { width: `${p.w}px`, height: `${p.h}px` } : {}) });
+    layout = readLayoutState(JSON.parse(localStorage.getItem(POS_KEY) || "null"));
   } catch {
     /* default position from CSS */
   }
+  let mode = "narrow";
+  let restoreRect = null;
+
+  const title = h("h2.of-collab-win__title", t("Collaboration"));
+  const pill = h("span.of-collab-pill", { role: "status" });
+  const close = btn("", () => hide(), { ic: "x-lg", title: t("Close") });
+  const compactBtn = btn("", () => setCompact(!layout.compact), { ic: "layout-sidebar-inset", title: t("Compact density") });
+  const popBtn = btn("", () => app.run("collab.popOut"), { ic: "box-arrow-up-right", title: t("Pop out into its own window") });
+  const maxBtn = btn("", () => toggleMax(), { ic: "arrows-fullscreen", title: t("Maximize") });
+  const head = h("div.of-collab-win__head", { tabIndex: 0, "aria-label": t("Collaboration window. Arrow keys move it, Shift makes the steps larger.") }, icon("people"), title, pill, compactBtn, popBtn, maxBtn, close);
+  const tablist = h("div.of-collab-tabs", { role: "tablist", "aria-label": t("Collaboration sections"), "aria-orientation": "horizontal" });
+  const actions = h("div.of-collab-nav__actions");
+  const nav = h("nav.of-collab-nav", { "aria-label": t("Collaboration") }, tablist, actions);
+  const aside = h("aside.of-collab-aside", { hidden: true, "aria-label": t("Conversations") });
+  const body = h("div.of-collab-win__body");
+  const main = h("div.of-collab-win__main", nav, aside, body);
+  const live = h("div.of-sr-only", { "aria-live": "polite", role: "log" }); // announces new messages
+  const el = h("section.of-collab-win", { role: "dialog", "aria-modal": "false", "aria-labelledby": "of-collab-title", tabIndex: -1, "data-mode": mode }, head, main, live);
+  title.id = "of-collab-title";
+  document.body.append(el);
+
+  const vp = () => ({ vw: innerWidth, vh: innerHeight });
+  const rectOf = () => {
+    const r = el.getBoundingClientRect();
+    return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
+  };
+  const applyRect = (r) => {
+    Object.assign(el.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px`, right: "auto", bottom: "auto" });
+  };
   const savePos = () => {
     try {
-      const r = el.getBoundingClientRect();
-      localStorage.setItem(POS_KEY, JSON.stringify({ x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }));
+      const r = layout.maximized && restoreRect ? restoreRect : rectOf();
+      layout = { ...layout, ...r };
+      localStorage.setItem(POS_KEY, JSON.stringify(layout));
     } catch {
       /* storage blocked */
     }
   };
+  function setCompact(on) {
+    layout.compact = !!on;
+    el.classList.toggle("is-compact", layout.compact);
+    compactBtn.setAttribute("aria-pressed", String(layout.compact));
+    savePos();
+  }
+  function toggleMax() {
+    if (!layout.maximized) {
+      restoreRect = rectOf();
+      layout.maximized = true;
+      applyRect(maximizedRect(vp()));
+    } else {
+      layout.maximized = false;
+      if (restoreRect) applyRect(clampRect(restoreRect, vp()));
+      restoreRect = null;
+    }
+    el.classList.toggle("is-maximized", layout.maximized);
+    maxBtn.setAttribute("aria-pressed", String(layout.maximized));
+    maxBtn.setAttribute("aria-label", layout.maximized ? t("Restore") : t("Maximize"));
+    maxBtn.title = maxBtn.getAttribute("aria-label");
+    savePos();
+  }
+  if (layout.x !== undefined) applyRect(clampRect({ x: layout.x, y: layout.y, w: layout.w, h: layout.h }, vp()));
+  else Object.assign(el.style, { width: `${layout.w}px`, height: `${layout.h}px` });
+  el.classList.toggle("is-compact", layout.compact);
+  compactBtn.setAttribute("aria-pressed", String(layout.compact));
+  window.addEventListener("resize", () => {
+    if (el.hidden) return;
+    if (layout.maximized) applyRect(maximizedRect(vp()));
+    else if (el.style.left) applyRect(clampRect(rectOf(), vp()));
+  });
+
+  // dragging by the header (pointer) or with the arrow keys; snaps to the edges of the app window
   head.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0 || e.target.closest("button")) return;
+    if (e.button !== 0 || e.target.closest("button") || layout.maximized) return;
     const r = el.getBoundingClientRect();
     const dx = e.clientX - r.left;
     const dy = e.clientY - r.top;
     head.setPointerCapture(e.pointerId);
     const move = (ev) => {
-      el.style.left = `${Math.max(0, Math.min(innerWidth - 120, ev.clientX - dx))}px`;
-      el.style.top = `${Math.max(0, Math.min(innerHeight - 40, ev.clientY - dy))}px`;
-      el.style.right = "auto";
-      el.style.bottom = "auto";
+      applyRect({ ...rectOf(), x: Math.max(0, Math.min(innerWidth - 120, ev.clientX - dx)), y: Math.max(0, Math.min(innerHeight - 40, ev.clientY - dy)) });
     };
     const up = () => {
       head.removeEventListener("pointermove", move);
       head.removeEventListener("pointerup", up);
+      const snapped = snapRect(rectOf(), vp());
+      if (snapped.edge) applyRect(snapped.rect);
       savePos();
     };
     head.addEventListener("pointermove", move);
     head.addEventListener("pointerup", up);
   });
-  new ResizeObserver(() => el.isConnected && !el.hidden && savePos()).observe(el);
+  head.addEventListener("dblclick", (e) => !e.target.closest("button") && toggleMax());
+  head.addEventListener("keydown", (e) => {
+    const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (!d || e.target !== head || layout.maximized) return;
+    e.preventDefault();
+    const step = e.shiftKey ? 64 : 16;
+    const r = rectOf();
+    applyRect(clampRect({ ...r, x: r.x + d[0] * step, y: r.y + d[1] * step }, vp()));
+    savePos();
+  });
+  let saveTimer = 0;
+  new ResizeObserver(() => {
+    if (!el.isConnected || el.hidden) return;
+    applyMode();
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(savePos, 200);
+  }).observe(el);
   el.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !e.target.closest("textarea, input")) hide();
     e.stopPropagation(); // typing here must not trigger canvas shortcuts
   });
 
-  // ---- tabs
+  /** narrow: top tabs; rail: left side rail; wide: rail plus a conversation list column (decisions in layout-mode.js). */
+  function applyMode() {
+    const m = layoutMode(el.clientWidth);
+    if (m === mode && el.dataset.mode === m) return;
+    mode = m;
+    el.dataset.mode = m;
+    tablist.setAttribute("aria-orientation", m === "narrow" ? "horizontal" : "vertical");
+    renderAside();
+  }
+
+  // ---- navigation: tabs plus action items, one roving tabindex (arrow keys, Home/End)
   const tabButtons = new Map();
+  const navItems = [];
+  let roving = "chat";
+  const setRoving = (id) => {
+    roving = id;
+    for (const [k, b] of [...tabButtons, ...actionButtons]) b.tabIndex = k === id ? 0 : -1;
+  };
+  const actionButtons = new Map();
   for (const tb of TABS) {
-    const b = h("button.of-collab-tab", { type: "button", role: "tab", id: `of-collab-tab-${tb.id}`, "aria-controls": "of-collab-panel" }, icon(tb.icon), h("span", t(tb.label)), h("span.of-collab-tab__badge"));
+    const b = h("button.of-collab-tab", { type: "button", role: "tab", id: `of-collab-tab-${tb.id}`, "aria-controls": "of-collab-panel" }, icon(tb.icon), h("span.of-collab-tab__label", t(tb.label)), h("span.of-collab-tab__badge"));
+    b.title = t(tb.label);
     b.addEventListener("click", () => select(tb.id));
-    b.addEventListener("keydown", (e) => {
-      if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-      const i = TABS.findIndex((x) => x.id === tab);
-      const next = TABS[(i + (e.key === "ArrowRight" ? 1 : TABS.length - 1)) % TABS.length].id;
-      select(next);
-      tabButtons.get(next).focus();
-    });
     tabButtons.set(tb.id, b);
+    navItems.push(tb.id);
     tablist.append(b);
   }
+  for (const a of NAV_ACTIONS) {
+    const b = h("button.of-collab-tab.of-collab-tab--action", { type: "button" }, icon(a.icon), h("span.of-collab-tab__label", t(a.label)));
+    b.title = t(a.label);
+    b.addEventListener("click", () => app.run(a.command));
+    actionButtons.set(a.id, b);
+    navItems.push(a.id);
+    actions.append(b);
+  }
+  nav.addEventListener("keydown", (e) => {
+    const vertical = mode !== "narrow";
+    const prev = vertical ? "ArrowUp" : "ArrowLeft";
+    const next = vertical ? "ArrowDown" : "ArrowRight";
+    if (![prev, next, "Home", "End"].includes(e.key)) return;
+    const all = [...tabButtons, ...actionButtons].filter(([, b]) => b.offsetParent !== null);
+    const i = Math.max(0, all.findIndex(([, b]) => b === document.activeElement));
+    const j = e.key === "Home" ? 0 : e.key === "End" ? all.length - 1 : (i + (e.key === next ? 1 : all.length - 1)) % all.length;
+    e.preventDefault();
+    const [id, b] = all[j];
+    setRoving(id);
+    b.focus();
+    if (tabButtons.has(id)) select(id);
+  });
   body.id = "of-collab-panel";
   body.setAttribute("role", "tabpanel");
 
   function select(id) {
     tab = TABS.some((x) => x.id === id) ? id : tab;
-    for (const [k, b] of tabButtons) {
-      b.setAttribute("aria-selected", String(k === tab));
-      b.tabIndex = k === tab ? 0 : -1;
-    }
+    for (const [k, b] of tabButtons) b.setAttribute("aria-selected", String(k === tab));
+    setRoving(tab);
     body.setAttribute("aria-labelledby", `of-collab-tab-${tab}`);
     render();
   }
 
   function show(id) {
     el.hidden = false;
+    applyMode();
     if (id) select(id);
     else render();
     if (tab === "chat") c.markRead();
@@ -190,7 +302,28 @@ function createWindow(app, c) {
   // ================================================================ render
   let chatParts = null;
 
+  /** Wide layout only: the list column next to the content (members next to Chat, threads next to Comments). */
+  function renderAside() {
+    const wanted = mode === "wide" && !el.hidden && (tab === "chat" || tab === "comments");
+    aside.hidden = !wanted;
+    if (!wanted) return aside.replaceChildren();
+    if (tab === "chat") {
+      const s = c.session;
+      const people = s ? [{ id: c.myId, profile: c.profile(), online: true, me: true }, ...s.members] : [];
+      aside.replaceChildren(h("h3.of-collab-aside__title", t("Members")), ...(people.length ? people.map((m) => h("div.of-collab-aside__row", avatarEl(m.profile || { nick: "?", color: "#888888" }, 22), h("span", `${m.profile?.nick || "?"}${m.me ? ` ${t("(you)")}` : ""}`))) : [h("p.of-collab-hint", t("Not in a room"))]));
+      return;
+    }
+    const d = app.doc;
+    const list = d ? filterThreads(c.threads(d), { status: commentFilter.status, mine: commentFilter.mine ? c.myId : null }) : [];
+    aside.replaceChildren(h("h3.of-collab-aside__title", t("Threads")), ...(list.length ? list.map((th) => {
+      const b = h("button.of-collab-aside__row", { type: "button", "data-aside-thread": th.id }, h("span.of-collab-aside__dot", { style: `background:${th.color || "#888888"}` }), h("span", threadTitle(th) || "…"));
+      b.addEventListener("click", () => ((focusThread = th.id), renderComments()));
+      return b;
+    }) : [h("p.of-collab-hint", t("Nothing here."))]));
+  }
+
   function render() {
+    renderAside();
     renderHead();
     if (tab === "chat") return c.session ? renderChat() : renderStart();
     chatParts = null;
@@ -731,7 +864,9 @@ function createWindow(app, c) {
         return p ? t("Page “{name}”", { name: p.name || "" }) : t("Deleted page");
       }
       case "line":
-        return t("{file}, line {line}", { file: (a.path || "").split("/").pop(), line: a.line });
+        return a.endLine ? t("{file}, lines {from}–{to}", { file: (a.path || "").split("/").pop(), from: a.line, to: a.endLine }) : t("{file}, line {line}", { file: (a.path || "").split("/").pop(), line: a.line });
+      case "element":
+        return t("Website element {name}", { name: a.quote || a.elem });
       case "text":
         return a.quote ? t("Text “{quote}”", { quote: a.quote.slice(0, 40) }) : t("Text");
       default:
@@ -743,6 +878,10 @@ function createWindow(app, c) {
     if (a.kind === "node") return c.jump({ kind: "node", doc: doc.id, id: a.node, page: a.page });
     if (a.kind === "page" || a.kind === "region") return c.jump({ kind: "page", doc: doc.id, id: a.page, page: a.page });
     if (a.kind === "line") return c.jump({ kind: "line", doc: doc.id, id: a.path, line: a.line });
+    if (a.kind === "element") {
+      app.setStudio("code");
+      return void setTimeout(() => app.codeUI?.selectElement?.(a.elem, { reveal: true }), 150);
+    }
     if (a.kind === "text" && app.officeUI?.editor && app.officeUI.doc === doc) {
       try {
         app.setStudio("office");

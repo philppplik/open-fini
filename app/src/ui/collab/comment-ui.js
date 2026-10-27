@@ -95,10 +95,6 @@ export function installCommentUI(app, c) {
       const el = d.element;
       return { anchor: elementAnchor({ elem: String(el.id), quote: `<${el.tag || "element"}>`, page: undefined }), at };
     }
-    if (!opts.kind && app.studio === "code" && app.codeUI?.ws?.current) {
-      const cur = app.codeUI.ws.current();
-      if (cur?.el && app.codeUI.ws.preview) return { anchor: elementAnchor({ elem: String(cur.el.id), quote: `<${cur.el.tag || "element"}>` }), at };
-    }
     // Office and everything else: the selection (runtime.currentAnchor knows Office paragraphs and layers)
     let pt = at;
     if (!pt && app.studio === "office") {

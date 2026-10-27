@@ -48,7 +48,15 @@ export function getCollab(app) {
 export async function openCollab(app, tab) {
   const c = getCollab(app);
   await c.ready;
+  if (c.poppedOut && (await import("./remote-host.js")).noteIfPoppedOut(app, c)) return; // the UI lives in its own window
   (await import("./window.js")).showCollabWindow(app, c, tab);
+}
+
+/** Moves the Collaboration UI into its own OS window (UI-only remote view; this window keeps the connection). */
+export async function popOutCollab(app) {
+  const c = getCollab(app);
+  await c.ready;
+  return (await import("./remote-host.js")).popOut(app, c);
 }
 
 export async function addComment(app, opts = {}) {

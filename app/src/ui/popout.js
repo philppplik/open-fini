@@ -47,14 +47,14 @@ function waitFor(type, id, ms) {
 // ------------------------------------------------------------------------------------------ opening windows
 
 /** Opens the window; resolves true when it was created. Must run inside the user gesture for the web fallback. */
-async function openWindow({ studio, doc, pid }) {
+async function openWindow({ studio, doc, pid, size = { w: 1280, h: 840, minW: 720, minH: 480 } }) {
   const url = buildPopoutUrl(platform.isDesktop ? "index.html" : location.pathname, { studio, doc, pid });
   if (platform.isDesktop) {
     const W = window.__TAURI__?.webviewWindow?.WebviewWindow;
     if (!W) throw new Error("The Tauri window API is not available (app.withGlobalTauri).");
     const label = nextWindowLabel(registry.labels());
     const mac = windowControls.mode === "overlay";
-    const win = new W(label, { url, title: "OpenFini", width: 1280, height: 840, minWidth: 720, minHeight: 480, decorations: mac, ...(mac ? { titleBarStyle: "overlay", hiddenTitle: true } : {}) });
+    const win = new W(label, { url, title: "OpenFini", width: size.w, height: size.h, minWidth: size.minW, minHeight: size.minH, decorations: mac, ...(mac ? { titleBarStyle: "overlay", hiddenTitle: true } : {}) });
     await new Promise((resolve, reject) => {
       win.once("tauri://created", resolve);
       win.once("tauri://error", (e) => reject(new Error(typeof e.payload === "string" ? e.payload : "The window could not be created.")));
@@ -64,11 +64,22 @@ async function openWindow({ studio, doc, pid }) {
     return true;
   }
   // Browsers cannot create frameless windows: a popup window with the browser's own chrome is the closest thing.
-  const w = window.open(url, `openfini-${pid}`, "popup=yes,width=1280,height=840");
+  const w = window.open(url, `openfini-${pid}`, `popup=yes,width=${size.w},height=${size.h}`);
   if (!w) return false;
   registry.add({ id: pid, label: null, studio });
   const t = setInterval(() => w.closed && (clearInterval(t), registry.remove(pid)), 2000);
   return true;
+}
+
+/** Opens the UI-only Collaboration pop-out (?popout=collab). Resolves with its window id, or null (blocked). Run it inside a user gesture. */
+export async function popoutCollab(app) {
+  const pid = newId();
+  try {
+    return (await openWindow({ studio: "collab", pid, size: { w: 560, h: 720, minW: 340, minH: 320 } })) ? pid : null;
+  } catch (err) {
+    app.toast(err.message, "danger", 6000);
+    return null;
+  }
 }
 
 /** Hands one document to a new window. mode "move" closes it here once the new window has it. */
