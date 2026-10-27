@@ -137,6 +137,19 @@ the design decision is [ADR 0010](adr/0010-collaboration-e2e-relay.md). In short
 * **Desktop CSP**: `connect-src` allows `ws:` and `wss:` so you can reach the relay you enter (a CSP cannot be changed at
   runtime; `https:` was already allowed). Offline mode blocks every relay that is not on this computer.
 * *Settings ▸ Security and privacy ▸ Collaboration* shows the current room and has a one-click *Leave room*.
+* **Edit together (beta)** ([ADR 0011](adr/0011-live-editing-sync.md)): live edits are ordinary encrypted, signed room
+  messages. Receivers drop ops from viewers and commenters (role check before use), validate every op against a strict
+  schema (ids, field names without `_`/prototype keys, JSON-only values, size and depth caps, clock range) and rate-limit
+  senders. A shared document opens only after a click and a confirmation; it is marked untrusted like any received file
+  (website scripts stay off). An editor can still change or delete content within the rules; automatic pre-merge versions
+  and *Versions* keep earlier states on your device.
+* **Relay on a network** (`--lan`): binds every interface only when asked and prints a warning; rooms still need their
+  access token; it serves the app as static files (path traversal and symlinks out of the app folder are refused), allows
+  pages it served itself only for IP-literal or `localhost` hosts (no DNS rebinding), answers `GET /info` (version and LAN
+  addresses) with CORS only for allowed origins. Its self-signed certificate (`~/.openfini-relay/`, private key mode 0600)
+  is accepted per device after comparing the printed SHA-256 fingerprint. Join links carry the invite code in the URL
+  fragment (never sent to servers) and the app removes it from the address bar; a join link or its QR code is as
+  sensitive as the invite code.
 
 ## Third-party code and known advisories
 

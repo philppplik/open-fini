@@ -14,7 +14,8 @@
 //
 // Events (Emitter): "status" {state, host, peers, members, epoch, encrypted:true} · "members" · "chat" · "notify"
 //   {kind:"mention"|"reply", message} · "presence" {member} · "comment" {doc, op, sender} · "file-progress" {transfer}
-//   · "file" {transfer, bytes} · "op" {sender, msg} · "removed" · "rotated" {invite} · "rejected" {reason, code}
+//   · "file" {transfer, bytes} · "op" {sender, msg} · "share" / "live" {sender, msg, isHost} (live documents)
+//   · "removed" · "rotated" {invite} · "rejected" {reason, code}
 //   · "error" {error}
 //
 // Security invariants (tests/collab/session.test.js):
@@ -76,6 +77,7 @@ export class CollabSession extends Emitter {
   #outQ;
   #rotateTimer = null;
   #pendingRemoved = new Set();
+  #skipped = new Set(); // `${sender}|${fid}` of transfers addressed to another member
 
   get id() {
     return this.me.id;
@@ -95,6 +97,19 @@ export class CollabSession extends Emitter {
   }
   get relayHost() {
     return relayHost(this.invite.relay);
+  }
+  /**
+   * The relay address OTHER members should use (e.g. the LAN address of a relay this device reaches as localhost).
+   * Changes only the invite code; this session stays connected where it is. The keys do not depend on the address.
+   */
+  setInviteRelay(relay) {
+    if (relay === "local" || this.invite.relay === "local") throw new Error("Rooms on this device cannot be moved to a relay.");
+    formatInvite({ ...this.invite, relay }); // validates
+    this.inviteRelay = relay;
+  }
+  /** The invite code with the address other members should use. */
+  get shareInviteCode() {
+    return formatInvite({ ...this.invite, relay: this.inviteRelay || this.invite.relay });
   }
   get fingerprint() {
     return this.keys?.fingerprint || [];
@@ -259,13 +274,13 @@ export class CollabSession extends Emitter {
    * Sends a file in encrypted chunks. Returns the file id; progress is reported with "file-progress" events
    * ({ transfer: { fid, name, size, sent, outgoing:true } }).
    */
-  async sendFile(bytes, { name, purpose = "file", doc, note, onProgress } = {}) {
+  async sendFile(bytes, { name, purpose = "file", doc, note, to, onProgress } = {}) {
     const chk = checkFile(name, bytes.length);
     if (!chk.ok) throw new Error(chk.error);
     const fid = newMsgId();
     const chunks = chunkCount(bytes.length);
     const sha = await sha256B64u(bytes);
-    await this.send("file-offer", { fid, name: chk.name, mime: chk.mime, size: bytes.length, chunks, sha, purpose, ...(doc ? { doc } : {}), ...(note ? { note: cleanText(note, 200) } : {}) });
+    await this.send("file-offer", { fid, name: chk.name, mime: chk.mime, size: bytes.length, chunks, sha, purpose, ...(doc ? { doc } : {}), ...(note ? { note: cleanText(note, 200) } : {}), ...(to ? { to } : {}) });
     const t = { fid, name: chk.name, size: bytes.length, sent: 0, outgoing: true, purpose };
     for (let i = 0; i < chunks; i++) {
       await this.send("file-chunk", { fid, i, data: sliceChunk(bytes, i) });
@@ -438,13 +453,24 @@ export class CollabSession extends Emitter {
       case "op":
         this.emit("op", { sender, msg });
         break;
+      case "share":
+      case "live":
+        this.emit(msg.t, { sender, msg, isHost: sender === this.room.host });
+        break;
       case "file-offer": {
+        // a transfer addressed to somebody else (live-document snapshots): ignore it and its chunks quietly
+        if (msg.to && msg.to !== this.me.id) {
+          this.#skipped.add(`${sender}|${msg.fid}`);
+          if (this.#skipped.size > 256) this.#skipped.delete(this.#skipped.values().next().value);
+          break;
+        }
         const res = this.files.offer(sender, msg);
         if (!res.ok) return this.#reject("file", res.error);
         this.emit("file-progress", { transfer: res.transfer });
         break;
       }
       case "file-chunk": {
+        if (this.#skipped.has(`${sender}|${msg.fid}`)) break;
         const res = await this.files.chunk(sender, msg);
         if (!res.ok) {
           if (res.transfer) this.emit("file-progress", { transfer: { ...res.transfer, failed: res.error } });

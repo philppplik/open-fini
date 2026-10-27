@@ -153,8 +153,8 @@ tested against recorded protocol fixtures and fake servers.
   through the same importers as File ▸ Open (images in Pixel, SVG in Vector, PDF and Illustrator in Layout with the
   default import options, PSD, IDML, Sketch, text and code files in Code). Opening asks for approval only in Careful
   mode. Attachments are kept in memory for the session; after a restart attach the file again.
-- **Collaboration**: `get_collab_status`, `read_chat`, `list_comments`, `list_versions` (read-only), `resolve_comment`,
-  `save_version`, and, with approval because they reach other people, `post_chat_message`, `add_comment` and
+- **Collaboration**: `get_collab_status`, `read_chat`, `list_comments`, `list_versions`, `get_sharing_status`, `list_shared_documents` (read-only), `resolve_comment`,
+  `save_version`, and, with approval because they reach other people, `post_chat_message`, `add_comment`, `share_document` and
   `reply_comment` ("summarize the open comments", "reply to Mia's thread"). Never exposes invite codes or keys. See
   [collaboration.md](collaboration.md).
 

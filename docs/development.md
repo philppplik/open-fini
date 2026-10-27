@@ -47,7 +47,7 @@ Rules that explain most of the code:
 | Context menus | `app/src/ui/context-menu/` | [context-menus.md](context-menus.md) |
 | i18n | `app/src/i18n/` | [i18n.md](i18n.md), [i18n-glossary.md](i18n-glossary.md) |
 | Windows (pop-out), title bar, OS integration | `app/src/platform/`, `app/src/ui/popout.js`, `src-tauri/` | [multi-window.md](multi-window.md), [os-integration.md](os-integration.md) |
-| Collaboration (rooms, chat, comments, versions, presence, relay) | pure `app/src/collab/`, UI `app/src/ui/collab/`, `scripts/relay.mjs` | [collaboration.md](collaboration.md), [ADR 0010](adr/0010-collaboration-e2e-relay.md) |
+| Collaboration (rooms, chat, comments, versions, presence, relay, Edit together, LAN rooms) | pure `app/src/collab/` (incl. `tree-crdt.js`, `text-crdt.js`, `qr.js`), UI `app/src/ui/collab/` (`live.js`, `network.js`), `scripts/relay.mjs`, `scripts/relay-tls.mjs` | [collaboration.md](collaboration.md), [ADR 0010](adr/0010-collaboration-e2e-relay.md), [ADR 0011](adr/0011-live-editing-sync.md) |
 | Security, logging, diagnostics | `app/src/core/{log,network,security,atrest}.js`, `app/src/ui/security-center.js` | [security.md](security.md), [troubleshooting.md](troubleshooting.md) |
 | Build, size budgets, installer, release | `scripts/`, `src-tauri/installer`, `.github/workflows/` | [building.md](building.md), [installer.md](installer.md), [release-process.md](release-process.md) |
 | The wiki (user and developer manual, published to the GitHub wiki) | `wiki/`, `scripts/wiki-sync.mjs`, `scripts/wiki-shortcuts.mjs`, `.github/workflows/wiki.yml`, `tests/docs/` | [wiki-maintenance.md](wiki-maintenance.md), `wiki/Wiki-Style-Guide.md` |
