@@ -110,6 +110,8 @@ export function registerFileCommands(app) {
   def("file.openRecent", "Open Recent", async (a, rec) => {
     if (!rec) return;
     try {
+      // A recent folder is read again by path (it falls back to the folder dialog when access was not kept).
+      if (rec.isDir && rec.path) return (await import("../ui/open-folder.js")).openFolderPath(a, rec.path);
       // Desktop recents keep only the path (the OS file dialog is the way to read it again).
       if (rec.path) return a.run("file.open");
       const bytes = await getRecentBytes(rec.id);
@@ -323,7 +325,7 @@ export function registerFileCommands(app) {
   });
   app.on("recents", (r) => (recents = r));
   app.menuProviders = app.menuProviders || {};
-  app.menuProviders.recent = () => (recents.length ? [...recents.slice(0, 8).map((r) => ({ label: r.name, run: () => app.run("file.openRecent", r) })), "-", { label: t("Clear Recent"), run: () => app.run("file.clearRecent") }] : [{ label: t("No recent files"), disabled: true, run() {} }]);
+  app.menuProviders.recent = () => (recents.length ? [...recents.slice(0, 8).map((r) => ({ label: r.name, icon: r.isDir ? "folder2-open" : undefined, run: () => app.run("file.openRecent", r) })), "-", { label: t("Clear Recent"), run: () => app.run("file.clearRecent") }] : [{ label: t("No recent files"), disabled: true, run() {} }]);
 
   // ---- autosave + restore
   let saveTimer = 0;

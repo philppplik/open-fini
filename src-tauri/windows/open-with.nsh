@@ -84,10 +84,29 @@
   WriteRegStr SHCTX "Software\RegisteredApplications" "OpenFini" "Software\OpenFini\Capabilities"
   ${EndIf}
 
+  ; $FolderChoice (same page, default: on): "Open folder with OpenFini" on folders and on the empty background of an
+  ; open folder. Registered under SHCTX like everything else (HKCU for per-user installs, no administrator rights;
+  ; HKLM for per-machine installs). Folders are passed as the first argument; src-tauri/src/cli.rs accepts them.
+  ; Windows 11 shows classic verbs under "Show more options" (Shift+F10), see docs/os-integration.md.
+  ${If} $FolderChoice = 1
+  WriteRegStr SHCTX "Software\Classes\Directory\shell\OpenFini" "" "$(folderVerb)"
+  WriteRegStr SHCTX "Software\Classes\Directory\shell\OpenFini" "Icon" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\",0"
+  WriteRegStr SHCTX "Software\Classes\Directory\shell\OpenFini\command" "" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\" $\"%1$\""
+  WriteRegStr SHCTX "Software\Classes\Directory\Background\shell\OpenFini" "" "$(folderVerb)"
+  WriteRegStr SHCTX "Software\Classes\Directory\Background\shell\OpenFini" "Icon" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\",0"
+  WriteRegStr SHCTX "Software\Classes\Directory\Background\shell\OpenFini\command" "" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\" $\"%V$\""
+  ${Else}
+  ; Choice turned off on a reinstall or update: remove what an earlier run added.
+  DeleteRegKey SHCTX "Software\Classes\Directory\shell\OpenFini"
+  DeleteRegKey SHCTX "Software\Classes\Directory\Background\shell\OpenFini"
+  ${EndIf}
+
   !insertmacro UPDATEFILEASSOC
 !macroend
 
 !macro NSIS_HOOK_PREUNINSTALL
+  DeleteRegKey SHCTX "Software\Classes\Directory\shell\OpenFini"
+  DeleteRegKey SHCTX "Software\Classes\Directory\Background\shell\OpenFini"
   !insertmacro OPENFINI_OPENWITH_REMOVE "vsix"
   !insertmacro OPENFINI_OPENWITH_REMOVE "psd"
   !insertmacro OPENFINI_OPENWITH_REMOVE "psb"

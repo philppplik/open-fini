@@ -19,8 +19,8 @@ Usage:
   openfini [OPTIONS] [FILE...]
 
 Arguments:
-  FILE...      Documents, images or other supported files to open. Paths and file:// URLs work.
-               If OpenFini is already running, the files open in a new tab of that window.
+  FILE...      Documents, images, other supported files or whole project folders to open.
+               Paths and file:// URLs work. If OpenFini is already running, they open in that window.
 
 Options:
   -h, --help       Print this help and exit
@@ -78,10 +78,11 @@ pub fn print(text: &str) {
     print!("{text}");
 }
 
-/// Turns command-line arguments (without the executable name) into file paths.
+/// Turns command-line arguments (without the executable name) into file and folder paths.
 ///
 /// Options (arguments starting with `-`, until a bare `--`) are skipped, and so is anything that is
-/// not an existing regular file. Duplicates are dropped; the order is kept.
+/// neither an existing regular file nor an existing folder (the Explorer "Open folder with OpenFini" verb,
+/// `open -a OpenFini <folder>` and "Open With" on a folder pass folders). Duplicates are dropped; the order is kept.
 pub fn paths_from_args<I>(args: I, cwd: Option<&Path>) -> Vec<PathBuf>
 where
     I: IntoIterator<Item = String>,
@@ -107,7 +108,7 @@ where
     paths
 }
 
-/// One argument to an absolute path of an existing regular file.
+/// One argument to an absolute path of an existing regular file or folder.
 pub fn resolve_arg(arg: &str, cwd: Option<&Path>) -> Option<PathBuf> {
     if arg.is_empty() {
         return None;
@@ -115,6 +116,9 @@ pub fn resolve_arg(arg: &str, cwd: Option<&Path>) -> Option<PathBuf> {
     let path = if arg.starts_with("file://") {
         // Handles percent-encoding (spaces, unicode) and Windows/UNC forms.
         tauri::Url::parse(arg).ok()?.to_file_path().ok()?
+    } else if is_mangled_drive_root(arg) {
+        // `"%V"` on a drive root arrives as `C:"` because Windows reads the `\"` of `"C:\"` as an escaped quote.
+        PathBuf::from(format!("{}\\", &arg[..2]))
     } else {
         PathBuf::from(arg)
     };
@@ -123,7 +127,24 @@ pub fn resolve_arg(arg: &str, cwd: Option<&Path>) -> Option<PathBuf> {
         _ => path,
     };
     let path = std::path::absolute(path).ok()?;
-    path.is_file().then_some(path)
+    (path.is_file() || path.is_dir()).then_some(path)
+}
+
+/// `C:"`: a drive root whose trailing backslash swallowed the closing quote of the command line.
+fn is_mangled_drive_root(arg: &str) -> bool {
+    let bytes = arg.as_bytes();
+    bytes.len() == 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'"'
+}
+
+/// The path as the frontend receives it: a folder gets a trailing path separator, a file stays as is. Files never
+/// end with a separator, so the marker is unambiguous (the JS side strips it, see app/src/platform/open-paths.js).
+pub fn mark_if_dir(path: &Path) -> String {
+    let text = path.to_string_lossy().into_owned();
+    if path.is_dir() && !text.ends_with(std::path::MAIN_SEPARATOR) && !text.ends_with('/') {
+        format!("{text}{}", std::path::MAIN_SEPARATOR)
+    } else {
+        text
+    }
 }
 
 #[cfg(test)]
@@ -200,12 +221,44 @@ mod tests {
     }
 
     #[test]
-    fn ignores_missing_files_and_folders() {
+    fn ignores_missing_paths() {
         let dir = TempDir::new("ignore");
         assert_eq!(resolve_arg("does-not-exist.png", Some(&dir.0)), None);
-        assert_eq!(resolve_arg(dir.0.to_str().unwrap(), None), None);
+        assert_eq!(resolve_arg("no-such-folder", Some(&dir.0)), None);
         assert_eq!(resolve_arg("", None), None);
         assert_eq!(resolve_arg("file://", None), None);
+    }
+
+    #[test]
+    fn keeps_folders_as_launch_arguments() {
+        let dir = TempDir::new("folders");
+        let sub = dir.0.join("my project");
+        fs::create_dir_all(&sub).unwrap();
+        assert_eq!(resolve_arg(sub.to_str().unwrap(), None), Some(sub.clone()));
+        assert_eq!(resolve_arg("my project", Some(&dir.0)), Some(sub.clone()));
+        let url = tauri::Url::from_directory_path(&sub).unwrap();
+        assert_eq!(
+            resolve_arg(url.as_str(), None).map(|p| p.canonicalize().unwrap()),
+            Some(sub.canonicalize().unwrap())
+        );
+    }
+
+    #[test]
+    fn marks_folders_with_a_trailing_separator() {
+        let dir = TempDir::new("mark");
+        let file = dir.0.join("a.png");
+        fs::write(&file, b"x").unwrap();
+        let marked = mark_if_dir(&dir.0);
+        assert!(marked.ends_with(std::path::MAIN_SEPARATOR));
+        assert_eq!(mark_if_dir(Path::new(&marked)), marked);
+        assert_eq!(mark_if_dir(&file), file.to_string_lossy());
+    }
+
+    #[test]
+    fn repairs_a_drive_root_with_a_swallowed_quote() {
+        assert!(is_mangled_drive_root("C:\""));
+        assert!(!is_mangled_drive_root("C:\\"));
+        assert!(!is_mangled_drive_root("ab\""));
     }
 
     #[test]
@@ -214,18 +267,26 @@ mod tests {
         let a = dir.0.join("a.png");
         let b = dir.0.join("b.svg");
         let dash = dir.0.join("-odd.png");
+        let folder = dir.0.join("site");
         for f in [&a, &b, &dash] {
             fs::write(f, b"x").unwrap();
         }
+        fs::create_dir_all(&folder).unwrap();
         let list = args(&[
             "--new-window",
             "-psn_0_12345",
             "b.svg",
+            "site",
             "a.png",
             "b.svg",
+            "missing.png",
+            "site",
             "--",
             "-odd.png",
         ]);
-        assert_eq!(paths_from_args(list, Some(&dir.0)), vec![b, a, dash]);
+        assert_eq!(
+            paths_from_args(list, Some(&dir.0)),
+            vec![b, folder, a, dash]
+        );
     }
 }

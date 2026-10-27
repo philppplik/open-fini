@@ -121,10 +121,11 @@ export function setRecentLimit(n) {
   recentLimit = clampRecentLimit(n);
 }
 
-export async function addRecent({ name, bytes, path }) {
+export async function addRecent({ name, bytes, path, isDir }) {
   const list = await getRecents();
   const id = path || `${name}:${Date.now()}`;
-  const next = pushRecent(list, { id, name, path, time: Date.now(), size: bytes?.length || 0 }, recentLimit);
+  // `isDir`: a project folder opened by path (desktop); it has no stored bytes and reopens through the folder reader.
+  const next = pushRecent(list, { id, name, path, ...(isDir ? { isDir: true } : {}), time: Date.now(), size: bytes?.length || 0 }, recentLimit);
   if (recentLimit > 0 && bytes && bytes.length <= MAX_RECENT_BYTES && !path) await kvSet(`recent:${id}`, bytes);
   for (const gone of list.filter((r) => !next.some((n) => n.id === r.id))) await kvDelete(`recent:${gone.id}`);
   await kvSet("recents", next);

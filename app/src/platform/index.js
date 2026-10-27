@@ -44,6 +44,11 @@ import { platform as webPlatform } from "./web.js";
  *   Files opened through the OS: file association, launch arguments, a second
  *   launch, "open with", drop on the Dock icon; in the PWA the launchQueue.
  *   Resolves with an unsubscribe function once the subscription is active.
+ * @property {(options?: { defaultPath?: string }) => Promise<string | null>} [pickFolder]
+ *   Desktop only: the native folder dialog; resolves with a folder path or null.
+ * @property {(path: string, options?: object) => Promise<{ name: string, files: { path: string, bytes: Uint8Array }[], stats: object }>} [readFolder]
+ *   Desktop only: reads a folder into memory with ignore rules and size caps (platform/folder-scan.js).
+ *   onOpenFiles may also deliver `{ isDir: true, name, path }` items (no bytes) for folders the OS opened.
  * @property {() => Promise<Blob | null>} clipboardReadImage
  *   An image from the system clipboard as a Blob, or null.
  * @property {(blob: Blob) => Promise<void>} clipboardWriteImage
