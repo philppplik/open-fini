@@ -28,7 +28,7 @@ export function webViewTools(app) {
   }
   const state = (ws) => {
     const v = ws.preview.viewport();
-    return { width: v.width, height: v.height, heightAuto: v.heightAuto, zoom: ws.preview.zoomSetting === "fit" ? "fit" : r2(ws.preview.zoomSetting), scale: r2(v.scale), breakpoint: v.breakpoint, layout: ws.layout, layoutChoice: ws.layoutChoice };
+    return { width: v.width, height: v.height, heightAuto: v.heightAuto, zoom: ws.preview.zoomSetting === "fit" ? "fit" : r2(ws.preview.zoomSetting), scale: r2(v.scale), breakpoint: v.breakpoint, layout: ws.layout, layoutChoice: ws.layoutChoice, layoutWidth: ws.preview.layoutInfo?.layoutWidth ?? v.width, scrollbarWidth: ws.preview.layoutInfo?.scrollbar ?? 0 };
   };
 
   return [
@@ -84,7 +84,7 @@ export function webViewTools(app) {
       const choice = LAYOUT_NAMES[a.layout];
       if (!choice || (choice !== "auto" && !LAYOUTS.includes(choice))) throw new Error("layout must be left, right, top, bottom or auto.");
       ws.setLayout(choice);
-      return { layout: ws.layout, layoutChoice: ws.layoutChoice };
+      return { layout: ws.layout, layoutChoice: ws.layoutChoice, layoutWidth: ws.preview.layoutInfo?.layoutWidth ?? v.width, scrollbarWidth: ws.preview.layoutInfo?.scrollbar ?? 0 };
     }),
   ];
 }

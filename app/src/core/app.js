@@ -58,6 +58,11 @@ const defaultPrefs = () => ({
   codeWordWrap: false,
   codeFontSize: 13,
   codeFormatOnSave: false,
+  codeFormatOnPaste: false, // re-format pasted CSS/JSON/HTML blocks
+  codeUseTabs: false, // indent with tabs when formatting
+  codeLineWidth: 100, // wrap width of the HTML formatter
+  codeQuoteStyle: "keep", // attribute quotes: keep | double | single
+  codeSyncHighlight: true, // highlight the code of the hovered/selected element and the matches of the CSS rule at the caret
   codeLayout: "auto", // split arrangement: auto | codeLeft | codeRight | codeTop | codeBottom
   codeMeasureUnit: "px", // unit of the measure tool
   codeMeasurePpi: 96, // pixels per inch behind mm / cm / in / pt (96 = CSS reference)

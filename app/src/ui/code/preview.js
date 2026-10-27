@@ -2,7 +2,7 @@
 // page being edited at the selected breakpoint width. It is double-buffered — a rebuilt document is swapped in
 // only once it reports "ready" — so typing in the editor never flashes. CSS-only edits are patched in place.
 import { Emitter, h } from "../../core/util.js";
-import { buildPreview, hotCss, BREAKPOINTS, breakpointForWidth, breakpointMarkers, clampSize, snapWidth, sanitizeBox, UNITS } from "../../engine/web/index.js";
+import { buildPreview, hotCss, BREAKPOINTS, breakpointForWidth, breakpointMarkers, clampSize, snapWidth, sanitizeBox, sanitizeLayoutMetrics, describeLayout, UNITS } from "../../engine/web/index.js";
 import { createViewportBar, createRulers, attachHandles } from "./viewport-ui.js";
 import { t } from "../../i18n/index.js";
 import { bridgeSource } from "./bridge.js";
@@ -47,6 +47,8 @@ export class PreviewPane extends Emitter {
     this.altHeld = false;
     this.zoomSetting = this.web.settings.zoom ?? "fit";
     this.rulersOn = this.web.settings.rulers !== false;
+    this.showScrollbar = this.web.settings.scrollbar === true; // hidden by default so viewport width = layout width
+    this.metrics = null; // last { iw, cw, ... } reported by the frame (see describeLayout)
     this.measure = { on: false, unit: UNITS.includes(this.app.prefs.codeMeasureUnit) ? this.app.prefs.codeMeasureUnit : "px", ppi: this.app.prefs.codeMeasurePpi > 0 ? this.app.prefs.codeMeasurePpi : 96, dprAware: !!this.app.prefs.codeMeasureDpr, details: false, box: null, pins: 0 };
     this.markerCache = { rev: -1, list: [] };
     this.edit = true;
@@ -132,9 +134,10 @@ export class PreviewPane extends Emitter {
     this.scale = scale;
     const hPx = this.vh || Math.floor(availH / scale);
     this.vhEff = hPx;
-    const dw = Math.round(w * scale);
-    const dh = Math.round(hPx * scale);
-    // whole pixels everywhere so that 100% is crisp: the device is centered with an integer offset
+    // exact (unrounded) box so that the frame and its box never disagree by a pixel; at 100% both are integers anyway
+    const dw = w * scale;
+    const dh = hPx * scale;
+    // the device is centered with an integer offset
     this.dwrap.style.width = `${dw}px`;
     this.dwrap.style.height = `${dh}px`;
     this.dwrap.style.marginLeft = `${Math.max(0, Math.floor((sr.width - pad * 2 - dw) / 2))}px`;
@@ -143,10 +146,34 @@ export class PreviewPane extends Emitter {
       f.style.height = `${hPx}px`;
       f.style.transform = `scale(${scale})`;
     }
-    this.label.textContent = `${this.bp.label}${scale !== 1 ? ` · ${Math.round(scale * 100)}%` : ""}`;
+    this.updateLabel();
+    // the frame also reports on its own resize events; asking after our own layout keeps the readout exact even when the
+    // browser throttles resize events of a background page
+    clearTimeout(this.metricsTimer);
+    this.metricsTimer = setTimeout(() => this.#post({ type: "metrics" }), 60);
     this.emit("layout", { scale, width: w, height: hPx });
     this.bar.sync();
     this.rulers.draw();
+  }
+
+  /** Status text: "Phone · 50% · 390 × 844 · layout 390"; a failed self-check is flagged and explained in the tooltip. */
+  updateLabel() {
+    const lay = describeLayout(this.vw, this.vh || this.vhEff, this.metrics);
+    this.layoutInfo = lay;
+    const zoom = this.scale !== 1 ? ` · ${Math.round(this.scale * 100)}%` : "";
+    this.label.textContent = `${this.bp.label}${zoom} · ${lay.text}${lay.consistent ? "" : " ⚠"}`;
+    this.label.title = lay.consistent
+      ? t("CSS pixels, independent of the zoom. Layout width is what 100%-wide boxes and media queries see.")
+      : t("The preview frame reports different sizes than configured (self-check failed): {issues}", { issues: lay.issues.join(", ") });
+  }
+
+  /** Shows or hides the classic root scrollbar in the frame (hidden = the layout width equals the viewport width). */
+  setScrollbar(on) {
+    this.showScrollbar = !!on;
+    this.web.settings.scrollbar = this.showScrollbar;
+    this.#post({ type: "viewportOpts", scrollbar: this.showScrollbar });
+    this.emit("viewport", this.viewport());
+    this.bar.sync();
   }
 
   /**
@@ -281,7 +308,7 @@ export class PreviewPane extends Emitter {
     try {
       res = buildPreview(this.web.source, this.page, {
         bridge: bridgeSource,
-        config: { mode: this.edit ? "edit" : "preview", accent: "#4f8cff", spacing: true },
+        config: { mode: this.edit ? "edit" : "preview", accent: "#4f8cff", spacing: true, scrollbar: this.showScrollbar },
         // with "Run JavaScript in the preview" off, only the inspector runs: page scripts become empty
         makeScriptUrl: (code, info) => scriptUrl(scriptsBlocked(this.app.prefs, this.ws.doc) && info?.file !== "openfini-bridge.js" ? "" : code),
         makeAssetUrl: toDataUrl,
@@ -322,6 +349,8 @@ export class PreviewPane extends Emitter {
     this.#post({ type: "scroll", x: this.scroll.x, y: this.scroll.y });
     this.#post({ type: "mode", edit: this.edit });
     this.#postMeasure();
+    this.#post({ type: "viewportOpts", scrollbar: this.showScrollbar }); // also asks the frame for fresh layout metrics
+    if (this.matchSel) this.#post({ type: "matchSel", selector: this.matchSel });
     this.selectionChanged();
     this.emit("swap");
   }
@@ -341,6 +370,12 @@ export class PreviewPane extends Emitter {
   }
   hover(id) {
     this.#post({ type: "hover", id });
+  }
+  /** Outlines every element matching `selector` in the frame (null clears); the count arrives as a "matchCount" event. */
+  matchSelector(selector) {
+    this.matchSel = selector || null;
+    if (!selector) this.matchInfo = null;
+    this.#post({ type: "matchSel", selector: selector || "" });
   }
   reveal(id) {
     this.#post({ type: "reveal", id });
@@ -515,6 +550,17 @@ export class PreviewPane extends Emitter {
       return;
     }
     switch (m.type) {
+      case "matchCount":
+        if (m.selector === (this.matchSel || "") && Number.isInteger(m.count)) {
+          this.matchInfo = { selector: m.selector, count: m.count };
+          this.emit("matchCount", this.matchInfo);
+        }
+        break;
+      case "layoutMetrics":
+        this.metrics = sanitizeLayoutMetrics(m);
+        this.updateLabel();
+        this.emit("metrics", this.metrics);
+        break;
       case "console":
         this.ws.log(m.level, m.text);
         break;
@@ -590,6 +636,7 @@ export class PreviewPane extends Emitter {
     window.removeEventListener("keyup", this.altKeys);
     window.removeEventListener("blur", this.onBlur);
     if (this.escOff) window.removeEventListener("keydown", this.escOff);
+    clearTimeout(this.metricsTimer);
     this.bar.destroy?.();
     this.rulers.destroy?.();
     clearTimeout(this.timer);

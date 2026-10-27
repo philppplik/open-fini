@@ -3,7 +3,7 @@
 // Visual tools edit files through `applyChanges`, which goes through the same history as typing.
 import * as CM from "../../../vendor/codemirror/codemirror.js";
 import { Emitter, h, empty, formatBytes } from "../../core/util.js";
-import { languageOf, parseHtml, parseCss, formatCss, resolveRef, dirname } from "../../engine/web/index.js";
+import { languageOf, parseHtml, parseCss, resolveRef, dirname, formatText, formatRange, canFormat } from "../../engine/web/index.js";
 import { expandHtml, expandCss, abbreviationBefore } from "../../engine/web/emmet.js";
 import { tailwindClasses, BOOTSTRAP_CLASSES, TAILWIND_VARIANTS, splitVariant, attributeOptions, htmxValues } from "../../engine/web/index.js";
 import { fileIcon, fuzzyScore, trimmedChange } from "./util.js";
@@ -151,6 +151,17 @@ export class CodeEditors extends Emitter {
       CM.EditorState.languageData.of(() => [{ autocomplete: self.#completions(path) }]),
       CM.linter(() => self.diagnosticsFor(path).map((d) => toCmDiagnostic(d, self.states.get(path) || self.view?.state)), { delay: 500 }),
       CM.EditorView.updateListener.of((u) => {
+        if (u.docChanged && self.app.prefs.codeFormatOnPaste && u.transactions.some((t) => t.isUserEvent("input.paste"))) {
+          // format-on-paste: the lines of the inserted block, once the paste transaction has finished
+          let lo = Infinity;
+          let hi = 0;
+          u.changes.iterChanges((fa, fb, ta, tb) => {
+            lo = Math.min(lo, ta);
+            hi = Math.max(hi, tb);
+          });
+          const p = self.active;
+          if (hi > lo && p && canFormat(languageOf(p)) && hi - lo > 1) setTimeout(() => self.#formatPasted(p, lo, hi), 0);
+        }
         if (u.docChanged) {
           const origin = u.transactions.some((t) => t.annotation(CM.Transaction.userEvent) === "input.visual") ? "visual" : "editor";
           const cur = self.active;
@@ -649,7 +660,38 @@ export class CodeEditors extends Emitter {
     }
   }
 
-  /** Formats the active file: CSS and JSON are rewritten, other languages are re-indented. */
+  /** Options of the built-in formatter from the preferences (Settings > Code studio). */
+  formatOptions() {
+    const p = this.app.prefs;
+    return { indentSize: this.web.settings.tabSize || 2, useTabs: !!p.codeUseTabs, lineWidth: p.codeLineWidth || 100, quote: p.codeQuoteStyle || "keep" };
+  }
+
+  #formatPasted(path, from, to) {
+    if (path !== this.active || !this.view) return;
+    const text = this.web.text(path);
+    if (to > text.length) return;
+    const r = formatRange(languageOf(path), text, from, to, this.formatOptions());
+    if (r.ok && r.insert !== text.slice(r.from, r.to)) this.applyChanges(path, [{ from: r.from, to: r.to, insert: r.insert }], { userEvent: "input.format" });
+  }
+
+  /** Formats the lines covered by the selection (the built-in formatter; extensions only format whole documents). */
+  formatSelection(path = this.active) {
+    if (!path || !this.view) return false;
+    const lang = languageOf(path);
+    const sel = this.view.state.selection.main;
+    if (sel.empty) return this.format(path);
+    if (!canFormat(lang)) return false;
+    const text = this.web.text(path);
+    const r = formatRange(lang, text, sel.from, sel.to, this.formatOptions());
+    if (!r.ok) {
+      this.app.toast(`Cannot format the selection: ${r.error}`, "warning");
+      return false;
+    }
+    if (r.insert !== text.slice(r.from, r.to)) this.applyChanges(path, [{ from: r.from, to: r.to, insert: r.insert }], { userEvent: "input.format" });
+    return true;
+  }
+
+  /** Formats the active file: the built-in formatter (HTML, CSS, JavaScript, JSON, Markdown) unless an extension takes over. */
   format(path = this.active) {
     if (!path || !this.view) return false;
     // formatters contributed at run time (VS Code extensions) win over the built-in ones
@@ -660,20 +702,14 @@ export class CodeEditors extends Emitter {
     }
     const text = this.web.text(path);
     const lang = languageOf(path);
-    try {
-      if (lang === "css") {
-        const next = formatCss(text);
-        if (next !== text) this.applyChanges(path, [trimmedChange(text, next)], { userEvent: "input.format" });
-        return true;
+    if (canFormat(lang)) {
+      const r = formatText(lang, text, this.formatOptions());
+      if (!r.ok) {
+        this.app.toast(`Cannot format ${path}: ${r.error}`, "warning");
+        return false;
       }
-      if (lang === "json") {
-        const next = `${JSON.stringify(JSON.parse(text), null, this.web.settings.tabSize || 2)}\n`;
-        if (next !== text) this.applyChanges(path, [trimmedChange(text, next)], { userEvent: "input.format" });
-        return true;
-      }
-    } catch (err) {
-      this.app.toast(`Cannot format ${path}: ${err.message}`, "warning");
-      return false;
+      if (r.text !== text) this.applyChanges(path, [trimmedChange(text, r.text)], { userEvent: "input.format" });
+      return true;
     }
     const v = this.view;
     const sel = v.state.selection;
