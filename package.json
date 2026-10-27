@@ -1,6 +1,6 @@
 {
   "name": "openfini",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "OpenFini — a lightweight, open-source creative suite with Vector, Pixel, Layout and Export studios. Runs as a PWA and as a tiny native app on Windows (x64/ARM64), macOS (Intel/Apple Silicon) and Linux (x64/ARM64).",
   "type": "module",
   "license": "MIT",
