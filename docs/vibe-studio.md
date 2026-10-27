@@ -154,6 +154,8 @@ URL:
 | Anthropic (Claude) | API key; native Messages API with tool use and extended thinking. |
 | DeepSeek, xAI (Grok), Mistral, Groq, Together AI, Google Gemini (OpenAI-compatible endpoint) | API key, OpenAI-compatible. |
 | Ollama, LM Studio (local) | No key; runs on your machine. The server must allow the app's origin (for Ollama: `OLLAMA_ORIGINS`). |
+| OpenCode Zen | API key from opencode.ai/auth. OpenAI-compatible gateway, see [OpenCode](#opencode). |
+| OpenCode (local server, experimental) | Your own `opencode serve`. See [OpenCode](#opencode). |
 | Custom | Any OpenAI-compatible `/v1` server (llama.cpp, vLLM, a company gateway …), or an Anthropic-compatible one: choose the *API type* and add extra headers (one `Name: value` per line) in the connection form. If the server has no model list, type the model id in the model picker. |
 
 Keys are stored **on this device only** and are sent only to the base URL you entered. You can protect them with a
@@ -164,6 +166,68 @@ iterations) and must be unlocked once per session.
 login for third-party apps, only API keys (billed separately). Tool calling and image input depend on the model; the
 model list shows what each model reports. Real providers could not be exercised in CI without keys: the engine is
 tested against recorded protocol fixtures and fake servers.
+
+### Fallback chain (model routing)
+
+*Settings ▸ Artificial intelligence ▸ Models ▸ Fallback chain.* The model you pick in the model menu is always the
+**primary**. Add fallbacks below it (drag or use the arrows to reorder, switch single targets off, give a target its own
+first-answer timeout) and turn the chain **On**. When the primary does not answer because of a rate limit, overload,
+timeout (no first token within 45 s by default), network error, unavailable model or context-length limit, Vibe retries
+it (default once, with growing pauses) and then moves to the next target. You see a small notice in the chat ("Switched
+to Claude Haiku after a timeout."), an entry in the **Activity** log, and the progress pill says it is switching.
+
+- **What is never hidden:** wrong or expired keys (authentication) and invalid requests are shown as errors, not routed
+  around, unless you tick *Also fall back on authentication errors*.
+- **Cut-off answers:** if text was already shown, the fallback continues from it; nothing is written twice.
+- **Compatibility:** targets without tool support are skipped when tools are needed, targets without vision when
+  images are attached, and context-length errors only move to a model with a larger known window.
+- **Circuit breaker:** after 3 failures in a row a target rests for 60 s and is skipped.
+- **Sub-agents, quick actions and background runs** use the chain too (switch off with *Use the fallback chain for
+  sub-agents…*). **Per chat:** *Use fallback chain in this chat* in the model menu; a "↪" on the model pill marks an
+  active chain.
+- **Presets:** *Same provider, smaller model*, *Fast & cheap fallback* (another connection), *Local model as last resort
+  (Ollama)*; a preset that needs a missing connection says so.
+- **Test route** sends a tiny request to every target and shows latency or the error category. Each target shows its
+  recent success rate (counts only, stored on this device; no prompts). After repeated failures with no fallback Vibe
+  suggests adding one.
+- **Health check:** every connection has a *Test* button (latency, model count, last error, green/red dot).
+- The assistant can read and change the chain with `get_model_route` / `set_model_route` (the latter asks first).
+
+### OpenCode
+
+[OpenCode](https://opencode.ai) is an open-source AI coding agent with a terminal UI and a client/server design. Verified
+against the official docs and live requests on 2026-10-27; what OpenFini does with it:
+
+1. **OpenCode Zen** (real, recommended). Zen is OpenCode's pay-as-you-go model gateway. Preset *OpenCode Zen*: base URL
+   `https://opencode.ai/zen/v1` (OpenAI-compatible Chat Completions; `GET /models` returns the public model list), key from
+   <https://opencode.ai/auth>. Model ids have no vendor prefix (`claude-sonnet-5-5`, `gpt-5.4-mini`, `glm-5.3-flash` …).
+   The docs also list `https://opencode.ai/inference/...` paths; the same `GET /models` answers on both. The `/models`
+   response has no pricing or capability metadata (only id and `owned_by`), so those come from the preset. Free models
+   "work only through OpenCode, not other clients": requests for them from other clients returned
+   `429 FreeUsageLimitError` in our test. **Browser limit:** `GET /models` sends `Access-Control-Allow-Origin: *`, but the
+   CORS preflight (`OPTIONS`) for `POST /zen/v1/chat/completions` returned 404 without CORS headers in our check, so a
+   page-origin `fetch` for chat requests will probably be blocked in the PWA (and in any webview that enforces CORS).
+   The *Test* button therefore may show a network error even though the key is valid; use a CORS-capable gateway
+   (OpenRouter is one) if this applies to you. Not verified: a real chat request with a paid key.
+2. **OpenCode (local server, experimental).** Start `opencode serve --port 4096 --cors <origin of this app>` (flags
+   verified in the docs; default host `127.0.0.1`, port `4096`; if you set `OPENCODE_SERVER_PASSWORD`, put the password in
+   the key field, user name `opencode`). OpenFini uses only documented endpoints: `GET /global/health`,
+   `GET /config/providers`, `POST /session`, `POST /session/:id/message` (waits for the full answer), `POST
+   /session/:id/abort`, `DELETE /session/:id`. Model ids are written `providerID/modelID`. **Honest limits:** the answer
+   arrives as one message, not token by token, because the server-sent-event schema is not documented and the adapter
+   does not guess it; OpenCode runs its own tools in its own project, **OpenFini's tools and screenshots are not
+   available** to it; only the shape of the `POST /message` request and `{info, parts}` response is documented, the shape
+   of `GET /config/providers` is not (parsed leniently; if no models are found, type the id). The adapter is tested
+   against a fake server built from the docs, **not against a real OpenCode binary**. Not implemented: streaming via
+   `GET /event`, permission prompts (`/session/:id/permissions/:id`), session reuse.
+3. **Import `opencode.json`.** *Connections ▸ Import opencode.json* reads a file you choose (`opencode.json` / `.jsonc`,
+   comments and trailing commas allowed) and offers to create connections from its `provider` entries (`options.baseURL`,
+   model ids and `limit.context`, safe headers). Built-in provider ids (`anthropic`, `openai`, `openrouter`, `google`,
+   `deepseek`, `xai`, `groq`, `mistral`, `togetherai`, `opencode`) map to the matching presets. **Keys are never read**:
+   `apiKey`, `{env:VAR}` and `{file:path}` values and authorization headers are dropped, and `~/.local/share/opencode/auth.json`
+   is never touched; you paste the key afterwards. Providers using other SDKs (for example Bedrock) are listed as skipped.
+
+Sources: opencode.ai/docs/server, /docs/sdk, /docs/zen, /docs/providers.
 
 ## What the assistant can do (100 tools)
 
@@ -324,6 +388,8 @@ appears afterwards, or with `Ctrl+Z`.
 | Change sets and diffs | pure `changes.js` (snapshots, layer/file/paragraph diffs, per-hunk revert), recorder `change-recorder.js` (hooked via `hub.changeProbe` in `VibeSession#wrap`), drawer `diff-view.js` |
 | Canvas panel | `panel-canvas.js` (preview, outline, rings, before/after) |
 | AI progress pill | `app/src/ui/ai-pill.js`, wording in `app/src/ui/vibe/activity-label.js` |
+| Model routing | pure `app/src/ai/routing.js`; glue `vibe/routing-glue.js`, presets `vibe/route-presets.js`, tools `vibe/tools/routing.js`, editor `ui/vibe/panel-routes.js` ([ADR 0014](adr/0014-model-routing-fallback.md)) |
+| OpenCode | `app/src/ai/providers/opencode.js` (importer + experimental server adapter) |
 | MCP gateway | `scripts/mcp-gateway.mjs` |
 
 **How it fits together.** `getVibeHub(app)` creates the hub on first use. The workspace binds the UI to `hub.view`, a

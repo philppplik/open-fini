@@ -13,7 +13,9 @@ app/src/ai/
   providers/
     openai.js         OpenAI-compatible Chat Completions client
     anthropic.js      Anthropic Messages API client
-    mock.js           deterministic offline "Demo" provider
+    mock.js           deterministic offline "Demo" provider (with failure injection)
+    opencode.js       OpenCode: opencode.json importer + experimental `opencode serve` adapter
+  routing.js          model routing with fallback (see "Model routing and fallback")
     index.js          createProvider, PROVIDER_PRESETS, DEMO_PRESET
   mcp.js              Model Context Protocol client (Streamable HTTP) + agent tool adapter
   rag.js              chunking, BM25 + optional dense vectors, serialization
@@ -129,6 +131,58 @@ object `{type:'linear',angle,stops:[{offset,color}]}`, `add_text{text,x,y,fontSi
 `set_style{ids,...}`, `apply_adjustment{kind,id,params}`, `create_website{template}`, `write_file{path,content}`.
 `embed` returns hashed bag-of-words vectors, `generateImage` returns a small valid gradient PNG. A custom
 `script(request, {signal})` async generator may yield provider events; a missing `done` is synthesized.
+
+## Model routing and fallback
+
+`ai/routing.js` (pure, tests in `tests/ai/routing.test.js`) wraps several targets into **one provider**: see
+[ADR 0014](adr/0014-model-routing-fallback.md). Glue to settings, the shared breaker state and statistics is in
+`app/src/vibe/routing-glue.js`; presets in `app/src/vibe/route-presets.js`.
+
+```js
+const p = createRoutedProvider({ targets: [{ providerId, model, label?, timeoutMs?, provider, capabilities? }, ...], policy, health?, stats? });
+runAgent({ provider: p, model: "ignored", ... })      // each target's own model is used
+resolveRoute(settings, { useFallback?, primary? })    // -> { targets: [primary, ...fallbacks], policy, chain }
+```
+
+**Error categories.** `ProviderError` carries `category` (`rate_limit | overloaded | timeout | network | auth |
+invalid_request | context_length | model_unavailable | content_filter | unknown`), `retryable` and `fallbackWorthy`
+(`classifyProviderError` in `util.js`; fixtures for OpenAI-style, Anthropic and OpenCode Zen bodies in
+`tests/ai/error-classification.test.js`).
+
+| Category | Retry same target | Fall back |
+| --- | --- | --- |
+| rate_limit (429), overloaded (503/529), timeout (408/504/first-token), network, unknown 5xx | yes (backoff + jitter) | yes |
+| rate_limit from quota/billing (`insufficient_quota`, Zen `FreeUsageLimitError`) | no | yes |
+| context_length | no | only to a target with a larger known context window |
+| model_unavailable (404, "model not found"), content_filter | no | yes |
+| auth (401/403, invalid key) | no | **no**, unless `fallbackOnAuth` |
+| invalid_request (400/422) | no | **no** (surfaced) |
+
+**Policy** (all optional, `normalizePolicy` clamps): `retriesPerTarget` 1, `baseDelayMs` 600, `maxDelayMs` 8000,
+`maxRetryAfterMs` 15000 (longer `Retry-After` means fall back, not wait), `firstTokenTimeoutMs` 45000 (a target's
+`timeoutMs` overrides it), `attemptTimeoutMs` 240000, `breakerThreshold` 3, `breakerCooldownMs` 60000, `fallbackOnAuth`
+false, `fallbackBackground` true (sub-agents use the chain).
+
+**Events** (yielded by the routed `stream()`, forwarded by `runAgent` to `onEvent`):
+`{type:"route_retry", target, attempt, delayMs, reason, category}` and
+`{type:"route_fallback", from, to, reason, category, text}` (`text` = "Switched to X after a timeout."). The session turns
+fallbacks into a chat notice, the Activity log (`timeline.js`, kind `fallback`) and the progress pill wording.
+
+**Mid-stream rule.** Tool calls are buffered per attempt. Failure before any text: the request restarts on the next
+attempt. Failure after text was shown: the next attempt receives the partial text as an assistant message plus a
+"continue exactly where you stopped" user message, and the final `done` message is `partial + continuation`.
+
+**Guarantees** (randomized test, 1500 sequences): every request ends with a normal completion or a thrown error (user
+aborts throw `AbortError`; non-fallback errors rethrow the original; exhaustion throws `RouteError` with `attempts[]`),
+and total provider calls never exceed `targets x (retries + 1)`. Targets are skipped when they lack tool support (tools
+required), vision (images present) or a large enough context window.
+
+**Failure injection.** `createMockProvider({ failures: [...] })`: entry N applies to call N. `{type:"http", status, code?,
+message?, retryAfterMs?}`, `{type:"network"}`, `{type:"timeout"}` (hangs until aborted), `{type:"cut", afterChars?}`
+(text, then the connection drops), `{type:"empty"}`; `null` or `"ok"` = no failure. `provider.calls` counts calls.
+
+`RouteStats` (counts only) and `suggestFallback()` drive the "Your model failed 3 times today" suggestion; `testRoute()`
+sends a tiny request to each target separately.
 
 ## Agent loop
 
