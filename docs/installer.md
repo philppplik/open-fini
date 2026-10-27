@@ -8,7 +8,11 @@ the Rust crates are `tauri` 2.12 and `tauri-build` 2.7 (`src-tauri/Cargo.toml`).
 ## App icon
 
 The icon is the near-black OpenFini mark on an off-white rounded tile (`app/icons/icon.svg`, full-bleed
-variant `icon-maskable.svg`, document icon `doc-icon.svg`). The earlier gradient tile with a white mark was
+variant `icon-maskable.svg`, document icon `doc-icon.svg`). The tile fills 96% of the canvas and the mark about 66% of the
+tile, because Windows (and Linux, the PWA) draw no padding of their own and a small tile looked tiny in the taskbar.
+macOS adds its own padding and shadow, so `icon.icns` is rendered from `app/icons/icon-macos.svg` (same art on the
+standard 824/1024 grid). `npm run icons` regenerates every raster; there are no per-size masters, so the 16/32 px
+variants are plain downscales. The earlier gradient tile with a white mark was
 retired; the gradient mark `app/icons/mark.svg` remains only for the in-app brand button on the dark UI.
 The source artwork `app/icons/ofini-app-icon.png` (750x750, black mark, transparent background) was compared
 pixel by pixel with the vector master `app/icons/mark-black.svg`: rendered at the same scale the two overlap

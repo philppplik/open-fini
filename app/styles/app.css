@@ -901,10 +901,11 @@ sl-dialog.of-settings { --width: min(980px, 94vw); --body-spacing: 0; }
 sl-dialog.of-settings::part(panel) { height: min(660px, 90vh); }
 sl-dialog.of-settings::part(body) { padding: 0; display: flex; min-height: 0; overflow: hidden; }
 .of-set { display: flex; width: 100%; min-height: 0; }
-.of-set__nav { flex: none; width: 230px; border-right: 1px solid var(--of-border-soft); background: var(--of-bg-bar); display: flex; flex-direction: column; padding: 10px 8px; gap: 2px; overflow: auto; }
-.of-set__search { height: 28px; margin: 0 4px 8px; padding: 0 9px; border-radius: var(--of-radius-sm); border: 1px solid var(--of-border); background: var(--of-bg-input); color: var(--of-text); font: 12px var(--of-font); }
+.of-set__nav { flex: none; width: 230px; border-right: 1px solid var(--of-border-soft); background: var(--of-bg-bar); display: flex; flex-direction: column; padding: 10px 0 10px 8px; gap: 2px; overflow: hidden; min-height: 0; }
+.of-set__tabs { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 2px; padding-right: 8px; scrollbar-gutter: stable; }
+.of-set__search { flex: none; height: 28px; margin: 0 12px 8px 4px; padding: 0 9px; border-radius: var(--of-radius-sm); border: 1px solid var(--of-border); background: var(--of-bg-input); color: var(--of-text); font: 12px var(--of-font); }
 .of-set__search:focus { outline: none; border-color: var(--of-accent); }
-.of-set__tab { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border-radius: var(--of-radius); color: var(--of-text-dim); font-size: 13px; text-align: left; }
+.of-set__tab { flex: none; display: flex; align-items: center; gap: 10px; min-height: 34px; height: 34px; padding: 0 10px; border-radius: var(--of-radius); color: var(--of-text-dim); font-size: 13px; text-align: left; }
 .of-set__tab sl-icon { font-size: 16px; flex: none; }
 .of-set__tab:hover { background: var(--of-hover); color: var(--of-text); }
 .of-set__tab.active { background: var(--of-accent-soft); color: var(--of-text); font-weight: 600; }

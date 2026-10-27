@@ -39,7 +39,7 @@ Switch studios at any time: a document can mix vector shapes, pixel layers, flow
 | Windows x64 / ARM64 | `OpenFini_x.y.z_x64-setup.exe` / `…_arm64-setup.exe` | Per-user installer, no admin rights needed |
 | macOS Apple Silicon / Intel | `OpenFini_x.y.z_aarch64.dmg` / `…_x64.dmg` | Unsigned builds: right-click → Open the first time |
 | Linux x64 / ARM64 | `.AppImage`, `.deb`, `.rpm` | Needs WebKitGTK 4.1 (preinstalled on most desktops) |
-| Any browser (PWA) | <https://philppplik.github.io/open-fini/> | Installable, works offline, files stay on your device |
+| Any browser (PWA) | `OpenFini-pwa-x.y.z.zip` (self-host on any HTTPS static host, see [docs/building.md](docs/building.md)) | Installable, works offline, files stay on your device |
 
 > **Heads-up:** the desktop installers are built by GitHub Actions on the first tagged release. The web app and all engines are tested locally; the installers themselves (especially Windows ARM64 and the macOS Intel cross-build) have not been run on hardware yet — see the status column in [docs/platform-support.md](docs/platform-support.md). Please report problems.
 

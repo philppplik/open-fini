@@ -13,6 +13,10 @@ All notable changes to OpenFini are documented here. The format follows
 - Dependabot alerts and security updates are now enabled for the repository; `docs/security.md` lists the vendored libraries with their versions and the date they were checked against known advisories.
 
 ### Changed
+- Start page menubar shows only File, View, Studio and Help while no document is open, and the full studio menus return as soon as one opens (`app/src/ui/menubar-select.js`).
+- Windows, Linux and PWA app icons are larger: the tile fills 96% of the canvas and the mark about 66% of the tile. The macOS `.icns` keeps the standard grid (`app/icons/icon-macos.svg`).
+- Settings dialog: the section list keeps its row height and scrolls inside the sidebar with the search box pinned on top.
+- Removed the GitHub Pages workflow and the hosted-app links; the PWA is shipped as the release zip and can be self-hosted (the "Publish to GitHub Pages" target for user websites is unchanged).
 - Tauri CLI 2.12.4 (bundler 2.10.4, NSIS 3.13): the custom installer template picked up the upstream fixes (uninstaller clean-up after an in-place upgrade, shared WiX detection, file-association icon quoting).
 - GitHub Actions: `dtolnay/rust-toolchain` pin updated.
 

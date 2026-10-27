@@ -4,7 +4,7 @@ Click the **OpenFini** logo in the header (or press `Mod+,`) for the application
 *Save All*, *Open Folder…*, *Keyboard Shortcuts*, *Documentation* and *Report an Issue…*.
 
 *Settings…* opens one dialog for **every studio**: a sidebar of sections on the left, the open section on the right,
-and a search box that filters sections and individual settings. Changes apply immediately and are stored on this
+and a search box that filters sections and individual settings. The section list scrolls inside the sidebar (the search box stays pinned on top) and the content pane scrolls separately. Changes apply immediately and are stored on this
 device (`localStorage`); *Security and privacy ▸ Reset all settings* restores the defaults.
 
 | Section | What it controls |

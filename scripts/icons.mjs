@@ -2,7 +2,8 @@
 //
 //   npm run icons
 //
-// Inputs   app/icons/icon.svg            rounded tile, transparent corners
+// Inputs   app/icons/icon.svg            rounded tile (96% of the canvas; Windows, Linux, PWA), transparent corners
+//          app/icons/icon-macos.svg      same art on the macOS grid (824/1024 tile) for icon.icns
 //          app/icons/icon-maskable.svg   full-bleed square for adaptive icons
 // Outputs  src-tauri/icons/*             what the desktop bundles need (and nothing else)
 //          app/icons/icon-192.png, icon-512.png, icon-maskable-512.png, apple-touch-icon.png
@@ -53,6 +54,10 @@ try {
   for (const name of DESKTOP_FILES) {
     await copyFile(join(full, name), join(desktopIcons, name));
   }
+  // macOS adds its own padding, so its .icns comes from the standard-grid master (824/1024 tile).
+  const mac = join(work, "macos");
+  tauriIcon(join(appIcons, "icon-macos.svg"), mac);
+  await copyFile(join(mac, "icon.icns"), join(desktopIcons, "icon.icns"));
 
   // 2. PWA set.
   const any = join(work, "any");

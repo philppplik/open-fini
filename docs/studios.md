@@ -11,6 +11,8 @@ default panels and the context bar — it never converts or changes your documen
 
 ## Common to all studios
 
+While no document is open (the start page) the menubar shows only File, View, Studio and Help; the studio menus appear when a document opens. The set is the `MINIMAL_MENUS` constant in `app/src/ui/menubar-select.js`.
+
 | Action | Shortcut |
 | --- | --- |
 | New / Open / Save / Save As | `Mod+N` / `Mod+O` / `Mod+S` / `Mod+Shift+S` |

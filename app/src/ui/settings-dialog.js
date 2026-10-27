@@ -381,7 +381,7 @@ export function settingsDialog(app, sectionId = "general") {
   const body = h("div.of-set__body", { role: "region", "aria-live": "polite" });
   const search = h("input.of-set__search", { type: "search", placeholder: t("Search settings"), "aria-label": t("Search settings"), spellcheck: false });
   // the search box lives OUTSIDE the re-rendered tab list: rebuilding it per keystroke dropped the focus after one letter
-  const tabs = h("div.of-set__tabs", { style: "display: contents" });
+  const tabs = h("div.of-set__tabs");
   nav.append(search, tabs);
   let query = "";
 
