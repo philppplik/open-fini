@@ -42,6 +42,26 @@
         { "path": "$APPDATA/**" }
       ]
     },
+    {
+      "identifier": "fs:allow-read-dir",
+      "allow": [
+        { "path": "$DESKTOP/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$PICTURE/**" },
+        { "path": "$APPDATA/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-stat",
+      "allow": [
+        { "path": "$DESKTOP/**" },
+        { "path": "$DOCUMENT/**" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$PICTURE/**" },
+        { "path": "$APPDATA/**" }
+      ]
+    },
     "opener:allow-open-url",
     "opener:allow-default-urls",
     "clipboard-manager:allow-read-image",

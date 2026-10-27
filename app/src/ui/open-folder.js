@@ -4,6 +4,8 @@ import { h } from "../core/util.js";
 import { markUntrusted } from "../core/security.js";
 import { pickDocumentEntry } from "../core/text-docs.js";
 import { Doc } from "../core/doc.js";
+import { addRecent } from "../core/storage.js";
+import { t } from "../i18n/index.js";
 import { ensureWeb } from "../core/web.js";
 import { confirmDialog } from "./dialogs.js";
 import { pickFiles, entriesFromPicked, entriesFromDrop, MAX_IMPORT_BYTES } from "./code/import.js";
@@ -87,8 +89,51 @@ async function openAsWebsite(app, entries, name) {
   }
 }
 
-/** File ▸ Open Folder… */
+/**
+ * Desktop: opens a folder by path (OS "Open folder with OpenFini", File > Open Folder, Open Recent). The folder is read
+ * through the fs plugin with ignore rules and caps (platform/folder-scan.js), then handled like a dropped folder.
+ * When the path is not readable (a recent folder outside the allowed scope after a restart) the native folder dialog opens
+ * on it once, because choosing it there grants access. Never throws: problems become toasts.
+ */
+export async function openFolderPath(app, path, { allowPrompt = true } = {}) {
+  const { platform } = await import("../platform/index.js");
+  if (!platform.readFolder) return app.toast(t("Opening a folder by path needs the desktop app."), "warning");
+  const { pathName } = await import("../platform/open-paths.js");
+  const name = pathName(path);
+  app.status(t("Reading folder {name}…", { name }));
+  try {
+    const result = await platform.readFolder(path, {
+      onProgress: ({ files, bytes }) => app.status(t("Reading folder {name}: {files} files, {mb} MB…", { name, files, mb: (bytes / 1048576).toFixed(1) })),
+    });
+    if (!result.files.length && result.stats.unreadable && allowPrompt && platform.pickFolder) {
+      app.status("");
+      const picked = await platform.pickFolder({ defaultPath: path });
+      return picked ? openFolderPath(app, picked, { allowPrompt: false }) : undefined;
+    }
+    if (!result.files.length && result.stats.unreadable) return app.toast(t("Could not read the folder “{name}”.", { name }), "danger", 6000);
+    const { truncated, tooLarge, unreadable } = result.stats;
+    const notes = [];
+    if (truncated) notes.push(t("the folder is larger than the size or file-count limit, so only the first part was read"));
+    if (tooLarge) notes.push(t("{n, plural, one {# very large file was skipped} other {# very large files were skipped}}", { n: tooLarge }));
+    if (unreadable) notes.push(t("{n, plural, one {# item could not be read} other {# items could not be read}}", { n: unreadable }));
+    if (notes.length) app.toast(t("“{name}”: {notes}.", { name, notes: notes.join("; ") }), "warning", 7000);
+    const entries = result.files.map((f) => ({ path: f.path, file: new File([f.bytes], f.path.split("/").pop()) }));
+    await openFolderEntries(app, entries, result.name);
+    addRecent({ name: result.name, path, isDir: true }).then((r) => app.emit("recents", r)).catch(() => {});
+  } catch (err) {
+    app.toast(err?.message || t("Could not open the folder “{name}”.", { name }), "danger", 6000);
+  } finally {
+    app.status("");
+  }
+}
+
+/** File ▸ Open Folder… (desktop: the native dialog and a read by path; web: the directory picker). */
 export async function openFolderDialog(app) {
+  const { platform } = await import("../platform/index.js");
+  if (platform.isDesktop && platform.pickFolder && platform.readFolder) {
+    const folder = await platform.pickFolder();
+    return folder ? openFolderPath(app, folder, { allowPrompt: false }) : undefined;
+  }
   const picked = await pickFiles({ directory: true });
   if (!picked.length) return;
   const first = picked[0].webkitRelativePath?.split("/")[0] || "";

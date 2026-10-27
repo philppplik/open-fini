@@ -20,7 +20,7 @@ use tauri_plugin_fs::FsExt;
 use cli::{paths_from_args, Action};
 
 /// Event sent to the frontend when the OS asks OpenFini to open files.
-/// The payload is a `string[]` of absolute paths.
+/// The payload is a `string[]` of absolute paths; a folder ends with a path separator.
 const OPEN_FILES_EVENT: &str = "openfini://open-files";
 
 /// Label of the main window (see `app.windows` in `tauri.conf.json`).
@@ -61,9 +61,15 @@ fn deliver_paths(app: &AppHandle, paths: Vec<PathBuf>) {
     let scope = app.fs_scope();
     let mut accepted = Vec::new();
     for path in paths {
-        // The user opened this file through the OS, so it may be read and
-        // saved even when it lives outside the static scopes of the capability.
-        if scope.allow_file(&path).is_ok() {
+        // The user opened this file or folder through the OS, so it may be read
+        // and saved even when it lives outside the static scopes of the
+        // capability. A folder is granted recursively for this session only and
+        // is sent with a trailing path separator (see `cli::mark_if_dir`).
+        if path.is_dir() {
+            if scope.allow_directory(&path, true).is_ok() {
+                accepted.push(cli::mark_if_dir(&path));
+            }
+        } else if scope.allow_file(&path).is_ok() {
             accepted.push(path.to_string_lossy().into_owned());
         }
     }

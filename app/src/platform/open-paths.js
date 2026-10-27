@@ -51,6 +51,37 @@ export function normalizeOpenPaths(list) {
 }
 
 /**
+ * Like normalizeOpenPaths, but keeps the file/folder distinction. The Rust side (src-tauri/src/cli.rs `mark_if_dir`) sends
+ * a folder with a trailing path separator; a file never has one. Objects `{ path, isDir }` are accepted too. A
+ * trailing separator is stripped from the result except for a root (`/`, `C:\`).
+ * @param {unknown} list
+ * @returns {{ path: string, isDir: boolean }[]}
+ */
+export function normalizeOpenItems(list) {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set();
+  const out = [];
+  for (const raw of list) {
+    const explicit = raw && typeof raw === "object" && typeof raw.path === "string";
+    const [first] = normalizeOpenPaths([explicit ? raw.path : raw]);
+    if (!first) continue;
+    const marked = /[\\/]$/.test(first);
+    const isDir = marked || (explicit && raw.isDir === true);
+    const path = marked && !/^(?:[A-Za-z]:)?[\\/]$/.test(first) ? first.replace(/[\\/]+$/, "") : first;
+    if (!path || seen.has(path)) continue;
+    seen.add(path);
+    out.push({ path, isDir });
+  }
+  return out;
+}
+
+/** The last path segment (folder or file name); a drive root yields its drive. */
+export function pathName(path) {
+  const parts = String(path).split(/[\\/]+/).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : String(path);
+}
+
+/**
  * A buffer between "files arrived" and "the app is listening". Files delivered while nobody is subscribed are
  * kept and handed to the next subscriber right when it subscribes.
  * @template T

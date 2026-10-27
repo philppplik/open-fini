@@ -79,6 +79,12 @@ license (the MIT `LICENSE`) -> install folder -> **Windows integration** -> inst
   - Offer OpenFini in "Open with" for images, PDF and code files, default on. This only adds `OpenWithProgids`
     entries; it never changes the default program of an extension. Implemented by `windows/open-with.nsh`
     (conditional on this choice; its uninstall cleanup is unchanged).
+  - Add "Open with OpenFini" to the folder right-click menu, default on (remembered as `FolderMenu`). Writes
+    `Software\Classes\Directory\shell\OpenFini` (`"<exe>" "%1"`) and `Directory\Background\shell\OpenFini` (`"%V"`) under
+    `SHCTX`, so per-user installs use HKCU and need no administrator rights; the label comes from the `folderVerb`
+    LangString (English/German) and the icon is the app executable. Turning it off on a reinstall removes the keys;
+    the uninstaller always removes them. NSIS only: the MSI build has no hook and does not add the verbs. See
+    [os-integration.md](os-integration.md#open-folders-from-the-file-manager).
   - Create a desktop shortcut, default off.
 - **Finish page:** "Run OpenFini" (checked, started as the normal user) and "Open the quick-start guide
   (online)" (unchecked; opens the README on the project homepage in the browser). The desktop shortcut checkbox of the

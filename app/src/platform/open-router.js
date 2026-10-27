@@ -1,6 +1,7 @@
 // Routes files the operating system hands to OpenFini ("Open with", file association, launch arguments, a second
 // launch, the PWA file handler and share target) into the app. Everything goes through app.openFile(), so every
-// format the app can open works the same from the OS as from File > Open.
+// format the app can open works the same from the OS as from File > Open. Folders ({ isDir: true }) go to
+// ui/open-folder.js openFolderPath().
 import { platform } from "./index.js";
 import { typeOfName } from "./file-types.js";
 import { LARGE_FILE_BYTES, samePath } from "./open-paths.js";
@@ -10,6 +11,18 @@ const mb = (bytes) => `${(bytes / 1048576).toFixed(bytes >= 10485760 ? 0 : 1)} M
 
 /** Opens one file received from the OS. Never throws: problems become toasts. */
 async function openOne(app, file) {
+  // A folder handed over by the OS (Explorer "Open folder with OpenFini", `open -a`, drop on the Dock icon): no bytes,
+  // just { isDir: true, name, path }. It is read by path and opened like File > Open Folder.
+  if (file.isDir) {
+    busy++;
+    try {
+      const { openFolderPath } = await import("../ui/open-folder.js");
+      await openFolderPath(app, file.path);
+    } finally {
+      busy--;
+    }
+    return;
+  }
   const type = typeOfName(file.name);
 
   // Opening a file that is already open in a tab only brings that tab forward.
