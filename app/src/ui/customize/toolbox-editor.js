@@ -138,9 +138,12 @@ export function toolboxEditor(app) {
   function render() {
     root.replaceChildren(toolsGroup(), menusGroup(), quickGroup());
   }
+  // The pane is rebuilt each time the settings section opens: every listener unsubscribes once the pane is gone
+  // (otherwise each visit would keep a detached copy of the pane alive).
   const offs = [];
-  for (const ev of ["toolboxchanged", "menuschanged", "quickactions"]) offs.push(app.on(ev, () => (document.body.contains(root) ? render() : offs.forEach((o) => o()))));
-  app.on("studio", () => document.body.contains(root) && TOOL_STUDIOS.includes(app.studio) && studio !== app.studio && ((studio = app.studio), render()));
+  const live = (fn) => () => (document.body.contains(root) ? fn() : offs.forEach((o) => o()));
+  for (const ev of ["toolboxchanged", "menuschanged", "quickactions"]) offs.push(app.on(ev, live(render)));
+  offs.push(app.on("studio", live(() => TOOL_STUDIOS.includes(app.studio) && studio !== app.studio && ((studio = app.studio), render()))));
   render();
   return root;
 }
