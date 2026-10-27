@@ -6,6 +6,7 @@ import { PROVIDER_PRESETS, createPkce, openRouterAuthUrl } from "../../ai/index.
 import { promptDialog, confirmDialog } from "../dialogs.js";
 import { platform } from "../../platform/index.js";
 import { iconEl } from "../toolbox.js";
+import { createRoutesCard, createHealthRow } from "./panel-routes.js";
 
 const mask = (k) => (k ? `${k.slice(0, 4)}…${k.slice(-3)}` : "no key");
 
@@ -95,6 +96,31 @@ export function createModelsPanel(vs) {
     return h("div.of-vform", ...rows);
   }
 
+  /** File picker for an opencode.json(c); proposes connections without reading any key (ai/providers/opencode.js). */
+  function importOpenCode() {
+    const input = h("input", { type: "file", accept: ".json,.jsonc,application/json", hidden: true });
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      input.remove();
+      if (!file) return;
+      try {
+        const { parseOpenCodeConfig } = await import("../../ai/providers/opencode.js");
+        const r = parseOpenCodeConfig(await file.text());
+        const fresh = r.connections.filter((c) => !vibeStore.providers.some((p) => p.baseUrl === c.baseUrl));
+        if (!fresh.length) return app.toast(r.connections.length ? "These connections already exist." : `No importable providers found.${r.warnings[0] ? ` ${r.warnings[0]}` : ""}`, "warning", 6000);
+        const msg = `Create ${fresh.length} connection(s): ${fresh.map((c) => c.label).join(", ")}?\n\nNo keys are imported. Open each connection afterwards and paste its API key.${r.warnings.length ? `\n\nNotes:\n- ${r.warnings.slice(0, 5).join("\n- ")}` : ""}`;
+        if (!(await confirmDialog({ title: "Import from opencode.json", message: msg, ok: "Create" }))) return;
+        for (const c of fresh) await vibeStore.saveProvider({ preset: c.preset, label: c.label, kind: c.kind, baseUrl: c.baseUrl, headers: c.headers });
+        app.toast(`Created ${fresh.length} connection(s). Add the API keys with Edit.`, "success", 5000);
+        render();
+      } catch (e) {
+        app.toast(`Could not import: ${e.message}`, "danger", 6000);
+      }
+    });
+    document.body.append(input);
+    input.click();
+  }
+
   async function render() {
     empty(el);
     const s = vibeStore.settings;
@@ -112,12 +138,13 @@ export function createModelsPanel(vs) {
       } }, "Unlock")));
     }
     const list = h("div.of-vcard");
-    list.append(h("div.of-vcard__head", h("strong", "Connections"), h("button.of-btn", { type: "button", onclick: () => el.replaceChildren(form(null)) }, iconEl("plus-lg"), "Add")));
+    list.append(h("div.of-vcard__head", h("strong", "Connections"), h("div.of-vrow", h("button.of-btn", { type: "button", title: "Create connections from an OpenCode config file (keys are never read)", onclick: importOpenCode }, iconEl("box-arrow-in-down"), "Import opencode.json"), h("button.of-btn", { type: "button", onclick: () => el.replaceChildren(form(null)) }, iconEl("plus-lg"), "Add"))));
     list.append(h("div.of-vconn", h("div", h("strong", "Demo (offline)"), h("small", "Built-in scripted assistant — no key, no network")), h("button.of-btn", { type: "button", onclick: () => vibeStore.saveSettings({ activeProvider: null, model: "demo" }) }, s.activeProvider ? "Use" : "Active")));
     for (const p of vibeStore.providers) {
-      list.append(h("div.of-vconn", h("div", h("strong", p.label), h("small", `${p.baseUrl} · ${mask(vibeStore.getKey(p.id))}`)), h("div.of-vrow", h("button.of-btn", { type: "button", onclick: () => el.replaceChildren(form(p)) }, "Edit"), h("button.of-btn", { type: "button", onclick: async () => { if (await confirmDialog({ title: "Remove connection", message: `Remove “${p.label}” and its key from this device?`, ok: "Remove", danger: true })) { await vibeStore.removeProvider(p.id); render(); } } }, "Remove"))));
+      list.append(h("div.of-vconn", h("div", h("strong", p.label), h("small", `${p.baseUrl} · ${mask(vibeStore.getKey(p.id))}`), createHealthRow(vs, p)), h("div.of-vrow", h("button.of-btn", { type: "button", onclick: () => el.replaceChildren(form(p)) }, "Edit"), h("button.of-btn", { type: "button", onclick: async () => { if (await confirmDialog({ title: "Remove connection", message: `Remove “${p.label}” and its key from this device?`, ok: "Remove", danger: true })) { await vibeStore.removeProvider(p.id); render(); } } }, "Remove"))));
     }
     el.append(list);
+    el.append(createRoutesCard(vs));
 
     // default models
     const provSel = (value, onChange, none) => {

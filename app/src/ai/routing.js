@@ -154,9 +154,10 @@ export function suggestFallback(stats, route, { threshold = 3, windowMs = 864000
 export function resolveRoute(s, o = {}) {
   const single = { providerId: s.activeProvider || null, model: s.model || "" };
   const r = o.useFallback === false ? null : (s.routes || []).find((x) => x.id === s.activeRoute);
-  let targets = r ? r.targets.filter((t) => t && t.enabled !== false && t.model) : [];
-  if (r && o.primary?.model) targets = [{ ...o.primary }, ...targets.filter((t) => !(t.providerId === o.primary.providerId && t.model === o.primary.model))];
-  if (!targets.length) targets = [o.primary?.model ? { ...o.primary } : single];
+  // the model chosen in the model menu (or pinned to the chat) is always the primary; route targets are the fallbacks after it
+  const primary = o.primary?.model ? { ...o.primary } : single;
+  const same = (t) => (t.providerId || null) === (primary.providerId || null) && t.model === primary.model;
+  const targets = [primary, ...(r ? r.targets.filter((t) => t && t.enabled !== false && t.model && !same(t)) : [])];
   return { id: r?.id ?? null, name: r?.name || "Single model", targets, policy: normalizePolicy(r?.policy || {}), chain: targets.length > 1 };
 }
 

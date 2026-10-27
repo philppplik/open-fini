@@ -90,3 +90,29 @@
 @keyframes of-aipill-slide { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
 .of-reduce-motion .of-aipill__bar.indeterminate .of-aipill__fill { animation: none; width: 100%; opacity: 0.5; }
 @media (prefers-reduced-motion: reduce) { .of-aipill__bar.indeterminate .of-aipill__fill { animation: none; width: 100%; opacity: 0.5; } .of-aipill__fill { transition: none; } }
+
+/* Model routing: fallback chain editor and provider health (ui/vibe/panel-routes.js) */
+.of-vroute__list { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.of-vroute__row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--of-border-soft); border-radius: 6px; background: var(--of-surface, transparent); }
+.of-vroute__row[draggable="true"] { cursor: grab; }
+.of-vroute__row.off { opacity: 0.55; }
+.of-vroute__row.primary { border-style: dashed; }
+.of-vroute__n { width: 18px; text-align: center; color: var(--of-text-dim); font-size: 11px; }
+.of-vroute__main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.of-vroute__main small, .of-vroute__to small { color: var(--of-text-dim); font-size: 11px; }
+.of-vroute__to { display: flex; flex-direction: column; width: 64px; }
+.of-vroute__add { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+.of-vroute__add > * { flex: 1 1 140px; min-width: 0; }
+.of-vroute__presets { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+.of-vroute__sug { display: flex; gap: 8px; align-items: center; padding: 6px 8px; margin: 6px 0; border-radius: 6px; background: color-mix(in srgb, var(--of-accent, #4f8cff) 12%, transparent); font-size: 12px; }
+.of-vroute__test { list-style: none; margin: 6px 0 0; padding: 0; font-size: 12px; }
+.of-vroute__test li { display: flex; gap: 6px; align-items: center; padding: 2px 0; }
+.of-vroute__test li.ok svg { color: #3dd68c; }
+.of-vroute__test li.bad { color: var(--of-danger); }
+.of-vhealth { gap: 6px; margin-top: 2px; }
+.of-vhealth small.err { color: var(--of-danger); white-space: normal; }
+.of-vdot { width: 8px; height: 8px; border-radius: 50%; background: var(--of-border); flex: none; }
+.of-vdot.ok { background: #3dd68c; }
+.of-vdot.bad { background: var(--of-danger); }
+.of-vlog__entry.fallback .of-vlog__ico { color: var(--of-accent, #4f8cff); }
+@media (prefers-reduced-motion: reduce) { .of-vroute__row { transition: none; } }

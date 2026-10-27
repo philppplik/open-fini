@@ -74,6 +74,10 @@ export function createActivityPanel(vs) {
       title = e.decision ? `Approval ${e.decision}` : "Approval asked";
       sub = e.text;
       cls = `approval ${e.decision || "pending"}`;
+    } else if (e.kind === "fallback") {
+      icon = iconEl("shuffle");
+      title = e.text;
+      sub = e.detail;
     } else if (e.kind === "retry") {
       icon = iconEl("arrow-repeat");
       title = e.text;
