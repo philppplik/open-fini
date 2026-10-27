@@ -166,3 +166,40 @@ export function stepRatio(r, key, layout, shift = false) {
   // the bar moves toward the end: the code pane grows when it comes first, shrinks otherwise
   return r + toEnd * (codeFirst(layout) ? 1 : -1) * step;
 }
+
+// ------------------------------------------------------------------------------------------------ layout metrics
+// The preview frame reports what the page really sees (bridge "layoutMetrics" message). By definition the configured
+// viewport width W equals the CSS layout width (documentElement.clientWidth) when the root scrollbar is hidden; with a
+// visible classic scrollbar the layout width is W minus the scrollbar width, and a 100vw box is still W wide.
+//   iw/ih  window.innerWidth/Height          cw/ch  documentElement.clientWidth/Height (layout viewport)
+//   full   width of a fixed width:100% probe  vw100  width of a fixed width:100vw probe  dpr  devicePixelRatio
+
+const fin = (n) => (typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1e5 ? n : null);
+
+/** Validates an (untrusted) metrics report from the preview frame. Returns a normalized object or null. */
+export function sanitizeLayoutMetrics(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const m = { iw: fin(raw.iw), ih: fin(raw.ih), cw: fin(raw.cw), ch: fin(raw.ch), full: fin(raw.full), vw100: fin(raw.vw100), dpr: fin(raw.dpr) };
+  if (Object.values(m).some((v) => v === null) || !(m.iw > 0) || !(m.cw > 0) || !(m.dpr > 0)) return null;
+  return m;
+}
+
+/**
+ * Compares the configured viewport with the reported metrics.
+ * Returns { scrollbar, layoutWidth, consistent, issues[], text }: `scrollbar` is the width taken by the root scrollbar
+ * (0 when hidden); `consistent` says the numbers agree by definition (innerWidth = configured width, the 100vw probe =
+ * innerWidth, the 100% probe = layout width); `text` is the readout "390 × 844 · layout 390".
+ */
+export function describeLayout(width, height, metrics, tolerance = 0.5) {
+  const m = metrics && typeof metrics === "object" ? metrics : null;
+  if (!m) return { scrollbar: 0, layoutWidth: width, consistent: true, issues: [], text: `${width} × ${height}` };
+  // `full` is fractional (clientWidth is rounded to an integer), so it gives the exact layout width and scrollbar width
+  const sb = Math.max(0, m.iw - m.full);
+  const issues = [];
+  if (Math.abs(m.iw - width) > tolerance) issues.push("inner-width");
+  if (Math.abs(m.vw100 - m.iw) > tolerance) issues.push("vw-probe");
+  if (Math.abs(m.full - m.cw) > tolerance) issues.push("percent-probe");
+  const lw = Math.round(m.full * 100) / 100;
+  const text = `${width} × ${height} · layout ${lw}${sb > tolerance ? ` (scrollbar ${Math.round(sb * 100) / 100})` : ""}`;
+  return { scrollbar: Math.round(sb * 100) / 100, layoutWidth: lw, consistent: issues.length === 0, issues, text };
+}

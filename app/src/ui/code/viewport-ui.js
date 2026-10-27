@@ -80,6 +80,9 @@ export function createViewportBar(pv) {
   fill.setAttribute("aria-pressed", "false");
   const rulersBtn = iconButton({ icon: "rulers", label: "Show rulers and breakpoint markers", onClick: () => pv.setRulers(!pv.rulersOn) });
   rulersBtn.setAttribute("aria-pressed", "true");
+  // hidden by default: a classic scrollbar takes ~15 px from the layout width (layout width != viewport width)
+  const sbBtn = iconButton({ icon: "layout-sidebar-inset-reverse", label: "Show the page scrollbar (it reduces the layout width)", onClick: () => pv.setScrollbar(!pv.showScrollbar) });
+  sbBtn.setAttribute("aria-pressed", "false");
 
   // device presets + saved sizes
   const presetSel = h("sl-select", { size: "small", hoist: true, class: "of-vp__preset", ...ta({ "aria-label": "Device size" }) });
@@ -204,6 +207,7 @@ export function createViewportBar(pv) {
     h("span.of-vp__sep"),
     zoomSel,
     rulersBtn,
+    sbBtn,
     slider,
     pv.label,
   );
@@ -223,6 +227,8 @@ export function createViewportBar(pv) {
     fill.setAttribute("aria-pressed", String(!pv.vh));
     rulersBtn.classList.toggle("active", pv.rulersOn);
     rulersBtn.setAttribute("aria-pressed", String(pv.rulersOn));
+    sbBtn.classList.toggle("active", !!pv.showScrollbar);
+    sbBtn.setAttribute("aria-pressed", String(!!pv.showScrollbar));
     guard = true;
     const saved = savedSizes(pv);
     const si = saved.findIndex((s) => s.w === w && s.h === hh);

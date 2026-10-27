@@ -36,6 +36,7 @@ export function registerCodeCommands(app) {
     if (ws().view === "code") ws().setView("split");
     ws().preview.setMeasure(!ws().preview.measuring);
   }, { shortcut: "M", checked: (a) => !!a.codeUI?.preview?.measuring, icon: "rulers" });
+  def("code.previewScrollbar", "Show Scrollbar in the Preview", () => ws().preview.setScrollbar(!ws().preview.showScrollbar), { checked: (a) => !!a.codeUI?.preview?.showScrollbar, icon: "layout-sidebar-inset-reverse" });
   def("code.rulers", "Show Rulers and Breakpoint Markers", () => ws().preview.setRulers(!ws().preview.rulersOn), { checked: (a) => a.codeUI?.preview?.rulersOn !== false, icon: "rulers" });
   def("code.viewportRotate", "Rotate Preview (Swap Width and Height)", () => ws().preview.rotate(), { icon: "arrow-repeat" });
   for (const [id, label, icon] of [["codeLeft", "Split Layout: Code Left, Preview Right", "layout-sidebar"], ["codeRight", "Split Layout: Preview Left, Code Right", "layout-sidebar-inset-reverse"], ["codeTop", "Split Layout: Code Above, Preview Below", "layout-text-window"], ["codeBottom", "Split Layout: Preview Above, Code Below", "layout-text-window-reverse"]]) {
