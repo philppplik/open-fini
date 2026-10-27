@@ -131,8 +131,11 @@ export function toCodeMirror(body, vars = {}) {
   return render(nodes);
 }
 
+/** A uniform number in [0, 1) from the Web Crypto API (UUID and RANDOM snippet variables). */
+const cryptoRandom = () => globalThis.crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296;
+
 /** Values of the VS Code snippet variables for a file and selection. */
-export function snippetVariables({ path = "", selection = "", line = "", word = "", now = new Date(), lineComment = "//", blockComment = ["/*", "*/"], random = Math.random } = {}) {
+export function snippetVariables({ path = "", selection = "", line = "", word = "", now = new Date(), lineComment = "//", blockComment = ["/*", "*/"], random = cryptoRandom } = {}) {
   const file = String(path).split("/").pop();
   const pad = (n) => String(n).padStart(2, "0");
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

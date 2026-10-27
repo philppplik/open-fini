@@ -534,8 +534,8 @@ function vscodeRuntime() {
   async function invoke(m, p) {
     switch (m) {
       case "command.run": {
-        const fn = commands.get(p.id);
-        if (!fn) throw new Error(`Command “${p.id}” is not registered (vscode.commands.registerCommand was not called while activating).`);
+        const fn = typeof p.id === "string" && commands.has(p.id) ? commands.get(p.id) : null;
+        if (typeof fn !== "function") throw new Error(`Command “${p.id}” is not registered (vscode.commands.registerCommand was not called while activating).`);
         const res = await fn(...(Array.isArray(p.args) ? p.args : p.args === undefined || p.args === null ? [] : [p.args]));
         try {
           return res === undefined ? null : JSON.parse(JSON.stringify(res));
