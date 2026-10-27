@@ -35,7 +35,7 @@ export function frameText(text, { mask = true, opcode = 1, fin = true } = {}) {
 }
 
 export class TestWebSocket {
-  constructor(url, { origin } = {}) {
+  constructor(url, { origin, hostHeader } = {}) {
     this.readyState = 0;
     this.onopen = null;
     this.onmessage = null;
@@ -47,7 +47,7 @@ export class TestWebSocket {
       host: u.hostname,
       port: u.port,
       path: u.pathname,
-      headers: { Connection: "Upgrade", Upgrade: "websocket", "Sec-WebSocket-Version": "13", "Sec-WebSocket-Key": randomBytes(16).toString("base64"), ...(origin ? { Origin: origin } : {}) },
+      headers: { Connection: "Upgrade", Upgrade: "websocket", "Sec-WebSocket-Version": "13", "Sec-WebSocket-Key": randomBytes(16).toString("base64"), ...(origin ? { Origin: origin } : {}), ...(hostHeader ? { Host: hostHeader } : {}) },
     });
     req.on("upgrade", (res, socket) => {
       this.socket = socket;

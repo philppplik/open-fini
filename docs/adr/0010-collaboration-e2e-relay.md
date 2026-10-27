@@ -23,7 +23,7 @@ with the content: users will run relays on shared machines and VPSs, and nobody 
   rotation) key pairs. The secret-derived token is kept for the relay only, where it stops strangers who know a room id.
 - **Strict schema validation** of every decrypted message, plain-text rendering only, file allow-list with explicit
   consent, avatar re-encoding, per-member rate limits.
-- **No live co-editing in this release.** Documents travel as encrypted `.ofini` snapshots; chat, comments, presence,
+- **No live co-editing in this release** (superseded by [ADR 0011](0011-live-editing-sync.md)). Documents travel as encrypted `.ofini` snapshots; chat, comments, presence,
   follow and the activity feed are live. The `op` message type is reserved for a later "Edit together (beta)".
 - **CSP**: the desktop `connect-src` adds `ws: wss:` (scheme sources) because relay hosts are entered by the user and a CSP
   cannot be changed at runtime. `https:` was already allowed, so this does not open a new exfiltration channel; offline
