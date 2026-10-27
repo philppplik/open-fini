@@ -1,10 +1,10 @@
 # Vibe Tools Reference
 
-The Vibe assistant acts through tools: named functions with schemas that call into OpenFini's documents and settings. This page lists the tool groups, what is read-only, which tools ask for approval, and where the authoritative list lives. The exact current list is always *Vibe ▸ Tools* in the app.
+The Vibe assistant acts through tools: named functions with schemas that call into OpenFini's documents and settings. This page lists the tool groups, what is read-only, which tools ask for approval, and where the authoritative list lives. The exact current list is always *Settings ▸ Artificial intelligence ▸ Tools* in the app.
 
 ## How tools behave
 
-- Tools are listed in *Vibe ▸ Tools*; you can switch off any single tool or set it to *Always allow* ([[Vibe Providers and Permissions]]).
+- Tools are listed in *Settings ▸ Artificial intelligence ▸ Tools*; you can switch off any single tool or set it to *Always allow* ([[Vibe Providers and Permissions]]).
 - Pure reads are marked read-only and run in parallel without the document write lock. Writes are serialized per document and recorded for **Undo this run**.
 - Tools that reach outside (network, publishing, pushing, installing, messaging other people) return an approval request naming the effect.
 - The assistant never receives secrets: tokens, invite codes and keys are not exposed by any tool.

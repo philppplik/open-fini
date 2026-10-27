@@ -1,4 +1,4 @@
-// Vibe Studio ▸ Knowledge (documents the assistant can search, memory notes). Skills live in panel-skills.js.
+// Settings ▸ Artificial intelligence ▸ Knowledge (documents the assistant can search, memory notes). Skills live in panel-skills.js.
 import { h, empty } from "../../core/util.js";
 import { vibeStore } from "../../vibe/store.js";
 import { pickFiles } from "../code/import.js";

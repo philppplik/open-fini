@@ -1,4 +1,4 @@
-// Vibe Studio ▸ Skills: the skill library (built-in, yours, from extensions) with search, tag filters, source badges,
+// Settings ▸ Artificial intelligence ▸ Skills: the skill library (built-in, yours, from extensions) with search, tag filters, source badges,
 // usage stats, a SKILL.md editor with live preview and validation, import/export (.skill.md and .skillpack zip
 // bundles), "Create from this chat" and a test run with the offline Demo provider.
 // Skill format: docs/vibe-skills.md. Parsing/validation/rendering: ai/skills.js (pure).

@@ -307,7 +307,7 @@ export class VibeSession extends Emitter {
     const app = this.app;
     const s = this.settings();
     const providerId = s.activeProvider || "demo";
-    if (providerId !== "demo" && !this.app.prefs.aiEnabled) throw new Error("AI features are turned off. Turn them on under Settings ▸ Artificial intelligence (or the switch in Vibe ▸ Models) — your messages will then be sent to the provider you chose.");
+    if (providerId !== "demo" && !this.app.prefs.aiEnabled) throw new Error("AI features are turned off. Turn them on under Settings ▸ Artificial intelligence (or the switch in Settings ▸ Artificial intelligence ▸ Models) — your messages will then be sent to the provider you chose.");
     const model = providerId === "demo" ? "demo" : s.model;
     if (!model) throw new Error("Choose a model first (model menu in the composer).");
     this.hub.assertCanStart(this);

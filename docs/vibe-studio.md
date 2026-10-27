@@ -11,16 +11,78 @@ document you can keep editing, and every run can be undone in one click.
 ## Quick tour
 
 1. Open Vibe Studio (`Alt+5` or the Vibe button in the header).
-2. Pick a model in the composer, or add your own connection under **Models** (see below). The built-in **Demo
+2. Pick a model in the composer, or add your own connection under **Settings ▸ Artificial intelligence ▸ Models and
+   connections** (the composer's model menu has *Manage connections…*). The built-in **Demo
    (offline)** assistant needs no key and shows how the studio works: it follows a small script of real tool calls.
 3. Type what you want and press `Enter`: *"Make a 1080×1350 poster for a jazz night on Friday with a bold headline."*
 4. Watch the **Canvas** panel update as tool cards appear in the chat. Open the result in any studio with one click.
 5. Not right? **Undo last AI run** (Activity panel, chat footer or the bar that appears after a quick action) restores
    the document as it was before the request.
 
-Composer extras: attach images and text files (paperclip), start a skill or command with `/` (`/new`, `/undo`,
-`/stop-all`, `/create-skill`, `/<skill>`), choose the approval mode and the thinking effort. The assistant always knows which layers you
-have selected, so "make this bigger" works.
+Composer extras: attach images and text files (paperclip), attach a picture of the current page (camera), dictate
+(microphone, where the browser supports speech input), the prompt library (recent prompts, saved prompts, templates per
+studio), the per-chat **Tools** menu (switch tool groups off for this chat only), the model pill, the approval mode and
+the thinking effort. The assistant always knows which layers you have selected, so "make this bigger" works.
+
+## Layout
+
+* **Left**: chats. **Center**: the conversation and the composer. **Right**: only two panels, **Canvas** and
+  **Activity**.
+* **Models and connections, Tools and MCP, Skills, Knowledge and memory** moved to **Settings ▸ Artificial intelligence**
+  (sub-tabs under *Vibe Studio*). Deep link for scripts and extensions:
+  `app.run("settings.open", { section: "ai", tab: "models" })` (`tab`: `models`, `tools`, `skills`, `knowledge`). The
+  old commands *Show Models and Connections* etc. open the same place.
+
+## Mentions: `@`, `/` and `!`
+
+Type a trigger at the start of the message or after a space; a list opens at the caret (fuzzy search, grouped,
+`↑`/`↓`, `Enter`/`Tab` to pick, `Esc` to close, mouse works too). No list opens while an input method (IME) is composing.
+
+| Trigger | Offers | Becomes |
+| --- | --- | --- |
+| `@` | `@selection`, layers of the active document (by name), project files of the open website / text project, open documents, attachments of this chat, room members | a chip; sent as `[@layer: id name type bounds]`, `[@file: path]` plus an excerpt (up to 8 KB per file, 40 KB per message), `[@document: …]`, `[@attachment: …]`, `[@member: …]` |
+| `/` | built-in commands (`/new`, `/undo`, `/clear`, `/stop-all`, `/create-skill`, `/skills`, `/tools`), skills (a form asks for their parameters), recent prompts | commands run at once; a skill becomes a `/skill` chip sent as `[/skill: name args {…}]` |
+| `!` | every tool with its description and parameter hint (`!add_shape`, `!query_layers`, …) | a `!tool` chip; sent as `[!tool: name] You MUST call the tool … first` |
+
+Chips sit above the text and are atomic: `Backspace` at the start of the text removes the last one, each chip has a
+remove button. Drag a layer from the Canvas outline onto the composer to add it as a chip; dropped files stay
+attachments and pasted images keep working. The chips travel in a `[Vibe context]` section at the end of the message
+(`app/src/ui/vibe/mentions.js`); the transcript shows them as chips again.
+
+## Reviewing what the AI changed (diffs)
+
+Every mutating tool call is recorded as a change set (before/after snapshots taken under the write lock):
+
+* Tool cards that changed something show **View changes** with a compact badge (`+12 −3` for text, `2 layers` for
+  designs).
+* At the end of a run a **Changed in this run** card lists the files and layers; **Review changes** opens the diff
+  drawer: one tab per file (unified or side-by-side, unchanged stretches folded, **Revert this file** and per change block
+  revert), a **Layers** tab with the property changes in words (*Rectangle “Hero”: fill #ffffff → #0a84ff, x 40 → 80*),
+  before/after thumbnails, *Select* and *Revert* per layer, and a **Document text** tab with a paragraph diff for Office
+  documents. Every revert is one undo step; **Undo this run** is the same as in the Activity panel.
+* **Before / after** compares the page before the run with the current page on the Canvas (slider).
+
+Limits: change sets live in memory only (chats loaded later have no diffs); files above 400 KB are listed as too large
+(they can still be reverted); pixel layers and binary files show thumbnails or a note only and are reverted with *Undo
+this run*; reordering inside a group is reported only as "moved"; documents with more than 5000 layers are compared on
+the first 5000.
+
+## Canvas panel
+
+A live preview of the active document: zoom (Fit, 50, 100, 200 %, wheel, `+`/`−`/`0`), pan by dragging or the arrow
+keys, a page switcher, a **layers outline** (click to select, eye and lock toggles, `H`/`L` keys, `A` adds the layer to
+the composer, drag onto the composer), rings around the layers the AI touched in the last run plus **Touched by AI**
+chips, the before/after slider, **Open in …** (split button: Vector, Pixel, Layout, Code, Office), **Export…** and the
+document size, pages and layer count. Website projects show the live preview with Desktop / Tablet / Phone widths. The
+preview renders only while the panel is visible, debounced and at most 1800 px on the long side.
+
+## Message toolbars
+
+Answers: copy, retry (newest answer), helpful / not helpful (stored on this device only), and **⋯** with copy as
+Markdown, retry with another model, read aloud (where the browser has speech synthesis), pin (pinned turns appear in a
+strip at the top), save to knowledge (adds the answer to the RAG index), share to the room chat (while in a room),
+collapse, branch chat from here and delete. Your messages: copy, edit and resend (continues from that turn), **⋯** with
+pin, branch and delete.
 
 ## Several chats at once
 
@@ -256,7 +318,10 @@ appears afterwards, or with `Ctrl+Z`.
 | Hub (many chats, shared services, write lock), chat session | `app/src/vibe/hub.js`, `app/src/vibe/session.js` |
 | Write lock, run undo, sub-agent engine, query/ref/scene helpers (pure) | `app/src/vibe/locks.js`, `run-undo.js`, `agents.js`, `query.js` |
 | Store, custom tools, quick actions, OAuth return | `app/src/vibe/` |
-| Studio UI | `app/src/ui/vibe/` (chat list `chat-list.js`, skills `panel-skills.js`), `app/styles/vibe.css`, `app/styles/vibe-engine.css` |
+| Studio UI | `app/src/ui/vibe/` (chat list `chat-list.js`, skills `panel-skills.js`, settings host `settings-ai.js`), `app/styles/vibe.css`, `app/styles/vibe-engine.css`, `app/styles/vibe-ui.css` |
+| Mentions and composer | pure `mentions.js` (trigger detection, fuzzy ranking, context blocks), UI `composer-mentions.js`, toolbars `message-actions.js` |
+| Change sets and diffs | pure `changes.js` (snapshots, layer/file/paragraph diffs, per-hunk revert), recorder `change-recorder.js` (hooked via `hub.changeProbe` in `VibeSession#wrap`), drawer `diff-view.js` |
+| Canvas panel | `panel-canvas.js` (preview, outline, rings, before/after) |
 | AI progress pill | `app/src/ui/ai-pill.js`, wording in `app/src/ui/vibe/activity-label.js` |
 | MCP gateway | `scripts/mcp-gateway.mjs` |
 
@@ -273,7 +338,12 @@ and listed in `TOOL_GROUPS`; mark pure reads `readOnly: true` (they run in paral
 `allowed`, `agents`, `attachments`, `snapshots`, `useSkill`). New Demo scenarios: `planForPrompt` in
 `app/src/ai/providers/mock.js`.
 
-**Testing.** `tests/ai/` (runtime, gateway, skills v2, and a contract test that checks the demo assistant, the skills
+The UI's only hook into the engine is `hub.changeProbe` (optional): `VibeSession#wrap` calls
+`changeProbe.before({ session, id, name, input, doc, run })` after taking the lock and `probe.after(app.doc)` when a
+mutating call ends; failures there never fail a tool call.
+
+**Testing.** `tests/ui/vibe-mentions.test.js` and `tests/ui/vibe-changes.test.js` cover the pure composer and diff
+builders. `tests/ai/` (runtime, gateway, skills v2, and a contract test that checks the demo assistant, the skills
 and the tool groups against the real tool registry) and `tests/vibe/` (write lock fairness, tag-based undo, queries,
 run_plan refs, scene text, sub-agent budgets/depth/tool restriction, and engine tests that run the real hub with the
 Demo provider against real documents: concurrent chats, background approvals, limits, kill switch, three-agent brand

@@ -59,7 +59,7 @@ export const TOURS = {
     title: "Vibe Studio",
     steps: [
       { id: "chat", target: ".of-vibe", placement: "center", title: "Describe it, then refine it", body: "Tell the assistant what to build or change. It works in your open document with the same tools you have, and every run can be undone." },
-      { id: "side", target: ".of-vside__tabs", placement: "left", title: "Models, tools and skills", body: "Add your own AI connection under Models, see what the assistant did under Activity, and teach it new tricks with Skills and Knowledge." },
+      { id: "side", target: ".of-vside__tabs", placement: "left", title: "Canvas and Activity", body: "Canvas shows the document live with its layers and what the AI touched; Activity lists every step with undo. Models, tools, skills and knowledge live in Settings ▸ Artificial intelligence." },
     ],
   },
 };

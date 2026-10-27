@@ -53,7 +53,6 @@
   "Add page after the current page": "Seite nach der aktuellen Seite hinzufügen",
   "Add pixel layers and masks here. History lets you step back to any earlier state.": "Hier lassen sich Pixelebenen und Masken hinzufügen. Der Verlauf erlaubt den Schritt zurück zu jedem früheren Zustand.",
   "Add row": "Zeile hinzufügen",
-  "Add your own AI connection under Models, see what the assistant did under Activity, and teach it new tricks with Skills and Knowledge.": "Unter Modelle die eigene KI-Verbindung hinzufügen, unter Aktivität nachvollziehen, was der Assistent getan hat, und ihm mit Skills und Wissen Neues beibringen.",
   "Add-ons that extend OpenFini in every studio. They run in sandboxes with only the permissions you approve.": "Zusatzmodule, die OpenFini in jedem Studio erweitern. Sie laufen in einer Sandbox und erhalten nur die Berechtigungen, die du freigibst.",
   "Adds short lines such as “Move · 3 layers on Page 2” to the chat, so others can follow along and jump to the change.": "Fügt kurze Zeilen wie „Verschieben · 3 Ebenen auf Seite 2“ in den Chat ein, damit andere mitverfolgen und zur Änderung springen können.",
   "Adjust without destroying": "Anpassen ohne Verlust",
@@ -571,7 +570,6 @@
   "Minimize": "Minimieren",
   "Mobile": "Mobil",
   "Mode": "Modus",
-  "Models, tools and skills": "Modelle, Werkzeuge und Skills",
   "Mono": "Mono",
   "More": "Mehr",
   "More accent colors": "Mehr Akzentfarben",
@@ -1503,5 +1501,7 @@
   "View changes": "Änderungen ansehen",
   "View changes: {stat}": "Änderungen ansehen: {stat}",
   "website": "Website",
-  "Zoom level": "Zoomstufe"
+  "Zoom level": "Zoomstufe",
+  "Canvas and Activity": "Zeichenfläche und Aktivität",
+  "Canvas shows the document live with its layers and what the AI touched; Activity lists every step with undo. Models, tools, skills and knowledge live in Settings ▸ Artificial intelligence.": "Die Zeichenfläche zeigt das Dokument live mit seinen Ebenen und dem, was die KI geändert hat; Aktivität listet jeden Schritt mit Rückgängig. Modelle, Werkzeuge, Skills und Wissen findest du unter Einstellungen ▸ Künstliche Intelligenz."
 }

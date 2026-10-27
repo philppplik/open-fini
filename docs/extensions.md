@@ -53,8 +53,8 @@ Where things appear:
 - **Templates**, **importers** and **exporters** appear in the *File* menu (*New from …*, *Import with …*, *Export with …*).
   Importers also handle files of their type that you open or drop.
 - **Snippets** appear in the Code studio's code completion.
-- **Vibe tools** are listed in *Vibe Studio ▸ Tools* with their origin and **always ask for approval** (in every
-  approval mode). **Skills** are listed in *Vibe Studio ▸ Skills* and in the chat `/` menu.
+- **Vibe tools** are listed in *Settings ▸ Artificial intelligence ▸ Tools* with their origin and **always ask for approval** (in every
+  approval mode). **Skills** are listed in *Settings ▸ Artificial intelligence ▸ Skills* and in the chat `/` menu.
 
 ### Vibe
 

@@ -149,7 +149,7 @@ const LEVEL = { ok: ["OK", "check-circle-fill"], info: ["Note", "info-circle-fil
 export async function setKeyPassphrase(app) {
   const { vibeStore } = await import("../vibe/store.js");
   await vibeStore.load();
-  if (vibeStore.locked) return app.toast("Unlock your API keys first (Vibe Studio ▸ Models).", "warning", 4000);
+  if (vibeStore.locked) return app.toast("Unlock your API keys first (Settings ▸ Artificial intelligence ▸ Models).", "warning", 4000);
   const { passphraseDialog } = await import("./app-lock.js");
   const pass = await passphraseDialog({ title: "Protect API keys", lead: "Stored API keys are encrypted with this passphrase and you will be asked for it once per session. If you forget it, the keys must be entered again.", ok: "Protect", confirm: true });
   if (!pass) return;

@@ -1,4 +1,4 @@
-// Vibe Studio ▸ Tools: OpenFini's built-in tools, your custom tools, and MCP servers.
+// Settings ▸ Artificial intelligence ▸ Tools: OpenFini's built-in tools, your custom tools, and MCP servers.
 import { h, empty, uid } from "../../core/util.js";
 import { vibeStore } from "../../vibe/store.js";
 import { TOOL_GROUPS } from "../../vibe/tools/index.js";

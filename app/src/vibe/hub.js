@@ -159,7 +159,7 @@ export class VibeHub extends Emitter {
   assertCanStart(s) {
     const max = Math.max(1, vibeStore.settings.maxChats ?? 4);
     const n = this.running.filter((x) => x !== s).length;
-    if (n >= max) throw new Error(`${n} chats are already running (limit ${max}, Vibe ▸ Models ▸ Engine). Wait for one to finish or stop one.`);
+    if (n >= max) throw new Error(`${n} chats are already running (limit ${max}, Settings ▸ Artificial intelligence ▸ Models ▸ Engine). Wait for one to finish or stop one.`);
   }
   /** Global kill switch: stops every chat and every sub-agent. */
   stopAll() {
