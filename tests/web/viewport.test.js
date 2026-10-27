@@ -129,3 +129,48 @@ test("splitter keys move the bar the way the arrow points", () => {
   assert.equal(stepRatio(0.5, "Home", "codeLeft"), 0.1);
   assert.equal(stepRatio(0.5, "End", "codeLeft"), 0.9);
 });
+
+import { sanitizeLayoutMetrics, describeLayout, measureKit } from "../../app/src/engine/web/index.js";
+
+test("layout metrics: hidden scrollbar means viewport width = layout width", () => {
+  const m = sanitizeLayoutMetrics({ iw: 390, ih: 844, cw: 390, ch: 844, full: 390, vw100: 390, dpr: 1.5 });
+  const d = describeLayout(390, 844, m);
+  assert.equal(d.consistent, true);
+  assert.equal(d.scrollbar, 0);
+  assert.equal(d.text, "390 × 844 · layout 390");
+});
+
+test("layout metrics: a visible scrollbar is reported explicitly (fractional on fractional DPR)", () => {
+  const m = sanitizeLayoutMetrics({ iw: 390, ih: 844, cw: 375, ch: 844, full: 374.67, vw100: 390, dpr: 1.5 });
+  const d = describeLayout(390, 844, m);
+  assert.equal(d.consistent, true); // 100vw = innerWidth, 100% = layout width: all agree by definition
+  assert.equal(d.scrollbar, 15.33);
+  assert.equal(d.text, "390 × 844 · layout 374.67 (scrollbar 15.33)");
+});
+
+test("layout metrics: a mismatch with the configured width fails the self-check", () => {
+  const m = sanitizeLayoutMetrics({ iw: 320, ih: 568, cw: 320, ch: 568, full: 320, vw100: 320, dpr: 1 });
+  assert.deepEqual(describeLayout(390, 844, m).issues, ["inner-width"]);
+  const bad = sanitizeLayoutMetrics({ iw: 390, ih: 800, cw: 390, ch: 800, full: 380, vw100: 390, dpr: 1 });
+  assert.deepEqual(describeLayout(390, 800, bad).issues, ["percent-probe"]);
+});
+
+test("layout metrics: untrusted reports are rejected", () => {
+  assert.equal(sanitizeLayoutMetrics(null), null);
+  assert.equal(sanitizeLayoutMetrics({ iw: "390", ih: 1, cw: 1, ch: 1, full: 1, vw100: 1, dpr: 1 }), null);
+  assert.equal(sanitizeLayoutMetrics({ iw: 0, ih: 1, cw: 0, ch: 1, full: 0, vw100: 0, dpr: 1 }), null);
+  assert.equal(sanitizeLayoutMetrics({ iw: NaN, ih: 1, cw: 1, ch: 1, full: 1, vw100: 1, dpr: 1 }), null);
+  assert.equal(describeLayout(390, 844, null).text, "390 × 844");
+});
+
+test("measurement is zoom independent: the kit works in frame CSS px only and converts at 96 ppi", () => {
+  const k = measureKit();
+  // a 100%-wide box of a 390 px layout is 390 px = 4.063 in = 103.2 mm, whatever the preview zoom is
+  assert.equal(k.formatValue(390, "px"), "390px");
+  assert.equal(k.formatValue(390, "mm"), "103.2mm");
+  assert.equal(k.formatValue(390, "in"), "4.063in");
+  assert.equal(k.formatValue(195, "%", { basisPx: 390 }), "50%");
+  // DPR only matters when explicitly requested ("device pixels")
+  assert.equal(k.formatValue(96, "in", { dpr: 2 }), "1in");
+  assert.equal(k.formatValue(96, "in", { dpr: 2, dprAware: true }), "2in");
+});

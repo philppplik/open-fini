@@ -35,6 +35,14 @@ export function bridgeMain(kit) {
       /* the parent is gone */
     }
   }
+  // The CSS layout viewport (what 100%-wide boxes and the measure tool use): the viewport minus a classic scrollbar.
+  // With the preview's scrollbar hidden (the default) it equals window.innerWidth by construction.
+  function lw() {
+    return document.documentElement.clientWidth || window.innerWidth;
+  }
+  function lh() {
+    return document.documentElement.clientHeight || window.innerHeight;
+  }
   function byId(id) {
     return id == null ? null : document.querySelector('[data-of="' + id + '"]');
   }
@@ -111,6 +119,49 @@ export function bridgeMain(kit) {
   var tip = box("tip", "background:#1d1e22;color:#fff;font:500 11px/16px system-ui,sans-serif;padding:2px 8px;border-radius:4px;white-space:nowrap");
   document.documentElement.appendChild(ov);
 
+  // ---------------------------------------------------------------- viewport self-check
+  // The root scrollbar steals ~15px from the layout width. By default it is hidden in the preview so that the configured
+  // viewport width IS the layout width; "Show scrollbar" restores it and the readout then shows the difference.
+  var sbStyle = document.createElement("style");
+  sbStyle.id = "__of_sb";
+  sbStyle.textContent = "html{scrollbar-width:none!important}html::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}";
+  var showScrollbar = !!cfg.scrollbar;
+  function applyScrollbar() {
+    if (showScrollbar) {
+      if (sbStyle.parentNode) sbStyle.parentNode.removeChild(sbStyle);
+    } else if (!sbStyle.parentNode) (document.head || document.documentElement).appendChild(sbStyle);
+  }
+  applyScrollbar();
+  // two invisible fixed probes: width:100% (layout viewport) and width:100vw (viewport including the scrollbar)
+  function metricProbe(css) {
+    var d = document.createElement("div");
+    d.setAttribute("style", "position:fixed;left:0;top:0;height:0;visibility:hidden;pointer-events:none;margin:0;padding:0;border:0;" + css);
+    ov.appendChild(d);
+    return d;
+  }
+  var probeFull = metricProbe("width:100%");
+  var probeVw = metricProbe("width:100vw");
+  var metricsKey = "";
+  function reportMetrics(force) {
+    var m = {
+      iw: window.innerWidth, ih: window.innerHeight, cw: lw(), ch: lh(),
+      full: probeFull.getBoundingClientRect().width, vw100: probeVw.getBoundingClientRect().width,
+      dpr: window.devicePixelRatio || 1,
+    };
+    var key = [m.iw, m.ih, m.cw, m.ch, m.full, m.vw100, m.dpr].join(",");
+    if (!force && key === metricsKey) return;
+    metricsKey = key;
+    m.type = "layoutMetrics";
+    post(m);
+  }
+  window.addEventListener("resize", function () { reportMetrics(false); });
+  window.addEventListener("load", function () { reportMetrics(false); });
+  try {
+    new ResizeObserver(function () { reportMetrics(false); }).observe(document.documentElement);
+  } catch (e) {
+    /* no ResizeObserver: resize and load still report */
+  }
+
   function place(name, r) {
     var d = parts[name];
     if (!r || r.width <= 0 && r.height <= 0 && name !== "drop") {
@@ -134,12 +185,30 @@ export function bridgeMain(kit) {
     label.style.display = "block";
     label.textContent = describe(el);
     var top = r.top - 20;
-    label.style.left = Math.max(2, Math.min(r.left, window.innerWidth - 120)) + "px";
+    label.style.left = Math.max(2, Math.min(r.left, lw() - 120)) + "px";
     label.style.top = (top < 2 ? r.top + 2 : top) + "px";
   }
   var raf = 0;
+  // elements matched by the CSS rule at the editor caret ("matchSel"): dashed outlines, drawn by redraw()
+  var matchEls = [];
+  var matchLayer = document.createElement("div");
+  matchLayer.setAttribute("style", "position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:hidden");
+  ov.appendChild(matchLayer);
+  function drawMatches() {
+    while (matchLayer.firstChild) matchLayer.removeChild(matchLayer.firstChild);
+    for (var i = 0; i < matchEls.length; i++) {
+      var el = matchEls[i];
+      if (!el.isConnected) continue;
+      var r = el.getBoundingClientRect();
+      if (r.width <= 0 && r.height <= 0) continue;
+      var d = document.createElement("div");
+      d.setAttribute("style", "position:fixed;box-sizing:border-box;outline:1px dashed " + ACCENT + ";outline-offset:-1px;background:rgba(79,140,255,.10);left:" + r.left + "px;top:" + r.top + "px;width:" + r.width + "px;height:" + r.height + "px");
+      matchLayer.appendChild(d);
+    }
+  }
   function redraw() {
     raf = 0;
+    drawMatches();
     var hov = hoverId != null && hoverId !== selectedId && !M.on ? byId(hoverId) : null;
     place("hover", hov && edit ? hov.getBoundingClientRect() : null);
     var sel = edit ? byId(selectedId) : null;
@@ -231,7 +300,7 @@ export function bridgeMain(kit) {
   function mctx(b, axis) {
     return {
       ppi: M.ppi, dpr: window.devicePixelRatio || 1, dprAware: M.dprAware, rootPx: b.rootFontSize, emPx: b.fontSize,
-      basisPx: b.parent ? (axis === "x" ? b.parent.w : b.parent.h) : axis === "x" ? window.innerWidth : window.innerHeight,
+      basisPx: b.parent ? (axis === "x" ? b.parent.w : b.parent.h) : axis === "x" ? lw() : lh(),
     };
   }
   function sizeText(b) {
@@ -243,7 +312,7 @@ export function bridgeMain(kit) {
       id: idOf(el), tag: el.tagName.toLowerCase(),
       rect: { x: b.rect.left + window.scrollX, y: b.rect.top + window.scrollY, w: b.rect.right - b.rect.left, h: b.rect.bottom - b.rect.top },
       margin: b.margin, border: b.border, padding: b.padding, fontSize: b.fontSize, rootFontSize: b.rootFontSize, parent: b.parent,
-      vw: window.innerWidth, vh: window.innerHeight,
+      vw: lw(), vh: lh(),
     };
   }
   function mk(css, text) {
@@ -270,8 +339,8 @@ export function bridgeMain(kit) {
     var d = mk("background:" + bg + ";color:#fff;font:600 11px/16px " + MONO + ";padding:0 6px;border-radius:3px;white-space:nowrap;left:0;top:0;visibility:hidden", text);
     var w = d.offsetWidth;
     var h = d.offsetHeight || 16;
-    d.style.left = Math.max(2, Math.min(x, window.innerWidth - w - 2)) + "px";
-    d.style.top = Math.max(2, Math.min(y, window.innerHeight - h - 2)) + "px";
+    d.style.left = Math.max(2, Math.min(x, lw() - w - 2)) + "px";
+    d.style.top = Math.max(2, Math.min(y, lh() - h - 2)) + "px";
     d.style.visibility = "visible";
     return d;
   }
@@ -319,7 +388,7 @@ export function bridgeMain(kit) {
       }
     }
     mk(rcss(b.rect) + "outline:1px " + (full ? "solid" : "dashed") + " " + M.accent + ";outline-offset:-1px");
-    var below = b.rect.bottom + 22 < window.innerHeight;
+    var below = b.rect.bottom + 22 < lh();
     tag(describe(b.el) + "  " + sizeText(b), b.rect.left, below ? b.rect.bottom + 4 : b.rect.top - 20, M.accent);
   }
   function refBox(hover) {
@@ -356,7 +425,7 @@ export function bridgeMain(kit) {
           kit.gapGuides(rb.rect, hb.rect).forEach(function (g) { drawGuide(g, hb, GUIDE); });
         }
       } else {
-        kit.edgeGuides(hb.rect, window.innerWidth, window.innerHeight).forEach(function (g) { drawGuide(g, hb, M.accent); });
+        kit.edgeGuides(hb.rect, lw(), lh()).forEach(function (g) { drawGuide(g, hb, M.accent); });
       }
       info = wireBox(hb);
       info.text = sizeText(hb);
@@ -832,7 +901,7 @@ export function bridgeMain(kit) {
         var el = byId(m.id);
         if (el) {
           var r = el.getBoundingClientRect();
-          if (r.top < 0 || r.bottom > window.innerHeight) el.scrollIntoView({ block: "center", behavior: "auto" });
+          if (r.top < 0 || r.bottom > lh()) el.scrollIntoView({ block: "center", behavior: "auto" });
         }
         schedule();
         break;
@@ -922,6 +991,32 @@ export function bridgeMain(kit) {
         schedule();
         break;
       }
+      case "matchSel": {
+        // { selector }: outlines every element matching a CSS selector (the host sends the rule at the caret); reports the count
+        var found = [];
+        var count = 0;
+        if (typeof m.selector === "string" && m.selector.length < 500) {
+          try {
+            var nl = document.querySelectorAll(m.selector);
+            count = nl.length;
+            for (var mi = 0; mi < nl.length && found.length < 300; mi++) if (!isOurs(nl[mi])) found.push(nl[mi]);
+          } catch (e) {
+            count = -1; // not a valid selector for querySelectorAll (for example a pseudo-element)
+          }
+        }
+        matchEls = found;
+        post({ type: "matchCount", selector: typeof m.selector === "string" ? m.selector.slice(0, 200) : "", count: count });
+        schedule();
+        break;
+      }
+      case "viewportOpts":
+        showScrollbar = !!m.scrollbar;
+        applyScrollbar();
+        reportMetrics(true);
+        break;
+      case "metrics":
+        reportMetrics(true);
+        break;
       case "measureBox": {
         var me = byId(m.id);
         post({ type: "measureBox", reqId: m.reqId, box: me ? wireBox(boxOf(me)) : null });
@@ -938,7 +1033,8 @@ export function bridgeMain(kit) {
     }
   });
 
-  post({ type: "ready", width: window.innerWidth, title: document.title });
+  post({ type: "ready", width: lw(), title: document.title });
+  reportMetrics(true);
   schedule();
 }
 

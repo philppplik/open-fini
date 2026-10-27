@@ -63,7 +63,7 @@ export const MENUS = [
   {
     label: "Edit",
     studios: ["code"],
-    items: ["code.undo", "code.redo", "-", "code.cut", "code.copy", "code.paste", "code.duplicateElement", "code.deleteElement", "-", "code.find", "code.findInFiles", "code.gotoLine", "-", "code.format", "code.toggleComment", "-", "edit.preferences"],
+    items: ["code.undo", "code.redo", "-", "code.cut", "code.copy", "code.paste", "code.duplicateElement", "code.deleteElement", "-", "code.find", "code.findInFiles", "code.gotoLine", "-", "code.format", "code.formatSelection", "code.toggleComment", "code.syncHighlight", "-", "edit.preferences"],
   },
   {
     label: "Insert",

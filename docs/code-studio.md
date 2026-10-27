@@ -112,6 +112,64 @@ Units: px, mm, cm, in, pt, rem, em and % of the parent. Physical units follow th
 **ppi** basis if you want a different density, or turn on **Device pixels** to count CSS px × device pixel ratio. While the tool is on,
 clicks do not select or edit. The overlay is drawn inside the preview, so it scales with the zoom.
 
+#### How measurement works
+
+All numbers in the viewport bar, the rulers, the measure tool and the media-query logic are **CSS pixels of the page inside the
+preview frame**. By definition they agree:
+
+* **Viewport** = the configured width × height of the frame (`window.innerWidth/innerHeight` inside the page).
+* **Layout width** = `documentElement.clientWidth` = what a `width: 100%` element, `%` units and the measure tool use. It equals the
+  viewport width as long as the page has no classic scrollbar. A classic scrollbar steals its own width from the layout (15 px on a
+  desktop, a fractional amount such as 15.33 at a device pixel ratio of 1.5), which is why a 100 % wide box used to measure 375 px in
+  a 390 px viewport. The preview therefore **hides the root scrollbar by default** (scrolling by wheel, touch or keys still works);
+  the *Show the page scrollbar* button (command `code.previewScrollbar`) shows it again and the readout then says
+  `390 × 844 · layout 374.67 (scrollbar 15.33)`.
+* **Media queries** use the viewport width including the scrollbar (`100vw`), exactly like a real browser, so breakpoints trigger at
+  the configured width in both modes.
+* **Zoom** is a CSS `transform: scale()` on the frame box. The page itself is laid out at the unscaled size and `getBoundingClientRect`
+  inside the frame is unaffected, so measurements never depend on the zoom; the host divides pointer coordinates by the scale. The
+  device box is not rounded (it used to be), so the frame and its box cannot drift by a pixel.
+* **Units**: 1 in = 96 CSS px, 1 mm = 96/25.4 px, 1 pt = 96/72 px; `%` is relative to the parent's border box (to the layout width for
+  the root); `rem`/`em` use the computed font sizes. Values are rounded only for display (px 1 decimal, mm 1, cm 2, in 3). **Device
+  pixels** multiplies by `devicePixelRatio` only when switched on; browser zoom changes the ratio, never the CSS pixels.
+* **Self-check**: the bridge keeps two invisible fixed probes, `width: 100%` and `width: 100vw`, and reports `innerWidth`,
+  `clientWidth` and both probe widths (`layoutMetrics`). The status line next to the zoom shows
+  `Phone · 50% · 390 × 844 · layout 390`; if the frame ever disagrees with the configured size (innerWidth ≠ width, 100vw ≠
+  innerWidth, or the 100 % probe ≠ `clientWidth`) a warning sign is added and the tooltip names the failed check. The logic is pure
+  (`describeLayout` in `engine/web/viewport.js`, tests in `tests/web/viewport.test.js`).
+
+### Preview and code stay in sync
+
+*Settings ▸ Code studio ▸ Sync highlighting* (command `code.syncHighlight`) controls all of this:
+
+* **Preview to code**: selecting an element scrolls the editor to its start tag and keeps a subtle line highlight with an accent
+  bar on those lines. Hovering an element in the preview lightly highlights its lines.
+* **Code to preview**: the caret in the page's HTML selects the element in the preview; hovering a line of the page's HTML outlines
+  the element there. The caret inside a **CSS rule** outlines every element the rule matches (the selector is evaluated in the
+  frame with `querySelectorAll`; states such as `:hover` and pseudo-elements are ignored) and shows a badge "7 elements".
+* **Breadcrumb bar** above the editor: `html › body › section.hero › h1`. Click selects the element and shows its code; hovering
+  outlines it in the preview. Next to it, **Rules** lists the CSS rules whose last selector part matches the element's tag, id and
+  classes (a static approximation without combinators or attributes; the preview does the exact match); each chip jumps to the rule.
+
+### Formatting
+
+*Format Document* (`Shift+Alt+F`, command `code.format`), *Format Selection* (`code.formatSelection`), *Format on save* and
+*Format pasted code* use the built-in, dependency-free formatters in `engine/web/format.js`. A formatter contributed by a VS Code
+extension still takes precedence for whole documents.
+
+| Language | What it does |
+| --- | --- |
+| HTML | Re-indents blocks, re-wraps inline text at the line width (a newline between inline items equals a space), wraps long start tags one attribute per line, keeps `<pre>`, `<textarea>`, `<title>`, comments, attribute values and the spacing between inline elements; script and style bodies are re-indented; optional end tags stay omitted |
+| CSS | One declaration per line, normalized spacing and blank lines (`formatCss`) |
+| JavaScript | Re-indents by bracket depth, trims trailing whitespace, collapses blank lines. No parser: strings, template literals, comments and regex literals are never touched, no tokens are added or moved |
+| JSON | Pretty print (invalid JSON, comments and trailing commas are reported, the file is left alone) |
+| Markdown | Trailing whitespace, hard breaks kept, blank lines around headings, fenced code untouched |
+
+Options (Settings ▸ Code studio): tab size, *Indent with tabs*, *Formatter line width* (default 100), *Attribute quotes* (keep, double,
+single; a value is never rewritten if it contains the chosen quote). Guarantees, tested in `tests/web/format.test.js`: formatting is
+idempotent and does not change the rendered structure (tags, attributes, collapsed text) of every starter template. Limit: CSS
+`white-space: pre` on an ordinary element is not known to the formatter. The Vibe tool `format_file` runs the same code.
+
 ### Split layouts
 
 In Split view choose the arrangement with the four buttons in the toolbar, *View ▸ Split Layout* or the commands
@@ -213,6 +271,12 @@ studio is opened, so it adds nothing to application start-up.
   `splitV`; prefs `codeLayout`, `codeMeasureUnit`, `codeMeasurePpi`, `codeMeasureDpr`, `codeViewportSizes`.
 * **Commands and Vibe tools**: `code.measure`, `code.rulers`, `code.viewportRotate`, `code.layout.*` in `commands/code.js`;
   `set_viewport`, `get_viewport`, `measure_element`, `set_code_layout` in `vibe/tools/web-view.js`.
+
+* **Layout metrics and sync** (additive bridge messages): host to frame `viewportOpts {scrollbar}`, `metrics`, `matchSel {selector}`;
+  frame to host `layoutMetrics`, `matchCount`. Sync lives in `ui/code/sync.js` (`SyncController`: line highlights as a CodeMirror
+  `StateField`, hover links, breadcrumb bar) on top of the pure `engine/web/sync.js` (`crumbsOf`, `openTagLines`, `cssRuleAt`,
+  `matchableSelector`, `rulesForElement`; tests in `tests/web/sync.test.js`). Formatters: `engine/web/format.js`; editor entry points
+  `CodeEditors#format`, `#formatSelection`, format-on-paste in `editor.js`.
 
 How to extend: add a preset to `DEVICE_PRESETS`, a unit to `UNITS` and the kit's `PER_INCH` / `DECIMALS`, or a bridge message in
 `bridge.js` plus a validated handler in `preview.js`.
