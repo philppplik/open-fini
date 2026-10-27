@@ -85,6 +85,22 @@ test("word range", () => {
   assert.deepEqual(wordRangeAt("a  b", 2), { from: 2, to: 2 });
 });
 
+test("catalog: the start-up catalog matches the transforms one to one, in order, with the same metadata", async () => {
+  const { TRANSFORM_INFO } = await import("../../app/src/engine/web/texttools-catalog.js");
+  assert.equal(TRANSFORM_INFO.length, TRANSFORMS.length);
+  TRANSFORM_INFO.forEach((info, i) => {
+    const { apply, ...meta } = TRANSFORMS[i];
+    assert.deepEqual(meta, info);
+    assert.equal(typeof apply, "function");
+  });
+  // the catalog is plain data: no imports, so the palette can load it without the codec
+  const src = (await import("node:fs")).readFileSync(new URL("../../app/src/engine/web/texttools-catalog.js", import.meta.url), "utf8");
+  assert.doesNotMatch(src, /^\s*import\s/m);
+  assert.equal(TRANSFORM_BY_ID.get("lineEndingsCrlf").fileOnly, true);
+  assert.equal(TRANSFORM_BY_ID.get("wrapTag").needsArg, 'Tag (for example div or a href="#")');
+  assert.equal(TRANSFORM_BY_ID.get("encodeJsBraces").apply("😀"), "\\u{1f600}");
+});
+
 test("registry: unique ids, labels, groups, scopes; every transform runs", () => {
   const ids = new Set();
   for (const t of TRANSFORMS) {

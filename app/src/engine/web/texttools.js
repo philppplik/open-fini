@@ -1,6 +1,8 @@
 // Text transforms for code and plain text (pure, no DOM). One registry feeds the code editor's Transform menu, the
-// command palette and the Vibe `transform_file_text` tool. Character encoding lives in charcodec.js.
+// command palette and the Vibe `transform_file_text` tool. Character encoding lives in charcodec.js. The list of ids
+// and labels lives in texttools-catalog.js so the palette can register commands without loading this module.
 import { encode, decode } from "./charcodec.js";
+import { TRANSFORM_INFO } from "./texttools-catalog.js";
 
 // ---------------------------------------------------------------------------------------------- helpers
 
@@ -210,69 +212,77 @@ export function wordRangeAt(text, offset) {
  * @property {"word"|"line"|"file"|"color"} scope what an empty selection operates on
  * @property {(text: string, o?: object) => string} apply may throw an Error with a user-facing message
  */
-const T = (id, label, group, scope, apply, extra = {}) => ({ id, label, group, scope, apply, ...extra });
-const enc = (id, label, format, mode = "non-ascii", o = {}) => T(id, label, "encode", "line", (t) => encode(t, { format, mode, ...o }));
+const enc = (format, mode = "non-ascii", o = {}) => (t) => encode(t, { format, mode, ...o });
+const dec = (kind) => (t) => decode(t, kind);
 
-/** @type {Transform[]} */
-export const TRANSFORMS = [
-  enc("encodeEntitiesNamed", "HTML named entities (&eacute;)", "html-named"),
-  enc("encodeEntitiesDecimal", "HTML decimal (&#233;)", "html-decimal"),
-  enc("encodeEntitiesHex", "HTML hexadecimal (&#xE9;)", "html-hex"),
-  enc("encodeJsEscapes", "JavaScript / JSON (\\u00e9)", "js"),
-  enc("encodeJsBraces", "JavaScript with \\u{…} for astral characters", "js", "non-ascii", { braces: true }),
-  enc("encodeCssEscapes", "CSS escapes (\\E9 )", "css"),
-  enc("encodePercent", "URL percent-encoding (UTF-8)", "url"),
-  enc("encodeCodePoints", "Unicode code points (<U+00E9>)", "codepoints"),
-  enc("escapeHtml", "Escape markup characters (& < > \" ')", "html-named", "special"),
-  T("unescapeHtml", "Unescape HTML entities", "decode", "line", (t) => decode(t, "html")),
-  T("decodeEntities", "HTML entities (named, decimal, hex)", "decode", "line", (t) => decode(t, "html")),
-  T("decodeJsEscapes", "JavaScript / JSON \\u escapes", "decode", "line", (t) => decode(t, "js")),
-  T("decodeCssEscapes", "CSS escapes", "decode", "line", (t) => decode(t, "css")),
-  T("decodePercent", "URL percent-encoding", "decode", "line", (t) => decode(t, "url")),
-  T("decodeCodePoints", "Unicode code points", "decode", "line", (t) => decode(t, "codepoints")),
-  T("decodeAuto", "Auto (entities and \\u escapes)", "decode", "line", (t) => decode(t, "auto")),
-  T("base64Encode", "Base64 encode", "convert", "line", (t) => base64Encode(t)),
-  T("base64Decode", "Base64 decode", "convert", "line", (t) => base64Decode(t)),
-  T("urlEncode", "URL encode (component)", "convert", "line", (t) => encodeURIComponent(t)),
-  T("urlDecode", "URL decode (component)", "convert", "line", (t) => {
+/** Implementations by id; ids, labels, groups and scopes live in texttools-catalog.js (loaded at start-up). */
+const APPLY = {
+  encodeEntitiesNamed: enc("html-named"),
+  encodeEntitiesDecimal: enc("html-decimal"),
+  encodeEntitiesHex: enc("html-hex"),
+  encodeJsEscapes: enc("js"),
+  encodeJsBraces: enc("js", "non-ascii", { braces: true }),
+  encodeCssEscapes: enc("css"),
+  encodePercent: enc("url"),
+  encodeCodePoints: enc("codepoints"),
+  escapeHtml: enc("html-named", "special"),
+  unescapeHtml: dec("html"),
+  decodeEntities: dec("html"),
+  decodeJsEscapes: dec("js"),
+  decodeCssEscapes: dec("css"),
+  decodePercent: dec("url"),
+  decodeCodePoints: dec("codepoints"),
+  decodeAuto: dec("auto"),
+  base64Encode: (t) => base64Encode(t),
+  base64Decode: (t) => base64Decode(t),
+  urlEncode: (t) => encodeURIComponent(t),
+  urlDecode: (t) => {
     try {
       return decodeURIComponent(t.replace(/\+/g, " "));
     } catch {
       throw new Error("This is not valid percent-encoded text.");
     }
-  }),
-  T("upperCase", "UPPER CASE", "case", "word", (t) => t.toUpperCase()),
-  T("lowerCase", "lower case", "case", "word", (t) => t.toLowerCase()),
-  T("titleCase", "Title Case", "case", "word", toTitle),
-  T("camelCase", "camelCase", "case", "word", perLine(toCamel)),
-  T("snakeCase", "snake_case", "case", "word", perLine(toSnake)),
-  T("kebabCase", "kebab-case", "case", "word", perLine(toKebab)),
-  T("constantCase", "CONSTANT_CASE", "case", "word", perLine(toConstant)),
-  T("sortLinesAsc", "Sort lines ascending", "lines", "file", (t) => sortLines(t, "asc")),
-  T("sortLinesDesc", "Sort lines descending", "lines", "file", (t) => sortLines(t, "desc")),
-  T("sortLinesNumeric", "Sort lines numerically", "lines", "file", (t) => sortLines(t, "numeric")),
-  T("sortLinesUnique", "Sort lines and remove duplicates", "lines", "file", (t) => sortLines(t, "unique")),
-  T("reverseLines", "Reverse lines", "lines", "file", (t) => sortLines(t, "reverse")),
-  T("joinLines", "Join lines", "lines", "file", (t) => joinLines(t)),
-  T("trimLines", "Trim lines", "lines", "file", trimLines),
-  T("trimTrailing", "Trim trailing whitespace", "lines", "file", trimTrailing),
-  T("normalizeWhitespace", "Normalize whitespace", "lines", "file", normalizeSpaces),
-  T("removeBlankLines", "Remove blank lines", "lines", "file", removeBlankLines),
-  T("tabsToSpaces", "Tabs to spaces", "lines", "file", (t, o) => tabsToSpaces(t, o?.tabSize || 2)),
-  T("spacesToTabs", "Spaces to tabs", "lines", "file", (t, o) => spacesToTabs(t, o?.tabSize || 2)),
-  T("lineEndingsLf", "Line endings: LF", "lines", "file", (t) => convertLineEndings(t, "lf"), { fileOnly: true }),
-  T("lineEndingsCrlf", "Line endings: CRLF", "lines", "file", (t) => convertLineEndings(t, "crlf"), { fileOnly: true }),
-  T("wrapTag", "Wrap in tag…", "wrap", "word", (t, o) => wrap(t, "tag", o?.arg), { needsArg: "Tag (for example div or a href=\"#\")" }),
-  T("wrapDoubleQuotes", "Wrap in double quotes", "wrap", "word", (t) => wrap(t, "double")),
-  T("wrapSingleQuotes", "Wrap in single quotes", "wrap", "word", (t) => wrap(t, "single")),
-  T("wrapParens", "Wrap in parentheses", "wrap", "word", (t) => wrap(t, "parens")),
-  T("wrapBrackets", "Wrap in brackets", "wrap", "word", (t) => wrap(t, "brackets")),
-  T("wrapComment", "Wrap in comment", "wrap", "line", (t, o) => wrap(t, "comment", o?.lang === "html" || o?.lang === "markdown" ? "html" : "block")),
-  T("jsonPrettify", "Prettify JSON", "json", "file", (t, o) => jsonPrettify(t, o?.tabSize || 2)),
-  T("jsonMinify", "Minify JSON", "json", "file", jsonMinify),
-  T("colorToHex", "Color to hex", "color", "color", (t) => convertColor(t, "hex")),
-  T("colorToRgb", "Color to rgb()", "color", "color", (t) => convertColor(t, "rgb")),
-  T("colorToHsl", "Color to hsl()", "color", "color", (t) => convertColor(t, "hsl")),
-];
+  },
+  upperCase: (t) => t.toUpperCase(),
+  lowerCase: (t) => t.toLowerCase(),
+  titleCase: toTitle,
+  camelCase: perLine(toCamel),
+  snakeCase: perLine(toSnake),
+  kebabCase: perLine(toKebab),
+  constantCase: perLine(toConstant),
+  sortLinesAsc: (t) => sortLines(t, "asc"),
+  sortLinesDesc: (t) => sortLines(t, "desc"),
+  sortLinesNumeric: (t) => sortLines(t, "numeric"),
+  sortLinesUnique: (t) => sortLines(t, "unique"),
+  reverseLines: (t) => sortLines(t, "reverse"),
+  joinLines: (t) => joinLines(t),
+  trimLines,
+  trimTrailing,
+  normalizeWhitespace: normalizeSpaces,
+  removeBlankLines,
+  tabsToSpaces: (t, o) => tabsToSpaces(t, o?.tabSize || 2),
+  spacesToTabs: (t, o) => spacesToTabs(t, o?.tabSize || 2),
+  lineEndingsLf: (t) => convertLineEndings(t, "lf"),
+  lineEndingsCrlf: (t) => convertLineEndings(t, "crlf"),
+  wrapTag: (t, o) => wrap(t, "tag", o?.arg),
+  wrapDoubleQuotes: (t) => wrap(t, "double"),
+  wrapSingleQuotes: (t) => wrap(t, "single"),
+  wrapParens: (t) => wrap(t, "parens"),
+  wrapBrackets: (t) => wrap(t, "brackets"),
+  wrapComment: (t, o) => wrap(t, "comment", o?.lang === "html" || o?.lang === "markdown" ? "html" : "block"),
+  jsonPrettify: (t, o) => jsonPrettify(t, o?.tabSize || 2),
+  jsonMinify,
+  colorToHex: (t) => convertColor(t, "hex"),
+  colorToRgb: (t) => convertColor(t, "rgb"),
+  colorToHsl: (t) => convertColor(t, "hsl"),
+};
+
+/** @type {Transform[]} catalog order, each entry `{ ...TransformInfo, apply }` */
+export const TRANSFORMS = TRANSFORM_INFO.map((info) => {
+  const apply = APPLY[info.id];
+  if (!apply) throw new Error(`texttools: no implementation for "${info.id}"`);
+  return { ...info, apply };
+});
+if (TRANSFORMS.length !== Object.keys(APPLY).length) throw new Error("texttools: APPLY has ids that are not in texttools-catalog.js");
 
 export const TRANSFORM_BY_ID = new Map(TRANSFORMS.map((t) => [t.id, t]));
