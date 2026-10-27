@@ -8,7 +8,6 @@ Every pull request runs the same checks that gate a release: tests on three oper
 | --- | --- | --- |
 | CI (`ci.yml`) | Push to `main`, pull requests | **Web / PWA** on Ubuntu, Windows and macOS (Node 24): `npm ci`, `npm test`, `npm run build`, `npm run check:size`, uploads the web build from Ubuntu. **Rust** on Ubuntu 22.04: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo check` |
 | CodeQL (`codeql.yml`) | Push and pull requests to `main`, weekly schedule | Static analysis |
-| Pages (`pages.yml`) | Push to `main` | Builds `dist/` and deploys the hosted PWA to GitHub Pages |
 | Release (`release.yml`) | Tag `v*` | Version check, tests, size budget, six desktop builds plus PWA, checksums, draft release ([[Git Workflow and Releases]]) |
 | Wiki (`wiki.yml`) | Push to `main` touching `wiki/**` | Validates and publishes the wiki ([[Wiki Style Guide]]) |
 

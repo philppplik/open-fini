@@ -50,16 +50,47 @@ Settings ▸ General ▸ Open with OpenFini shows the same text. It has no butto
 the platform layer only opens http, https and mailto links, and the `ms-settings:` link would need a wider opener
 permission, which was not worth it.
 
+## Open folders from the file manager
+
+A whole project folder can be opened from the OS: it becomes a website project in the Code studio, or its design files
+open as documents, exactly like *File ▸ Open Folder…* or dropping a folder on the window (`openFolderEntries` in
+`app/src/ui/open-folder.js`).
+
+| OS | How | Notes |
+| --- | --- | --- |
+| Windows | Right-click a folder, or the empty space inside an open folder: **Open folder with OpenFini** | NSIS installer option "Add 'Open with OpenFini' to the folder right-click menu" (default on). Registry verbs under `Directory\shell` and `Directory\Background\shell`, HKCU for per-user installs. Windows 11 shows classic verbs under *Show more options* (Shift+F10). The MSI build has no hook and does not add them. |
+| macOS | Finder: right-click a folder, *Open With ▸ OpenFini*; drop a folder on the Dock icon or the app | Declared as a `public.folder` document type (Viewer, Alternate). Finder has no built-in folder right-click item for apps; see the Quick Action below. |
+| Linux | File manager *Open With* on a folder; `openfini ~/project` | `inode/directory` is in the `MimeType=` list. Nautilus, Dolphin and Thunar list it as an additional entry for folders; some managers ignore the list for `inode/directory` or never show an application there, and then the command line or *Open With ▸ Other application* is the way. It is not made the default folder handler. |
+
+**macOS Quick Action (folder right-click item).** *Automator ▸ New Document ▸ Quick Action*; set "Workflow receives current
+**folders** in **Finder**"; add *Run Shell Script*, "Pass input: as arguments", with the script `for f in "$@"; do open -a OpenFini "$f"; done`;
+save as "Open in OpenFini". It then appears under *Quick Actions* and *Services* in the right-click menu of a folder. No
+`.workflow` file is shipped because it could not be built and verified without a Mac.
+
+Linux file managers (to add a custom right-click action yourself): Nautilus with the "Scripts" folder, Dolphin service menus,
+Thunar custom actions with the command `openfini %f`.
+
+How it works: `cli.rs` keeps existing folders as launch arguments (also from a second launch and macOS open events); a missing
+path is dropped. `deliver_paths` grants the folder **recursively for this session** (`allow_directory`, only for paths the OS
+handed us) and sends it with a trailing path separator, which `normalizeOpenItems` in `open-paths.js` turns into
+`{ path, isDir: true }`. `open-router.js` routes it to `openFolderPath`, which reads the folder through the fs plugin
+(`platform.readFolder`, `platform/folder-scan.js`): dot files and folders, `node_modules`, `dist`, `build`, `target`, `coverage`,
+`__pycache__` and `venv` are skipped, symbolic links are never followed, and the caps are 3000 files, 50 MB per file, 200 MB in
+total and 16 levels; when a cap hits, the folder opens with a notice. The status bar shows progress. Folders are remembered in
+*Open Recent* (`{ name, path, isDir }`); reopening one reads it again by path and, if access was not kept (a folder outside
+Desktop, Documents, Downloads, Pictures after a restart), opens the folder dialog on it once. The web/PWA build keeps the
+directory picker (File System Access) and cannot register a right-click item.
+
 ## How files reach the app (desktop)
 
 1. **First launch** with files (Open with, double click, `openfini a.png b.svg`): `src/cli.rs` turns the arguments into
    absolute paths (plain paths, `file://` URLs with percent encoding, UNC paths, relative paths against the working
-   directory, unicode and spaces). Options, missing files, folders and duplicates are dropped.
+   directory, unicode and spaces). Options, missing paths and duplicates are dropped; folders are kept (see above).
 2. **Second launch** while the app runs: `tauri-plugin-single-instance` forwards the arguments and the working directory to
    the running instance, which focuses its window.
 3. **macOS** file open events (Finder, Dock icon drop) arrive as `RunEvent::Opened`.
-4. Allowed paths are added to the fs scope **one exact file at a time** (`allow_file`); there is no broad filesystem
-   permission. The same grant lets "Save" write an opened `.ofini` back to where it came from (`doc.path`).
+4. Allowed paths are added to the fs scope **one exact file at a time** (`allow_file`), or a handed-over folder recursively
+   (`allow_directory`), for the session; there is no broad filesystem permission. The same grant lets "Save" write an opened `.ofini` back to where it came from (`doc.path`).
 5. The paths are emitted as `openfini://open-files` (or returned by `take_launch_files` when the page was not ready).
    `platform/tauri.js` reads them, announces progress (`openfini:open-progress`) and delivers them through a buffer: files that
    arrive while nothing listens wait for the next `onOpenFiles` subscriber.
@@ -100,6 +131,11 @@ both read-only.
 - The NSIS hook, the macOS `Info.plist` merge (assumes Tauri replaces the `UTExportedTypeDeclarations` array) and the Linux
   desktop template (assumes the AppImage bundler uses the deb template) were checked against the Tauri 2.12 schema and
   installer template only, not by installing the bundles. Test an installer on each OS before relying on them.
+- Folder opening (Explorer verbs, `public.folder` via `contentTypes` with an empty `ext` list, `inode/directory`, the Rust
+  folder handling and the `read-dir`/`stat` permissions) is new: the NSIS script was compiled with makensis 3.11 against the
+  rendered template, `cli.rs` unit tests exist, but the real Explorer, Finder and Linux file-manager behavior and the Rust
+  compile were not verified here. Whether the Tauri bundler accepts a `fileAssociations` entry without extensions on every
+  target is also unchecked.
 - No recent-documents integration (Windows jump list, macOS Dock): Tauri has no API for it and it needs native code.
   OpenFini keeps its own recent list (File ▸ Open Recent).
 - Opening recent files by path on the desktop is limited to the folders in `capabilities/default.json`; files opened through

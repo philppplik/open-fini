@@ -84,9 +84,11 @@ Var OldMainBinaryName
 ; OPENFINI: choices of the "Windows integration" page (also remembered in the registry for updates).
 Var AssocChoice
 Var OpenWithChoice
+Var FolderChoice
 Var DesktopChoice
 Var OptAssocCtl
 Var OptOpenWithCtl
+Var OptFolderCtl
 Var OptDesktopCtl
 
 Name "${PRODUCTNAME}"
@@ -472,7 +474,13 @@ Function PageIntegration
     ${NSD_SetState} $OptOpenWithCtl ${BST_CHECKED}
   ${EndIf}
 
-  ${NSD_CreateCheckbox} 0 70u 100% 12u "$(optDesktop)"
+  ${NSD_CreateCheckbox} 0 70u 100% 12u "$(optFolder)"
+  Pop $OptFolderCtl
+  ${If} $FolderChoice = 1
+    ${NSD_SetState} $OptFolderCtl ${BST_CHECKED}
+  ${EndIf}
+
+  ${NSD_CreateCheckbox} 0 88u 100% 12u "$(optDesktop)"
   Pop $OptDesktopCtl
   ${If} $DesktopChoice = 1
     ${NSD_SetState} $OptDesktopCtl ${BST_CHECKED}
@@ -484,6 +492,7 @@ FunctionEnd
 Function PageIntegrationLeave
   ${NSD_GetState} $OptAssocCtl $AssocChoice
   ${NSD_GetState} $OptOpenWithCtl $OpenWithChoice
+  ${NSD_GetState} $OptFolderCtl $FolderChoice
   ${NSD_GetState} $OptDesktopCtl $DesktopChoice
 FunctionEnd
 
@@ -594,6 +603,8 @@ LangString integrationSubtitle ${LANG_ENGLISH} "Choose how ${PRODUCTNAME} fits i
 LangString integrationIntro ${LANG_ENGLISH} "These choices can be changed later by running the installer again. Nothing here changes the default program of your existing images, PDFs or text files."
 LangString optAssoc ${LANG_ENGLISH} "Associate ${PRODUCTNAME} documents (.ofini, .ofext) - recommended"
 LangString optOpenWith ${LANG_ENGLISH} "Offer ${PRODUCTNAME} in Open with for images, PDF and code files"
+LangString optFolder ${LANG_ENGLISH} "Add 'Open with ${PRODUCTNAME}' to the folder right-click menu"
+LangString folderVerb ${LANG_ENGLISH} "Open folder with ${PRODUCTNAME}"
 LangString optDesktop ${LANG_ENGLISH} "Create a desktop shortcut"
 LangString finishTitle ${LANG_ENGLISH} "${PRODUCTNAME} is ready"
 LangString finishText ${LANG_ENGLISH} "${PRODUCTNAME} ${VERSION} was installed.$\r$\n$\r$\nClick Finish to close this wizard."
@@ -607,6 +618,8 @@ LangString integrationSubtitle ${LANG_GERMAN} "Legen Sie fest, wie sich ${PRODUC
 LangString integrationIntro ${LANG_GERMAN} "Diese Einstellungen können Sie später ändern, indem Sie das Installationsprogramm erneut ausführen. Das Standardprogramm für Ihre vorhandenen Bilder, PDFs oder Textdateien wird dadurch nicht geändert."
 LangString optAssoc ${LANG_GERMAN} "${PRODUCTNAME}-Dokumente (.ofini, .ofext) zuordnen - empfohlen"
 LangString optOpenWith ${LANG_GERMAN} "${PRODUCTNAME} unter Öffnen mit für Bilder, PDF und Code-Dateien anbieten"
+LangString optFolder ${LANG_GERMAN} "'Mit ${PRODUCTNAME} öffnen' zum Rechtsklick-Menü von Ordnern hinzufügen"
+LangString folderVerb ${LANG_GERMAN} "Ordner mit ${PRODUCTNAME} öffnen"
 LangString optDesktop ${LANG_GERMAN} "Desktop-Verknüpfung erstellen"
 LangString finishTitle ${LANG_GERMAN} "${PRODUCTNAME} ist bereit"
 LangString finishText ${LANG_GERMAN} "${PRODUCTNAME} ${VERSION} wurde installiert.$\r$\n$\r$\nKlicken Sie auf Fertigstellen, um den Assistenten zu schließen."
@@ -664,6 +677,7 @@ Function .onInit
   ; OPENFINI: defaults of the integration page, overridden by the choices of a previous installation
   StrCpy $AssocChoice 1
   StrCpy $OpenWithChoice 1
+  StrCpy $FolderChoice 1
   StrCpy $DesktopChoice 0
   ReadRegStr $0 SHCTX "${MANUPRODUCTKEY}" "AssocOfini"
   ${If} $0 != ""
@@ -672,6 +686,10 @@ Function .onInit
   ReadRegStr $0 SHCTX "${MANUPRODUCTKEY}" "OpenWith"
   ${If} $0 != ""
     StrCpy $OpenWithChoice $0
+  ${EndIf}
+  ReadRegStr $0 SHCTX "${MANUPRODUCTKEY}" "FolderMenu"
+  ${If} $0 != ""
+    StrCpy $FolderChoice $0
   ${EndIf}
   ReadRegStr $0 SHCTX "${MANUPRODUCTKEY}" "DesktopShortcut"
   ${If} $0 != ""
@@ -855,6 +873,7 @@ Section Install
   ; OPENFINI: remember the integration choices so updates and reinstalls keep them
   WriteRegStr SHCTX "${MANUPRODUCTKEY}" "AssocOfini" "$AssocChoice"
   WriteRegStr SHCTX "${MANUPRODUCTKEY}" "OpenWith" "$OpenWithChoice"
+  WriteRegStr SHCTX "${MANUPRODUCTKEY}" "FolderMenu" "$FolderChoice"
   WriteRegStr SHCTX "${MANUPRODUCTKEY}" "DesktopShortcut" "$DesktopChoice"
 
   !if "${INSTALLMODE}" == "both"

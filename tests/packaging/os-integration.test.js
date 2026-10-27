@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { FILE_TYPES, allExtensions, manifestAccept, ownedExtensions, tauriAssociations, typeOfName } from "../../app/src/platform/file-types.js";
-import { LARGE_FILE_BYTES, createOpenBuffer, fileUrlToPath, normalizeOpenPaths, samePath } from "../../app/src/platform/open-paths.js";
+import { LARGE_FILE_BYTES, createOpenBuffer, fileUrlToPath, normalizeOpenItems, normalizeOpenPaths, pathName, samePath } from "../../app/src/platform/open-paths.js";
 import { SHARE_CACHE, takeSharedFiles } from "../../app/src/platform/pwa.js";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -28,6 +28,23 @@ describe("open-paths: argument and URL normalization", () => {
     const list = ["/a/b.png", "  /a/b.png ", "--new-window", "", 7, null, "file:///c/d.svg", "C:\\x\\y.ofini"];
     assert.deepEqual(normalizeOpenPaths(list), ["/a/b.png", "/c/d.svg", "C:\\x\\y.ofini"]);
     assert.deepEqual(normalizeOpenPaths("nope"), []);
+  });
+
+  it("keeps the file/folder distinction (a trailing separator marks a folder)", () => {
+    const items = normalizeOpenItems(["/home/me/site/", "/home/me/a.png", "C:\\Work\\proj\\", "C:\\", "/", { path: "/x/y", isDir: true }, { path: "/x/z" }, "/home/me/site", "--x", "file:///tmp/dir/", 5]);
+    assert.deepEqual(items, [
+      { path: "/home/me/site", isDir: true },
+      { path: "/home/me/a.png", isDir: false },
+      { path: "C:\\Work\\proj", isDir: true },
+      { path: "C:\\", isDir: true },
+      { path: "/", isDir: true },
+      { path: "/x/y", isDir: true },
+      { path: "/x/z", isDir: false },
+      { path: "/tmp/dir", isDir: true },
+    ]);
+    assert.deepEqual(normalizeOpenItems(null), []);
+    assert.equal(pathName("C:\\Work\\proj"), "proj");
+    assert.equal(pathName("/home/me/site"), "site");
   });
 
   it("compares paths case-insensitively only for Windows paths", () => {
@@ -107,7 +124,8 @@ describe("tauri.conf.json file associations", () => {
   const strip = (list) => list.map(({ ext, mimeType, role, rank }) => ({ ext, mimeType, role, rank }));
 
   it("matches the file type table (macOS and Linux)", () => {
-    const conf = json("src-tauri/tauri.conf.json").bundle.fileAssociations;
+    const all = json("src-tauri/tauri.conf.json").bundle.fileAssociations;
+    const conf = all.filter((a) => !a.contentTypes);
     assert.deepEqual(strip(conf), strip(tauriAssociations()));
     for (const a of conf) {
       assert.ok(a.name && a.description, a.ext.join());
@@ -125,6 +143,24 @@ describe("tauri.conf.json file associations", () => {
   it("never claims default rank for foreign types", () => {
     const conf = json("src-tauri/tauri.conf.json").bundle.fileAssociations;
     for (const a of conf) if (!["ofini", "ofext"].includes(a.ext[0])) assert.equal(a.rank, "Alternate", a.ext.join());
+  });
+
+  it("declares folders as a macOS document type (Finder Open With, drop on the Dock icon), never as default", () => {
+    const folder = json("src-tauri/tauri.conf.json").bundle.fileAssociations.filter((a) => a.contentTypes?.includes("public.folder"));
+    assert.equal(folder.length, 1);
+    assert.deepEqual(folder[0].ext, []);
+    assert.equal(folder[0].role, "Viewer");
+    assert.equal(folder[0].rank, "Alternate");
+    // Windows uses its own list (registry verbs instead), so no folder entry may leak into it.
+    assert.ok(json("src-tauri/tauri.windows.conf.json").bundle.fileAssociations.every((a) => !a.contentTypes));
+  });
+
+  it("lets the capability read folders the user opened (read-dir and stat with the same scopes as read-file)", () => {
+    const perms = json("src-tauri/capabilities/default.json").permissions.filter((p) => typeof p === "object");
+    const scopes = (id) => JSON.stringify(perms.find((p) => p.identifier === id)?.allow);
+    assert.ok(scopes("fs:allow-read-dir"));
+    assert.equal(scopes("fs:allow-read-dir"), scopes("fs:allow-read-file"));
+    assert.equal(scopes("fs:allow-stat"), scopes("fs:allow-read-file"));
   });
 
   it("wires installer hooks, desktop template, resources and icon files that exist", () => {
@@ -161,7 +197,8 @@ describe("installer files", () => {
     const desktop = read("src-tauri/linux/openfini.desktop");
     assert.match(desktop, /^Exec=\{\{exec\}\} %F$/m);
     const mimes = /^MimeType=(.*)$/m.exec(desktop)[1].split(";").filter(Boolean);
-    assert.deepEqual(mimes, FILE_TYPES.map((t) => t.mime));
+    // inode/directory last: the file manager's "Open With" list for folders (some managers ignore it as a default).
+    assert.deepEqual(mimes, [...FILE_TYPES.map((t) => t.mime), "inode/directory"]);
   });
 
   it("declares the owned MIME types in shared-mime-info", () => {

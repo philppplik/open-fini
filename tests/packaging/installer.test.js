@@ -123,11 +123,12 @@ describe("custom NSIS template", () => {
     assert.ok(en.length >= 10, "custom strings exist");
     assert.deepEqual(names("GERMAN"), en, "German covers every English string");
     // No hard-coded English left in the custom pages: they use $(name) lookups.
-    for (const n of en) assert.ok(tpl.includes(`$(${n})`), `$(${n}) is used`);
+    const hook = read("src-tauri/windows/open-with.nsh");
+    for (const n of en) assert.ok(tpl.includes(`$(${n})`) || hook.includes(`$(${n})`), `$(${n}) is used`);
   });
 
   it("the app icon is the light tile with a dark mark everywhere", () => {
-    for (const f of ["icon.svg", "icon-maskable.svg", "doc-icon.svg"]) {
+    for (const f of ["icon.svg", "icon-macos.svg", "icon-maskable.svg", "doc-icon.svg"]) {
       const svg = read(`app/icons/${f}`);
       assert.ok(svg.includes("#111114"), `${f} has the dark mark`);
       assert.ok(!svg.includes("linearGradient"), `${f} has no gradient`);
@@ -141,5 +142,19 @@ describe("custom NSIS template", () => {
     for (const s of ["DeleteRegKey SHCTX \"Software\\OpenFini\"", "DeleteRegKey SHCTX \"Software\\Classes\\OpenFini.File\"", "RegisteredApplications"]) {
       assert.ok(hook.includes(s), s);
     }
+  });
+
+  it("registers the folder right-click verbs (default on, remembered, removed on uninstall)", () => {
+    const hook = read("src-tauri/windows/open-with.nsh");
+    const install = hook.slice(hook.indexOf("!macro NSIS_HOOK_POSTINSTALL"), hook.indexOf("!macro NSIS_HOOK_PREUNINSTALL"));
+    const uninstall = hook.slice(hook.indexOf("!macro NSIS_HOOK_PREUNINSTALL"));
+    assert.match(install, /\$\{If\} \$FolderChoice = 1/);
+    assert.ok(install.includes('"Software\\Classes\\Directory\\shell\\OpenFini\\command" "" "$\\"$INSTDIR\\${MAINBINARYNAME}.exe$\\" $\\"%1$\\""'), "folder verb passes %1");
+    assert.ok(install.includes('"Software\\Classes\\Directory\\Background\\shell\\OpenFini\\command" "" "$\\"$INSTDIR\\${MAINBINARYNAME}.exe$\\" $\\"%V$\\""'), "background verb passes %V");
+    assert.ok(!/HKCU|HKLM/.test(install.replace(/;.*$/gm, "")), "uses SHCTX so per-user installs need no administrator rights");
+    for (const key of ["Directory\\shell\\OpenFini", "Directory\\Background\\shell\\OpenFini"]) assert.ok(uninstall.includes(`DeleteRegKey SHCTX "Software\\Classes\\${key}"`), key);
+    // the page, the default (on), the remembered choice and the strings
+    for (const s of ["Var FolderChoice", "StrCpy $FolderChoice 1", '"FolderMenu"', "$(optFolder)", "LangString folderVerb ${LANG_GERMAN}"]) assert.ok(tpl.includes(s), s);
+    assert.ok(hook.includes("$(folderVerb)"), "the verb label is a translated string");
   });
 });

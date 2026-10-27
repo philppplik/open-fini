@@ -24,7 +24,7 @@ Export is a button in the header, not a studio: see [[Export and Publish]]. Ever
 | Windows x64 / ARM64 | `OpenFini_<version>_x64-setup.exe` or `..._arm64-setup.exe` from the [Releases](https://github.com/philppplik/open-fini/releases) page |
 | macOS Apple Silicon / Intel | `OpenFini_<version>_aarch64.dmg` / `..._x64.dmg` |
 | Linux x64 / ARM64 | `.deb`, `.rpm` or `.AppImage` |
-| Any modern browser | The hosted app at <https://philppplik.github.io/open-fini/>, installable as a PWA |
+| Any modern browser | The PWA zip from the release, self-hosted on any HTTPS static host and installable |
 
 Desktop builds are unsigned, so your operating system warns on first launch. Details and the workaround for each system are on [[Installation]].
 

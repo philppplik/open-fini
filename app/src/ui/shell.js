@@ -249,7 +249,7 @@ function createWelcome(app) {
     if (!list.length) return;
     const clear = h("button.of-welcome__clear", { type: "button", onclick: () => app.run("file.clearRecent") }, t("Clear recent"));
     const row = (r) => {
-      const open = h("button.of-welcome__recent-item", { type: "button", onclick: () => app.run("file.openRecent", r) }, h("sl-icon", { name: "file-earmark-image" }), h("span", r.name), h("small", formatDate(r.time)));
+      const open = h("button.of-welcome__recent-item", { type: "button", onclick: () => app.run("file.openRecent", r) }, h("sl-icon", { name: r.isDir ? "folder2-open" : "file-earmark-image" }), h("span", r.name), h("small", formatDate(r.time)));
       const x = h("button.of-welcome__recent-x", { type: "button", "aria-label": t("Remove {name} from recent files", { name: r.name }), title: t("Remove from recent files") }, h("sl-icon", { name: "x-lg" }));
       x.addEventListener("click", async () => app.emit("recents", await (await import("../core/storage.js")).removeRecent(r.id)));
       return markContext(h("div.of-welcome__recent-row", open, x), "welcome-recent", { recent: r });

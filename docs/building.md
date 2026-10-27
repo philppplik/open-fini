@@ -97,8 +97,8 @@ CI runs it on every push. Raise a budget only deliberately, in its own commit.
   decides when to switch (`applyUpdate()` below), which reloads it. Files that did not change are
   copied from the old cache instead of being downloaded again.
 - **Hosting:** any HTTPS static host. All URLs are relative, so a sub-path such as
-  `https://<user>.github.io/open-fini/` works. The repository ships a GitHub Pages workflow
-  (`.github/workflows/pages.yml`); enable it once under *Settings, Pages, Source: GitHub Actions*.
+  `https://example.org/openfini/` works. There is no hosted copy: download the PWA zip from the release (or run
+  `npm run build` and upload `dist/`) and serve it yourself.
 - **Shortcuts and file handlers** declared in the manifest: `./?studio=vector`, `?studio=pixel`,
   `?studio=layout`, `?studio=code`, and `.ofini`, `.svg`, `.png`, `.jpg`, `.webp` files (delivered
   through `platform.onOpenFiles`).

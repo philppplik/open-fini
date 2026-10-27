@@ -18,7 +18,7 @@ import {
   toUint8Array,
 } from "./common.js";
 import { platform as web } from "./web.js";
-import { createOpenBuffer, normalizeOpenPaths } from "./open-paths.js";
+import { createOpenBuffer, normalizeOpenItems, pathName } from "./open-paths.js";
 
 /** @typedef {import("./index.js").PlatformFile} PlatformFile */
 
@@ -105,13 +105,19 @@ function announce(detail) {
 
 /** Reads the paths the OS handed us and delivers them. Announces the work as a DOM event so the UI can show progress. */
 async function receivePaths(rawPaths) {
-  const paths = normalizeOpenPaths(rawPaths);
-  if (paths.length === 0) return;
-  announce({ phase: "start", count: paths.length, names: paths.map(basename) });
+  const items = normalizeOpenItems(rawPaths);
+  if (items.length === 0) return;
+  announce({ phase: "start", count: items.length, names: items.map((i) => basename(i.path)) });
   try {
-    openBuffer.deliver(await readPaths(paths));
+    // Folders are delivered as { isDir: true, name, path } without bytes; the router reads them (readFolder below).
+    const delivered = [];
+    for (const item of items) {
+      if (item.isDir) delivered.push({ isDir: true, name: pathName(item.path), path: item.path });
+      else delivered.push(...(await readPaths([item.path])));
+    }
+    openBuffer.deliver(delivered);
   } finally {
-    announce({ phase: "end", count: paths.length });
+    announce({ phase: "end", count: items.length });
   }
 }
 
@@ -145,6 +151,30 @@ export const platform = {
     const files = await Promise.all(paths.map(readPath));
     if (paths.length > 0) lastDirectory = dirname(paths[0]) || lastDirectory;
     return files;
+  },
+
+  /** Native folder picker; the chosen folder is added to the fs scope by the dialog plugin. Resolves with a path or null. */
+  async pickFolder({ defaultPath } = {}) {
+    try {
+      const picked = await api().dialog.open({ directory: true, multiple: false, defaultPath: defaultPath || undefined });
+      return typeof picked === "string" ? picked : null;
+    } catch (err) {
+      throw asError(err, "Could not open the folder dialog");
+    }
+  },
+
+  /**
+   * Reads a folder into memory with ignore rules and caps (folder-scan.js).
+   * @returns {Promise<{ name: string, files: { path: string, bytes: Uint8Array }[], stats: object }>}
+   */
+  async readFolder(path, options = {}) {
+    const { fs } = api();
+    const { scanFolder } = await import("./folder-scan.js");
+    try {
+      return await scanFolder({ readDir: (p) => fs.readDir(p), stat: (p) => fs.stat(p), readFile: (p) => fs.readFile(p) }, path, options);
+    } catch (err) {
+      throw asError(err, `Could not read ${path}`);
+    }
   },
 
   async saveFile({ suggestedName = "Untitled", bytes, bytesFor, filters = [] } = {}) {

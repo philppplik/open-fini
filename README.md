@@ -39,7 +39,7 @@ Switch studios at any time: a document can mix vector shapes, pixel layers, flow
 | Windows x64 / ARM64 | `OpenFini_x.y.z_x64-setup.exe` / `…_arm64-setup.exe` | Per-user installer, no admin rights needed |
 | macOS Apple Silicon / Intel | `OpenFini_x.y.z_aarch64.dmg` / `…_x64.dmg` | Unsigned builds: right-click → Open the first time |
 | Linux x64 / ARM64 | `.AppImage`, `.deb`, `.rpm` | Needs WebKitGTK 4.1 (preinstalled on most desktops) |
-| Any browser (PWA) | <https://philppplik.github.io/open-fini/> | Installable, works offline, files stay on your device |
+| Any browser (PWA) | `OpenFini-pwa-x.y.z.zip` (self-host on any HTTPS static host, see [docs/building.md](docs/building.md)) | Installable, works offline, files stay on your device |
 
 > **Heads-up:** the desktop installers are built by GitHub Actions on the first tagged release. The web app and all engines are tested locally; the installers themselves (especially Windows ARM64 and the macOS Intel cross-build) have not been run on hardware yet — see the status column in [docs/platform-support.md](docs/platform-support.md). Please report problems.
 
@@ -112,7 +112,7 @@ The **Export** button in the header opens a popup from any studio: PNG / JPEG / 
 - **Extensions with an SDK.** Add commands, menu items, dock panels, themes, templates and Vibe tools with sandboxed `.ofext` extensions. Every extension declares permissions, runs in its own sandbox and is undoable. See [docs/extensions.md](docs/extensions.md) and the [`sdk/`](sdk) folder.
 - **Themes.** Twelve themes, each with a light and a dark variant, plus accent colors, high contrast and thin themed scrollbars. See [docs/themes.md](docs/themes.md).
 - **Guided, not guessed.** A welcome tour, a mini tour per studio, tooltips that explain, *What's this?* (`Shift+F1`), a global command palette (`Ctrl+K`) and a What's new page.
-- **Open what you have.** PSD / PSB, IDML, PDF and Illustrator (`.ai` with PDF content) open as editable documents with an import report; Markdown, LaTeX and plain text open in the Code studio; folders open as projects; drop files anywhere; **Open with OpenFini** works from Windows, macOS and Linux (desktop) and the installed PWA. Affinity, InDesign, Figma and XD files are proprietary: OpenFini tells you how to export them to an open format. See [docs/file-compat.md](docs/file-compat.md) and [docs/os-integration.md](docs/os-integration.md).
+- **Open what you have.** PSD / PSB, IDML, PDF and Illustrator (`.ai` with PDF content) open as editable documents with an import report; Markdown, LaTeX and plain text open in the Code studio; folders open as projects, also from the right-click menu of Windows Explorer, Finder and Linux file managers; drop files anywhere; **Open with OpenFini** works from Windows, macOS and Linux (desktop) and the installed PWA. Affinity, InDesign, Figma and XD files are proprietary: OpenFini tells you how to export them to an open format. See [docs/file-compat.md](docs/file-compat.md) and [docs/os-integration.md](docs/os-integration.md).
 - **Security and troubleshooting tools.** App lock (encrypts local data at rest), offline mode, safe mode, protected mode for untrusted projects, a stored-data inventory, redacted logs and a Troubleshooting dialog. See [docs/security.md](docs/security.md) and [docs/troubleshooting.md](docs/troubleshooting.md).
 
 ## Why it is light
