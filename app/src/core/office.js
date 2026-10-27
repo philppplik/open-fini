@@ -48,12 +48,6 @@ export class OfficeProject extends Emitter {
   }
 }
 
-/** Gives a document an office model. */
-export function ensureOffice(doc, model) {
-  if (!doc.office) doc.office = new OfficeProject(model);
-  return doc.office;
-}
-
 /**
  * Applies a new model as one undoable step of the document's history (Ctrl+Z, the History panel and Vibe's undo all
  * see it). `coalesce` merges consecutive typing into one step.

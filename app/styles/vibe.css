@@ -149,7 +149,6 @@
 .of-approval__reason { overflow-wrap: anywhere; }
 .of-approval .of-json { max-height: 150px; background: color-mix(in srgb, var(--of-bg-input) 80%, transparent); }
 .of-approval__actions, .of-ask__row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.of-approval__done { display: inline-flex; align-items: center; gap: 6px; color: var(--of-text-dim); font-size: 12px; }
 .of-approval.resolved, .of-ask.resolved { border-color: var(--of-border-soft); background: transparent; padding: 6px 10px; }
 .of-tcall > .of-approval.resolved { border-top: 1px solid var(--of-border-soft); }
 .of-approval.resolved > :not(.of-approval__title):not(.of-approval__actions), .of-approval.resolved .of-approval__title strong { display: none; }
@@ -201,11 +200,6 @@
 .of-composer__send { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--of-accent); color: var(--of-on-accent); font-size: 16px; }
 .of-composer__send.running { background: var(--of-text); color: var(--of-bg-app); }
 .of-composer__hint { margin: 8px 0 0; text-align: center; color: var(--of-text-faint); font-size: 11px; }
-.of-slash { position: absolute; left: 12px; right: 12px; bottom: calc(100% + 6px); background: var(--of-bg-raised); border: 1px solid var(--of-border); border-radius: 12px; box-shadow: var(--of-shadow); padding: 4px; z-index: 20; max-height: 280px; overflow: auto; }
-.of-slash__item { display: flex; gap: 10px; padding: 7px 10px; border-radius: 8px; font-size: 12.5px; cursor: default; }
-.of-slash__item span { color: var(--of-text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.of-slash__item.active { background: var(--of-accent); color: var(--of-on-accent); }
-.of-slash__item.active span { color: color-mix(in srgb, var(--of-on-accent) 80%, transparent); }
 .of-ibtn.active { color: var(--of-danger); }
 
 /* model picker popover */
@@ -231,18 +225,6 @@
 .of-vside__tab.active { background: var(--of-accent-soft); color: var(--of-text); font-weight: 600; }
 .of-vside__body { flex: 1; min-height: 0; overflow: auto; padding: 12px; }
 @media (max-width: 820px) { .of-vside:not(.collapsed) { position: absolute; right: 0; top: 0; bottom: 0; z-index: 10; box-shadow: var(--of-shadow); } }
-
-.of-vcanvas { display: flex; flex-direction: column; gap: 10px; }
-.of-vcanvas__frame { border-radius: 10px; border: 1px solid var(--of-border-soft); overflow: hidden; background: repeating-conic-gradient(#8882 0 25%, transparent 0 50%) 0 0 / 16px 16px; min-height: 120px; display: grid; place-items: center; }
-.of-vcanvas__site { display: none; width: 100%; height: 340px; border: 0; background: #fff; }
-.of-vcanvas__frame.web { display: block; }
-.of-vcanvas__frame.web .of-vcanvas__img { display: none; }
-.of-vcanvas__frame.web .of-vcanvas__site { display: block; }
-.of-vcanvas__img:not([src]) { display: none; }
-.of-vcanvas__img { max-width: 100%; max-height: 60vh; display: block; }
-.of-vcanvas__info { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--of-text-dim); }
-.of-vcanvas__info strong { color: var(--of-text); font-size: 13px; }
-.of-vcanvas__actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
 .of-vlead { margin: 0 0 12px; color: var(--of-text-dim); font-size: 12.5px; line-height: 1.5; }
 .of-vcard { border: 1px solid var(--of-border-soft); border-radius: 12px; background: var(--of-bg-panel); padding: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px; }
@@ -275,8 +257,6 @@ textarea.of-vfield__in { height: auto; padding: 8px 9px; resize: vertical; }
 .of-vplan__step.done { color: var(--of-text-dim); text-decoration: line-through; }
 .of-vplan__step.active { color: var(--of-text); font-weight: 600; }
 .of-vplan__step sl-icon { margin-top: 2px; color: var(--of-accent); }
-.of-vruns__row { font-size: 12px; color: var(--of-text-dim); padding: 4px 0; }
-.of-vruns { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
 
 @media (max-width: 760px) { .of-vempty__ideas { grid-template-columns: 1fr; } }
 
@@ -294,14 +274,12 @@ textarea.of-vfield__in { height: auto; padding: 8px 9px; resize: vertical; }
 .of-mark { display: inline-grid; width: 1em; height: 1em; flex: none; }
 .of-mark svg { width: 100%; height: 100%; display: block; }
 .of-vmsg--user { align-items: flex-start; }
-.of-vmsg__tools { align-self: center; opacity: 0; transition: opacity 0.12s; }
-.of-vmsg--user:hover .of-vmsg__tools, .of-vmsg--user:focus-within .of-vmsg__tools { opacity: 1; }
 .of-vmsg__actions { display: flex; align-items: center; gap: 2px; margin-top: -2px; opacity: 0; transition: opacity 0.12s; }
 .of-vmsg--assistant:hover .of-vmsg__actions, .of-vmsg--assistant:focus-within .of-vmsg__actions { opacity: 1; }
 .of-vact { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 6px; font-size: 11.5px; color: var(--of-text-faint); }
 .of-vact:hover { background: var(--of-hover); color: var(--of-text); }
 .of-vact:focus-visible { outline: 2px solid var(--of-accent); outline-offset: -2px; }
-@media (hover: none) { .of-vmsg__tools, .of-vmsg__actions { opacity: 1; } }
+@media (hover: none) { .of-vmsg__actions { opacity: 1; } }
 .of-vchat__scroll:focus-visible { outline: 2px solid var(--of-accent); outline-offset: -2px; }
 
 /* ---- composer extras */
@@ -323,9 +301,9 @@ textarea.of-vfield__in { height: auto; padding: 8px 9px; resize: vertical; }
 .of-vcard, .of-vside__body { min-width: 0; }
 
 /* ---- minimal scrollbars: the themed ones from themes.css, slimmer here; Firefox needs the standard properties per container */
-.of-vibe, .of-modelpop, .of-slash { --of-scroll-size: 10px; }
+.of-vibe, .of-modelpop { --of-scroll-size: 10px; }
 @supports not selector(::-webkit-scrollbar) {
-  .of-vchat__scroll, .of-vside__body, .of-vlist__items, .of-composer__in, .of-composer__chips, .of-slash, .of-modelpop__body, .of-modelpop__list, .of-json, .of-tcall__txt, .of-think__text, .of-md pre, .of-vcanvas, .of-vhow pre { scrollbar-width: thin; scrollbar-color: var(--of-scroll-thumb) transparent; }
+  .of-vchat__scroll, .of-vside__body, .of-vlist__items, .of-composer__in, .of-composer__chips, .of-modelpop__body, .of-modelpop__list, .of-json, .of-tcall__txt, .of-think__text, .of-md pre, .of-vhow pre { scrollbar-width: thin; scrollbar-color: var(--of-scroll-thumb) transparent; }
 }
 
 /* ---- Activity tab: live run log */

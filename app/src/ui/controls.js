@@ -55,9 +55,6 @@ export function installTooltips() {
 
 export const icon = (name, library) => h("sl-icon", { name, library: library || undefined });
 
-/** Custom OpenFini tool icons live in the "of" icon library. */
-export const ofIcon = (name) => h("sl-icon", { name, library: "of" });
-
 export function iconButton({ icon: ic, lib, label, shortcut, onClick, active = false, disabled = false, cls = "", tipPos } = {}) {
   // label is English source text: translated now and again on a language switch (data-i18n-* markers, i18n/index.js translateDom)
   const b = h("button.of-ibtn", { type: "button", class: cls, ...ta({ "aria-label": label, tip: label }), "data-shortcut": shortcut, "data-tip-pos": tipPos }, ic ? h("sl-icon", { name: ic, library: lib }) : null);
