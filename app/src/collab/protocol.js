@@ -183,8 +183,9 @@ export const THREAD = V.obj(
 );
 const COMMENT_OP = V.obj(
   {
-    op: V.oneOf("add", "reply", "edit", "delete", "resolve", "reopen", "drop"),
+    op: V.oneOf("add", "reply", "edit", "delete", "resolve", "reopen", "drop", "reanchor"),
     thread: THREAD, // add
+    anchor: ANCHOR, // reanchor (a dragged pin)
     threadId: V.id(),
     msg: COMMENT_MSG, // reply
     msgId: V.id(),

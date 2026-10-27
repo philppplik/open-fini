@@ -165,3 +165,28 @@
 @media (max-width: 600px) {
   .of-collab-win { left: 8px !important; right: 8px; top: auto !important; bottom: 8px; width: auto !important; height: 70vh !important; }
 }
+
+/* ---- inline comments: pins, highlights, composer / thread popovers, comment mode (ui/collab/comment-ui.js) */
+.of-cpin { position: absolute; left: 0; top: 0; z-index: 2; pointer-events: auto; min-width: 22px; height: 22px; padding: 0 5px; border: 2px solid #fff; border-radius: 11px 11px 11px 2px; background: var(--of-collab-color, var(--of-accent)); color: #fff; font: 600 11px/18px var(--of-font, system-ui, sans-serif); text-align: center; cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4); touch-action: none; }
+.of-cmarks { position: fixed; inset: 0; pointer-events: none; z-index: 850; }
+.of-cmarks .of-cpin { position: absolute; }
+.of-cpin:focus-visible { outline: 2px solid var(--of-accent); outline-offset: 2px; }
+.of-cpin.is-selected { transform-origin: 0 100%; box-shadow: 0 0 0 3px color-mix(in srgb, var(--of-collab-color, var(--of-accent)) 45%, transparent), 0 1px 4px rgba(0, 0, 0, 0.4); }
+.of-cpin.is-dragging { cursor: grabbing; opacity: 0.8; z-index: 3; }
+.of-chl { position: absolute; left: 0; top: 0; pointer-events: none; border-radius: 2px; background: color-mix(in srgb, var(--of-collab-color, var(--of-accent)) 26%, transparent); box-shadow: inset 0 -2px 0 var(--of-collab-color, var(--of-accent)); }
+.of-cpop { position: fixed; z-index: 1000; width: 320px; max-width: calc(100vw - 16px); max-height: min(70vh, 520px); overflow: auto; display: grid; gap: 8px; padding: 10px; background: var(--of-bg-panel); color: var(--of-text); border: 1px solid var(--of-border); border-radius: var(--of-radius, 8px); box-shadow: var(--of-shadow, 0 12px 32px rgba(0, 0, 0, 0.35)); font: 13px/1.4 var(--of-font, system-ui, sans-serif); }
+.of-cpop:focus { outline: none; }
+.of-cpop__anchor, .of-cpop__head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.of-cpop__where { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--of-text-dim, var(--of-text)); font-size: 12px; }
+.of-cpop__num { min-width: 20px; height: 20px; border-radius: 10px; color: #fff; font: 600 11px/20px var(--of-font, system-ui, sans-serif); text-align: center; }
+.of-cpop__msgs { display: grid; gap: 8px; }
+.of-cpop__field { position: relative; display: grid; }
+.of-cpop__field textarea { width: 100%; box-sizing: border-box; resize: vertical; }
+.of-cpop__mentions { position: absolute; left: 0; right: 0; top: 100%; z-index: 2; margin: 2px 0 0; padding: 2px; list-style: none; background: var(--of-bg-panel); border: 1px solid var(--of-border); border-radius: var(--of-radius-sm, 4px); box-shadow: var(--of-shadow, 0 8px 20px rgba(0, 0, 0, 0.3)); }
+.of-cpop__mentions li { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 3px; cursor: pointer; }
+.of-cpop__mentions li[aria-selected="true"] { background: var(--of-accent-soft, var(--of-active)); }
+.of-cpop__dot { width: 10px; height: 10px; border-radius: 50%; }
+html.of-comment-mode .of-stage, html.of-comment-mode .cm-editor, html.of-comment-mode .of-oed { cursor: crosshair !important; }
+.of-status__comments { display: inline-flex; align-items: center; gap: 4px; }
+.of-status__comments[aria-pressed="false"] { opacity: 0.65; }
+.of-status__comments.is-mode { color: var(--of-accent-strong, var(--of-accent)); }
