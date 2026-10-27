@@ -121,7 +121,7 @@ function main() {
   const sources = new Map();
   const refs = (file, name) => {
     if (!sources.has(file)) sources.set(file, stripComments(readFileSync(file, "utf8")));
-    return (sources.get(file).match(new RegExp(`(?<![\\w$.])${name.replace(/\$/g, "\\$")}(?![\\w$])`, "g")) ?? []).length;
+    return (sources.get(file).match(new RegExp(`(?<![\\w$.])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w$])`, "g")) ?? []).length;
   };
   const dead = report.unused.filter((x) => x.name !== "default" && refs(x.file, x.name) <= 1);
   const deadSet = new Set(dead.map((x) => `${x.file}#${x.name}`));
