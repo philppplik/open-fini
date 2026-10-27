@@ -1,6 +1,7 @@
 // Vibe Studio: chat with an assistant that works inside OpenFini. Left: chats. Center: conversation and composer.
-// Right: Canvas (live view of the document), Activity (plan, undo), Models, Tools, Skills and Knowledge.
-import { h, empty, debounce } from "../../core/util.js";
+// Right: Canvas (live view of the document, layers, before/after) and Activity (plan, undo). Models, Tools, Skills and
+// Knowledge live in Settings ▸ Artificial intelligence (settings-ai.js); vs.openTab("models" | …) opens them there.
+import { h, empty } from "../../core/util.js";
 import { iconButton } from "../controls.js";
 import { iconEl } from "../toolbox.js";
 import { showContextMenu } from "../menus.js";
@@ -12,18 +13,12 @@ import { createChat } from "./chat.js";
 import { createCanvasPanel } from "./panel-canvas.js";
 import { createActivityPanel } from "./panel-activity.js";
 import { createRunLog } from "./run-log.js";
-import { createModelsPanel } from "./panel-models.js";
-import { createToolsPanel } from "./panel-tools.js";
-import { createKnowledgePanel } from "./panel-knowledge.js";
-import { createSkillsPanel } from "./panel-skills.js";
+import { openAiSettings, AI_TABS } from "./settings-ai.js";
+import { getChangeRecorder } from "./change-recorder.js";
 
 const TABS = [
   { id: "canvas", icon: "window", label: "Canvas" },
   { id: "activity", icon: "list-check", label: "Activity" },
-  { id: "models", icon: "cpu", label: "Models" },
-  { id: "tools", icon: "tools", label: "Tools" },
-  { id: "skills", icon: "mortarboard", label: "Skills" },
-  { id: "knowledge", icon: "journal-text", label: "Knowledge" },
 ];
 
 let instance = null;
@@ -52,7 +47,10 @@ export function vibeStudio(app) {
     const user = vibeStore.skills.filter((x) => x.enabled !== false).map((x) => ({ ...ai.parseSkill(ai.serializeSkill(x)), files: x.files, source: "user" }));
     return [...user, ...ai.BUILTIN_SKILL_LIST.map((x) => ({ ...x, source: "builtin" })).filter((b) => !user.some((u) => u.name === b.name))];
   };
+  vs.changes = getChangeRecorder(app, hub);
   vs.openTab = (id) => {
+    // the former Models / Tools / Skills / Knowledge tabs moved to Settings ▸ Artificial intelligence
+    if (AI_TABS.some((x) => x.id === id)) return openAiSettings(app, id);
     vs.tab = id;
     vs.sideOpen = true;
     renderSide();
@@ -113,7 +111,7 @@ export function vibeStudio(app) {
     side.append(tabs);
     if (!vs.sideOpen) return;
     if (!panels.has(vs.tab)) {
-      const make = { canvas: createCanvasPanel, activity: createActivityPanel, models: createModelsPanel, tools: createToolsPanel, skills: createSkillsPanel, knowledge: createKnowledgePanel }[vs.tab];
+      const make = { canvas: createCanvasPanel, activity: createActivityPanel }[vs.tab] || createCanvasPanel;
       panels.set(vs.tab, make(vs));
     }
     const p = panels.get(vs.tab);
@@ -122,7 +120,7 @@ export function vibeStudio(app) {
   }
 
   // ------------------------------------------------------------ model picker popover
-  vs.openModelPicker = async (anchor) => {
+  vs.openModelPicker = async (anchor, { onPick = null } = {}) => {
     document.querySelector(".of-modelpop")?.remove();
     const pop = h("div.of-modelpop", { role: "dialog", "aria-label": "Choose a model" });
     const r = anchor.getBoundingClientRect();
@@ -136,6 +134,10 @@ export function vibeStudio(app) {
     };
     setTimeout(() => document.addEventListener("pointerdown", close, true), 0);
     const s = vibeStore.settings;
+    const picked = () => {
+      pop.remove();
+      onPick?.();
+    };
     const body = h("div.of-modelpop__body");
     pop.append(body);
     const draw = async () => {
@@ -148,7 +150,7 @@ export function vibeStudio(app) {
         head.addEventListener("click", async () => {
           if (row.id === null) {
             await vibeStore.saveSettings({ activeProvider: null, model: "demo" });
-            pop.remove();
+            picked();
             return;
           }
           body.replaceChildren(h("div.of-empty", "Loading models…"));
@@ -163,7 +165,7 @@ export function vibeStudio(app) {
               e.stopPropagation();
               if (e.key === "Enter") use.click();
             });
-            const use = h("button.of-btn.of-btn--primary", { type: "button", onclick: async () => { const id = manual.value.trim(); if (!id) return; await vibeStore.saveSettings({ activeProvider: row.id, model: id }); pop.remove(); } }, "Use this model");
+            const use = h("button.of-btn.of-btn--primary", { type: "button", onclick: async () => { const id = manual.value.trim(); if (!id) return; await vibeStore.saveSettings({ activeProvider: row.id, model: id }); picked(); } }, "Use this model");
             body.replaceChildren(h("button.of-modelpop__back", { type: "button", onclick: draw }, "← Providers"), h("div.of-empty", `No model list available (${err.message}). Type the model id your server expects.`), manual, use, h("button.of-btn", { type: "button", onclick: () => { pop.remove(); vs.openTab("models"); } }, "Open Models"));
             manual.focus();
             return;
@@ -177,11 +179,11 @@ export function vibeStudio(app) {
               const b = h("button.of-modelpop__model", { type: "button", class: id === s.model && active ? "active" : "" }, id);
               b.addEventListener("click", async () => {
                 await vibeStore.saveSettings({ activeProvider: row.id, model: id });
-                pop.remove();
+                picked();
               });
               items.append(b);
             }
-            if (q && !items.children.length) items.append(h("button.of-modelpop__model", { type: "button", onclick: async () => { await vibeStore.saveSettings({ activeProvider: row.id, model: filter.value.trim() }); pop.remove(); } }, `Use “${filter.value.trim()}”`));
+            if (q && !items.children.length) items.append(h("button.of-modelpop__model", { type: "button", onclick: async () => { await vibeStore.saveSettings({ activeProvider: row.id, model: filter.value.trim() }); picked(); } }, `Use “${filter.value.trim()}”`));
           };
           filter.addEventListener("input", paint);
           filter.addEventListener("keydown", (e) => e.stopPropagation());
@@ -210,7 +212,6 @@ export function vibeStudio(app) {
     renderList();
     renderSide();
   });
-  void debounce;
 
   instance = { el: root, vs, session, ready, activate: () => chat?.focus() };
   app.vibe = instance;

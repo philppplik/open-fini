@@ -128,10 +128,12 @@ export function createSkillsPanel(vs) {
   }
 
   // ---- actions
-  function use(s) {
+  async function use(s) {
     vs.openTab?.("canvas");
-    if (vs.chat?.useSkill) vs.chat.useSkill(s, "").then(() => vs.chat.focus());
-    else vs.chat.setInput(`/${s.name} `);
+    // from Settings the chat may not exist yet: open Vibe Studio and wait for it
+    const chat = vs.chat || (await import("./settings-ai.js").then((m) => m.whenChat(app)));
+    if (chat?.useSkill) chat.useSkill(s, "").then(() => chat.focus());
+    else chat?.setInput(`/${s.name} `);
   }
   async function testRun(s) {
     const session = vs.hub.newChat();
@@ -145,7 +147,8 @@ export function createSkillsPanel(vs) {
     }
   }
   function fromChat() {
-    if (!vs.session.chat.messages.length) return app.toast("Open a chat in which Vibe did the work you want to keep, then try again.", "warning", 3500);
+    if (!vs.session.chat.messages.length || !vs.chat) return app.toast("Open a chat in which Vibe did the work you want to keep, then try again.", "warning", 3500);
+    vs.openTab?.("canvas");
     vs.chat.setInput("Distill the workflow you performed in this chat into a reusable skill: call create_skill with a concrete numbered workflow (exact tools and arguments that worked), rules with numbers, {{param}} placeholders for what changes between uses (declare them in params), token-saving tips and a ## Verify section. Keep it under 120 lines.");
   }
   async function download(name, bytes, mime, ext) {

@@ -274,7 +274,7 @@ export function computeSet(raw) {
   const layers = raw.layers ? diffLayers(raw.layers.before, raw.layers.after) : [];
   const files = raw.files ? diffFiles(raw.files.before, raw.files.after) : [];
   const office = raw.office ? diffParagraphs(raw.office.before, raw.office.after) : null;
-  return { layers, files, office: office && (office.add || office.del) ? office : null };
+  return { layers, files, office: office && (office.add || office.del) ? { ...office, model: raw.office.model } : null };
 }
 
 /** Merges per-call raw snapshots into one raw run set: the earliest "before" and latest "after" per key win. */

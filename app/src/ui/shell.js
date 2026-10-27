@@ -195,7 +195,7 @@ export function createShell(app, root) {
         return newDocumentDialog(app, d);
       }
       case "preferences":
-        return preferencesDialog(app, d.section);
+        return preferencesDialog(app, d.section, { tab: d.tab });
       case "about":
         return aboutDialog(app);
       case "shortcuts":

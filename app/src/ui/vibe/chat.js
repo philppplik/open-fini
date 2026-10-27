@@ -1,4 +1,5 @@
-// Vibe Studio chat: transcript (messages, tool cards, approvals, questions) and the composer.
+// Vibe Studio chat: transcript (messages, tool cards, approvals, questions, change badges and run summaries) and the
+// composer (mention chips for @ / ! / slash via composer-mentions.js, icon toolbar, message toolbars via message-actions.js).
 import { h, empty } from "../../core/util.js";
 import { iconButton } from "../controls.js";
 import { t } from "../../i18n/index.js";
@@ -7,10 +8,17 @@ import { iconEl } from "../toolbox.js";
 import { renderMarkdown } from "./markdown.js";
 import { vibeStore } from "../../vibe/store.js";
 import { showContextMenu } from "../menus.js";
-import { createToolCards, copyButton } from "./tool-cards.js";
+import { createToolCards } from "./tool-cards.js";
 import { markEl } from "./logo.js";
 import { markContext } from "../context-menu/index.js";
 import { registerVibeContext } from "./context.js";
+import { createMentions, layerChip } from "./composer-mentions.js";
+import { parseContextBlocks } from "./mentions.js";
+import { messageToolbar } from "./message-actions.js";
+import { messageMarkdown, retryPlan } from "../../vibe/chat-ops.js";
+import { badgeText } from "./changes.js";
+
+const CHIP_ICON = { file: "file-earmark-code", document: "files", layer: "layers", attachment: "paperclip", member: "people", tool: "wrench", skill: "mortarboard" };
 
 const textOfMessage = (m) => (typeof m.content === "string" ? m.content : (m.content || []).filter((b) => b.type === "text" && !/^\[Attached/.test(b.text)).map((b) => b.text).join("\n"));
 
@@ -82,9 +90,10 @@ export function createChat(vs) {
     if (cur) return cur;
     const body = h("div.of-vmsg__body");
     const el = h("div.of-vmsg.of-vmsg--assistant", h("div.of-vmsg__avatar", markEl()), body);
+    if (msgIndex >= 0) el.dataset.index = String(msgIndex);
     markContext(el, "vibe-message", { role: "assistant", index: msgIndex, el });
     thread.append(el);
-    cur = { body, text: "", all: [], textEl: null, tail: null, group: null, thinking: null };
+    cur = { el, body, text: "", all: [], textEl: null, tail: null, group: null, thinking: null, index: msgIndex };
     return cur;
   }
   const breakTools = (b) => {
@@ -118,13 +127,35 @@ export function createChat(vs) {
     const blocks = typeof msg.content === "string" ? [{ type: "text", text: msg.content }] : msg.content;
     const body = h("div.of-vmsg__body");
     for (const b of blocks) {
-      if (b.type === "text") body.append(h("div.of-vmsg__text", b.text.length > 1500 && b.text.startsWith("[Attached") ? h("em", `${b.text.split("\n")[0]}`) : b.text));
-      else if (b.type === "image") body.append(h("img.of-vmsg__img", { src: `data:${b.mime};base64,${b.data}`, alt: "Attached image" }));
+      if (b.type === "text") {
+        if (b.text.length > 1500 && b.text.startsWith("[Attached")) {
+          body.append(h("div.of-vmsg__text", h("em", `${b.text.split("\n")[0]}`)));
+          continue;
+        }
+        // mention chips travel as a "[Vibe context]" section: show them as chips, not as raw blocks
+        const p = parseContextBlocks(b.text);
+        body.append(h("div.of-vmsg__text", p.text));
+        if (p.chips.length) body.append(h("div.of-mchips.of-mchips--sent", { role: "list", "aria-label": t("Targets sent with this message") }, p.chips.map((c) => h("span.of-mchip", { role: "listitem", class: `of-mchip--${c.kind}` }, iconEl(CHIP_ICON[c.kind] || "at"), h("span", c.kind === "tool" ? `!${c.label}` : c.kind === "skill" ? `/${c.label}` : `@${c.label}`)))));
+      } else if (b.type === "image") body.append(h("img.of-vmsg__img", { src: `data:${b.mime};base64,${b.data}`, alt: "Attached image" }));
     }
-    const copy = copyButton(() => textOfMessage(msg), "Copy message");
-    const uel = markContext(h("div.of-vmsg.of-vmsg--user", h("div.of-vmsg__tools", copy), body), "vibe-message", { role: "user", index: session.chat.messages.indexOf(msg), el: body });
+    const index = session.chat.messages.indexOf(msg);
+    const uel = markContext(h("div.of-vmsg.of-vmsg--user", body), "vibe-message", { role: "user", index, el: body });
+    if (session.chat.pins?.includes(index)) uel.classList.add("of-vmsg--pinned");
+    uel.dataset.index = String(index);
+    body.append(messageToolbar(vs, { role: "user", index: () => session.chat.messages.indexOf(msg), el: uel, getText: () => parseContextBlocks(textOfMessage(msg)).text, getMarkdown: () => messageMarkdown(msg), onEdit: () => editMessage(msg) }));
     thread.append(uel);
     follow();
+  }
+  /** Puts a sent message back into the composer; sending it continues the conversation from that turn. */
+  function editMessage(msg) {
+    if (session.running) return;
+    const text = parseContextBlocks(textOfMessage(msg)).text;
+    const i = session.chat.messages.indexOf(msg);
+    editing = i >= 0 && retryPlan(session.chat.messages, i) ? i : -1;
+    input.value = text;
+    autosize();
+    input.focus();
+    app.toast(editing >= 0 ? t("Edit the message and send: the conversation continues from there.") : t("Edit and send it as a new message."), "primary", 2200);
   }
   /** Copy (and, on the newest answer, retry) under a finished assistant bubble. */
   function finishBubble(b, last) {
@@ -132,14 +163,18 @@ export function createChat(vs) {
     b.finished = true;
     const text = b.all.filter(Boolean).join("\n\n");
     if (!text && !last) return;
-    const row = h("div.of-vmsg__actions", text ? copyButton(() => text, "Copy answer") : null);
-    if (last) {
-      thread.querySelectorAll(".of-vact--retry").forEach((x) => x.remove());
-      const retry = h("button.of-vact.of-vact--retry", { type: "button", ...ta({ "aria-label": "Retry: send the last message again", title: "Send the last message again" }) }, iconEl("arrow-repeat"), tspan("Retry"));
-      retry.addEventListener("click", () => retryLast());
-      row.append(retry);
-    }
+    if (last) thread.querySelectorAll(".of-vact--retry").forEach((x) => x.remove());
+    const index = b.index;
+    const row = messageToolbar(vs, { role: "assistant", index: () => index, el: b.el, last, getText: () => text, getMarkdown: () => text, onRetry: () => retryLast(), onRetryAt: (i) => retryAt(i) });
+    if (text.length > 2400) b.el.classList.add("of-vmsg--long");
     b.body.append(row);
+  }
+  function retryAt(i) {
+    const plan = retryPlan(session.chat.messages, i);
+    if (!plan || session.running) return;
+    session.chat.messages = plan.keep;
+    session.emit("chat");
+    send(plan.text);
   }
   function retryLast() {
     if (session.running) return;
@@ -204,7 +239,54 @@ export function createChat(vs) {
     finishBubble(cur, true);
     cur = null;
     msgIndex = -1;
+    paintPins();
     toBottom();
+  }
+
+  // pinned turns: a strip at the top of the transcript; clicking one scrolls to it
+  function paintPins() {
+    thread.querySelector(".of-vpins")?.remove();
+    const pins = (session.chat.pins || []).filter((i) => i < session.chat.messages.length);
+    for (const el of thread.querySelectorAll(".of-vmsg--pinned")) el.classList.remove("of-vmsg--pinned");
+    if (!pins.length) return;
+    const bar = h("nav.of-vpins", { "aria-label": t("Pinned messages") }, iconEl("pin-angle"));
+    for (const i of pins) {
+      const target = thread.querySelector(`.of-vmsg[data-index="${i}"]`);
+      target?.classList.add("of-vmsg--pinned");
+      const label = parseContextBlocks(textOfMessage(session.chat.messages[i])).text.replace(/\s+/g, " ").slice(0, 40) || t("Message");
+      bar.append(h("button.of-vpins__item", { type: "button", onclick: () => target?.scrollIntoView({ block: "start", behavior: reduced() ? "auto" : "smooth" }) }, label));
+    }
+    thread.prepend(bar);
+  }
+
+  // ---- change sets (change-recorder.js): a badge + "View changes" on mutating tool cards, a summary card per run
+  const openChanges = (o) => import("./diff-view.js").then((m) => m.openChangesDialog(vs, o));
+  function decorateCard(id) {
+    const rec = vs.changes?.call(id);
+    if (!rec || rec.stat.empty) return;
+    const btn = h("button.of-vchg", { type: "button", "aria-label": t("View changes: {stat}", { stat: badgeText(rec.stat) }) }, iconEl("file-earmark-diff"), h("span", t("View changes")), h("span.of-vchg__stat", badgeText(rec.stat)));
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openChanges({ title: t("Changes by {tool}", { tool: rec.name }), set: rec.set, doc: rec.doc, runId: null });
+    });
+    tools.decorate(id, btn);
+  }
+  async function runSummary(runId) {
+    const r = runId && vs.changes?.run(runId);
+    if (!r || r.stat.empty) return;
+    const { changeSummaryList } = await import("./diff-view.js");
+    const card = h("section.of-vsum", { "aria-label": t("Changes of this run") },
+      h("div.of-vsum__head", iconEl("file-earmark-diff"), h("strong", t("Changed in this run")), h("span.of-vchg__stat", badgeText(r.stat))),
+      changeSummaryList(r.set),
+      h("div.of-vsum__acts",
+        h("button.of-btn.of-btn--sm.of-btn--primary", { type: "button", onclick: () => openChanges({ title: t("Review changes"), set: r.set, doc: r.doc, runId }) }, iconEl("eye"), t("Review changes")),
+        r.set.layers.length ? h("button.of-btn.of-btn--sm", { type: "button", onclick: () => vs.openTab("canvas") || vs.canvas?.compare(runId) }, iconEl("layout-split"), t("Before / after")) : null,
+      ),
+    );
+    const anchor = thread.lastElementChild;
+    if (anchor?.classList.contains("of-vusage")) anchor.before(card);
+    else thread.append(card);
+    follow();
   }
 
   function askCard(q) {
@@ -245,31 +327,70 @@ export function createChat(vs) {
   }
 
   // ------------------------------------------------------------ composer
-  const input = h("textarea.of-composer__in", { rows: 1, ...ta({ placeholder: "Ask Vibe to design, edit or build something…  (/ for skills, @selection for the selected layers)", "aria-label": "Message Vibe" }) });
+  const input = h("textarea.of-composer__in", { rows: 1, ...ta({ placeholder: "Ask Vibe to design, edit or build something…  (@ files and layers, / skills, ! tools)", "aria-label": "Message Vibe" }) });
   const chips = h("div.of-composer__chips");
   let files = [];
+  let editing = -1; // index of a sent message being edited (sending forks the chat there)
   const fileInput = h("input", { type: "file", multiple: true, style: { display: "none" }, accept: "image/*,.pdf,.ai,.psd,.psb,.idml,.sketch,.txt,.md,.csv,.json,.html,.css,.js,.svg,.xml,.yml,.yaml,.ts,.py,.sql" });
-  const attach = iconButton({ icon: "paperclip", label: "Attach files or images", onClick: () => fileInput.click() });
-  const mic = iconButton({ icon: "mic", label: "Dictate", onClick: () => dictate() });
+  const tip = (icon, label, onClick, extra = {}) => {
+    const b = iconButton({ icon, label: t(label), onClick });
+    b.setAttribute("data-tip", t(label));
+    for (const [k, v] of Object.entries(extra)) b.setAttribute(k, v);
+    return b;
+  };
+  const attach = tip("paperclip", "Attach files or images", () => fileInput.click());
+  const shot = tip("camera", "Attach a picture of the current page", () => attachScreenshot());
+  const mic = tip("mic", "Dictate (speech input)", () => dictate());
+  const library = tip("journal-text", "Prompt library: recent and saved prompts", () => openLibrary(library), { "aria-haspopup": "menu" });
+  const toolsBtn = tip("tools", "Tools for this chat", () => openToolsPopover(toolsBtn), { "aria-haspopup": "dialog" });
   const sendBtn = h("button.of-composer__send", { type: "button", ...ta({ "aria-label": "Send" }) }, iconEl("arrow-up"));
   const paintSend = () => {
     const running = session.running;
-    const can = running || !!input.value.trim() || files.length > 0;
+    const can = running || !!input.value.trim() || files.length > 0 || mentions.chips.length > 0;
     // running: the OpenFini mark pulses; hovering or focusing the button shows the stop square
     sendBtn.replaceChildren(...(running ? [markEl("of-composer__mark"), iconEl("stop-fill")] : [iconEl("arrow-up")]));
     sendBtn.classList.toggle("running", running);
     sendBtn.classList.toggle("idle", !can);
     sendBtn.setAttribute("aria-disabled", String(!can));
     sendBtn.setAttribute("aria-label", running ? t("Stop") : t("Send"));
-    sendBtn.title = running ? "Stop (Esc)" : "Send (Enter)";
+    sendBtn.title = running ? t("Stop (Esc)") : t("Send (Enter)");
   };
-  const modelPill = h("button.of-pill-btn", { type: "button", "aria-haspopup": "dialog" });
+  const modelPill = h("button.of-pill-btn", { type: "button", "aria-haspopup": "dialog", "data-tip": t("Model for this chat") });
   const modePill = h("button.of-pill-btn", { type: "button", ...ta({ tip: "How much Vibe may do without asking" }) });
   const thinkPill = h("button.of-pill-btn", { type: "button", ...ta({ tip: "Reasoning effort (models that support it)" }) });
-  const slash = h("div.of-slash.hidden", { role: "listbox" });
   const suggestEl = h("div.of-skillsug.hidden", { role: "status", "aria-live": "polite" });
-  const box = h("div.of-composer", suggestEl, chips, input, h("div.of-composer__bar", attach, mic, modelPill, modePill, thinkPill, h("span.of-composer__spacer"), sendBtn), slash);
-  const root = h("div.of-vchat", main, h("div.of-vchat__dock", box, h("p.of-composer__hint", "Vibe can make mistakes. Changes can be undone in the Activity tab or with Ctrl+Z. Keys and chats stay on this device.")));
+
+  // slash commands: /skill-name, /new, /undo, /clear, /create-skill (the "/" menu of composer-mentions.js)
+  let skillCache = [];
+  const loadSkills = () => vs.allSkills?.().then((l) => (skillCache = l)).catch(() => {});
+  loadSkills();
+  vibeStore.on("change", (g) => (g === "skills" || g === "all") && loadSkills());
+  const useSkill = async (s, rest = "") => {
+    let args = null;
+    if (s.params?.length) {
+      const { skillArgsDialog } = await import("./skill-form.js");
+      args = await skillArgsDialog(s);
+      if (!args) return;
+    }
+    mentions.add({ kind: "skill", name: s.name, args: args || undefined });
+    if (rest && !input.value.trim()) input.value = rest;
+    autosize();
+    input.focus();
+  };
+  vs.useSkill = useSkill;
+  const COMMANDS = () => [
+    { name: "new", hint: t("Start a new chat (other chats keep running)"), run: () => session.newChat() },
+    { name: "undo", hint: t("Undo the last AI run of this chat"), run: () => { const n = session.undoLastRun(); app.toast(n ? `Undid ${n} step(s).` : session.lastUndoError || "Nothing to undo.", n ? "success" : "warning", 2500); } },
+    { name: "clear", hint: t("Clear the draft and its chips"), run: () => { input.value = ""; mentions.clear(); files = []; renderChips(); } },
+    { name: "stop-all", hint: t("Stop every running chat and sub-agent"), run: () => app.toast(`Stopped ${vs.hub.stopAll()} chat(s).`, "primary", 1500) },
+    { name: "create-skill", hint: t("Turn what Vibe did in this chat into a reusable skill (draft)"), run: () => (input.value = "Distill the workflow you performed in this chat into a reusable skill: call create_skill with a concrete numbered workflow (exact tools and arguments that worked), rules with numbers, {{param}} placeholders for what changes between uses (declare them in params), token-saving tips and a ## Verify section. Keep it under 120 lines.") },
+    { name: "skills", hint: t("Manage skills (Settings ▸ Artificial intelligence ▸ Skills)"), run: () => vs.openTab("skills") },
+    { name: "tools", hint: t("Manage tools and MCP servers (Settings ▸ Artificial intelligence ▸ Tools)"), run: () => vs.openTab("tools") },
+    ...(skillCache.length ? skillCache : vs.skills() || []).map((s) => ({ skill: true, name: s.name, hint: `${s.argumentHint ? `[${s.argumentHint}] ` : s.params?.length ? `[${s.params.map((p) => p.name).join(", ")}] ` : ""}${s.description}`, run: (rest) => useSkill(s, rest) })),
+  ];
+  const mentions = createMentions({ vs, input, commands: COMMANDS, onChange: () => paintSend() });
+  const box = h("div.of-composer", suggestEl, mentions.chipsEl, chips, input, h("div.of-composer__bar", { role: "toolbar", "aria-label": t("Composer") }, attach, shot, mic, library, toolsBtn, h("span.of-composer__sep"), modelPill, modePill, thinkPill, h("span.of-composer__spacer"), sendBtn), mentions.popover, mentions.live);
+  const root = h("div.of-vchat", main, h("div.of-vchat__dock", box, h("p.of-composer__hint", t("Vibe can make mistakes. Changes can be undone in the Activity tab or with Ctrl+Z. Keys and chats stay on this device."))));
 
   // grows with the text up to 40% of the panel height (max 220 px), then scrolls inside
   const autosize = () => {
@@ -281,9 +402,10 @@ export function createChat(vs) {
   };
   input.addEventListener("input", () => {
     autosize();
-    slashMenu();
+    mentions.update();
     suggest();
   });
+  input.addEventListener("keyup", (e) => (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "Home" || e.key === "End") && mentions.update());
 
   // "Use skill X?" chip: cheap BM25 match of the draft against skill names, descriptions, tags and when-to-use
   let sugTimer = 0;
@@ -293,7 +415,7 @@ export function createChat(vs) {
     sugTimer = setTimeout(async () => {
       const text = input.value.trim();
       const hide = () => suggestEl.classList.add("hidden");
-      if (vibeStore.settings.suggestSkills === false || text.length < 12 || text.startsWith("/") || /^use the [“"]/i.test(text) || !skillCache.length) return hide();
+      if (vibeStore.settings.suggestSkills === false || text.length < 12 || text.startsWith("/") || mentions.chips.some((c) => c.kind === "skill") || !skillCache.length) return hide();
       const { suggestSkills } = await vs.hub.ai();
       const best = suggestSkills(text, skillCache, { limit: 1, min: 2 })[0];
       if (!best || dismissed.has(best.skill.name)) return hide();
@@ -301,7 +423,7 @@ export function createChat(vs) {
       suggestEl.replaceChildren(
         iconEl("mortarboard"),
         h("span", "Use skill ", h("strong", s.name), "?"),
-        h("button.of-btn.of-btn--sm", { type: "button", onclick: () => { const rest = input.value; suggestEl.classList.add("hidden"); useSkill(s, rest).then(() => autosize()); } }, "Use"),
+        h("button.of-btn.of-btn--sm", { type: "button", onclick: () => { suggestEl.classList.add("hidden"); useSkill(s).then(() => autosize()); } }, "Use"),
         h("button.of-skillsug__x", { type: "button", "aria-label": `Do not suggest ${s.name} again in this chat`, onclick: () => { dismissed.add(s.name); hide(); } }, "×"),
       );
       suggestEl.classList.remove("hidden");
@@ -324,8 +446,18 @@ export function createChat(vs) {
     addFiles([...fileInput.files]);
     fileInput.value = "";
   });
-  box.addEventListener("dragover", (e) => e.preventDefault());
+  box.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    box.classList.add("drop");
+  });
+  box.addEventListener("dragleave", () => box.classList.remove("drop"));
   box.addEventListener("drop", (e) => {
+    box.classList.remove("drop");
+    if (mentions.handleDrop(e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     if (e.dataTransfer?.files?.length) {
       e.preventDefault();
       e.stopPropagation();
@@ -340,75 +472,87 @@ export function createChat(vs) {
     }
   });
 
-  // slash commands: /skill-name, /new, /undo, /clear
-  let skillCache = [];
-  const loadSkills = () => vs.allSkills?.().then((l) => (skillCache = l)).catch(() => {});
-  loadSkills();
-  vibeStore.on("change", (g) => (g === "skills" || g === "all") && loadSkills());
-  const useSkill = async (s, rest = "") => {
-    if (!s.params?.length) {
-      input.value = `Use the “${s.name}” skill. ${rest}`;
-      return;
+  async function attachScreenshot() {
+    const page = app.page;
+    if (!app.doc || !page) return app.toast(t("Open a document first."), "warning", 2000);
+    try {
+      const { exportRaster } = await import("../../core/io.js");
+      const k = Math.min(1, 1600 / Math.max(page.w, page.h));
+      const r = await exportRaster(app, { page, format: "png", scale: k });
+      addFiles([new File([r.bytes], `${(page.name || app.doc.name || "page").replace(/[^\w.-]+/g, "_")}.png`, { type: "image/png" })]);
+    } catch (err) {
+      app.toast(err?.message || t("Could not capture the page."), "warning", 3000);
     }
-    const { skillArgsDialog } = await import("./skill-form.js");
-    const args = await skillArgsDialog(s);
-    if (!args) return;
-    input.value = `Use the “${s.name}” skill with args ${JSON.stringify(args)}. ${rest}`;
-    autosize();
-    input.focus();
+  }
+
+  // prompt library: recent prompts (local), saved prompts with names, and per-studio templates
+  const SAVED_KEY = "of-vibe-saved-prompts";
+  const readSaved = () => {
+    try {
+      return JSON.parse(localStorage.getItem(SAVED_KEY) || "[]");
+    } catch {
+      return [];
+    }
   };
-  vs.useSkill = useSkill;
-  const COMMANDS = () => [
-    { name: "new", hint: "Start a new chat (other chats keep running)", run: () => session.newChat() },
-    { name: "undo", hint: "Undo the last AI run of this chat", run: () => { const n = session.undoLastRun(); app.toast(n ? `Undid ${n} step(s).` : session.lastUndoError || "Nothing to undo.", n ? "success" : "warning", 2500); } },
-    { name: "stop-all", hint: "Stop every running chat and sub-agent", run: () => app.toast(`Stopped ${vs.hub.stopAll()} chat(s).`, "primary", 1500) },
-    { name: "create-skill", hint: "Turn what Vibe did in this chat into a reusable skill (draft)", run: () => (input.value = "Distill the workflow you performed in this chat into a reusable skill: call create_skill with a concrete numbered workflow (exact tools and arguments that worked), rules with numbers, {{param}} placeholders for what changes between uses (declare them in params), token-saving tips and a ## Verify section. Keep it under 120 lines.") },
-    ...(skillCache.length ? skillCache : vs.skills() || []).map((s) => ({ name: s.name, hint: `${s.argumentHint ? `[${s.argumentHint}] ` : s.params?.length ? `[${s.params.map((p) => p.name).join(", ")}] ` : ""}${s.description}`, run: () => useSkill(s, input.value.replace(/^\/\S*\s*/, "")) })),
+  const TEMPLATES = [
+    ["Vector", "Design a clean logo for {name}: three variations with different color schemes."],
+    ["Pixel", "Brighten the shadows, add warmth and a subtle vignette with adjustment layers."],
+    ["Layout", "Lay out a one-page flyer for {event}: headline, date, place and a call to action."],
+    ["Code", "Add a responsive navigation bar with a mobile menu to the website."],
+    ["Office", "Proofread the document, fix grammar and keep my tone."],
   ];
-  let slashItems = [];
-  let slashSel = 0;
-  function slashMenu() {
-    const m = /^\/(\S*)$/.exec(input.value.split("\n")[0]);
-    if (!m || input.value.includes("\n")) return slash.classList.add("hidden");
-    slashItems = COMMANDS().filter((c) => c.name.startsWith(m[1].toLowerCase()));
-    slashSel = 0;
-    paintSlash();
+  function openLibrary(anchor) {
+    const r = anchor.getBoundingClientRect();
+    const saved = readSaved();
+    const recent = mentions.recentPrompts().slice(0, 8);
+    const put = (text) => {
+      input.value = text;
+      autosize();
+      input.focus();
+    };
+    const items = [];
+    if (recent.length) items.push({ label: t("Recent prompts"), disabled: true }, ...recent.map((p) => ({ label: p.length > 60 ? `${p.slice(0, 60)}…` : p, icon: "clock-history", run: () => put(p) })), "-");
+    if (saved.length) items.push({ label: t("Saved prompts"), disabled: true }, ...saved.map((p) => ({ label: p.name, icon: "bookmark-star", run: () => put(p.text) })), "-");
+    items.push({ label: t("Templates"), disabled: true }, ...TEMPLATES.map(([s, p]) => ({ label: `${s}: ${p.slice(0, 50)}…`, icon: "lightbulb", run: () => put(p) })), "-");
+    items.push({ label: t("Save the current prompt…"), icon: "bookmark-plus", disabled: !input.value.trim(), run: async () => {
+      const { promptDialog } = await import("../dialogs.js");
+      const name = await promptDialog?.({ title: t("Save prompt"), label: t("Name"), value: input.value.trim().slice(0, 40) });
+      if (!name) return;
+      const list = readSaved().filter((x) => x.name !== name);
+      list.unshift({ name, text: input.value.trim() });
+      try {
+        localStorage.setItem(SAVED_KEY, JSON.stringify(list.slice(0, 50)));
+        app.toast(t("Prompt saved."), "success", 1400);
+      } catch {
+        app.toast(t("Could not save the prompt in this browser."), "warning", 2400);
+      }
+    } });
+    if (saved.length) items.push({ label: t("Delete saved prompts…"), icon: "trash3", run: () => { try { localStorage.removeItem(SAVED_KEY); } catch { /* ignore */ } } });
+    showContextMenu(app, r.left, Math.max(8, r.top - 12 - Math.min(480, items.length * 30)), items);
   }
-  function paintSlash() {
-    empty(slash);
-    slash.classList.toggle("hidden", !slashItems.length);
-    slashItems.slice(0, 8).forEach((c, i) => {
-      const row = h("div.of-slash__item", { role: "option", class: i === slashSel ? "active" : "" }, h("strong", `/${c.name}`), h("span", c.hint));
-      row.addEventListener("pointerdown", (e) => {
-        e.preventDefault();
-        pick(c);
-      });
-      slash.append(row);
-    });
-  }
-  function pick(c) {
-    input.value = "";
-    slash.classList.add("hidden");
-    c.run();
-    if (!input.value) input.value = "";
-    autosize();
-    input.focus();
+
+  // per-chat tool groups: switched-off groups go to the chat's overrides (session.settings merges them)
+  async function openToolsPopover(anchor) {
+    const { TOOL_GROUPS } = await import("../../vibe/tools/index.js");
+    const off = new Set(session.overrides?.disabledTools || []);
+    const r = anchor.getBoundingClientRect();
+    const items = Object.entries(TOOL_GROUPS).map(([g, names]) => ({
+      label: `${g} (${names.length})`,
+      checked: !names.every((n) => off.has(n)),
+      run: () => {
+        const all = names.every((n) => off.has(n));
+        for (const n of names) all ? off.delete(n) : off.add(n);
+        session.setOverrides({ disabledTools: off.size ? [...off] : null });
+        paintPills();
+      },
+    }));
+    items.push("-", { label: t("Turn every group on"), disabled: !off.size, run: () => { session.setOverrides({ disabledTools: null }); paintPills(); } }, { label: t("Manage tools and MCP servers…"), icon: "gear", run: () => vs.openTab("tools") });
+    showContextMenu(app, r.left, Math.max(8, r.top - 12 - Math.min(520, items.length * 30)), items);
   }
 
   input.addEventListener("keydown", (e) => {
     e.stopPropagation();
-    if (!slash.classList.contains("hidden")) {
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-        slashSel = (slashSel + (e.key === "ArrowDown" ? 1 : -1) + Math.min(8, slashItems.length)) % Math.min(8, slashItems.length);
-        paintSlash();
-        return e.preventDefault();
-      }
-      if (e.key === "Enter" || e.key === "Tab") {
-        e.preventDefault();
-        return pick(slashItems[slashSel]);
-      }
-      if (e.key === "Escape") return slash.classList.add("hidden");
-    }
+    if (mentions.handleKey(e)) return;
     if (e.key === "Escape" && session.running) return session.abort();
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
       e.preventDefault();
@@ -418,17 +562,33 @@ export function createChat(vs) {
   sendBtn.addEventListener("click", () => (session.running ? session.abort() : send()));
 
   async function send(override) {
-    let text = typeof override === "string" ? override.trim() : input.value.trim();
-    if (!text && !files.length) return;
+    const own = typeof override !== "string";
+    let text = own ? input.value.trim() : override.trim();
+    if (!text && !files.length && !(own && mentions.chips.length)) return;
     if (session.running) return;
-    if (text.includes("@selection") && app.selection.length) {
-      text = text.replace(/@selection/g, `the selected layer(s) (ids: ${app.selection.map((n) => n.id).join(", ")})`);
+    // typed "@selection" without a chip still works (older habit): it becomes a selection chip
+    if (own && /(^|\s)@selection\b/.test(text) && app.selection.length && !mentions.chips.some((c) => c.kind === "selection")) {
+      text = text.replace(/(^|\s)@selection\b/g, "$1the selected layers").trim();
+      mentions.add({ kind: "selection" });
     }
-    const f = typeof override === "string" ? [] : files;
+    const f = own ? files : [];
     const draft = input.value;
-    if (typeof override !== "string") {
+    const chipList = own ? mentions.chips.slice() : [];
+    const message = own ? mentions.compose(text || (f.length ? "Please look at the attached files." : "")) : text;
+    if (own && editing >= 0) {
+      // edit and resend: continue from the edited turn
+      const plan = retryPlan(session.chat.messages, editing);
+      if (plan) {
+        session.chat.messages = plan.keep;
+        session.emit("chat");
+      }
+      editing = -1;
+    }
+    if (own) {
+      mentions.rememberPrompt(text);
       files = [];
       renderChips();
+      mentions.clear();
       input.value = "";
     }
     autosize();
@@ -436,16 +596,17 @@ export function createChat(vs) {
     toBottom(true);
     input.focus({ preventScroll: true });
     try {
-      await session.send(text || "Please look at the attached files.", f);
+      await session.send(message || "Please look at the attached files.", f);
     } catch (err) {
       // nothing was sent: give the draft back
-      if (typeof override !== "string" && !input.value) {
+      if (own && !input.value) {
         input.value = draft;
         files = f;
+        for (const c of chipList) mentions.add(c);
         renderChips();
         autosize();
       }
-      note(err.message, "error", { label: "Try again", run: () => send(typeof override === "string" ? override : undefined) });
+      note(err.message, "error", { label: "Try again", run: () => send(own ? undefined : override) });
     }
   }
 
@@ -552,6 +713,7 @@ export function createChat(vs) {
       }
       case "tool_end":
         tools.end(ev.id, ev.result, ev.isError, ev.ms);
+        decorateCard(ev.id);
         if (session.running && !tools.running()) showPending(true);
         break;
       case "retry":
@@ -600,6 +762,7 @@ export function createChat(vs) {
     else if (res.stopReason === "aborted") note("Stopped.");
     const u = res.usage;
     if (u?.input || u?.output) thread.append(h("div.of-vusage", `${u.input?.toLocaleString("en-US") || 0} tokens in · ${u.output?.toLocaleString("en-US") || 0} out · ${res.steps || 1} step${res.steps === 1 ? "" : "s"}`));
+    runSummary(vs.hub.active?.runId);
     follow();
     if (!document.activeElement || document.activeElement === document.body) input.focus({ preventScroll: true });
   });
@@ -607,5 +770,5 @@ export function createChat(vs) {
 
   renderHistory();
   paintPills();
-  return { el: root, focus: () => input.focus({ preventScroll: true }), setInput: (t) => { input.value = t; autosize(); input.focus(); }, send: (t, f) => send(t), sendRaw: (t, f) => session.send(t, f), paintPills, note, addFiles, useSkill };
+  return { el: root, focus: () => input.focus({ preventScroll: true }), setInput: (t) => { input.value = t; autosize(); input.focus(); }, send: (t, f) => send(t), sendRaw: (t, f) => session.send(t, f), paintPills, note, addFiles, useSkill, addChip: (c) => mentions.add(c), addLayer: (n) => mentions.add(layerChip(n)) };
 }

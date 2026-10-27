@@ -71,7 +71,8 @@ export class VibeSession extends Emitter {
   settings() {
     const s = vibeStore.settings;
     const o = this.overrides || {};
-    return { ...s, ...(o.approval ? { approval: o.approval } : {}), ...(o.model ? { activeProvider: o.activeProvider ?? null, model: o.model } : {}) };
+    // o.disabledTools: tools switched off for this chat only (composer ▸ Tools popover); adds to the global list
+    return { ...s, ...(o.approval ? { approval: o.approval } : {}), ...(o.model ? { activeProvider: o.activeProvider ?? null, model: o.model } : {}), ...(o.disabledTools?.length ? { disabledTools: [...(s.disabledTools || []), ...o.disabledTools] } : {}) };
   }
   setOverrides(patch) {
     this.overrides = { ...this.overrides, ...patch };
@@ -140,12 +141,20 @@ export class VibeSession extends Emitter {
         const release = await hub.lock.acquire(owner, { signal: c.signal, label: `${this.chat.title.slice(0, 30)} · ${t.name}` });
         const tag = { chat: this.id, run: this.runId, ...(c.owner && c.owner !== this.id ? { agent: c.owner } : {}) };
         let doc = null;
+        let probe = null;
         try {
           if (pinned && app.doc !== pinned) app.activateDoc(pinned);
           doc = app.doc;
           if (doc && !t.readOnly) doc.history.tag = tag;
+          // optional observer (ui/vibe/change-recorder.js): before/after snapshots for the chat's diff view; never fails a call
+          if (!t.readOnly && hub.changeProbe) probe = await Promise.resolve().then(() => hub.changeProbe.before({ session: this, id: c.id, name: t.name, input, doc, run: this.runId })).catch(() => null);
           return await t.run(input, c);
         } finally {
+          try {
+            probe?.after?.(app.doc);
+          } catch {
+            /* diff recording is best effort */
+          }
           if (doc) doc.history.tag = null;
           if (!t.readOnly && app.doc) {
             const now = app.doc;
@@ -311,7 +320,7 @@ export class VibeSession extends Emitter {
     const userBlocks = [...(files.length ? await this.#attachmentBlocks(files) : []), { type: "text", text }];
     const userMsg = { role: "user", content: userBlocks.length === 1 ? text : userBlocks };
     this.chat.messages.push(userMsg);
-    if (this.chat.title === "New chat") this.chat.title = text.replace(/\s+/g, " ").slice(0, 48) || "New chat";
+    if (this.chat.title === "New chat") this.chat.title = text.split("\n\n[Vibe context]\n")[0].replace(/\s+/g, " ").slice(0, 48) || "New chat";
     this.chat.model = model;
     this.running = true;
     this.live = [];
