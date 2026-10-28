@@ -1,61 +1,16 @@
 // Office Studio workspace: formatting toolbar, outline / styles sidebar, find & replace bar and the page editor.
-// Mounted by ui/shell.js into the canvas area when the Office studio is active (one workspace per document).
+// Mounted by the Office Suite host (office/host.js) through the Document app (office/document/app.js), one per document.
 import { h } from "../../core/util.js";
 import * as M from "../../engine/office/model.js";
 import { iconButton } from "../controls.js";
 import { OfficeEditor } from "./editor.js";
 
-const workspaces = new WeakMap();
-let mounted = null;
-
 const FONTS = ["Calibri", "Arial", "Helvetica", "Verdana", "Segoe UI", "Inter", "Georgia", "Times New Roman", "Cambria", "Garamond", "Palatino Linotype", "Courier New", "Consolas"];
 const SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72];
 const SPACING = [["1", "Single"], ["1.15", "1.15"], ["1.5", "1.5 lines"], ["2", "Double"], ["2.5", "2.5"], ["3", "Triple"]];
 
-/** Mounts (or refreshes) the workspace for the active document. Called on studio / document changes. */
-export function syncOffice(app, host) {
-  if (app.studio !== "office") {
-    if (mounted) mounted.deactivate();
-    return;
-  }
-  const doc = app.doc;
-  if (!doc || !doc.office) {
-    mounted?.deactivate();
-    mounted = null;
-    app.officeUI = null;
-    host.replaceChildren(emptyState(app, doc));
-    app.emit("officestatus");
-    return;
-  }
-  let ws = workspaces.get(doc);
-  if (!ws) {
-    ws = new OfficeWorkspace(app, doc);
-    workspaces.set(doc, ws);
-  }
-  if (mounted !== ws) {
-    mounted?.deactivate();
-    host.replaceChildren(ws.el);
-    mounted = ws;
-  }
-  app.officeUI = ws;
-  ws.activate();
-}
-
-function emptyState(app, doc) {
-  const msg = doc ? `“${doc.name}” is a design document. Office Studio edits text documents: create one or open a Word, OpenDocument or RTF file.` : "Create a document, or open a Word (.docx), OpenDocument (.odt), RTF, Markdown or text file.";
-  return h(
-    "div.of-office-empty",
-    h("div.of-office-empty__inner",
-      h("sl-icon", { name: "office", library: "of", class: "of-office-empty__icon" }),
-      h("h2", "Office Studio"),
-      h("p", msg),
-      h("div.of-office-empty__actions",
-        h("sl-button", { variant: "primary", onclick: () => app.emit("dialog", { id: "new", studio: "office" }) }, h("sl-icon", { slot: "prefix", name: "plus-lg" }), "New Document"),
-        h("sl-button", { onclick: () => app.run("file.open") }, h("sl-icon", { slot: "prefix", name: "folder2-open" }), "Open…"))),
-  );
-}
-
-class OfficeWorkspace {
+/** The word processor's workspace; mounted by the Office Suite host (office/document/app.js ▸ mount). */
+export class OfficeWorkspace {
   constructor(app, doc) {
     this.app = app;
     this.doc = doc;

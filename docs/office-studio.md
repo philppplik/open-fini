@@ -1,5 +1,9 @@
 # Office Studio
 
+> The Office studio is now the **Office Suite**: a launcher (*Home*: new document per app, templates, recent files,
+> *Open file…*, *Import from Google…*) plus one app per document kind. This page documents the **Document** app (the
+> word processor). Engineers adding apps (Spreadsheet, Presentation, Whiteboard): [office-suite.md](office-suite.md).
+
 The Office Studio is a page-based word processor inside OpenFini: open a Word document, edit it on pages with styles,
 lists, tables and images, and save it again as Word, OpenDocument, PDF or another format. Everything runs locally; no
 file leaves your device.
@@ -11,7 +15,7 @@ recognized and you get an honest explanation instead of a broken import (see [No
 
 * **Open the studio**: the header's **More** menu (the header shows five studios; add Office there in *Settings ▸
   Studios* to get an `Alt+<n>` shortcut), *Studio ▸ Office Studio*, or the command palette.
-* **New document**: *File ▸ New…* in the Office studio, the *Office Studio* card on the welcome screen, or *Document*
+* **New document**: *Home* in the suite bar or *File ▸ New…* in the Office studio (the launcher: *Blank document* opens the page-size dialog, templates create directly: letter, report, invoice, memo, meeting notes, resume), the *Office Studio* card on the welcome screen, or *Document*
   in the *Start in* row of the New Document dialog. Pick a template (blank, letter, report, resume), a page size (A4,
   US Letter, US Legal, A5) and the orientation.
 * **Open**: *File ▸ Open…*, drag and drop, *Open Folder*, or the operating system's *Open with* menu (`.docx`, `.odt`
@@ -74,8 +78,8 @@ recognized and you get an honest explanation instead of a broken import (see [No
 
 | Format | Open | Save / export | What is kept | Simplified or not supported |
 | --- | --- | --- | --- | --- |
-| Word `.docx` (`.docm`, `.dotx`) | yes | yes | text formatting, named paragraph styles with inheritance, theme fonts, lists (numbering definitions, levels, list styles), tables (grid widths, `gridSpan`, `vMerge`, shading, borders, header rows), inline and floating images (PNG, JPEG, GIF, SVG with PNG fallback), hyperlinks (also as fields), footnotes and endnotes (as footnotes), page breaks, header and footer (default) with page fields, page size, margins, columns, document properties | character styles become direct formatting; text boxes and equations become plain text; floating images become inline; tracked insertions are accepted, tracked deletions and comments are dropped; charts, SmartArt, shapes, EMF/WMF images and OLE objects are dropped; several sections share one page setup; first/even page headers are replaced by the default one; macros are never run (`.docm` content is read as a document only) |
-| OpenDocument `.odt` (`.ott`, `.fodt`) | yes | yes | the same set as DOCX: styles and automatic styles, nested lists with list styles, tables with spans and cell properties, frames with images, notes, links, page layout of the default master page, header and footer, metadata | sections and indexes become plain paragraphs; text frames become text; drawing shapes and embedded objects are dropped |
+| Word `.docx` (`.docm`; templates `.dotx`, `.dotm` open as a new untitled document) | yes | yes | text formatting, named paragraph styles with inheritance, theme fonts, lists (numbering definitions, levels, list styles), tables (grid widths, `gridSpan`, `vMerge`, shading, borders, header rows), inline and floating images (PNG, JPEG, GIF, SVG with PNG fallback), hyperlinks (also as fields), footnotes and endnotes (as footnotes), page breaks, header and footer (default) with page fields, page size, margins, columns, document properties | character styles become direct formatting; text boxes and equations become plain text; floating images become inline; tracked insertions are accepted, tracked deletions and comments are dropped; charts, SmartArt, shapes, EMF/WMF images and OLE objects are dropped; several sections share one page setup; first/even page headers are replaced by the default one; macros are never run (`.docm` content is read as a document only) |
+| OpenDocument `.odt` (`.fodt`; template `.ott` opens as a new untitled document) | yes | yes | the same set as DOCX: styles and automatic styles, nested lists with list styles, tables with spans and cell properties, frames with images, notes, links, page layout of the default master page, header and footer, metadata | sections and indexes become plain paragraphs; text frames become text; drawing shapes and embedded objects are dropped |
 | Rich Text `.rtf` | yes | yes | fonts, colors, sizes, bold / italic / underline / strike, sub / superscript, highlight, paragraph alignment, spacing, indents, styles (stylesheet), lists (`\pn` and `\ls`), tables with merged cells and shading, PNG/JPEG pictures, footnotes, hyperlinks and page fields, headers and footers, page size and margins, Unicode (`\uN`) | non-Windows-1252 code pages are read as Windows-1252; WMF/EMF pictures and nested tables are simplified; SVG images are written as PNG |
 | HTML `.html` | yes (sanitized) | yes | headings, paragraphs, inline formatting and colors, lists, tables with spans, `data:` images, links, footnote sections; exports clean semantic HTML with embedded CSS (`@page` size and margins) and data-URI images | scripts, styles, frames, forms, event handlers and `javascript:` links are removed; remote images are not downloaded |
 | Markdown `.md` | yes | yes | headings, emphasis, links, lists, GFM tables, code blocks, block quotes, footnotes, images as data URIs | fonts, colors, alignment and page setup are not representable; merged cells are repeated empty; underline, highlight and sub/superscript use inline HTML |
@@ -102,9 +106,10 @@ shown as a toast with *Details*).
 | Google Docs `.gdoc` (and `.gsheet`, `.gslides`) | These are only shortcuts to a document in Google Drive. The dialog explains *File ▸ Download ▸ Microsoft Word (.docx)* (or ODT) and offers **Open in browser** for the document's address (it asks before leaving the app). There is no Google account integration. |
 | Apple Pages `.pages` | Export from Pages with *File ▸ Export To ▸ Word…* and open the `.docx`. |
 | Word 97-2003 `.doc`, `.wps`, `.wpd` | The old binary formats are not read. Save as `.docx` in Word, LibreOffice or Google Docs first. |
-| Excel, Calc, Numbers (`.xlsx`, `.xls`, `.ods`, `.numbers`) | "Not supported yet in Office Studio"; save as CSV and use *Table ▸ Import Table…* in the Layout studio, or export a PDF. |
+| Excel, Calc, Numbers (`.xlsx`, `.xls`, `.ods`, `.numbers`) | Opened by the Spreadsheet app when this version includes it; otherwise a dialog explains it (save as CSV and use *Table ▸ Import Table…* in the Layout studio, or export a PDF). `.xls`/`.numbers` always need converting first. |
 | CSV / TSV | In the Office studio the same dialog appears with **Open as text (Code studio)**; *Table ▸ Import Table…* in the Layout studio turns it into an editable table. |
-| PowerPoint, Impress, Keynote (`.pptx`, `.ppt`, `.odp`, `.key`) | Export the slides as PDF and open the PDF: every slide becomes an editable page in the Layout studio. |
+| PowerPoint, Impress, Keynote (`.pptx`, `.ppt`, `.odp`, `.key`) | Opened by the Presentation app when this version includes it; otherwise export the slides as PDF and open the PDF (every slide becomes an editable page in the Layout studio). |
+| Excalidraw, tldraw (`.excalidraw`, `.tldraw`) | Opened by the Whiteboard app when this version includes it; otherwise export SVG/PNG from the tool. |
 
 Comments, tracked changes, mail merge, tables of contents, multiple sections, text boxes and floating objects are out
 of scope for this phase.
@@ -136,8 +141,9 @@ document).
 | Storage in `.ofini`, undo integration | `app/src/core/office.js` (`commitOffice`) |
 | Workspace, editor, dialogs, context menu, file opening | `app/src/ui/office/`, `app/styles/office.css` |
 | Studio definition and menus (one registration block) | `app/src/studios/office.js`, `app/src/studios/index.js` |
+| Suite contract adapter (Document app) | `app/src/office/document/{manifest,app}.js` ([office-suite.md](office-suite.md)) |
 | Commands | `app/src/commands/office.js` |
 | Vibe tools | `app/src/vibe/tools/office.js` |
 
-The engine modules are pure (no DOM) and covered by `tests/office/`. The whole studio is loaded on first use; only the
+The engine modules are pure (no DOM) and covered by `tests/office/`. The whole studio (suite host, launcher, apps) is loaded on first use; only the
 studio definition, the menus and the `.ofini` storage hook are part of the startup bundle.

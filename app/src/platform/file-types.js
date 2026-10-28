@@ -18,7 +18,8 @@
  * @property {boolean} own          A type OpenFini owns (becomes the default handler on install).
  * @property {'document' | 'image' | 'import' | 'office' | 'code' | 'foreign' | 'extension'} kind
  *   document: opens as an OpenFini document; image: opens as a pixel/vector document;
- *   import: converted on open; office: word processor files opened in the Office Studio;
+ *   import: converted on open; office: documents, spreadsheets, presentations and whiteboards opened by the Office
+ *   Suite (an app registered for the extension opens it; otherwise a guidance dialog explains the state);
  *   code: text opened in the Code studio; foreign: other tools' files the app only
  *   explains how to convert; extension: a zip package.
  */
@@ -53,6 +54,12 @@ export const FILE_TYPES = [
   { id: "docx", name: "Word Document", ext: ["docx"], mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", role: "Editor", own: false, kind: "office" },
   { id: "odt", name: "OpenDocument Text", ext: ["odt"], mime: "application/vnd.oasis.opendocument.text", role: "Editor", own: false, kind: "office" },
   { id: "rtf", name: "Rich Text Document", ext: ["rtf"], mime: "application/rtf", role: "Editor", own: false, kind: "office" },
+  { id: "xlsx", name: "Excel Workbook", ext: ["xlsx"], mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", role: "Editor", own: false, kind: "office" },
+  { id: "ods", name: "OpenDocument Spreadsheet", ext: ["ods"], mime: "application/vnd.oasis.opendocument.spreadsheet", role: "Editor", own: false, kind: "office" },
+  { id: "pptx", name: "PowerPoint Presentation", ext: ["pptx"], mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation", role: "Editor", own: false, kind: "office" },
+  { id: "odp", name: "OpenDocument Presentation", ext: ["odp"], mime: "application/vnd.oasis.opendocument.presentation", role: "Editor", own: false, kind: "office" },
+  { id: "excalidraw", name: "Excalidraw Drawing", ext: ["excalidraw"], mime: "application/vnd.excalidraw+json", role: "Editor", own: false, kind: "office" },
+  { id: "tldraw", name: "tldraw Drawing", ext: ["tldraw"], mime: "application/vnd.tldraw+json", role: "Editor", own: false, kind: "office" },
   { id: "markdown", name: "Markdown Document", ext: ["md", "markdown"], mime: "text/markdown", role: "Editor", own: false, kind: "code" },
   { id: "tex", name: "LaTeX Document", ext: ["tex", "latex"], mime: "text/x-tex", role: "Viewer", own: false, kind: "code" },
   { id: "html", name: "HTML Document", ext: ["html", "htm"], mime: "text/html", role: "Editor", own: false, kind: "code" },
@@ -114,7 +121,7 @@ export function describeSupportedTypes() {
     image: "Opens as an image document.",
     import: "Converted on open (layers, pages and text are kept where the format allows).",
     code: "Opens in the Code studio.",
-    office: "Opens in the Office Studio (word processor).",
+    office: "Opens in the Office studio (the Office Suite app for its kind).",
     foreign: "Explains how to export the file into an open format first.",
     extension: "Extension package.",
   };

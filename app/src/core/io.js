@@ -19,9 +19,12 @@ export const MORE_IMAGE_EXTS = ["tif", "tiff", "ora", "kra", "ico", "cur"];
 export const PALETTE_EXTS = ["gpl", "ase", "aco"];
 /** Word processor files the Office Studio opens (plus the files it explains: Google Docs shortcuts, .doc, .pages). */
 export const OFFICE_DOC_EXTS = ["docx", "odt", "rtf", "dotx", "ott", "fodt", "doc", "pages", "gdoc"];
+/** Spreadsheets, presentations, whiteboards and their cloud shortcuts (opened by the Office Suite registry). */
+export const OFFICE_SUITE_EXTS = ["xlsx", "xlsm", "xltx", "ods", "ots", "csv", "tsv", "pptx", "potx", "odp", "otp", "excalidraw", "tldraw", "gsheet", "gslides"];
 export const OPEN_FILTERS = [
-  { name: "All supported files", extensions: ["ofini", "pdf", "ai", "psd", "psb", "idml", "sketch", "svg", ...IMAGE_EXTS, ...MORE_IMAGE_EXTS, ...PALETTE_EXTS, ...TEXT_DOC_EXTS, ...OFFICE_DOC_EXTS] },
+  { name: "All supported files", extensions: ["ofini", "pdf", "ai", "psd", "psb", "idml", "sketch", "svg", ...IMAGE_EXTS, ...MORE_IMAGE_EXTS, ...PALETTE_EXTS, ...TEXT_DOC_EXTS, ...OFFICE_DOC_EXTS, ...OFFICE_SUITE_EXTS] },
   { name: "Word and text documents (DOCX, ODT, RTF)", extensions: OFFICE_DOC_EXTS },
+  { name: "Spreadsheets, presentations, whiteboards", extensions: OFFICE_SUITE_EXTS },
   { name: "Text and code (Markdown, LaTeX, JSON, YAML, …)", extensions: TEXT_DOC_EXTS },
   { name: "OpenFini documents", extensions: ["ofini"] },
   { name: "Photoshop (PSD, PSB)", extensions: ["psd", "psb"] },

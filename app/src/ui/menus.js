@@ -225,7 +225,7 @@ export function createMenubar(app) {
   const syncStudio = () => {
     for (const dd of dropdowns) {
       // start page (no document): File, View, Studio, Help only (ui/menubar-select.js)
-      const show = menuVisible(dd._entry, { doc: app.doc, studio: app.studio });
+      const show = menuVisible(dd._entry, { doc: app.doc, studio: app.studio, officeKind: app.officeUI?.kind || null });
       dd.classList.toggle("hidden", !show || !!app.customize?.isMenuHidden(dd.dataset.menu));
     }
   };
@@ -235,6 +235,7 @@ export function createMenubar(app) {
   app.on("studio", syncStudio);
   app.on("doc", syncStudio);
   app.on("menuschanged", syncStudio);
+  app.on("officekind", syncStudio);
   syncStudio();
   return bar;
 }

@@ -1,14 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { migrateDocumentJson, FORMAT_VERSION, MIGRATIONS } from "../../app/src/core/ofini-migrate.js";
+import { migrateDocumentJson, FORMAT_VERSION, MIGRATIONS, writeVersion } from "../../app/src/core/ofini-migrate.js";
 import { Doc } from "../../app/src/core/doc.js";
 
-test("the current writer stamps FORMAT_VERSION and the file reads back unchanged", () => {
+test("the current writer stamps the oldest version that represents the file, and it reads back without notes", () => {
   const doc = new Doc({ name: "x", width: 100, height: 100 });
   const json = doc.toJSON();
-  assert.equal(json.version, FORMAT_VERSION);
+  assert.equal(json.version, 1, "plain documents stay readable by 0.5 .. 0.9 without a warning");
+  assert.equal(writeVersion({ office: { kind: "sheet" } }), FORMAT_VERSION);
+  assert.equal(writeVersion({ office: {} }), 1);
   const r = migrateDocumentJson(JSON.parse(JSON.stringify(json)));
-  assert.equal(r.from, FORMAT_VERSION);
+  assert.equal(r.from, 1);
   assert.equal(r.to, FORMAT_VERSION);
   assert.equal(r.newer, false);
   assert.deepEqual(r.notes, []);

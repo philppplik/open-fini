@@ -38,7 +38,7 @@ Rules that explain most of the code:
 | Vector / Pixel / Layout engines | `app/src/engine/{vector,pixel,layout,backends}` | [studios.md](studios.md), [layout-tables-charts.md](layout-tables-charts.md), [pixel-histogram.md](pixel-histogram.md) |
 | Studio registry, tools, docks | `app/src/studios/` (`registry.js` is the single list of studios) | [studios.md](studios.md) |
 | Code studio and web engine | `app/src/ui/code/`, `app/src/engine/web/`, `app/src/engine/git`, `engine/publish` | [code-studio.md](code-studio.md), [web-engine.md](web-engine.md), [frameworks.md](frameworks.md), [git-and-publishing.md](git-and-publishing.md) |
-| Office studio | `app/src/ui/office/`, `app/src/engine/office/` | [office-studio.md](office-studio.md) |
+| Office Suite (registry, launcher, apps, Office Toolkit) | `app/src/office/`, word processor `app/src/ui/office/`, `app/src/engine/office/` | [office-suite.md](office-suite.md), [office-studio.md](office-studio.md) |
 | Vibe (AI) | runtime `app/src/ai/`, hub/session/tools `app/src/vibe/`, UI `app/src/ui/vibe/` | [vibe-studio.md](vibe-studio.md), [ai-engine.md](ai-engine.md), [vibe-skills.md](vibe-skills.md) |
 | File formats / importers | `app/src/engine/formats/`, `app/src/core/import-*.js`, `app/src/platform/file-types.js` (single source of truth for types) | [file-compat.md](file-compat.md), [pdf-import.md](pdf-import.md), [file-format-research.md](file-format-research.md) |
 | Extensions + SDK | `app/src/extensions/`, `app/src/ui/extensions/`, `sdk/`, `extensions/` (bundled) | [extensions.md](extensions.md), [bundled-extensions.md](bundled-extensions.md) |
@@ -57,6 +57,7 @@ Rules that explain most of the code:
 
 * **A command**: register in `app/src/commands/<area>.js` (id, label via `N_`/`t`, run, enabled, shortcut). It then shows up in
   menus (add the id to the menu list in `ui/menus.js`), the palette and the shortcut editor. Add it to `tests/` if it has logic.
+* **An Office app** (spreadsheet, slides, whiteboard …): a manifest + lazy implementation, one line in `app/src/office/index.js`; contract and worked example in [office-suite.md](office-suite.md).
 * **A studio**: one `registerStudio({...})` entry (`studios/registry.js` documents the fields); put heavy UI behind `import()`.
   It appears in the header "More" menu; users choose the five visible studios in Settings.
 * **A tool the Vibe assistant can use**: a `tool()` in `app/src/vibe/tools/<area>.js` (`helpers.js` has `tool`, `S` schema

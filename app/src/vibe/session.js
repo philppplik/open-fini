@@ -19,6 +19,7 @@ import { log } from "../core/log.js";
 import { undoRun, runSteps } from "./run-undo.js";
 import { AgentManager } from "./agents.js";
 import { agentTools } from "./tools/agents.js";
+import { officeSummary } from "../office/ai.js";
 
 const MAX_TEXT_ATTACHMENT = 60_000;
 // tools a skill restriction never blocks: the assistant must still be able to talk, plan and load skills
@@ -338,7 +339,7 @@ export class VibeSession extends Emitter {
     const target = app.doc;
     const system = ai.buildSystemPrompt({
       studio: app.studio,
-      doc: target ? { name: target.name, pages: target.pages.length, page: app.page && { width: Math.round(app.page.w), height: Math.round(app.page.h) }, website: !!target.web, selection: app.selection?.length ? app.selection.slice(0, 20).map((n) => ({ id: n.id, type: n.type, name: n.name || undefined })) : undefined, attachments: this.attachments.length ? this.attachments.map((a, i) => `${i + 1}. ${a.name}`).join(", ") : undefined } : this.attachments.length ? { attachments: this.attachments.map((a, i) => `${i + 1}. ${a.name}`).join(", ") } : null,
+      doc: target ? { name: target.name, pages: target.pages.length, page: app.page && { width: Math.round(app.page.w), height: Math.round(app.page.h) }, website: !!target.web, office: officeSummary(target), selection: app.selection?.length ? app.selection.slice(0, 20).map((n) => ({ id: n.id, type: n.type, name: n.name || undefined })) : undefined, attachments: this.attachments.length ? this.attachments.map((a, i) => `${i + 1}. ${a.name}`).join(", ") : undefined } : this.attachments.length ? { attachments: this.attachments.map((a, i) => `${i + 1}. ${a.name}`).join(", ") } : null,
       skills: this.ctx.skills,
       memory: vibeStore.memory.map((m) => m.text),
       mode: s.approval,

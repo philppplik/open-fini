@@ -26,6 +26,9 @@ const TEMPLATES = [
   { id: "blank", label: "Blank document", hint: "An empty page" },
   { id: "letter", label: "Letter", hint: "Sender, recipient, date, subject and signature" },
   { id: "report", label: "Report", hint: "Title, summary, headings and a table" },
+  { id: "invoice", label: "Invoice", hint: "Sender, customer, items table and totals" },
+  { id: "memo", label: "Memo", hint: "To, from, date, subject and body" },
+  { id: "meeting", label: "Meeting notes", hint: "Attendees, agenda, decisions and action items" },
   { id: "resume", label: "Resume", hint: "Name, contact line and sections" },
 ];
 
@@ -39,6 +42,20 @@ export function templateModel(id, size, orientation) {
     ["Item", "Value", "Notes"].forEach((v, i) => (t.rows[0].cells[i].blocks = [P([{ text: v, b: true }])]));
     d.blocks = [P("Report Title", "Title"), P("Subtitle or date", "Subtitle"), M.heading(1, "Summary"), P("State the main finding in one or two sentences."), M.heading(1, "Background"), P("Context and goals."), M.heading(2, "Details"), P("Supporting points:"), P("First point", "List", { list: { kind: "bullet", level: 0, id: "l1" } }), P("Second point", "List", { list: { kind: "bullet", level: 0, id: "l1" } }), t, M.heading(1, "Next steps"), P("What happens next.")];
     d.footer = [P([{ text: "Page " }, { type: "field", field: "page" }, { text: " of " }, { type: "field", field: "pages" }], "Normal", { props: { align: "center" } })];
+  } else if (id === "invoice") {
+    const w = d.page.width - d.page.margins.left - d.page.margins.right;
+    const t = M.createTable(5, 4, w, { header: true });
+    const cell = (r, c, v, b) => (t.rows[r].cells[c].blocks = [P(b ? [{ text: v, b: true }] : v, "Normal", c ? { props: { align: "right" } } : undefined)]);
+    ["Description", "Quantity", "Unit price", "Amount"].forEach((v, i) => cell(0, i, v, true));
+    [["Service or product", "1", "0.00", "0.00"], ["", "", "", ""], ["", "", "", ""]].forEach((row, r) => row.forEach((v, c) => cell(r + 1, c, v)));
+    ["Total", "", "", "0.00"].forEach((v, i) => cell(4, i, v, true));
+    d.blocks = [P("Invoice", "Title"), P("Your Company · Street · City · email@example.com"), P(""), P([{ text: "Bill to: ", b: true }, { text: "Customer name, address" }]), P([{ text: "Invoice no.: ", b: true }, { text: "2026-001" }]), P([{ text: "Date: ", b: true }, { text: new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }) }]), P(""), t, P(""), P("Payment due within 14 days. Bank details: …"), P("Thank you for your business.")];
+  } else if (id === "memo") {
+    const L = (k, v) => P([{ text: `${k}: `, b: true }, { text: v }]);
+    d.blocks = [P("Memo", "Title"), L("To", "Recipients"), L("From", "Your Name"), L("Date", new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })), L("Subject", "Topic"), P(""), M.heading(1, "Summary"), P("The key message in two sentences."), M.heading(1, "Details"), P("Background, options and the recommendation.")];
+  } else if (id === "meeting") {
+    const B = (t, id) => P(t, "List", { list: { kind: "bullet", level: 0, id } });
+    d.blocks = [P("Meeting Notes", "Title"), P(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), "Subtitle"), M.heading(1, "Attendees"), B("Name", "a1"), M.heading(1, "Agenda"), P("First topic", "List", { list: { kind: "number", level: 0, id: "g1" } }), P("Second topic", "List", { list: { kind: "number", level: 0, id: "g1" } }), M.heading(1, "Decisions"), B("Decision", "d1"), M.heading(1, "Action items"), B("Owner: task, due date", "t1")];
   } else if (id === "resume") {
     d.blocks = [P("Your Name", "Title"), P("City · email@example.com · +1 555 0100 · linkedin.com/in/you", "Subtitle"), M.heading(1, "Experience"), P([{ text: "Job Title, Company", b: true }, { text: " — 2021 to today" }]), P("Achievement with a measurable result", "List", { list: { kind: "bullet", level: 0, id: "e1" } }), P("Another achievement", "List", { list: { kind: "bullet", level: 0, id: "e1" } }), M.heading(1, "Education"), P([{ text: "Degree, School", b: true }, { text: " — 2017 to 2021" }]), M.heading(1, "Skills"), P("Skill one · Skill two · Skill three")];
   }

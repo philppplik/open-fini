@@ -17,7 +17,7 @@ import { describeSource, sourceSnapshot } from "../core/source-format.js";
 
 const SAVE_FILTERS = [{ name: "OpenFini document", extensions: ["ofini"] }];
 // keep in sync with OFFICE_ONLY_EXTS in engine/office/index.js (tests/office/routing.test.js checks it)
-const OFFICE_FILE = /\.(docx|docm|dotx|dotm|odt|ott|fodt|rtf|doc|dot|wps|wpd|pages|gdoc|gsheet|gslides|xlsx|xlsm|xls|xltx|ods|fods|numbers|pptx|ppt|ppsx|potx|odp|fodp|key)$/i;
+const OFFICE_FILE = /\.(docx|docm|dotx|dotm|odt|ott|fodt|rtf|doc|dot|wps|wpd|pages|gdoc|gsheet|gslides|xlsx|xlsm|xls|xltx|ods|fods|ots|numbers|pptx|ppt|ppsx|potx|odp|fodp|otp|key|excalidraw|tldraw)$/i;
 
 export function registerFileCommands(app) {
   const def = (id, label, run, extra = {}) => app.registerCommand(id, { label, run, ...extra });
@@ -41,8 +41,9 @@ export function registerFileCommands(app) {
     if (await app.importWithExtension?.(file)) return null; // a file type an installed extension imports
     // extension packages (OpenFini .ofext, VS Code .vsix) dropped on the window or picked in File ▸ Open: install flow
     if (/\.(ofext|vsix)$/i.test(file.name) && typeof app.installExtensionFile === "function") return void (await app.installExtensionFile(file));
-    // Word processor files, Google Docs shortcuts, Pages, legacy .doc and (not yet supported) spreadsheets and
-    // presentations go to the Office Studio; in that studio HTML, Markdown, text and CSV open there too (ui/office/open.js)
+    // Office files (documents, spreadsheets, presentations, whiteboards, Google shortcuts, iWork, legacy binaries) go to
+    // the Office Suite, whose registry picks the app (office/apps.js); in that studio HTML, Markdown, text, CSV and TSV
+    // open there too (ui/office/open.js)
     if (OFFICE_FILE.test(file.name) || (app.studio === "office" && /\.(html?|xhtml|md|markdown|txt|text|csv|tsv)$/i.test(file.name))) return (await import("../ui/office/open.js")).openOfficeFile(app, file);
     // Photoshop and InDesign files have public specifications: PSD / PSB and IDML open as documents
     if (/.(psd|psb|idml)$/i.test(file.name) || (file.bytes[0] === 0x38 && file.bytes[1] === 0x42 && file.bytes[2] === 0x50 && file.bytes[3] === 0x53)) {

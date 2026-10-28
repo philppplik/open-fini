@@ -1,0 +1,92 @@
+/* OpenFini — Office Suite: suite bar, launcher, and the shared Office Toolkit (app/src/office/toolkit/). Theme-aware
+   through the --of-* tokens only; apps put their own styles in their own stylesheet. */
+
+.of-suite { position: absolute; inset: 0; display: flex; flex-direction: column; min-width: 0; background: var(--of-bg-app); }
+.of-suite__bar { display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 3px 8px; border-bottom: 1px solid var(--of-border-soft); background: var(--of-bg-panel); overflow-x: auto; scrollbar-width: none; }
+.of-suite__body { position: relative; flex: 1; min-height: 0; }
+.of-suite__app { position: absolute; inset: 0; }
+.of-suite__home, .of-suite__kind {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--of-radius-sm, 4px);
+  background: transparent; color: var(--of-text-dim); font: inherit; font-size: 12.5px; cursor: pointer; white-space: nowrap;
+}
+.of-suite__home:hover, .of-suite__kind:hover { background: var(--of-hover); color: var(--of-text); }
+.of-suite__home[aria-pressed="true"], .of-suite__kind[aria-pressed="true"] { background: var(--of-accent-soft); color: var(--of-text); border-color: var(--of-border-soft); }
+.of-suite__home:focus-visible, .of-suite__kind:focus-visible { outline: 2px solid var(--of-accent); outline-offset: 1px; }
+.of-suite__kinds { display: flex; gap: 2px; padding-left: 6px; margin-left: 2px; border-left: 1px solid var(--of-border-soft); }
+.of-suite__missing { max-width: 520px; margin: 12vh auto; padding: 24px; text-align: center; color: var(--of-text-dim); }
+.of-suite__missing h2 { color: var(--of-text); font-size: 18px; }
+/* the launcher replaces the global welcome screen inside the Office studio */
+.of-layout[data-studio="office"].no-doc .of-welcome { display: none; }
+
+/* ---- launcher */
+.of-launch { position: absolute; inset: 0; overflow: auto; background: var(--of-bg-app); }
+.of-launch__inner { max-width: 1040px; margin: 0 auto; padding: 24px 24px 48px; }
+.of-launch__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.of-launch__head h1 { margin: 0; font-size: 22px; color: var(--of-text); }
+.of-launch__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.of-launch h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--of-text-dim); margin: 22px 0 10px; }
+.of-launch__note { color: var(--of-text-dim); margin: 8px 0 0; }
+.of-launch__row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.of-launch__new { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.of-launch__card, .of-launch__tpl, .of-launch__file {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; text-align: left; cursor: pointer;
+  border: 1px solid var(--of-border-soft); border-radius: var(--of-radius, 8px); background: var(--of-bg-panel); color: var(--of-text); font: inherit;
+}
+.of-launch__card span, .of-launch__tpl span { font-size: 12px; color: var(--of-text-dim); }
+.of-launch__card:hover, .of-launch__tpl:hover, .of-launch__file:hover { border-color: var(--of-accent); }
+.of-launch__card:focus-visible, .of-launch__tpl:focus-visible, .of-launch__file:focus-visible, .of-launch__chip:focus-visible { outline: 2px solid var(--of-accent); outline-offset: 2px; }
+.of-launch__cardicon { font-size: 26px; color: var(--of-accent); }
+.of-launch__templates { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+.of-launch__tplthumb { display: grid; place-items: center; width: 100%; height: 72px; border-radius: var(--of-radius-sm, 4px); background: var(--of-bg-input); font-size: 28px; color: var(--of-accent); margin-bottom: 4px; }
+.of-launch__chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.of-launch__chip { height: 24px; padding: 0 10px; border-radius: 12px; border: 1px solid var(--of-border-soft); background: transparent; color: var(--of-text-dim); font: inherit; font-size: 12px; cursor: pointer; }
+.of-launch__chip[aria-checked="true"] { background: var(--of-accent); border-color: var(--of-accent); color: var(--of-on-accent); }
+.of-launch__recent { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+.of-launch__file { flex-direction: row; align-items: center; gap: 8px; padding: 8px 10px; }
+.of-launch__file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.of-launch__empty, .of-launch__formats { color: var(--of-text-faint); font-size: 12px; }
+.of-launch__formats { margin-top: 28px; word-spacing: 2px; }
+.of-launch__google { display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; margin: 12px 0; }
+.of-launch__google dt { font-weight: 600; }
+.of-launch__google dd { margin: 0; color: var(--of-text-dim); }
+
+/* ---- toolkit: ribbon */
+.of-tk-ribbon { display: flex; align-items: stretch; gap: 0; min-height: 36px; padding: 3px 6px; border-bottom: 1px solid var(--of-border-soft); background: var(--of-bg-bar); overflow: hidden; }
+.of-tk-ribbon__group { display: flex; align-items: center; gap: 2px; padding: 0 6px; border-right: 1px solid var(--of-border-soft); flex: none; }
+.of-tk-ribbon__group:last-of-type { border-right: 0; }
+.of-tk-ribbon__group[hidden] { display: none; }
+.of-tk-ribbon__more { margin-left: auto; flex: none; }
+.of-tk-btn { display: inline-grid; place-items: center; min-width: 28px; height: 28px; padding: 0 6px; border: 1px solid transparent; border-radius: var(--of-radius-sm, 4px); background: transparent; color: var(--of-text); font: inherit; font-size: 12.5px; cursor: pointer; }
+.of-tk-btn:hover { background: var(--of-hover); }
+.of-tk-btn[aria-pressed="true"] { background: var(--of-accent-soft); border-color: var(--of-border-soft); }
+.of-tk-btn:disabled { opacity: 0.45; cursor: default; }
+.of-tk-btn:focus-visible, .of-tk-input:focus-visible { outline: 2px solid var(--of-accent); outline-offset: 1px; }
+.of-tk-input, .of-tk-select { height: 28px; border: 1px solid var(--of-border); border-radius: var(--of-radius-sm, 4px); background: var(--of-bg-input); color: var(--of-text); font: inherit; font-size: 12.5px; padding: 0 6px; }
+
+/* ---- toolkit: formula bar, status items, split panels, ruler, swatches */
+.of-tk-formula { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-bottom: 1px solid var(--of-border-soft); background: var(--of-bg-panel); }
+.of-tk-formula__ref { width: 84px; text-align: center; font-family: var(--of-mono); }
+.of-tk-formula__fx { color: var(--of-text-dim); font-style: italic; font-family: Georgia, serif; }
+.of-tk-formula__input { flex: 1; font-family: var(--of-mono); }
+.of-tk-split { display: flex; min-width: 0; min-height: 0; height: 100%; }
+.of-tk-split[data-dir="v"] { flex-direction: column; }
+.of-tk-split__pane { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.of-tk-split__handle { flex: none; width: 5px; cursor: col-resize; background: var(--of-border-soft); touch-action: none; }
+.of-tk-split[data-dir="v"] > .of-tk-split__handle { width: auto; height: 5px; cursor: row-resize; }
+.of-tk-split__handle:hover, .of-tk-split__handle:focus-visible { background: var(--of-accent); outline: none; }
+.of-tk-ruler { display: block; width: 100%; height: 20px; background: var(--of-bg-panel); color: var(--of-text-dim); }
+.of-tk-swatches { display: grid; grid-template-columns: repeat(10, 18px); gap: 3px; padding: 6px; }
+.of-tk-swatch { width: 18px; height: 18px; border-radius: 3px; border: 1px solid var(--of-border); cursor: pointer; padding: 0; }
+.of-tk-swatch:focus-visible { outline: 2px solid var(--of-accent); outline-offset: 1px; }
+.of-tk-swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--of-accent); }
+.of-tk-zoom { display: inline-flex; align-items: center; gap: 2px; }
+.of-tk-zoom__value { min-width: 48px; text-align: center; font-variant-numeric: tabular-nums; }
+
+/* ---- toolkit: virtual grid */
+.of-tk-vgrid { position: relative; overflow: auto; contain: strict; height: 100%; }
+.of-tk-vgrid__sizer { position: absolute; top: 0; left: 0; width: 1px; height: 1px; pointer-events: none; }
+.of-tk-vgrid__layer { position: absolute; top: 0; left: 0; will-change: transform; }
+
+@media (prefers-reduced-motion: reduce) {
+  .of-launch__card, .of-launch__tpl, .of-launch__file { transition: none; }
+}

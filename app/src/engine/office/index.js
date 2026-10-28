@@ -1,6 +1,8 @@
-// Office Studio file routing: which formats open as documents, which are planned (spreadsheets, presentations),
-// which only get guidance (Google Docs pointers, Apple Pages, legacy binary Word), plus import / export entry points.
-// Pure. Spreadsheets and presentations plug in later by adding a reader for their `kind` (see FORMATS).
+// Office file recognition and the word processor's import / export entry points. Pure.
+// FORMATS is the content-sniffing table of every Office-family file (documents, spreadsheets, presentations,
+// whiteboards, cloud shortcuts, legacy formats). Which app OPENS a format is decided by the Office Suite registry
+// (office/apps.js): the `read`/`write` flags below only describe this module's word-processor codecs. Formats
+// whose app is not registered get officeGuidance() (docs/office-suite.md ▸ File routing).
 import { readDocx, writeDocx } from "./docx.js";
 import { readOdt, writeOdt, ODT_MIME } from "./odt.js";
 import { readRtf, writeRtf } from "./rtf.js";
@@ -10,7 +12,7 @@ import { isZip, readZip } from "./zip.js";
 import { createReport } from "./report.js";
 
 /**
- * @typedef {{ id: string, kind: "document"|"spreadsheet"|"presentation"|"cloud"|"legacy", label: string, ext: string[],
+ * @typedef {{ id: string, kind: "document"|"spreadsheet"|"presentation"|"whiteboard"|"cloud"|"legacy", label: string, ext: string[],
  *   mime?: string, read: boolean, write: boolean }} OfficeFormat
  */
 /** @type {OfficeFormat[]} */
@@ -22,14 +24,16 @@ export const FORMATS = [
   { id: "md", kind: "document", label: "Markdown", ext: ["md", "markdown"], mime: "text/markdown", read: true, write: true },
   { id: "txt", kind: "document", label: "Plain text", ext: ["txt", "text"], mime: "text/plain", read: true, write: true },
   { id: "pdf", kind: "document", label: "PDF", ext: ["pdf"], mime: "application/pdf", read: false, write: true },
-  // later phases: spreadsheets and presentations (routing exists, readers do not yet)
+  // opened by other Office Suite apps when they are registered (office/index.js); guidance otherwise
   { id: "xlsx", kind: "spreadsheet", label: "Excel workbook", ext: ["xlsx", "xlsm", "xls", "xltx"], read: false, write: false },
-  { id: "ods", kind: "spreadsheet", label: "OpenDocument spreadsheet", ext: ["ods", "fods"], read: false, write: false },
+  { id: "ods", kind: "spreadsheet", label: "OpenDocument spreadsheet", ext: ["ods", "fods", "ots"], read: false, write: false },
   { id: "csv", kind: "spreadsheet", label: "CSV table", ext: ["csv", "tsv"], read: false, write: false },
   { id: "numbers", kind: "spreadsheet", label: "Apple Numbers", ext: ["numbers"], read: false, write: false },
   { id: "pptx", kind: "presentation", label: "PowerPoint presentation", ext: ["pptx", "ppt", "ppsx", "potx"], read: false, write: false },
-  { id: "odp", kind: "presentation", label: "OpenDocument presentation", ext: ["odp", "fodp"], read: false, write: false },
+  { id: "odp", kind: "presentation", label: "OpenDocument presentation", ext: ["odp", "fodp", "otp"], read: false, write: false },
   { id: "key", kind: "presentation", label: "Apple Keynote", ext: ["key"], read: false, write: false },
+  { id: "excalidraw", kind: "whiteboard", label: "Excalidraw drawing", ext: ["excalidraw"], read: false, write: false },
+  { id: "tldraw", kind: "whiteboard", label: "tldraw drawing", ext: ["tldraw"], read: false, write: false },
   // guidance only
   { id: "gdoc", kind: "cloud", label: "Google Docs shortcut", ext: ["gdoc", "gsheet", "gslides"], read: false, write: false },
   { id: "pages", kind: "legacy", label: "Apple Pages", ext: ["pages"], read: false, write: false },
@@ -40,7 +44,7 @@ export const EXPORT_FORMATS = FORMATS.filter((f) => f.write);
 /** Extensions Office Studio opens as documents. */
 export const OFFICE_OPEN_EXTS = FORMATS.filter((f) => f.read).flatMap((f) => f.ext);
 /** Extensions that only Office Studio claims (word processor files and the guidance formats). */
-export const OFFICE_ONLY_EXTS = ["docx", "docm", "dotx", "dotm", "odt", "ott", "fodt", "rtf", "doc", "dot", "wps", "wpd", "pages", "gdoc", "gsheet", "gslides", "xlsx", "xlsm", "xls", "xltx", "ods", "fods", "numbers", "pptx", "ppt", "ppsx", "potx", "odp", "fodp", "key"];
+export const OFFICE_ONLY_EXTS = ["docx", "docm", "dotx", "dotm", "odt", "ott", "fodt", "rtf", "doc", "dot", "wps", "wpd", "pages", "gdoc", "gsheet", "gslides", "xlsx", "xlsm", "xls", "xltx", "ods", "fods", "ots", "numbers", "pptx", "ppt", "ppsx", "potx", "odp", "fodp", "otp", "key", "excalidraw", "tldraw"];
 
 const extOf = (name) => (/\.([^./\\]+)$/.exec(String(name || ""))?.[1] || "").toLowerCase();
 
@@ -113,7 +117,7 @@ export function officeGuidance(format, { name = "", bytes = null } = {}) {
       return {
         title: `${what} files live in the cloud`,
         message: `${file} is only a shortcut to a document stored in Google Drive; it contains no text. Download a copy from ${what} and open that file here:`,
-        steps: [`Open the document in ${what}${g.url ? " (the button below opens it in your browser)" : ""}.`, `Choose File ▸ Download ▸ ${fmt}.`, g.kind === "document" ? "Open the downloaded file here with File ▸ Open. To send changes back, export to Word and upload it to Google Drive (File ▸ Open in Google Docs)." : "Office Studio opens documents today; spreadsheets and presentations are planned for a later version."],
+        steps: [`Open the document in ${what}${g.url ? " (the button below opens it in your browser)" : ""}.`, `Choose File ▸ Download ▸ ${fmt}.`, "Open the downloaded file here with File ▸ Open. To send changes back, export it in the same format and upload it to Google Drive (Google opens and converts .docx, .xlsx and .pptx files)."],
         url: g.url,
       };
     }
@@ -123,12 +127,14 @@ export function officeGuidance(format, { name = "", bytes = null } = {}) {
       return { title: "Word 97-2003 documents (.doc) are not supported", message: `${file} uses the old binary Word format, which Office Studio does not read. Save it in the current format first:`, steps: ["Open it in Microsoft Word, LibreOffice or Google Docs.", "Choose File ▸ Save As… ▸ Word Document (.docx) (LibreOffice: File ▸ Save As ▸ Word 2007-365 or ODF Text Document).", "Open the .docx or .odt file here."] };
     case "spreadsheet":
       return {
-        title: "Spreadsheets are not supported in Office Studio yet",
-        message: `Office Studio opens text documents in this version; spreadsheets (${format.label}) are planned for a later version.`,
+        title: "Spreadsheets are not supported in this version",
+        message: `Spreadsheets (${format.label}) open in the Office Suite's Spreadsheet app, which this version does not include.`,
         steps: format.id === "csv" ? ["CSV files open today as an editable table in the Layout studio: switch to Layout and use Table ▸ Import Table…, or open the file in the Code studio to edit it as text."] : ["Save the sheet as CSV in your spreadsheet app, then use Table ▸ Import Table… in the Layout studio for an editable table, or export it as PDF and open the PDF."],
       };
     case "presentation":
-      return { title: "Presentations are not supported in Office Studio yet", message: `Office Studio opens text documents in this version; presentations (${format.label}) are planned for a later version.`, steps: ["Export the presentation as PDF from PowerPoint, Keynote, Impress or Google Slides and open the PDF: every slide becomes an editable page in the Layout studio."] };
+      return { title: "Presentations are not supported in this version", message: `Presentations (${format.label}) open in the Office Suite's Presentation app, which this version does not include.`, steps: ["Export the presentation as PDF from PowerPoint, Keynote, Impress or Google Slides and open the PDF: every slide becomes an editable page in the Layout studio."] };
+    case "whiteboard":
+      return { title: "Whiteboards are not supported in this version", message: `Whiteboard files (${format.label}) open in the Office Suite's Whiteboard app, which this version does not include.`, steps: ["Export the drawing as SVG or PNG from Excalidraw or tldraw and open that file: SVG stays editable in the Vector studio."] };
   }
   return null;
 }

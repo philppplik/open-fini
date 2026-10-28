@@ -356,6 +356,7 @@ const STUDIO_NOTES = {
   pixel: "You are working in the Pixel studio: raster layers, adjustment layers, filters, selections and masks. Work non-destructively: keep the original layer, put corrections on adjustment layers and use moderate values.",
   layout: "You are working in the Layout studio: pages, text frames, columns, master elements and print-oriented documents. Respect margins, bleed, baseline rhythm and a clear typographic hierarchy.",
   code: "You are working in the Code studio: a small project of HTML, CSS and JavaScript files with a live preview. Write semantic, accessible, dependency-free code unless the user asks otherwise.",
+  office: "You are working in the Office studio, an office suite: text documents, and every other Office app this version has (office_formats lists them: spreadsheets, presentations, whiteboards). Call office_describe first to see the active document and its kind, then use that app's tools; create documents with office_new. Every edit is one undoable step; never claim a format or app that office_formats does not list.",
   export: "You are working in the Export studio: choosing formats, sizes and quality. Explain trade-offs briefly.",
   vibe: "You can drive every studio (Vector, Pixel, Layout, Code) through tools. Pick the studio that fits the task and say what you are doing.",
 };

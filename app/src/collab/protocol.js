@@ -34,7 +34,7 @@ export const LIMITS = Object.freeze({
   docName: 120,
   idChars: 64,
   reactions: 8,
-  ops: 512, // ops per "op" message ("Edit together", beta); each op is validated by collab/tree-crdt.js or text-crdt.js
+  ops: 512, // ops per "op" message ("Edit together", beta); each op is validated by collab/tree-crdt.js, text-crdt.js or office-records.js
   opPath: 512, // file path of a text op (Code studio)
   skewMs: 10 * 60 * 1000, // messages older/newer than this are rejected (replay window across sessions)
   presencePerSecond: 20,
@@ -157,7 +157,8 @@ const RECT = V.obj({ x: V.num(-1e7, 1e7), y: V.num(-1e7, 1e7), w: V.num(0, 1e7),
 /** Where a comment thread is anchored. See collab/comments.js. */
 export const ANCHOR = V.obj(
   {
-    kind: V.oneOf("doc", "page", "node", "region", "text", "line", "element"),
+    kind: V.oneOf("doc", "page", "node", "region", "text", "line", "element", "item"),
+    item: V.str(256), // Office Suite record key (item): "cell:s1!B3", "obj:slide2/o7", "item:n42" (collab/anchors.js ▸ officeItemAnchor)
     page: V.id(), // page id (page, node, region)
     node: V.id(), // layer id (node)
     rect: RECT, // page coordinates (region), or a hint position for node/page
@@ -231,8 +232,8 @@ const SHAPES = {
   activity: [{ doc: V.id(), docName: V.text(LIMITS.docName), page: V.id(), pageName: V.text(LIMITS.label), label: V.text(LIMITS.label, { min: 1 }), count: V.int(1, 100000), nodes: V.arr(V.id(), LIMITS.ids) }, ["doc", "label", "count"]],
   // live editing (docs/collaboration.md ▸ Live editing): the envelope is checked here, every entry of `ops` by
   // validateTreeOp / validateTextOp before it is applied
-  op: [{ doc: V.id(), kind: V.oneOf("tree", "text"), path: V.str(LIMITS.opPath, { min: 1, re: PATH_RE }), ops: V.arr(V.plain(), LIMITS.ops) }, ["doc", "kind", "ops"]],
-  share: [{ doc: V.id(), docName: V.text(LIMITS.docName), kind: V.oneOf("tree", "text", "snapshot"), a: V.oneOf("start", "stop", "pause", "resume"), studio: STUDIO }, ["doc", "kind", "a"]],
+  op: [{ doc: V.id(), kind: V.oneOf("tree", "text", "office"), path: V.str(LIMITS.opPath, { min: 1, re: PATH_RE }), ops: V.arr(V.plain(), LIMITS.ops) }, ["doc", "kind", "ops"]],
+  share: [{ doc: V.id(), docName: V.text(LIMITS.docName), kind: V.oneOf("tree", "text", "office", "snapshot"), a: V.oneOf("start", "stop", "pause", "resume"), studio: STUDIO }, ["doc", "kind", "a"]],
   live: [{ doc: V.id(), a: V.oneOf("req", "have", "bye", "sent"), to: V.member(), fid: V.id() }, ["doc", "a"]],
   state: [{ host: V.member(), roles: V.map((k, p) => V.member()(k, p), V.oneOf(...ROLES), LIMITS.members * 4), defaultRole: V.oneOf("viewer", "commenter", "editor"), chat: V.arr(V.obj({ from: V.member(), nick: V.text(LIMITS.nick), color: V.str(7, { re: COLOR_RE }), ts: V.int(0, 1e14), msg: CHAT }, ["from", "ts", "msg"]), LIMITS.stateChat) }, ["host", "roles", "defaultRole"]],
   role: [{ member: V.member(), role: V.oneOf("viewer", "commenter", "editor") }, ["member", "role"]],

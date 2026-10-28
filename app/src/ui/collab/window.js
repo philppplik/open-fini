@@ -883,6 +883,10 @@ function createWindow(app, c) {
       app.setStudio("code");
       return void setTimeout(() => app.codeUI?.selectElement?.(a.elem, { reveal: true }), 150);
     }
+    if (a.kind === "item" && app.officeUI?.doc === doc) {
+      app.setStudio("office");
+      return void app.officeUI.revealAnchor?.(a);
+    }
     if (a.kind === "text" && app.officeUI?.editor && app.officeUI.doc === doc) {
       try {
         app.setStudio("office");

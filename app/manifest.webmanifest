@@ -138,6 +138,24 @@
         "application/rtf": [
           ".rtf"
         ],
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
+          ".xlsx"
+        ],
+        "application/vnd.oasis.opendocument.spreadsheet": [
+          ".ods"
+        ],
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": [
+          ".pptx"
+        ],
+        "application/vnd.oasis.opendocument.presentation": [
+          ".odp"
+        ],
+        "application/vnd.excalidraw+json": [
+          ".excalidraw"
+        ],
+        "application/vnd.tldraw+json": [
+          ".tldraw"
+        ],
         "text/markdown": [
           ".md",
           ".markdown"

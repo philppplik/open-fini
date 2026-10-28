@@ -13,7 +13,9 @@
 //
 // doc.source = { name, format, kind, path?, handle?, bom?, eol?, original?, snapshot?, officeId? }
 //   kind "text"    one-file code project from a text file: written back while it is still exactly that one file
-//   kind "office"  opened in the Office studio: written back through the Office writers (docx, odt, rtf, html, md, txt)
+//   kind "office"  opened in the Office studio: written back through the Office writers (docx, odt, rtf, html, md, txt);
+//                  other Office Suite kinds (`officeKind`: sheet, slides, board …) record their app's format id in
+//                  `officeId` when they open the file (ui/office/open.js) and are written by that app's save()
 //   kind "vector"  SVG: written back through the SVG exporter while the document is a pure single-page vector drawing
 //   kind "image" | "foreign"  raster images, PSD, PDF, IDML ...: never written back silently (flattening would destroy
 //                  layers or data); File ▸ Save keeps writing .ofini, Save As offers the original format as an export
@@ -142,6 +144,7 @@ export function canSaveAsSource(doc, { enabled = true } = {}) {
       return why ? lost(why) : yes();
     }
     case "office": {
+      if (s.officeKind && s.officeKind !== "document") return doc.office?.model && (doc.office.kind || "document") === s.officeKind ? yes() : lost("the document changed its kind");
       if (!doc.office?.model) return lost("the document is no longer a word-processing document");
       const canon = OFFICE_CANONICAL[s.officeId];
       if (!canon) return none("This format cannot be written.");
@@ -183,8 +186,8 @@ export function sourceMeta(doc) {
 /** The serializable part of a source (autosave sessions): no bytes, no handles. */
 export function sourceSnapshot(source) {
   if (!source) return null;
-  const { name, path, format, kind, bom, eol, officeId, entry } = source;
-  return { name, path, format, kind, bom, eol, officeId, entry };
+  const { name, path, format, kind, bom, eol, officeId, officeKind, entry } = source;
+  return { name, path, format, kind, bom, eol, officeId, officeKind, entry };
 }
 
 /**

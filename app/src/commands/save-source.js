@@ -41,6 +41,11 @@ export async function produceSource(app, doc, decision) {
       return { bytes: encodeText(f.text, s), notes: [] };
     }
     case "office": {
+      // Spreadsheet, Presentation, Whiteboard … : the app's own writer (office/services/export.js ▸ renderOfficeFile)
+      if (s.officeKind && s.officeKind !== "document") {
+        const out = await (await import("../office/services/export.js")).renderOfficeFile(doc, s.officeId);
+        return { bytes: out.bytes, notes: out.notes || [] };
+      }
       const model = doc.office.model;
       const { exportOffice } = await import("../engine/office/index.js");
       let svgFallbacks = {};

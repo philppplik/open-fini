@@ -365,6 +365,66 @@
       },
       {
         "ext": [
+          "xlsx"
+        ],
+        "name": "Excel Workbook",
+        "description": "Excel Workbook",
+        "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "ods"
+        ],
+        "name": "OpenDocument Spreadsheet",
+        "description": "OpenDocument Spreadsheet",
+        "mimeType": "application/vnd.oasis.opendocument.spreadsheet",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "pptx"
+        ],
+        "name": "PowerPoint Presentation",
+        "description": "PowerPoint Presentation",
+        "mimeType": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "odp"
+        ],
+        "name": "OpenDocument Presentation",
+        "description": "OpenDocument Presentation",
+        "mimeType": "application/vnd.oasis.opendocument.presentation",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "excalidraw"
+        ],
+        "name": "Excalidraw Drawing",
+        "description": "Excalidraw Drawing",
+        "mimeType": "application/vnd.excalidraw+json",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
+          "tldraw"
+        ],
+        "name": "tldraw Drawing",
+        "description": "tldraw Drawing",
+        "mimeType": "application/vnd.tldraw+json",
+        "role": "Editor",
+        "rank": "Alternate"
+      },
+      {
+        "ext": [
           "md",
           "markdown"
         ],
