@@ -18,7 +18,14 @@ export function createModelsPanel(vs) {
     return h("label.of-vfield", h("span", label), control, hint ? h("small", hint) : null);
   }
 
+  function accountForm(existing) {
+    const f = h("div");
+    import("./account-ui.js").then((m) => f.replaceChildren(m.createAccountForm(vs, existing, render)));
+    return f;
+  }
+
   function form(existing) {
+    if (existing?.preset === "openai-account") return accountForm(existing);
     const preset0 = PROVIDER_PRESETS.find((p) => p.id === (existing?.preset || "openrouter"));
     const presetSel = h("select.of-vfield__in", PROVIDER_PRESETS.map((p) => h("option", { value: p.id, selected: p.id === preset0.id }, p.label)));
     const label = h("input.of-vfield__in", { value: existing?.label || preset0.label, spellcheck: false });
@@ -37,11 +44,13 @@ export function createModelsPanel(vs) {
       }
       return out;
     };
-    const customRows = h("div", field("API type", kindSel, "How the server expects requests."), field("Extra headers", headersIn, "One per line, Name: value. Stored with the connection; do not put secrets here: use the key field."));
+    const kindRow = field("API type", kindSel, "How the server expects requests.");
+    const customRows = h("div", kindRow, field("Extra headers", headersIn, "One per line, Name: value (for OpenAI: OpenAI-Organization and OpenAI-Project, both optional). Stored with the connection; do not put secrets here: use the key field."));
     const keyLink = h("a.of-vlink", { href: "#" }, "Get a key");
     const status = h("div.of-vstatus");
     const onPreset = () => {
       const p = PROVIDER_PRESETS.find((x) => x.id === presetSel.value);
+      if (p.id === "openai-account" && !existing) return el.replaceChildren(accountForm(null));
       if (!existing) {
         label.value = p.label;
         url.value = p.baseUrl;
@@ -53,13 +62,14 @@ export function createModelsPanel(vs) {
         import("../links.js").then((m) => m.openLink(p.keyUrl));
       };
       note.textContent = p.note || "";
-      customRows.style.display = p.id === "custom" ? "" : "none";
+      customRows.style.display = p.id === "custom" || p.id === "openai" ? "" : "none";
+      kindRow.style.display = p.id === "custom" ? "" : "none";
     };
     const note = h("p.of-hint", preset0.note || "");
     presetSel.addEventListener("change", onPreset);
     const save = async () => {
       const p = PROVIDER_PRESETS.find((x) => x.id === presetSel.value);
-      const rec = await vibeStore.saveProvider({ id: existing?.id, preset: p.id, label: label.value.trim() || p.label, kind: p.id === "custom" ? kindSel.value : p.kind, headers: p.id === "custom" ? parseHeaders() : (existing?.headers || {}), baseUrl: url.value.trim().replace(/\/+$/, ""), apiKey: key.value.trim() });
+      const rec = await vibeStore.saveProvider({ id: existing?.id, preset: p.id, label: label.value.trim() || p.label, kind: p.id === "custom" ? kindSel.value : p.kind, headers: p.id === "custom" || p.id === "openai" ? parseHeaders() : (existing?.headers || {}), baseUrl: url.value.trim().replace(/\/+$/, ""), apiKey: key.value.trim() });
       return rec;
     };
     const test = h("button.of-btn", { type: "button" }, "Save and test");
@@ -141,7 +151,7 @@ export function createModelsPanel(vs) {
     list.append(h("div.of-vcard__head", h("strong", "Connections"), h("div.of-vrow", h("button.of-btn", { type: "button", title: "Create connections from an OpenCode config file (keys are never read)", onclick: importOpenCode }, iconEl("box-arrow-in-down"), "Import opencode.json"), h("button.of-btn", { type: "button", onclick: () => el.replaceChildren(form(null)) }, iconEl("plus-lg"), "Add"))));
     list.append(h("div.of-vconn", h("div", h("strong", "Demo (offline)"), h("small", "Built-in scripted assistant — no key, no network")), h("button.of-btn", { type: "button", onclick: () => vibeStore.saveSettings({ activeProvider: null, model: "demo" }) }, s.activeProvider ? "Use" : "Active")));
     for (const p of vibeStore.providers) {
-      list.append(h("div.of-vconn", h("div", h("strong", p.label), h("small", `${p.baseUrl} · ${mask(vibeStore.getKey(p.id))}`), createHealthRow(vs, p)), h("div.of-vrow", h("button.of-btn", { type: "button", onclick: () => el.replaceChildren(form(p)) }, "Edit"), h("button.of-btn", { type: "button", onclick: async () => { if (await confirmDialog({ title: "Remove connection", message: `Remove “${p.label}” and its key from this device?`, ok: "Remove", danger: true })) { await vibeStore.removeProvider(p.id); render(); } } }, "Remove"))));
+      list.append(h("div.of-vconn", h("div", h("strong", p.label), h("small", p.preset === "openai-account" ? `${p.baseUrl} · ${(JSON.parse(vibeStore.getKey(p.id) || "{}").email) || "signed in"}` : `${p.baseUrl} · ${mask(vibeStore.getKey(p.id))}`), createHealthRow(vs, p)), h("div.of-vrow", h("button.of-btn", { type: "button", onclick: () => el.replaceChildren(form(p)) }, "Edit"), h("button.of-btn", { type: "button", onclick: async () => { if (await confirmDialog({ title: "Remove connection", message: `Remove “${p.label}” and its key from this device?`, ok: "Remove", danger: true })) { await vibeStore.removeProvider(p.id); render(); } } }, "Remove"))));
     }
     el.append(list);
     el.append(createRoutesCard(vs));

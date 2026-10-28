@@ -21,3 +21,4 @@ in place and are marked as such.
 | [0014](0014-model-routing-fallback.md) | Model routing with fallback as a provider wrapper | Accepted |
 | [0015](0015-liquid-glass-refraction.md) | Liquid glass refraction: own SVG displacement-map code instead of vendoring amazing-glass | Accepted |
 | [0016](0016-office-suite-apps.md) | Office Suite: one studio, a registry of lazily loaded apps per document kind | Accepted |
+| [0017](0017-openai-account-auth.md) | OpenAI account sign-in on desktop, OAuth for MCP servers, nothing undocumented | Accepted |

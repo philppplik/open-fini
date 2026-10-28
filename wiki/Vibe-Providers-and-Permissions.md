@@ -41,7 +41,8 @@ Replies follow the interface language unless you write in another one. Built-in 
 
 ## Honest limits
 
-- No subscription logins: ChatGPT and Claude.ai offer no login for third-party apps, only API keys, which are billed separately.
+- ChatGPT plan: only through OpenAI's documented preview for open-source apps (preset *OpenAI account*, desktop app only, no images or embeddings; usage counts against your ChatGPT plan). Claude.ai offers no login for third-party apps, only API keys, which are billed separately.
+- MCP servers that need OAuth: use *Sign in* next to the server (Settings ▸ Artificial intelligence ▸ Tools).
 - Tool calling and image input depend on the model; the model list shows what each reports.
 - Providers could not be exercised in CI without keys: the engine is tested against recorded protocol fixtures and fake servers, and real providers may differ in details such as tool-call streaming, image APIs and model lists.
 - In a browser, local model servers must permit cross-origin requests from the app.

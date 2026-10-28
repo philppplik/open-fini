@@ -10,12 +10,19 @@ Open **Settings ▸ Security and privacy** (or *Help ▸ Security Check…*). Ev
 OpenFini is a local-first app. Documents live in files you choose; recovery copies, recent files, settings and
 (optionally) AI keys live in the browser or app profile on your device. It makes no network requests of its own
 except what you switch on: AI providers and MCP servers you add, publishing, extensions you grant network access,
-update checks of the installed web app, sign-in with OpenRouter, collaboration rooms you join (end-to-end encrypted, see
+update checks of the installed web app, sign-in with OpenRouter, OpenAI account or MCP servers (OAuth), collaboration rooms you join (end-to-end encrypted, see
 [Collaboration rooms](#collaboration-rooms)). The main risks we address are: leaking a key or
 private data through a log or bug report, data lying around unencrypted on a shared computer, running a website
 project you did not write, and an extension or AI tool doing more than you expected. We do **not** defend against
 malware or an attacker with administrator rights on your computer, a compromised operating system or web view, or
 someone watching your screen.
+
+## OAuth sign-ins (OpenAI account, MCP servers)
+
+* Tokens are stored only in the key vault (sealed with your passphrase when enabled), never in URLs, logs or `localStorage`; the log redaction covers tokens, codes and JWTs. Sign out revokes the refresh token and removes the record.
+* Desktop callbacks use a one-shot listener on `127.0.0.1` (exact path, loopback `Host` header, exact `state`, two minutes). Another local program that can read your browser history or intercept localhost traffic as your user is not defended against.
+* MCP sign-in refuses authorization servers without PKCE S256, non-https endpoints and metadata for another resource or issuer. A malicious MCP server can still ask you to sign in to its own authorization server: only sign in to servers you trust; tools from MCP servers always ask first in Balanced mode.
+* The OpenAI ID token is not signature-checked in the webview (see [openai-account-auth.md](openai-account-auth.md)); it comes straight from OpenAI's token endpoint over TLS and its claims are checked.
 
 ## Security check
 

@@ -4,6 +4,7 @@ import { vibeStore } from "../../vibe/store.js";
 import { TOOL_GROUPS } from "../../vibe/tools/index.js";
 import { confirmDialog } from "../dialogs.js";
 import { iconEl } from "../toolbox.js";
+import { createMcpSignInRow } from "./account-ui.js";
 
 const EXAMPLE = `// args = the arguments, openfini.call(tool, args) runs any OpenFini tool
 const { width = 1080, height = 1080 } = args;
@@ -66,7 +67,7 @@ export function createToolsPanel(vs) {
       sw.checked = srv.enabled !== false;
       sw.addEventListener("sl-change", () => vibeStore.saveMcp(vibeStore.mcpServers.map((x) => (x.id === srv.id ? { ...x, enabled: sw.checked } : x))));
       const status = h("small", srv.url);
-      mcp.append(h("div.of-vtool", h("div", h("strong", srv.name), status), h("div.of-vrow", h("button.of-btn", { type: "button", onclick: async () => { status.textContent = "Connecting…"; try { const t = await session.mcpStatus(srv); status.textContent = `${t.length} tools: ${t.slice(0, 4).map((x) => x.name).join(", ")}${t.length > 4 ? "…" : ""}`; } catch (e) { status.textContent = e.message; } } }, "Test"), h("button.of-btn", { type: "button", onclick: () => editMcp(srv) }, "Edit"), sw)));
+      mcp.append(h("div.of-vtool", h("div", h("strong", srv.name), status), h("div.of-vrow", h("button.of-btn", { type: "button", onclick: async () => { status.textContent = "Connecting…"; try { const t = await session.mcpStatus(srv); status.textContent = `${t.length} tools: ${t.slice(0, 4).map((x) => x.name).join(", ")}${t.length > 4 ? "…" : ""}`; } catch (e) { status.textContent = e.status === 401 ? "This server asks for a sign-in: use Sign in." : e.message; } } }, "Test"), h("button.of-btn", { type: "button", onclick: () => editMcp(srv) }, "Edit"), createMcpSignInRow(vs, srv, status, render), sw)));
     }
     if (!vibeStore.mcpServers.length) mcp.append(h("div.of-empty", "No MCP servers connected."));
     mcp.append(h("details.of-vgroup", h("summary", "Connect a local program (stdio) — for example REA"), h("div.of-vhow", h("p", "Browsers cannot start programs. The gateway in this repository starts any stdio MCP server and exposes it on 127.0.0.1:"), h("pre", "npm run mcp:gateway -- --port 3939 -- node _vendor/rea/scripts/rea.mjs"), h("p", "Then add the server here with the URL ", h("code", "http://127.0.0.1:3939/mcp"), ". The gateway only listens on your own machine and only allows this app's origin."))));

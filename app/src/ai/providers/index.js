@@ -4,8 +4,9 @@ import { createOpenAIProvider } from "./openai.js";
 import { createAnthropicProvider } from "./anthropic.js";
 import { createMockProvider } from "./mock.js";
 import { createOpenCodeServerProvider } from "./opencode.js";
+import { createOpenAIResponsesProvider } from "./openai-responses.js";
 
-export { createOpenAIProvider, createAnthropicProvider, createMockProvider, createOpenCodeServerProvider };
+export { createOpenAIResponsesProvider, createOpenAIProvider, createAnthropicProvider, createMockProvider, createOpenCodeServerProvider };
 export { ProviderError } from "../util.js";
 
 const caps = (o = {}) => ({ vision: true, tools: true, images: false, embeddings: false, ...o });
@@ -36,6 +37,17 @@ export const PROVIDER_PRESETS = [
     models: ["gpt-5", "gpt-5-mini", "gpt-4.1", "gpt-4o-mini", "gpt-image-1", "text-embedding-3-small"],
     capabilities: caps({ images: true, embeddings: true }),
     note: "GPT models, gpt-image-1 for image generation and editing, and embeddings.",
+  },
+  {
+    id: "openai-account",
+    label: "OpenAI account (ChatGPT plan, desktop)",
+    kind: "openai-responses",
+    baseUrl: "https://api.openai.com/v1",
+    keyUrl: "https://developers.openai.com/siwc/token-sharing-open-source",
+    needsKey: false,
+    models: [],
+    capabilities: caps({ images: false }),
+    note: "Sign in with your ChatGPT account and use its plan instead of an API key (OpenAI preview for open-source apps). Desktop app only; no images, embeddings or hosted tools. Use the OpenAI preset for an API key.",
   },
   {
     id: "anthropic",
@@ -197,6 +209,7 @@ export function createProvider(cfg = {}) {
   delete merged.preset;
   if (kind === "openai") return createOpenAIProvider(merged);
   if (kind === "anthropic") return createAnthropicProvider(merged);
+  if (kind === "openai-responses") return createOpenAIResponsesProvider(merged);
   if (kind === "mock") return createMockProvider(merged);
   if (kind === "opencode-server") return createOpenCodeServerProvider(merged);
   throw new Error(`Unknown provider kind "${kind}".`);

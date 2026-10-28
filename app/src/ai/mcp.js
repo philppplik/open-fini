@@ -7,7 +7,7 @@ import { abortError, combineSignals, isAbortError, parseSse } from "./util.js";
 export class McpError extends Error {
   /**
    * @param {string} message
-   * @param {{code?:number|string, data?:any, status?:number}} [info]
+   * @param {{code?:number|string, data?:any, status?:number, wwwAuthenticate?:string}} [info]
    */
   constructor(message, info = {}) {
     super(message);
@@ -15,6 +15,8 @@ export class McpError extends Error {
     this.code = info.code;
     this.data = info.data;
     this.status = info.status;
+    /** `WWW-Authenticate` header of a 401 answer (drives the "Sign in" button, see mcp-oauth.js). */
+    this.wwwAuthenticate = info.wwwAuthenticate;
   }
 }
 
@@ -28,12 +30,14 @@ const DEFAULT_PROTOCOL = "2025-06-18";
  */
 export class McpClient {
   /**
-   * @param {{url:string, headers?:Record<string,string>, fetch?:typeof fetch, name?:string, version?:string, protocolVersion?:string, timeoutMs?:number, onMessage?:(msg:object)=>void}} opts
+   * @param {{url:string, headers?:Record<string,string>, auth?:{getAccessToken:()=>Promise<string>, onUnauthorized:(www:string|null)=>Promise<boolean>}, fetch?:typeof fetch, name?:string, version?:string, protocolVersion?:string, timeoutMs?:number, onMessage?:(msg:object)=>void}} opts
    */
   constructor(opts) {
     if (!opts || !opts.url) throw new Error("McpClient needs a url.");
     this.url = opts.url;
     this.headers = opts.headers || {};
+    /** Optional OAuth session (McpAuthSession): adds `Authorization: Bearer` per request and retries once after a 401 + refresh. */
+    this.auth = opts.auth || null;
     this._fetch = opts.fetch || ((...a) => globalThis.fetch(...a));
     this.name = opts.name || "OpenFini";
     this.version = opts.version || "0.0.0";
@@ -99,7 +103,8 @@ export class McpClient {
       dispose();
     };
     try {
-      const res = await this._fetch(url, { ...init, signal: sig });
+      let res = await this._fetch(url, { ...init, headers: await this._withAuth(init.headers), signal: sig });
+      if (res.status === 401 && this.auth && (await this.auth.onUnauthorized(res.headers?.get?.("www-authenticate") || null))) res = await this._fetch(url, { ...init, headers: await this._withAuth(init.headers), signal: sig });
       return { res, sig, done, wasTimeout: () => timedOut };
     } catch (e) {
       done();
@@ -108,6 +113,12 @@ export class McpClient {
       if (isAbortError(e)) throw e;
       throw new McpError(`Network error: ${e && e.message ? e.message : e}`, { code: "network_error" });
     }
+  }
+
+  async _withAuth(headers) {
+    if (!this.auth) return headers;
+    const token = await this.auth.getAccessToken();
+    return token ? { ...headers, Authorization: `Bearer ${token}` } : headers;
   }
 
   _rpcError(e) {
@@ -133,7 +144,7 @@ export class McpClient {
     } catch {
       /* not JSON */
     }
-    return new McpError(msg || `HTTP ${res.status}${raw ? ": " + raw.slice(0, 200) : ""}`, { code: code ?? res.status, data, status: res.status });
+    return new McpError(msg || `HTTP ${res.status}${raw ? ": " + raw.slice(0, 200) : ""}`, { code: code ?? res.status, data, status: res.status, wwwAuthenticate: res.headers?.get?.("www-authenticate") || undefined });
   }
 
   async _rpc(method, params, { signal, timeoutMs, retried } = {}) {
