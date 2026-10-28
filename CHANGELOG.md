@@ -8,6 +8,11 @@ All notable changes to OpenFini are documented here. The format follows
 
 ### Changed
 - Refactoring audit 1 ([docs/refactoring-audit.md](docs/refactoring-audit.md)): bundle, import-graph and dead-export analysis scripts (`scripts/analyze-bundle.mjs`, `scripts/import-report.mjs`, `scripts/find-dead-exports.mjs`) with the measured baseline, a risk-ranked list of candidates and the ideas that were rejected, with reasons.
+- Faster start-up: the export dialog and the Code text-tool transforms (with the HTML entity table) load on first use; start-up JavaScript 373.5 → 357.2 KiB gzip, and the CI budget is lowered from 380 to 365 KiB.
+- Architecture guardrails in the test suite (`tests/architecture/`): no circular imports, `core/` and `engine/` stay free of UI imports, engine code uses no browser globals, and heavy areas stay out of the start-up imports. Removed dead functions and unused Vibe UI v1 styles; the PSD fuzz test no longer flakes on slow CI runners.
+
+### Fixed
+- *Settings ▸ Toolbox and menus* no longer keeps a detached copy of its pane alive after every visit (a listener was never removed).
 
 ### Added
 - **Collaboration UX**: *Add comment here…* in the right-click menu of the canvas, layers panel, Code editor, Office editor and website elements (`Ctrl+Alt+M`, comment mode, status bar toggle). An inline composer with @mention suggestions, numbered pins that follow layers, zoom and pan (drag to re-anchor), highlights for code and text ranges, thread popovers and `]` / `[` navigation. Comment anchors gained `pin`, `off`, `elem`, `col`, `endCol` and a `reanchor` op (additive). Vibe: `add_comment` takes an optional `at` anchor.

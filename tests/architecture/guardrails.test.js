@@ -31,6 +31,7 @@ export const LAZY_AREAS = [
   "src/ui/code/", "src/ui/vibe/", "src/vibe/", "src/ai/",
   "src/i18n/locales/",
   "src/ui/export-dialog.js",
+  "src/engine/web/charcodec.js", "src/engine/web/texttools.js", // the palette loads texttools-catalog.js instead
   "vendor/pdfjs/", "vendor/codemirror/", "vendor/katex/",
 ];
 

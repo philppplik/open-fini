@@ -99,6 +99,38 @@ OpenFini targets old and low-power machines. Use the budgets as a design constra
 data, avoid per-frame allocations in canvas code, and keep undo history bounded (`prefs.historyMB`, low-power mode).
 Measure with `npm run build && npm run check:size` (prints startup, total app and download sizes).
 
+### Keeping the app small and clean
+
+Rules (enforced where cheap, by `tests/architecture/guardrails.test.js` and `scripts/check-size.mjs`):
+
+* **Start-up is precious.** Only what the shell needs to draw the first frame is imported statically from `main.js`.
+  Dialogs, studios' workspaces, importers, engines that only a command needs: `import()` them where they are used.
+  The test keeps a list of lazy areas (`LAZY_AREAS`: collab, VS Code, extensions, Office, formats, git, publish, Code
+  and Vibe UI, AI, locales, the export dialog, pdf.js, CodeMirror, KaTeX) out of the static start-up closure.
+* **If start-up only needs a list, split the list from the code.** Example: `engine/web/texttools-catalog.js` (ids and
+  labels for the palette) vs. `texttools.js` (the implementations and the HTML entity table).
+* **No circular imports** in `app/src`; **`core/` and `engine/` never import `ui/`, `studios/`, `commands/` or
+  `vibe/`** statically (use a callback or `import()`); **engine code touches no DOM or browser globals**.
+* **Prefer deleting code over abstracting it.** A shared helper must remove more code than it adds; tiny local
+  one-liners in pure engines are fine.
+* **Long-lived listeners unsubscribe.** `app.on()` returns an `off` function; anything built more than once (dialog
+  panes, popovers) must call it when it goes away.
+* **Budgets go down, not only up.** After a size win, lower `scripts/size-budget.json` to the measured value plus about
+  2 % and note it in the file's `$comment`.
+
+How to look:
+
+```
+npm run build && node scripts/check-size.mjs     # the CI gate
+node scripts/analyze-bundle.mjs --top 40         # chunks, start-up modules, lazy-loading candidates (runs a build)
+node scripts/import-report.mjs                   # largest modules, fan-in/out, cycles
+node scripts/import-report.mjs --why app/src/engine/web/charcodec.js   # why is a file loaded at start-up?
+node scripts/find-dead-exports.mjs               # dead code report (never fails; read its blind spots)
+```
+
+[refactoring-audit.md](refactoring-audit.md) is the living record: append a dated section with numbers for every audit,
+including the ideas that were considered and rejected.
+
 ## 7. Known sharp edges
 
 * Rust/Tauri code cannot be compiled on every dev machine; CI is the first real build. Keep Rust changes small and `cargo fmt` clean.
