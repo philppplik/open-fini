@@ -18,7 +18,7 @@ export const TOOL_HELP = {
   gradient: "Drag across a shape to fill it with a gradient; edit stops on the canvas or in the Appearance panel.",
   fill: "Click to fill a shape or, in Pixel, a region of similar color.",
   eyedropper: "Click anywhere to pick a color. Alt-click picks the background color.",
-  crop: "Crop the document or layer. Drag the handles, press Enter to apply.",
+  crop: "Crop the image. Drag the handles, drag outside the box to straighten, press O to cycle composition guides and Enter to apply.",
   slice: "Draw export slices around parts of the page to export them as separate files.",
   hand: "Pan the canvas. Hold Space with any tool for a temporary hand.",
   zoom: "Click to zoom in, Alt-click to zoom out, or drag to zoom into an area.",

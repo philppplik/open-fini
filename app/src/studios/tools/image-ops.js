@@ -3,12 +3,12 @@
 // (commands/pixel-image.js) and the Vibe tools (vibe/tools/pixel.js). They return `true` on success or a short
 // English reason string (shown as a toast / returned to the assistant) when nothing was done.
 // Pure geometry is in engine/pixel/crop.js and engine/pixel/transform.js.
-import { mul, translate, scale as scaleM } from "./math.js";
-import { createCanvas, ctx2d } from "./doc.js";
-import { pageVisualBounds, rasterizeNodes } from "./raster.js";
-import { trimBounds } from "../engine/pixel/crop.js";
-import { resizeImage } from "../engine/pixel/transform.js";
-import { cropPage } from "../studios/tools/pixel-crop.js";
+import { mul, translate, scale as scaleM } from "../../core/math.js";
+import { createCanvas, ctx2d } from "../../core/doc.js";
+import { pageVisualBounds, rasterizeNodes } from "../../core/raster.js";
+import { trimBounds } from "../../engine/pixel/crop.js";
+import { resizeImage } from "../../engine/pixel/transform.js";
+import { cropPage } from "./pixel-crop.js";
 
 export const RESAMPLE_FILTERS = ["lanczos3", "bicubic", "bilinear", "nearest"];
 

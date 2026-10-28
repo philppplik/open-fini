@@ -99,6 +99,55 @@ export function pixelTools(app, ctx) {
       return { id: node.id, effect: `${a.kind}/${a.id}`, params: node.params };
     }),
 
+    tool("crop_image", "Crops the active page to a rectangle in page pixels, or to an aspect ratio around the center, optionally rotated by an angle (straighten). All layers move together as one undoable step. Without deleteCropped nothing is destroyed: content outside the new page can be brought back with trim/reveal.", {
+      x: S.num("Left"), y: S.num("Top"), w: S.num("Width"), h: S.num("Height"),
+      ratio: S.str("Aspect ratio such as 16:9, 1:1, 4:3 (used instead of w/h: the largest centered box)"), angle: S.num("Rotation of the crop box in degrees, clockwise, -45..45 (straighten)", { minimum: -45, maximum: 45 }),
+      corners: S.str("Empty corners after a rotation", { enum: ["transparent", "background", "fit"] }), deleteCropped: S.bool("Delete the pixels outside the crop (default false)"),
+    }, [], async (a) => {
+      requireDoc(app);
+      const { cropPage } = await import("../../studios/tools/pixel-crop.js");
+      const { ratioValue, largestInscribed, applyRatio } = await import("../../engine/pixel/crop.js");
+      const p = app.page;
+      let r;
+      const ratio = a.ratio ? ratioValue(a.ratio, p) : null;
+      if (a.w && a.h) r = { x: a.x ?? 0, y: a.y ?? 0, w: a.w, h: a.h };
+      else if (ratio && a.angle) r = largestInscribed(p.w, p.h, a.angle, ratio);
+      else if (ratio) r = applyRatio({ x: 0, y: 0, w: p.w, h: p.h }, ratio, p);
+      else if (a.angle) r = largestInscribed(p.w, p.h, a.angle, p.w / p.h);
+      else return { ok: false, error: "Give w and h, or a ratio, or an angle." };
+      cropPage(app, r, { angle: a.angle || 0, corners: a.corners || (a.angle ? "fit" : "transparent"), deletePixels: !!a.deleteCropped });
+      return { ok: true, page: { w: app.page.w, h: app.page.h } };
+    }),
+
+    tool("resize_image", "Resizes the whole document (Image Size). resample 'scale' only scales the layers; a filter (lanczos3, bicubic, bilinear, nearest) also resamples the bitmaps of pixel layers.", {
+      width: S.num("New width px"), height: S.num("New height px (omit to keep the aspect ratio)"), resample: S.str("Resampling", { enum: ["scale", "lanczos3", "bicubic", "bilinear", "nearest"] }), dpi: S.num("Resolution metadata", { minimum: 1 }),
+    }, ["width"], async (a) => {
+      requireDoc(app);
+      const { resizeDocument } = await import("../../studios/tools/image-ops.js");
+      const p = app.page;
+      const r = resizeDocument(app, a.width, a.height ?? (a.width * p.h) / p.w, { resample: a.resample || "scale", dpi: a.dpi });
+      return r === true ? { ok: true, page: { w: app.page.w, h: app.page.h } } : { ok: false, error: r };
+    }),
+
+    tool("rotate_image", "Rotates the whole document clockwise by an angle (90, 180, -90 or any angle; the canvas grows to fit unless expand is false).", {
+      degrees: S.num("Clockwise degrees"), expand: S.bool("Grow the canvas to hold the rotated content (default true)"),
+    }, ["degrees"], async (a) => {
+      requireDoc(app);
+      const { rotateDocument } = await import("../../studios/tools/image-ops.js");
+      const r = rotateDocument(app, a.degrees, { expand: a.expand !== false });
+      return r === true ? { ok: true, page: { w: app.page.w, h: app.page.h } } : { ok: false, error: r };
+    }),
+
+    tool("trim_edges", "Removes transparent or solid-colored margins around the content (mode transparent, topleft or bottomright color) or crops to the current pixel selection (mode selection). Mode reveal enlarges the page to show content outside it.", {
+      mode: S.str("What to trim", { enum: ["transparent", "topleft", "bottomright", "selection", "reveal"] }), tolerance: S.num("Color tolerance 0-255", { minimum: 0, maximum: 255 }),
+    }, [], async (a) => {
+      requireDoc(app);
+      const m = await import("../../studios/tools/image-ops.js");
+      const mode = a.mode || "transparent";
+      const r = mode === "selection" ? m.cropToSelection(app) : mode === "reveal" ? m.revealAll(app) : m.trimEdges(app, { mode, tolerance: a.tolerance ?? 0 });
+      return r === true ? { ok: true, page: { w: app.page.w, h: app.page.h } } : { ok: false, error: r };
+    }),
+
     tool("select_area", "Creates a pixel selection (rectangle, ellipse or everything) in page coordinates, or clears it. Pixel tools and fills respect it.", {
       shape: S.str("Selection shape", { enum: ["rect", "ellipse", "all", "none"] }), x: S.num("Left"), y: S.num("Top"), w: S.num("Width"), h: S.num("Height"), feather: S.num("Feather radius px", { minimum: 0 }),
     }, ["shape"], (a) => {

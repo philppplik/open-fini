@@ -11,9 +11,10 @@ import { createCanvas, ctx2d } from "../../core/doc.js";
 import { mul, translate } from "../../core/math.js";
 import { createNode, walk, worldMatrix } from "../../core/nodes.js";
 import { button } from "../../ui/controls.js";
+import { t, N_ } from "../../i18n/index.js";
 import { ratioValue, resizeRect, applyRatio, rotatedCorners, fitRotatedInside, cropMatrix, levelAngle, overlayLines, nextOverlay } from "../../engine/pixel/crop.js";
 
-const RATIO_OPTIONS = ["free", "original", "1:1", "4:3", "3:2", "16:9", "5:4", "3:4", "2:3", "9:16", "custom"].map((k) => ({ value: k, label: k === "free" ? "Free" : k === "original" ? "Original" : k === "custom" ? "Custom…" : k }));
+const RATIO_OPTIONS = ["free", "original", "1:1", "4:3", "3:2", "16:9", "5:4", "3:4", "2:3", "9:16", "custom"].map((k) => ({ value: k, label: k === "free" ? N_("Free") : k === "original" ? N_("Original") : k === "custom" ? N_("Custom…") : k }));
 
 /**
  * Crops the active page to `rect` (page px). `angle` rotates the crop box (degrees clockwise; content is rotated the
@@ -76,13 +77,13 @@ export class CropTool extends Tool {
   static shortcut = "C";
   static studios = ["pixel", "vector", "layout"];
   static options = [
-    { key: "ratio", label: "Ratio", type: "select", default: "free", options: RATIO_OPTIONS },
-    { key: "customW", label: "Custom W", type: "int", min: 1, max: 99, step: 1, default: 5 },
-    { key: "customH", label: "Custom H", type: "int", min: 1, max: 99, step: 1, default: 4 },
-    { key: "angle", label: "Straighten", type: "angle", min: -45, max: 45, step: 0.1, default: 0 },
-    { key: "overlay", label: "Overlay", type: "select", default: "thirds", options: [{ value: "thirds", label: "Rule of thirds" }, { value: "grid", label: "Grid" }, { value: "golden", label: "Golden ratio" }, { value: "diagonal", label: "Diagonals" }, { value: "triangle", label: "Golden triangle" }, { value: "none", label: "None" }] },
-    { key: "corners", label: "Empty corners", type: "select", default: "transparent", options: [{ value: "transparent", label: "Transparent" }, { value: "background", label: "Background color" }, { value: "fit", label: "Shrink to fit" }] },
-    { key: "deletePixels", label: "Delete cropped pixels", type: "bool", default: false },
+    { key: "ratio", label: N_("Ratio"), type: "select", default: "free", options: RATIO_OPTIONS },
+    { key: "customW", label: N_("Custom W"), type: "int", min: 1, max: 99, step: 1, default: 5 },
+    { key: "customH", label: N_("Custom H"), type: "int", min: 1, max: 99, step: 1, default: 4 },
+    { key: "angle", label: N_("Straighten"), type: "angle", min: -45, max: 45, step: 0.1, default: 0 },
+    { key: "overlay", label: N_("Overlay"), type: "select", default: "thirds", options: [{ value: "thirds", label: N_("Rule of thirds") }, { value: "grid", label: N_("Grid") }, { value: "golden", label: N_("Golden ratio") }, { value: "diagonal", label: N_("Diagonals") }, { value: "triangle", label: N_("Golden triangle") }, { value: "none", label: N_("None") }] },
+    { key: "corners", label: N_("Empty corners"), type: "select", default: "transparent", options: [{ value: "transparent", label: N_("Transparent") }, { value: "background", label: N_("Background color") }, { value: "fit", label: N_("Shrink to fit") }] },
+    { key: "deletePixels", label: N_("Delete cropped pixels"), type: "bool", default: false },
   ];
   cursor = "crosshair";
   rect = null;
@@ -297,20 +298,20 @@ export class CropTool extends Tool {
     };
     return h(
       "div.of-row.of-inline",
-      toggle("Straighten", this.level, () => { this.level = !this.level; this.app.emit("contextbar"); }, "Draw a line along something that should be level or plumb"),
-      button("Swap", () => this.swapOrientation()),
-      toggle("Flip H", this.flipH, () => { this.flipH = !this.flipH; this.app.emit("contextbar"); }, "Mirror the result horizontally"),
-      toggle("Flip V", this.flipV, () => { this.flipV = !this.flipV; this.app.emit("contextbar"); }, "Mirror the result vertically"),
-      button("Reset", () => { const a = this.app; this.activate(); a.emit("contextbar"); }),
-      button("Apply crop", () => this.apply(), { variant: "primary" }),
-      button("Cancel", () => this.app.setTool("move")),
+      toggle(N_("Straighten"), this.level, () => { this.level = !this.level; this.app.emit("contextbar"); }, t("Draw a line along something that should be level or plumb")),
+      button(N_("Swap"), () => this.swapOrientation()),
+      toggle(N_("Flip H"), this.flipH, () => { this.flipH = !this.flipH; this.app.emit("contextbar"); }, t("Mirror the result horizontally")),
+      toggle(N_("Flip V"), this.flipV, () => { this.flipV = !this.flipV; this.app.emit("contextbar"); }, t("Mirror the result vertically")),
+      button(N_("Reset"), () => { const a = this.app; this.activate(); a.emit("contextbar"); }),
+      button(N_("Apply crop"), () => this.apply(), { variant: "primary" }),
+      button(N_("Cancel"), () => this.app.setTool("move")),
     );
   }
 
   /** Tool pill (ui/tool-pill.js). */
   pillState() {
     if (!this.rect) return null;
-    return { key: "Crop · {w} × {h} px", params: { w: Math.round(this.rect.w), h: Math.round(this.rect.h) }, actions: [{ id: "apply", label: "Apply", key: "Enter", primary: true }, { id: "cancel", label: "Cancel", key: "Escape" }] };
+    return { key: "Crop · {w} × {h} px", params: { w: Math.round(this.rect.w), h: Math.round(this.rect.h) }, actions: [{ id: "apply", label: N_("Apply"), key: "Enter", primary: true }, { id: "cancel", label: N_("Cancel"), key: "Escape" }] };
   }
   pillAction(id) {
     if (id === "apply") this.apply();

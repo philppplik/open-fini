@@ -1,5 +1,6 @@
 // Pixel-studio commands: selection operations, layers and masks, adjustments/filters, document operations, tracing.
 import { h, clone } from "../core/util.js";
+import { t, N_ } from "../i18n/index.js";
 import { createNode, solid, worldMatrix, localBounds } from "../core/nodes.js";
 import { createCanvas, ctx2d } from "../core/doc.js";
 import { mul, translate, scale as scaleM, rotate, apply, ident } from "../core/math.js";
@@ -266,11 +267,11 @@ export function registerPixelCommands(app) {
       fw.set(st.w);
     } });
     const lock = switchField({ label: "Keep aspect ratio", value: true, onChange: (v) => (st.lock = v) });
-    const rs = selectField({ label: "Resample", value: st.resample, onChange: (v) => (st.resample = v), options: [{ value: "scale", label: "Scale layers (keep vectors sharp)" }, { value: "lanczos3", label: "Lanczos (best quality)" }, { value: "bicubic", label: "Bicubic" }, { value: "bilinear", label: "Bilinear" }, { value: "nearest", label: "Nearest neighbor (pixel art)" }] });
-    const dp = numField({ label: "Resolution", value: st.dpi, min: 1, max: 2400, precision: 0, unit: "dpi", wide: true, onChange: (v) => (st.dpi = Math.round(v)) });
+    const rs = selectField({ label: N_("Resample"), value: st.resample, onChange: (v) => (st.resample = v), options: [{ value: "scale", label: N_("Scale layers (keep vectors sharp)") }, { value: "lanczos3", label: N_("Lanczos (best quality)") }, { value: "bicubic", label: N_("Bicubic") }, { value: "bilinear", label: N_("Bilinear") }, { value: "nearest", label: N_("Nearest neighbor (pixel art)") }] });
+    const dp = numField({ label: N_("Resolution"), value: st.dpi, min: 1, max: 2400, precision: 0, unit: "dpi", wide: true, onChange: (v) => (st.dpi = Math.round(v)) });
     openDialog({
       title: "Resize Document",
-      body: h("div.of-form", h("div.of-row", fw.el, fh.el), lock.el, rs.el, dp.el, h("p.of-hint", "Scaling keeps vector objects sharp. A resample filter also converts the pixel layers to the new pixel size; the resolution only changes the document metadata.")),
+      body: h("div.of-form", h("div.of-row", fw.el, fh.el), lock.el, rs.el, dp.el, h("p.of-hint", t("Scaling keeps vector objects sharp. A resample filter also converts the pixel layers to the new pixel size; the resolution only changes the document metadata."))),
       width: 420,
       buttons: [
         { label: "Cancel", onClick: (c) => c() },
@@ -278,7 +279,7 @@ export function registerPixelCommands(app) {
           label: "Resize",
           variant: "primary",
           onClick: async (close) => {
-            const m = await import("../core/image-ops.js");
+            const m = await import("../studios/tools/image-ops.js");
             const r = m.resizeDocument(a, st.w, st.h, { resample: st.resample, dpi: st.dpi });
             if (r !== true) a.toast(r, "warning");
             close();
