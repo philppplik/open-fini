@@ -11,7 +11,6 @@ import { setMask, getMask, paintTarget, layerSpaceMask, commitPixelEdit, newPixe
 import { addEffectLayer, mergeDown, rasterizeToLayer, rasterizeNodes, flattenPage } from "../core/raster.js";
 import { promptDialog, openDialog, confirmDialog } from "../ui/dialogs.js";
 import { numField, selectField, switchField } from "../ui/controls.js";
-import { cropPage } from "../studios/tools/pixel-misc.js";
 import { pageVisualBounds } from "../core/raster.js";
 
 const hasDoc = (a) => !!a.doc;
@@ -246,11 +245,11 @@ export function registerPixelCommands(app) {
   def("doc.flipV", "Flip Document Vertically", transformAll("Flip Document", (p) => ({ m: [1, 0, 0, -1, 0, p.h] })), { enabled: hasDoc });
   def("doc.rotate90", "Rotate Document 90° Clockwise", transformAll("Rotate Document", (p) => ({ m: [0, 1, -1, 0, p.h, 0], size: [p.h, p.w] })), { enabled: hasDoc });
 
-  def("doc.cropToContent", "Crop to Content", (a) => {
+  def("doc.cropToContent", "Crop to Content", async (a) => {
     const nodes = a.page.root.children.filter((n) => n.visible);
     const b = pageVisualBounds(nodes);
     if (!b) return a.toast("There is no content to crop to.", "warning");
-    cropPage(a, b, { deletePixels: false });
+    (await import("../studios/tools/pixel-crop-impl.js")).cropPage(a, b, { deletePixels: false });
   }, { enabled: hasDoc });
 
   def("doc.resize", "Resize Document…", async (a) => {

@@ -106,3 +106,9 @@ test("trimBounds finds the content of transparent and solid borders", () => {
   assert.deepEqual(trimBounds(solid, { mode: "topleft" }), { x: 3, y: 2, w: 1, h: 1 });
   assert.deepEqual(trimBounds(solid, { mode: "bottomright", tolerance: 5 }), { x: 3, y: 2, w: 1, h: 1 });
 });
+
+test("quadSize averages opposite edges", async () => {
+  const { quadSize } = await import("../../app/src/engine/pixel/crop.js");
+  assert.deepEqual(quadSize([[0, 0], [100, 0], [100, 50], [0, 50]]), { w: 100, h: 50 });
+  assert.deepEqual(quadSize([[0, 0], [100, 0], [80, 50], [20, 50]]), { w: 80, h: 54 });
+});

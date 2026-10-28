@@ -9,6 +9,8 @@ All notable changes to OpenFini are documented here. The format follows
 ### Added
 - Logs are now kept across sessions: all info, warning and error entries are stored (redacted before they are written) in rotating segments, limited to 20,000 entries or 5 MB and to **Keep logs for N days** (Settings > Security and privacy, default 14, 0 = this session only). Troubleshooting has a session selector, search across sessions, **Export all logs** and **Clear logs**; the diagnostic report lists the build and the number of stored sessions.
 
+- Pixel studio, crop and image tools: the Crop tool is rebuilt with custom ratios, portrait / landscape swap, straightening (drag outside the box, angle field or a level line), composition guides (`O`: thirds, grid, golden ratio, diagonals, golden triangle), flips, empty-corner fills and non-destructive cropping; new **Perspective Crop** and **Magic Eraser** tools and reflected / diamond gradients. The Document menu gains Crop to Selection, Trim Edges, Reveal All, Rotate 90 CCW / 180 / by angle, and Resize Document now offers Lanczos, bicubic, bilinear and nearest-neighbor resampling plus DPI. Vibe tools `crop_image`, `resize_image`, `rotate_image` and `trim_edges`.
+
 ### Fixed
 - Code studio: switching HTML files through the editor tabs (click, Ctrl+Tab, closing a tab, Quick Open, search, outline) or through a link in the preview now also switches the visual preview, the page selector, the explorer highlight and the style panel, exactly like clicking the file in the explorer. CSS and JS tabs keep the last previewed page.
 - The console error "Option values cannot include a space" no longer occurs: select values that come from file names or extension settings are encoded (`optVal`), and a test lints `sl-option` values.

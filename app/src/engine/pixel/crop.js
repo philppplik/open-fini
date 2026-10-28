@@ -207,3 +207,9 @@ export function trimBounds(img, opts = {}) {
   if (l >= r || t >= b) return null;
   return { x: l, y: t, w: r - l, h: b - t };
 }
+
+/** Output size of a perspective crop: mean length of the opposite edges of the quad (TL, TR, BR, BL), rounded. */
+export function quadSize(q) {
+  const d = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+  return { w: Math.max(1, Math.round((d(q[0], q[1]) + d(q[3], q[2])) / 2)), h: Math.max(1, Math.round((d(q[0], q[3]) + d(q[1], q[2])) / 2)) };
+}

@@ -8,7 +8,7 @@ import { createCanvas, ctx2d } from "../../core/doc.js";
 import { pageVisualBounds, rasterizeNodes } from "../../core/raster.js";
 import { trimBounds } from "../../engine/pixel/crop.js";
 import { resizeImage } from "../../engine/pixel/transform.js";
-import { cropPage } from "./pixel-crop.js";
+import { cropPage } from "./pixel-crop-impl.js";
 
 export const RESAMPLE_FILTERS = ["lanczos3", "bicubic", "bilinear", "nearest"];
 

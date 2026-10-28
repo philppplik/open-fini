@@ -1706,5 +1706,13 @@
   "Rotate": "Drehen",
   "Rotate Document": "Dokument drehen",
   "Scale layers (keep vectors sharp)": "Ebenen skalieren (Vektoren bleiben scharf)",
-  "Scaling keeps vector objects sharp. A resample filter also converts the pixel layers to the new pixel size; the resolution only changes the document metadata.": "Skalieren hält Vektorobjekte scharf. Ein Berechnungsfilter rechnet zusätzlich die Pixelebenen auf die neue Pixelgröße um; die Auflösung ändert nur die Metadaten des Dokuments."
+  "Scaling keeps vector objects sharp. A resample filter also converts the pixel layers to the new pixel size; the resolution only changes the document metadata.": "Skalieren hält Vektorobjekte scharf. Ein Berechnungsfilter rechnet zusätzlich die Pixelebenen auf die neue Pixelgröße um; die Auflösung ändert nur die Metadaten des Dokuments.",
+  "Angular": "Winkel",
+  "Contiguous": "Zusammenhängend",
+  "Diamond": "Raute",
+  "Opacity": "Deckkraft",
+  "Perspective crop": "Perspektivischer Zuschnitt",
+  "Reflected": "Gespiegelt",
+  "Resampling": "Neuberechnung",
+  "Tolerance": "Toleranz"
 }

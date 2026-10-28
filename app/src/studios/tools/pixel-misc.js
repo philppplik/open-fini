@@ -8,7 +8,6 @@ import { setMask } from "../../core/pixel.js";
 import { brushBar } from "./pixel-paint.js";
 import { CropTool } from "./pixel-crop.js";
 
-export { cropPage } from "./pixel-crop.js";
 
 // ------------------------------------------------------------------ liquify
 

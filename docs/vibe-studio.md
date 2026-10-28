@@ -237,7 +237,7 @@ Sources: opencode.ai/docs/server, /docs/sdk, /docs/zen, /docs/providers.
 - **Layers and vector**: list layers, selection, screenshots, shapes, text, paths, SVG import, styles, transforms,
   grouping, ordering, alignment, boolean operations, duplicate, delete.
 - **Pixel**: effect catalog, pixel layers, adjustment and live filter layers, selections, image generation and image
-  editing with the image model you configure, plus the read-only `get_histogram` (statistics, 64-bin data and a
+  editing with the image model you configure, the image operations `crop_image` (rectangle or ratio, optional straighten angle), `resize_image` (with resampling), `rotate_image` and `trim_edges` (transparent or solid margins, crop to selection, reveal all), plus the read-only `get_histogram` (statistics, 64-bin data and a
   plain-language assessment) and `auto_correct_suggestion` (ready-made Levels / Curves / Exposure parameters); see the
   [Histogram guide](pixel-histogram.md).
 - **Git and publishing**: `git_init`, `git_status`, `git_diff`, `git_log`, `git_commit`, `git_branch`, `git_checkout`, `git_restore`,

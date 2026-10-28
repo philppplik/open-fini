@@ -62,18 +62,25 @@ Divide**, **Trace Image to Vector…**.
 | Marquee (rect / ellipse) | `M` | Shift / Alt / Shift+Alt combine with the existing selection. |
 | Lasso (freehand / polygonal) | `L` | Polygonal: click points, click the first point or `Enter` to close, `Backspace` removes a point. |
 | Magic wand / Color range | `W` | Tolerance, contiguous, sample the layer or all layers; Color Range adds softness, sample size and invert. |
-| Crop | `C` | Ratios, optional deletion of cropped pixels. |
+| Crop | `C` | 8 handles; ratios free / original / 1:1 / 4:3 / 3:2 / 16:9 / 5:4 / custom W:H (`X` swaps portrait and landscape); **straighten** by dragging outside the box, with the angle field (+-45 degrees) or the *Straighten* level line; guides cycle with `O` (thirds, grid, golden ratio, diagonals, golden triangle); flip H / V; empty corners transparent, background color or *shrink to fit*; *Delete cropped pixels* off keeps the content outside the page (Reveal All brings it back). `Enter` applies, `Esc` cancels. All layers move together, one history step. |
+| Perspective crop | `C` (flyout) | Drag four corners onto a tilted rectangle, `Enter` flattens and straightens it (bicubic homography warp). Destructive: the page becomes one layer (undo restores it). |
+| Magic eraser | `E` (flyout) | Click to erase pixels of a similar color (tolerance, contiguous, opacity); respects the selection. |
 | Brush / Pencil | `B` | `[` and `]` change the size. Pressure-sensitive. Painting on a mask: light colors reveal, dark colors hide. |
 | Eraser | `E` | |
 | Clone / Heal / Spot heal / Red eye | `S`, `J`, `R` | Alt-click sets the source for clone and heal. |
 | Smudge / Blur / Sharpen | `O` | |
 | Dodge / Burn / Sponge | `D` | Range (shadows / midtones / highlights). |
-| Fill / Gradient | `F`, `G` | Respect the active selection. |
+| Fill / Gradient | `F`, `G` | Respect the active selection. Gradient types: linear, radial, angular, reflected, diamond. |
 | Liquify | `Q` | Push, twirl, pinch, bloat, reconstruct; `Enter` applies. |
 | Color picker | `I` | Click = foreground, Alt-click = background. |
 
 Colors: `X` swaps foreground and background, `D` resets them. **Alt+Backspace** fills the selection with
 the foreground color, **Mod+Backspace** with the background color.
+
+Document menu (Pixel): **Crop** (tool), **Crop to Selection**, **Crop to Content**, **Trim Transparent Edges**, **Trim Edges of the Same Color**,
+**Reveal All**, **Resize Document** (scale layers, or resample pixel layers with Lanczos / bicubic / bilinear / nearest, plus the DPI metadata),
+**Canvas Size** (anchor grid), flip, **Rotate** 90 degrees both ways, 180 degrees or by any angle (the canvas expands to fit). The logic lives in
+`app/src/studios/tools/image-ops.js` (one history step each), the geometry in `app/src/engine/pixel/crop.js` (tests: `tests/pixel/crop.test.js`).
 
 Select menu: All, Deselect, Reselect, Invert (`Mod+Shift+I`), Feather, Grow, Shrink, Border, Smooth, Color
 Range, selection to layer / layer mask / curves.

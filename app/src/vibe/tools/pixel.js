@@ -105,7 +105,7 @@ export function pixelTools(app, ctx) {
       corners: S.str("Empty corners after a rotation", { enum: ["transparent", "background", "fit"] }), deleteCropped: S.bool("Delete the pixels outside the crop (default false)"),
     }, [], async (a) => {
       requireDoc(app);
-      const { cropPage } = await import("../../studios/tools/pixel-crop.js");
+      const { cropPage } = await import("../../studios/tools/pixel-crop-impl.js");
       const { ratioValue, largestInscribed, applyRatio } = await import("../../engine/pixel/crop.js");
       const p = app.page;
       let r;
