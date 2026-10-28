@@ -43,8 +43,8 @@
 :root[data-surface="sea"] {
   --of-radius: 9px;
   --of-radius-sm: 6px;
-  --of-glass-edge: rgba(214, 245, 236, 0.22);
-  --of-glass-hi: rgba(214, 245, 236, 0.2);
+  --of-glass-edge: color-mix(in srgb, var(--of-sea-hi, #d6f5ec) 22%, transparent);
+  --of-glass-hi: color-mix(in srgb, var(--of-sea-hi, #d6f5ec) 20%, transparent);
   --of-glass-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.32'/%3E%3C/svg%3E");
 }
 :root.sl-theme-light[data-surface="sea"] { --of-glass-edge: rgba(255, 255, 255, 0.75); --of-glass-hi: rgba(255, 255, 255, 0.8); }
@@ -78,8 +78,8 @@
     radial-gradient(46% 40% at 55% 95%, #06b6d4 0%, transparent 70%), linear-gradient(160deg, #0a2a5e, #064e6b); }
 :root { --of-glass-mesh-dusk: radial-gradient(50% 44% at 16% 12%, #fb923c 0%, transparent 70%), radial-gradient(46% 42% at 88% 30%, #d946ef 0%, transparent 70%),
     radial-gradient(52% 46% at 40% 96%, #6366f1 0%, transparent 70%), linear-gradient(150deg, #3b0f5c, #7a1d4f); }
-:root { --of-glass-mesh-seaglass: radial-gradient(50% 44% at 20% 16%, #7fd1c0 0%, transparent 70%), radial-gradient(46% 42% at 86% 24%, #b7e4d3 0%, transparent 70%),
-    radial-gradient(52% 46% at 60% 94%, #3f9b94 0%, transparent 70%), linear-gradient(150deg, #2c7a74, #5fb8a8); }
+:root { --of-glass-mesh-seaglass: radial-gradient(50% 44% at 20% 16%, var(--of-sea-m1, #7fd1c0) 0%, transparent 70%), radial-gradient(46% 42% at 86% 24%, var(--of-sea-m2, #b7e4d3) 0%, transparent 70%),
+    radial-gradient(52% 46% at 60% 94%, var(--of-sea-m3, #3f9b94) 0%, transparent 70%), linear-gradient(150deg, var(--of-sea-b1, #2c7a74), var(--of-sea-b2, #5fb8a8)); }
 :root { --of-glass-mesh-mono: radial-gradient(50% 44% at 18% 16%, #d4d7de 0%, transparent 70%), radial-gradient(46% 42% at 86% 40%, #8b909b 0%, transparent 70%),
     radial-gradient(50% 46% at 50% 96%, #b0b4be 0%, transparent 70%), linear-gradient(150deg, #4b5060, #8a8f9c); }
 :root { --of-glass-mesh-accent: radial-gradient(50% 44% at 16% 16%, var(--of-accent) 0%, transparent 70%), radial-gradient(46% 42% at 86% 30%, color-mix(in srgb, var(--of-accent) 50%, #ff5fa8) 0%, transparent 70%),
@@ -138,9 +138,11 @@
   background: var(--of-glass-grain) 0 0 / 160px 160px, var(--of-glass-fill-strong);
   border: 1px solid var(--of-glass-edge);
   box-shadow: var(--of-glass-shadow), inset 0 1px 0 var(--of-glass-hi);
-  -webkit-backdrop-filter: var(--of-glass-filter);
-  backdrop-filter: var(--of-glass-filter);
+  -webkit-backdrop-filter: var(--of-rf, var(--of-glass-filter));
+  backdrop-filter: var(--of-rf, var(--of-glass-filter));
 }
+/* --of-rf (Liquid refraction, ui/refraction-dom.js) is set only on the surfaces it measured; never let it leak into these */
+:root[data-surface] sl-tooltip, :root[data-surface] sl-select, :root[data-surface] sl-drawer { --of-rf: initial; }
 :root[data-surface] sl-dialog::part(panel) { border-radius: calc(var(--of-radius) + 4px); }
 /* MENUS. The blur must NOT sit on the <sl-menu> (or on any ancestor of a submenu): a backdrop-filter makes its element the
    containing block of position:fixed descendants, so Shoelace's submenu popups were laid out inside the menu's own scroll
@@ -158,8 +160,8 @@
   background: var(--of-glass-grain) 0 0 / 160px 160px, var(--of-glass-fill-strong);
   border: 1px solid var(--of-glass-edge);
   box-shadow: var(--of-glass-shadow), inset 0 1px 0 var(--of-glass-hi);
-  -webkit-backdrop-filter: var(--of-glass-filter);
-  backdrop-filter: var(--of-glass-filter);
+  -webkit-backdrop-filter: var(--of-rf, var(--of-glass-filter));
+  backdrop-filter: var(--of-rf, var(--of-glass-filter));
 }
 :root[data-surface] sl-dropdown > sl-menu, :root[data-surface] .of-ctxmenu > sl-menu { background: transparent; border-color: transparent; box-shadow: none; }
 :root[data-surface] sl-tooltip::part(body) { background: color-mix(in srgb, var(--of-bg-raised) 88%, transparent); color: var(--of-text); }
@@ -211,7 +213,7 @@
 :root[data-surface="liquid"] .of-coach,
 :root[data-surface="liquid"] sl-alert::part(base) {
   background-image: linear-gradient(to bottom, color-mix(in srgb, var(--of-glass-hi) 70%, transparent), transparent 22%), radial-gradient(120% 60% at 50% -10%, color-mix(in srgb, var(--of-glass-hi) 50%, transparent), transparent 60%);
-  box-shadow: var(--of-glass-shadow), inset 0 1.5px 0 var(--of-glass-hi), inset 0 -1.5px 0 var(--of-glass-lo), inset 1.5px 0 0 color-mix(in srgb, var(--of-glass-hi) 45%, transparent), inset -1.5px 0 0 color-mix(in srgb, var(--of-glass-hi) 25%, transparent);
+  box-shadow: var(--of-glass-shadow), inset 0 var(--of-glass-bevel, 1.5px) 0 var(--of-glass-hi), inset 0 calc(var(--of-glass-bevel, 1.5px) * -1) 0 var(--of-glass-lo), inset var(--of-glass-bevel, 1.5px) 0 0 color-mix(in srgb, var(--of-glass-hi) 45%, transparent), inset calc(var(--of-glass-bevel, 1.5px) * -1) 0 0 color-mix(in srgb, var(--of-glass-hi) 25%, transparent);
 }
 /* sheen sweeping across a control on hover or press (a background-image only: the control keeps its own fill) */
 :root[data-surface="liquid"] :is(.of-btn, .of-ibtn, .of-menubtn, .of-studio, .of-tool, .of-seg__btn, .of-dock__tab) {
@@ -229,6 +231,26 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--of-glass-edge) 40%, transparent);
 }
 
+/* Sea glass caustics: soft light patches (CSS gradients only) under the scrim; they drift only when "Slowly move the background"
+   is on (never in Low-power mode or with Reduce motion: data-glass-anim is then "off"). */
+:root[data-surface="sea"][data-glass-fx="on"] #of-backdrop::before {
+  content: "";
+  position: absolute;
+  inset: -10%;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.55;
+  mix-blend-mode: soft-light;
+  background:
+    radial-gradient(28% 16% at 22% 28%, var(--of-sea-glow, #8be0cf) 0%, transparent 70%),
+    radial-gradient(22% 14% at 68% 18%, var(--of-sea-hi, #d6f5ec) 0%, transparent 70%),
+    radial-gradient(30% 18% at 52% 72%, var(--of-sea-glow, #8be0cf) 0%, transparent 70%),
+    radial-gradient(18% 12% at 14% 82%, var(--of-sea-hi, #d6f5ec) 0%, transparent 70%);
+}
+:root[data-surface="sea"][data-glass-fx="on"] #of-backdrop::after { z-index: 2; }
+@keyframes of-sea-caustic { from { transform: translate3d(-3%, 2%, 0) scale(1); } to { transform: translate3d(3%, -2%, 0) scale(1.08); } }
+:root[data-surface="sea"][data-glass-anim="on"] #of-backdrop::before { animation: of-sea-caustic 22s ease-in-out infinite alternate; will-change: transform; }
+
 /* ------------------------------------------------------------------ fallbacks: same tint, no blur */
 :root[data-surface][data-glass-fx="off"] { --of-glass-filter: none; }
 @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
@@ -242,7 +264,7 @@
   :root[data-surface] body { background: var(--of-bg-app); }
 }
 :root.of-high-contrast[data-surface] :is(.of-header, .of-dock, .of-toolbox, .of-contextbar, .of-status, sl-dialog::part(panel), sl-menu) { background-image: none; }
-:root.of-reduce-motion #of-backdrop > i { animation: none !important; }
+:root.of-reduce-motion #of-backdrop > i, :root.of-reduce-motion #of-backdrop::before { animation: none !important; }
 :root.of-reduce-motion[data-surface="liquid"] :is(.of-btn, .of-ibtn, .of-menubtn, .of-studio, .of-tool, .of-seg__btn, .of-dock__tab) { transition: none; background-image: none; }
 
 /* ------------------------------------------------------------------ Settings ▸ Appearance: surface gallery */

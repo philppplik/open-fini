@@ -70,8 +70,8 @@ and `color-mix()` for tints; never hard-code colors.
 
 An optional second axis next to the color theme: how the *chrome* is drawn. Settings ▸ Appearance ▸ **Surface style**:
 **Solid** (default, the unchanged look), **Glass** (frosted glassmorphism), **Liquid glass** (thicker bevels, specular top
-edge, a soft sheen sweeping over controls on hover/press, larger corners) and **Sea glass** (muted green-teal tint, matte,
-light grain, slightly lower-contrast backdrop). Each combines with every color theme and both modes.
+edge, a soft sheen sweeping over controls on hover/press, larger corners) and **Sea glass** (matte, softly grained, tinted by the accent,
+slightly lower-contrast backdrop). Each combines with every color theme and both modes.
 
 Controls: **Blur** (0-40 px), **Transparency** (0-50 %: how see-through the fill is), **Dim** (darkens the background
 layer, 0-80 %), **Slowly move the background** and the **background layer**: Aurora, Ocean, Dusk, Sea glass, Mono, an
@@ -80,11 +80,63 @@ accent-derived mesh, or **My image** (file picker; stored only as a Blob in Inde
 `glassTransparency`, `glassBackdrop`, `glassDim`, `glassAnimate` (`null` blur/transparency = the style's default). They are
 ordinary customization settings, so profiles carry them (except the image).
 
+### Liquid glass refraction
+
+Chromium-based engines (Chrome, Edge, WebView2 = the Windows desktop app) really bend what is behind a floating surface;
+Settings > Appearance > Surface style > *Refraction* has four controls: **Refraction strength** (`glassRefraction`, 0-100 %,
+0 = off), **Edge thickness** (`glassBevel`, 4-40 px), **Specular highlight** (`glassSpecular`, 0-100 %) and **Chromatic
+dispersion** (`glassDispersion`, 0-100 %). The defaults (60 / 16 / 60 / 20) keep the previous Liquid highlight unchanged.
+
+Technique (own code, no library; see [ADR 0015](adr/0015-liquid-glass-refraction.md)): the rim of a glass slab has a height
+profile (a quarter sine over `bevel` px); its slope tilts the surface normal and a vertical ray bends by Snell's law (n = 1.5).
+`ui/refraction.js` turns that into an RGBA **displacement map** of the rounded box (R/G = direction x strength, 128 = none),
+drawn once per **size class** (sizes snap to a geometric ladder, maps are cached, longest side 256 px). `ui/refraction-dom.js`
+(lazy, loaded only while Liquid is active) creates one inline SVG `<filter>` per surface (`feImage` map, then
+`feDisplacementMap`; three of them with slightly different scales for dispersion, added with `feComposite arithmetic`) and sets
+`--of-rf: url(#id) blur() saturate()` on the surface; glass.css uses `var(--of-rf, var(--of-glass-filter))` as its
+backdrop-filter. A `ResizeObserver` (120 ms debounce) only rewrites the filter size; nothing runs per frame.
+
+* **Targets:** dialogs, dropdown menus, context menus, command palette, top-level popovers, coach marks, toasts. Not the
+  canvas, artboards, color pickers, the editor or the chrome layer: the header and docks sit on the single `.of-layout::before`
+  layer (a second refracting layer there would nest backdrop-filters), so only floating surfaces refract.
+* **Direction:** the shift points inward (the rim magnifies content from inside the box). A backdrop-filter has no pixels
+  beyond its box, so outward samples would be transparent holes. Dispersion channels are added with `feComposite arithmetic`
+  (`feBlend screen` shifts colors).
+* **Contrast:** refraction only moves pixels the backdrop already contains, so the worst-case backdrops of `ui/glass.js` still
+  bound every fill. With refraction on, menus and dialogs may be as see-through as the panels (`--of-glass-alpha-strong` is
+  at least `--of-glass-alpha`, floor 0.72) but never more: the AA floor (`minAlpha`) and the lifted text colors are unchanged.
+* **Fallbacks:** feature detection is `CSS.supports("backdrop-filter", "url(#x) blur(1px)")` plus a probe element whose
+  computed `backdrop-filter` still contains `url(` plus a Chromium engine check (`urlBackdropSupported`). Safari/WebKit
+  (including the macOS and Linux desktop shells) and Firefox get plain blur and the specular edge, and Settings says so.
+  Low-power mode, High contrast, `prefers-reduced-transparency` and `prefers-contrast: more` switch it off like the blur.
+* **Credits:** the idea (a displacement map from a rim height profile and Snell's law fed to `backdrop-filter: url()`, three
+  channels for dispersion) follows [tomacco/amazing-glass](https://github.com/tomacco/amazing-glass) (MIT, (c) tomacco). No
+  source is copied or vendored; see `THIRD_PARTY_NOTICES.md`.
+
+### Sea glass tint
+
+Sea glass takes its tint from the **active accent** by default (any theme, all accent presets, the custom accent, extension
+themes), so it is not only turquoise. **Sea tint**: *Follow accent (default)* (`seaTint: "accent"`), *Teal (classic)*
+(`"teal"`, the previous palette) or *Own hue* (`"custom"` plus `seaHue` 0-359). `ui/sea-glass.js` (pure) derives the palette in
+HSL: hue from the accent (or `seaHue`), saturation 0.6 x the accent's, clamped to 28-52 % (a gray accent gives a nearly neutral
+tint), fixed lightness per mode (tint 24 % dark / 72 % light, deep 14 / 42, highlight 88 / 97, caustic glow 72 / 80), and three
+mesh lights at hue -12 / +14 / -4. It writes `--of-sea-tint/-deep/-hi/-glow/-grain/-m1..3/-b1..2`, used by glass.css for the
+edge light, the "Sea glass" background layer, the soft **caustic** highlights (CSS radial gradients under the scrim; they drift
+only with "Slowly move the background", never in Low-power mode or with Reduce motion) and the grain. The tint is a 26 % mix
+into the panel color and goes through the same `minAlpha()` / `liftedText()` floors, so AA never depends on the hue
+(`tests/ui/glass.test.js` sweeps every theme x mode x 20 accent presets x tint modes). The visual language (matte frosted
+translucency, soft caustics, tinted depth, grain) is inspired by mweinbach/SeaGlass (Android, no license): design inspiration
+only, no code used.
+
+Vibe: `set_theme({ seaTint: "accent" | "teal" | "210", refraction: 0-100 })`.
+
 ### Architecture / where things live
 
 | File | Role |
 | --- | --- |
 | `app/src/ui/glass.js` | **Pure** math and decisions: `blend`, `glassFill`, `stressBackdrops`, `liftedText`, `minAlpha`, `fxState`, `resolveGlass` (returns the `--of-glass-*` variables). Header comment lists the invariants. |
+| `app/src/ui/sea-glass.js`, `app/src/ui/refraction.js` | Pure: sea palette from the accent; rim profile, displacement map, size classes, feature-detection decision. |
+| `app/src/ui/refraction-dom.js` | Lazy: probe, one SVG filter per surface, observers. |
 | `app/src/ui/glass-dom.js` | Writes variables and `data-surface` / `data-glass-fx` / `data-glass-bd` / `data-glass-anim` on `<html>`, owns `#of-backdrop` and the user image. Called from `appearance.js` after the theme. |
 | `app/src/ui/surface-gallery.js` | The Settings block (cards, sliders, background choices). |
 | `app/styles/glass.css` | All visuals; everything is scoped to `:root[data-surface]`, so solid is untouched. |

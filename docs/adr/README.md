@@ -19,3 +19,4 @@ in place and are marked as such.
 | [0012](0012-vscode-extensions.md) | VS Code extensions from Open VSX: declarative parts plus a sandboxed web-extension API subset | Accepted |
 | [0013](0013-collab-popout.md) | The Collaboration window pops out as a UI-only remote view | Accepted |
 | [0014](0014-model-routing-fallback.md) | Model routing with fallback as a provider wrapper | Accepted |
+| [0015](0015-liquid-glass-refraction.md) | Liquid glass refraction: own SVG displacement-map code instead of vendoring amazing-glass | Accepted |

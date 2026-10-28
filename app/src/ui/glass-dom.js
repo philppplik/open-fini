@@ -13,6 +13,7 @@
 //     tint but draws opaque panels and hides the background layer.
 //   * The image never leaves the device: it is a Blob in IndexedDB (key `ui.glassImage`), never in prefs or profiles.
 import { resolveGlass, glassSettings, effectiveBackdrop } from "./glass.js";
+import { refractionState } from "./refraction.js";
 
 export const GLASS_IMAGE_KEY = "ui.glassImage";
 const MAX_SIDE = 1920;
@@ -23,6 +24,8 @@ let backdrop = null;
 let image = { loaded: false, loading: null, full: null, small: null, name: "" };
 const listeners = new Set();
 let envHooked = false;
+let rfTicket = 0;
+let refraction = null; // the lazily loaded ui/refraction-dom.js (Liquid glass only)
 
 const mq = (q) => (typeof matchMedia === "function" ? matchMedia(q) : { matches: false, addEventListener() {} });
 
@@ -73,6 +76,7 @@ export function applyGlass(app, vars, theme) {
     if (s.backdrop === "image" || prefs.glassBackdrop === "image") loadImage().then(() => updateBackdrop(app, prefs, g));
     updateBackdrop(app, prefs, g);
   }
+  syncRefraction(app, prefs, g);
   if (!envHooked) {
     envHooked = true;
     // the system can change these at any time: re-apply the whole appearance
@@ -81,6 +85,27 @@ export function applyGlass(app, vars, theme) {
   }
   return g;
 }
+
+/** Liquid glass refraction: loads ui/refraction-dom.js on demand, stops it for every other state. */
+function syncRefraction(app, prefs, g) {
+  const s = glassSettings(prefs);
+  const fx = { on: g.on };
+  // `supported` is only known after the probe, which lives in the lazy module: assume yes for the decision, the module re-checks
+  const want = refractionState(g.style, fx, true, s).on;
+  const ticket = ++rfTicket; // the import below is async: only the latest request may start the module
+  if (!want) {
+    refraction?.stop();
+    delete document.documentElement.dataset.glassRf;
+    return;
+  }
+  const blur = Math.round(Math.min(s.blur, 22) * 0.8);
+  import("./refraction-dom.js").then((m) => {
+    refraction = m;
+    if (ticket !== rfTicket) return;
+    m.syncRefraction({ on: true, strength: s.refraction, bevel: s.bevel, dispersion: s.dispersion, blur, sat: STYLE_SAT });
+  }).catch(() => {});
+}
+const STYLE_SAT = 1.8;
 
 function updateBackdrop(app, prefs, g) {
   const root = document.documentElement;

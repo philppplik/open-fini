@@ -26,6 +26,15 @@ libraries are shipped next to them in `app/vendor/**`.
 | [Inter](https://rsms.me/inter/) (variable, Latin subset, via Fontsource) | 5.3.0 | SIL OFL 1.1 | `app/vendor/fonts` | © The Inter Project Authors — license text in `app/vendor/fonts/Inter-OFL.txt` |
 | TeX hyphenation patterns for American English (`hyph-en-us`) | 2005-05-30 | Permissive TeX Hyphen license (MIT-style) | `app/src/engine/layout/hyphenation-en-us.js` | Frank Liang et al., [tex-hyphen](https://github.com/hyphenation/tex-hyphen) — notice in `app/src/engine/layout/HYPHENATION_LICENSE.txt` |
 
+## Credits (no code included)
+
+- **Liquid glass refraction** (`app/src/ui/refraction.js`, `refraction-dom.js`) re-implements, in OpenFini's own code, the
+  technique described by [tomacco/amazing-glass](https://github.com/tomacco/amazing-glass) (MIT License, Copyright (c) tomacco):
+  a displacement map derived from a rim height profile and Snell's law, applied with `backdrop-filter: url(#svg-filter)`.
+  None of its source is copied or vendored; the credit is given for the idea.
+- **Sea glass** look: design inspiration from [mweinbach/SeaGlass](https://github.com/mweinbach/SeaGlass) (Android; the
+  repository has no license, so no code, assets or text were used).
+
 OpenFini's own interface glyphs (`app/assets/icons`) and application logo (`app/icons`) were created for this
 project and are covered by the project license.
 
