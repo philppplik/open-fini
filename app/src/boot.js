@@ -37,6 +37,9 @@ export async function boot(app) {
   // returning from "Sign in with OpenRouter"
   if (params.get("vibe_oauth") === "openrouter" && params.has("code")) import("./vibe/oauth.js").then((m) => m.finishOAuth(app, params));
 
+  // returning from "Sign in" to an OAuth-protected MCP server (web/PWA redirect flow)
+  if (params.get("vibe_oauth") === "mcp" && (params.has("code") || params.has("error"))) import("./vibe/account-auth.js").then((m) => m.finishMcpSignIn(app, params));
+
   // AI context-menu functions (loaded in the background; they only show when AI features are enabled)
   import("./vibe/quick-actions.js").then((m) => (app.aiQuick = m));
 

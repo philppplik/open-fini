@@ -10,6 +10,7 @@
 //! `app/src/platform/tauri.js`.
 
 mod cli;
+mod oauth;
 
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, PoisonError};
@@ -136,11 +137,17 @@ pub fn run() {
 
     let app = builder
         .manage(OpenQueue::default())
+        .manage(oauth::Loopback::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .invoke_handler(tauri::generate_handler![take_launch_files, quit_app])
+        .invoke_handler(tauri::generate_handler![
+            take_launch_files,
+            quit_app,
+            oauth::oauth_loopback_start,
+            oauth::oauth_loopback_wait,
+        ])
         .setup(|app| {
             let args = std::env::args_os()
                 .skip(1)

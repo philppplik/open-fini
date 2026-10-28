@@ -188,6 +188,11 @@ export class VibeHub extends Emitter {
     if (vibeStore.locked) throw new Error("Your API keys are locked. Unlock them with your passphrase (Models tab).");
     const key = vibeStore.getKey(id);
     const preset = ai.PROVIDER_PRESETS.find((p) => p.id === rec.preset);
+    if (rec.preset === "openai-account") {
+      if (!key) throw new Error("You are signed out of your OpenAI account. Sign in again in the Models tab.");
+      const { openAIGetToken } = await import("./account-auth.js");
+      return ai.createProvider({ kind: rec.kind, baseUrl: rec.baseUrl, getToken: openAIGetToken(id) });
+    }
     if (!key && preset?.needsKey !== false) throw new Error(`No API key is stored for ${rec.label}. Add one in the Models tab.`);
     return ai.createProvider({ kind: rec.kind, baseUrl: rec.baseUrl, apiKey: key, headers: rec.headers });
   }
@@ -234,7 +239,7 @@ export class VibeHub extends Emitter {
     for (const srv of vibeStore.mcpServers.filter((s) => s.enabled !== false)) {
       let entry = this.mcp.get(srv.id);
       if (!entry || entry.url !== srv.url) {
-        entry = { url: srv.url, name: srv.name, client: new ai.McpClient({ url: srv.url, headers: srv.headers || {}, version: "0.3.0" }), tools: null, error: null };
+        entry = { url: srv.url, name: srv.name, client: new ai.McpClient({ url: srv.url, headers: srv.headers || {}, auth: await (await import("./account-auth.js")).mcpAuthFor(srv), version: "0.3.0" }), tools: null, error: null };
         this.mcp.set(srv.id, entry);
       }
       try {
@@ -258,7 +263,7 @@ export class VibeHub extends Emitter {
   async mcpStatus(srv) {
     this.app.network?.assert("ai", srv.url);
     const ai = await this.ai();
-    const client = new ai.McpClient({ url: srv.url, headers: srv.headers || {}, version: "0.3.0" });
+    const client = new ai.McpClient({ url: srv.url, headers: srv.headers || {}, auth: await (await import("./account-auth.js")).mcpAuthFor(srv), version: "0.3.0" });
     await client.connect();
     const tools = await client.listTools();
     await client.close?.();
