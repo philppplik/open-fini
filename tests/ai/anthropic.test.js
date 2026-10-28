@@ -140,7 +140,7 @@ test("providers: createProvider and presets", () => {
   assert.equal(PROVIDER_PRESETS.find((p) => p.id === "ollama").needsKey, false);
   assert.equal(PROVIDER_PRESETS.find((p) => p.id === "openrouter").baseUrl, "https://openrouter.ai/api/v1");
   for (const p of PROVIDER_PRESETS) {
-    assert.ok(["openai", "anthropic"].includes(p.kind));
+    assert.ok(["openai", "anthropic", "opencode-server"].includes(p.kind));
     assert.ok(p.capabilities && "vision" in p.capabilities && "tools" in p.capabilities && "images" in p.capabilities && "embeddings" in p.capabilities);
     assert.ok(Array.isArray(p.models) && typeof p.note === "string");
   }

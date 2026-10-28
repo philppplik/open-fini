@@ -23,7 +23,7 @@ import { agentTools } from "./tools/agents.js";
 const MAX_TEXT_ATTACHMENT = 60_000;
 // tools a skill restriction never blocks: the assistant must still be able to talk, plan and load skills
 const ALWAYS_ALLOWED = new Set(["use_skill", "update_plan", "ask_user", "get_document_info", "screenshot"]);
-const LIVE_TYPES = new Set(["text", "thinking", "tool_start", "tool_end", "tool_progress", "agent_status", "agent_event", "retry"]);
+const LIVE_TYPES = new Set(["text", "thinking", "tool_start", "tool_end", "tool_progress", "agent_status", "agent_event", "retry", "route_fallback", "route_retry"]);
 
 export class VibeSession extends Emitter {
   /**
@@ -306,13 +306,17 @@ export class VibeSession extends Emitter {
   async #send(text, files) {
     const app = this.app;
     const s = this.settings();
-    const providerId = s.activeProvider || "demo";
-    if (providerId !== "demo" && !this.app.prefs.aiEnabled) throw new Error("AI features are turned off. Turn them on under Settings ▸ Artificial intelligence (or the switch in Settings ▸ Artificial intelligence ▸ Models) — your messages will then be sent to the provider you chose.");
-    const model = providerId === "demo" ? "demo" : s.model;
+    const ai = await this.hub.ai();
+    // model routing: a chat-level model override becomes the primary target; "Use fallback chain" can be switched off per chat
+    const ov = this.overrides || {};
+    const route = ai.resolveRoute(s, { useFallback: ov.fallback !== false, primary: ov.model ? { providerId: ov.activeProvider ?? null, model: ov.model } : undefined });
+    const providerId = route.targets[0].providerId || "demo";
+    if ((providerId !== "demo" || route.targets.some((t) => t.providerId)) && !this.app.prefs.aiEnabled) throw new Error("AI features are turned off. Turn them on under Settings ▸ Artificial intelligence (or the switch in Settings ▸ Artificial intelligence ▸ Models) — your messages will then be sent to the provider you chose.");
+    const model = providerId === "demo" ? "demo" : route.targets[0].model;
     if (!model) throw new Error("Choose a model first (model menu in the composer).");
     this.hub.assertCanStart(this);
-    const ai = await this.hub.ai();
-    const provider = await this.providerFor(providerId);
+    const glue = route.chain ? await import("./routing-glue.js") : null;
+    const provider = glue ? await glue.buildRoutedProvider(this.hub, route) : await this.providerFor(providerId);
     this.restrict = null;
     const tools = await this.#buildTools();
     const doc = app.doc;
@@ -355,7 +359,10 @@ export class VibeSession extends Emitter {
     });
     const emitEvent = (ev) => {
       if (LIVE_TYPES.has(ev.type)) this.live.push(ev);
-      if (ev.type === "tool_start") this.activity = ev.name;
+      if (ev.type === "route_fallback") {
+        this.activity = "route_fallback";
+        this.emit("notice", { kind: "info", text: ev.text });
+      } else if (ev.type === "tool_start") this.activity = ev.name;
       else if (ev.type === "thinking") this.activity = "thinking";
       else if (ev.type === "text") this.activity = "writing";
       else if (ev.type === "usage") {
@@ -368,10 +375,12 @@ export class VibeSession extends Emitter {
 
     // sub-agents of this request
     const agentModel = providerId === "demo" ? "demo" : s.agentModel || model;
+    // sub-agents use the chain too (unless the route turns that off); their own model replaces the primary target
+    const agentProvider = glue && route.policy.fallbackBackground ? await glue.buildRoutedProvider(this.hub, route, { primaryModel: providerId === "demo" ? undefined : agentModel }) : provider;
     const makeManager = (parentTools, depth, budget, signal, prefix) => {
       const mgr = new AgentManager({
         runAgent: ai.runAgent,
-        provider,
+        provider: agentProvider,
         model: agentModel,
         parentTools,
         depth,

@@ -3,8 +3,9 @@
 import { createOpenAIProvider } from "./openai.js";
 import { createAnthropicProvider } from "./anthropic.js";
 import { createMockProvider } from "./mock.js";
+import { createOpenCodeServerProvider } from "./opencode.js";
 
-export { createOpenAIProvider, createAnthropicProvider, createMockProvider };
+export { createOpenAIProvider, createAnthropicProvider, createMockProvider, createOpenCodeServerProvider };
 export { ProviderError } from "../util.js";
 
 const caps = (o = {}) => ({ vision: true, tools: true, images: false, embeddings: false, ...o });
@@ -136,6 +137,28 @@ export const PROVIDER_PRESETS = [
     note: "Start the local server in LM Studio and enable CORS when using the web version.",
   },
   {
+    id: "opencode-zen",
+    label: "OpenCode Zen",
+    kind: "openai",
+    baseUrl: "https://opencode.ai/zen/v1",
+    keyUrl: "https://opencode.ai/auth",
+    needsKey: true,
+    models: ["claude-sonnet-5-5", "gpt-5.4-mini", "glm-5.3-flash", "deepseek-v4.1-flash", "big-pickle"],
+    capabilities: caps({ vision: true }),
+    note: "OpenCode's curated pay-as-you-go model gateway (Claude, GPT, Gemini, GLM, Kimi and more). The model list is public; chat requests may be blocked by browser CORS rules (see the OpenCode guide). Free models only work inside OpenCode itself.",
+  },
+  {
+    id: "opencode-server",
+    label: "OpenCode (local server, experimental)",
+    kind: "opencode-server",
+    baseUrl: "http://127.0.0.1:4096",
+    keyUrl: "https://opencode.ai/docs/server/",
+    needsKey: false,
+    models: [],
+    capabilities: caps({ vision: false, tools: false }),
+    note: "Talks to your own `opencode serve --cors <this app's origin>`. Answers come from OpenCode's own agent and tools (OpenFini tools are not available), delivered as one message. The key field is OPENCODE_SERVER_PASSWORD if you set one. Models are written providerID/modelID.",
+  },
+  {
     id: "custom",
     label: "Custom (OpenAI-compatible)",
     kind: "openai",
@@ -175,5 +198,6 @@ export function createProvider(cfg = {}) {
   if (kind === "openai") return createOpenAIProvider(merged);
   if (kind === "anthropic") return createAnthropicProvider(merged);
   if (kind === "mock") return createMockProvider(merged);
+  if (kind === "opencode-server") return createOpenCodeServerProvider(merged);
   throw new Error(`Unknown provider kind "${kind}".`);
 }

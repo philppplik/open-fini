@@ -1,7 +1,7 @@
 // Deterministic offline "Demo" provider. Same interface as the real providers; needs no network and no key.
 // Default behavior: keyword-driven scripted replies that emit text deltas and tool calls.
 
-import { bytesToBase64, makeId, throwIfAborted, sleep, textOf, toBlocks } from "../util.js";
+import { bytesToBase64, makeId, throwIfAborted, sleep, textOf, toBlocks, ProviderError, errorFromBody, abortError } from "../util.js";
 
 const COLORS = {
   red: "#ef4444",
@@ -354,7 +354,10 @@ function hash(s) {
 
 /**
  * Creates the offline Demo provider.
- * @param {{script?:(request:object, ctx:{signal?:AbortSignal})=>AsyncIterable<object>, delayMs?:number, name?:string}} [opts]
+ * @param {{script?:(request:object, ctx:{signal?:AbortSignal})=>AsyncIterable<object>, delayMs?:number, name?:string, failures?:(object|null|"ok")[]|((call:number)=>object|null)}} [opts]
+ *  `failures` injects errors for testing model routing: entry N applies to the N-th stream() call (null/"ok" = none).
+ *  Failure = {type:"http", status, code?, message?, retryAfterMs?} | {type:"network"} | {type:"timeout"} (never answers until aborted)
+ *          | {type:"cut", afterChars?} (streams some text, then the connection drops) | {type:"empty"} (ends without content)
  *  `script` is an async generator yielding provider events (text/thinking/tool_call/usage/done); a missing `done` is synthesized.
  */
 export function createMockProvider(opts = {}) {
@@ -398,8 +401,19 @@ export function createMockProvider(opts = {}) {
     for (const c of chunks(t)) yield { type: "text", delta: c };
   }
 
+  let calls = 0;
+  const nextFailure = () => {
+    const i = calls++;
+    const f = typeof opts.failures === "function" ? opts.failures(i) : (opts.failures || [])[i];
+    return f && f !== "ok" ? f : null;
+  };
+  const mockName = opts.name || "demo";
+
   return {
-    name: opts.name || "demo",
+    name: mockName,
+    get calls() {
+      return calls;
+    },
     kind: "mock",
     baseUrl: "mock://demo",
     capabilities: { embeddings: true, images: true },
@@ -413,10 +427,24 @@ export function createMockProvider(opts = {}) {
 
     async *stream(request, { signal } = {}) {
       throwIfAborted(signal);
+      const fail = nextFailure();
+      if (fail) {
+        if (fail.type === "http") throw errorFromBody({ error: { type: fail.code || String(fail.status), message: fail.message || `HTTP ${fail.status}` } }, "", fail.status, fail.retryAfterMs, mockName);
+        if (fail.type === "network") throw new ProviderError("Network error: Failed to fetch", { status: 0, code: "network_error", retryable: true, provider: mockName });
+        if (fail.type === "timeout") {
+          await new Promise((_, reject) => {
+            if (!signal) return;
+            if (signal.aborted) return reject(abortError(signal));
+            signal.addEventListener("abort", () => reject(signal.reason instanceof Error ? signal.reason : abortError(signal)), { once: true });
+          });
+        }
+        if (fail.type === "empty") return;
+      }
       const src = opts.script ? opts.script(request, { signal }) : defaultScript(request);
       const events = [];
       let done = null;
       let usage = false;
+      let cut = 0;
       for await (const e of src) {
         await pause(signal);
         if (e.type === "done") {
@@ -427,6 +455,10 @@ export function createMockProvider(opts = {}) {
         if (e.type === "tool_call" && !e.id) e.id = makeId("call");
         events.push(e);
         yield e;
+        if (fail && fail.type === "cut" && e.type === "text") {
+          cut += e.delta.length;
+          if (cut >= (fail.afterChars ?? 12)) throw new ProviderError("The stream ended before the model finished.", { code: "stream_truncated", retryable: true, provider: mockName });
+        }
       }
       throwIfAborted(signal);
       const message = (done && done.message) || messageFromEvents(events);

@@ -643,7 +643,7 @@ export function createChat(vs) {
     const s = session.settings ? session.settings() : vibeStore.settings;
     const ov = session.overrides || {};
     const p = s.activeProvider ? vibeStore.provider(s.activeProvider) : null;
-    modelPill.replaceChildren(iconEl("cpu"), h("span", `${s.activeProvider && s.model ? `${p?.label || "Provider"} · ${s.model.split("/").pop()}` : "Demo (offline)"}${ov.model ? " (this chat)" : ""}`), iconEl("chevron-down"));
+    modelPill.replaceChildren(iconEl("cpu"), h("span", `${s.activeProvider && s.model ? `${p?.label || "Provider"} · ${s.model.split("/").pop()}` : "Demo (offline)"}${ov.model ? " (this chat)" : ""}${(s.routes || []).some((r) => r.id === s.activeRoute && r.targets.some((x) => x.enabled !== false)) && ov.fallback !== false ? " ↪" : ""}`), iconEl("chevron-down"));
     modePill.replaceChildren(iconEl(s.approval === "auto" ? "lightning-charge" : s.approval === "careful" ? "shield-check" : "shield"), h("span", `${MODES[s.approval]}${ov.approval ? " (this chat)" : ""}`));
     thinkPill.replaceChildren(iconEl("lightbulb"), h("span", s.reasoning === "off" ? "Thinking off" : `Thinking ${s.reasoning}`));
     paintSend();
@@ -718,6 +718,9 @@ export function createChat(vs) {
         break;
       case "retry":
         note(`The provider is busy — retrying (${ev.attempt})…`);
+        break;
+      case "route_retry":
+        note(t("{target} did not answer — trying again in {s} s…", { target: ev.target, s: Math.max(1, Math.round((ev.delayMs || 0) / 1000)) }));
         break;
       case "agent_status":
         tools.agentStatus(ev.agent);

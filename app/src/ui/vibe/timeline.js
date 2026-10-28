@@ -83,6 +83,12 @@ export class Timeline {
       case "retry":
         run.entries.push({ id: `${run.id}.${run.entries.length + 1}`, kind: "retry", at: this.now(), attempt: ev.attempt, text: `Provider busy, retry ${ev.attempt}${ev.status ? ` (HTTP ${ev.status})` : ""}`, detail: ev.error ? String(ev.error).slice(0, 200) : "" });
         break;
+      case "route_fallback":
+        run.entries.push({ id: `${run.id}.${run.entries.length + 1}`, kind: "fallback", at: this.now(), text: ev.text, detail: ev.reason ? String(ev.reason).slice(0, 200) : "" });
+        break;
+      case "route_retry":
+        run.entries.push({ id: `${run.id}.${run.entries.length + 1}`, kind: "retry", at: this.now(), attempt: ev.attempt, text: `Retrying ${ev.target} in ${Math.max(1, Math.round((ev.delayMs || 0) / 1000))} s`, detail: ev.reason ? String(ev.reason).slice(0, 200) : "" });
+        break;
       default:
         return;
     }
@@ -177,7 +183,7 @@ export class Timeline {
 /** Does an entry pass the chip filter? */
 export function matchesFilter(entry, filter) {
   if (filter === "changes") return entry.kind === "tool" && entry.change && entry.status === "ok";
-  if (filter === "errors") return entry.kind === "error" || entry.kind === "retry" || (entry.kind === "tool" && (entry.status === "error" || entry.status === "declined")) || (entry.kind === "approval" && entry.decision === "declined");
+  if (filter === "errors") return entry.kind === "error" || entry.kind === "retry" || entry.kind === "fallback" || (entry.kind === "tool" && (entry.status === "error" || entry.status === "declined")) || (entry.kind === "approval" && entry.decision === "declined");
   return true;
 }
 

@@ -37,6 +37,7 @@ const EXACT = {
   open_attachment: "opening an attachment",
   ask_user: "waiting for your answer",
   update_plan: "planning",
+  route_fallback: "switching to a fallback model",
 };
 
 const VERB = { add: "adding", insert: "inserting", set: "setting", delete: "deleting", duplicate: "duplicating", group: "grouping", import: "importing", list: "looking at", get: "reading", read: "reading", edit: "editing", git: "working with Git", publish: "publishing" };

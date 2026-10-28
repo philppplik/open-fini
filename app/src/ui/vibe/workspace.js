@@ -1,6 +1,7 @@
 // Vibe Studio: chat with an assistant that works inside OpenFini. Left: chats. Center: conversation and composer.
 // Right: Canvas (live view of the document, layers, before/after) and Activity (plan, undo). Models, Tools, Skills and
 // Knowledge live in Settings ▸ Artificial intelligence (settings-ai.js); vs.openTab("models" | …) opens them there.
+import { t } from "../../i18n/index.js";
 import { h, empty } from "../../core/util.js";
 import { iconButton } from "../controls.js";
 import { iconEl } from "../toolbox.js";
@@ -192,6 +193,13 @@ export function vibeStudio(app) {
           filter.focus();
         });
         body.append(head);
+      }
+      const chain = (s.routes || []).find((r) => r.id === s.activeRoute);
+      if (chain?.targets?.some((x) => x.enabled !== false)) {
+        const on = session.overrides?.fallback !== false;
+        const cb = h("input", { type: "checkbox", checked: on });
+        cb.addEventListener("change", () => session.setOverrides({ fallback: cb.checked ? null : false }));
+        body.append(h("label.of-modelpop__manage", cb, h("span", t("Use fallback chain in this chat"))));
       }
       body.append(h("button.of-modelpop__manage", { type: "button", onclick: () => { pop.remove(); vs.openTab("models"); } }, iconEl("gear"), "Manage connections…"));
     };

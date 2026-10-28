@@ -1,7 +1,9 @@
 // OpenFini AI runtime: provider-neutral agent loop, providers, MCP client, local RAG, skills and vault.
 // Pure ES modules (no DOM, no storage); `fetch` is always injected via options.
 
-export { ProviderError, parseSse, createSseParser, parseJsonLenient, isAbortError } from "./util.js";
+export { createOpenCodeServerProvider, parseOpenCodeConfig, stripJsonc } from "./providers/opencode.js";
+export { createRoutedProvider, resolveRoute, normalizePolicy, DEFAULT_POLICY, RouteError, RouteHealth, RouteStats, suggestFallback, testRoute, fallbackNotice, targetKey, targetLabel } from "./routing.js";
+export { classifyProviderError, ProviderError, parseSse, createSseParser, parseJsonLenient, isAbortError } from "./util.js";
 export {
   createProvider,
   PROVIDER_PRESETS,

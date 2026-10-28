@@ -7,6 +7,8 @@
  * @property {string} code provider error code/type, or a synthetic one ('network_error', 'stream_truncated', ...)
  * @property {boolean} retryable whether the agent layer should retry
  * @property {number} [retryAfterMs] server-suggested delay
+ * @property {ErrorCategory} category normalized category (see classifyProviderError)
+ * @property {boolean} fallbackWorthy whether another target could plausibly succeed (model routing)
  */
 export class ProviderError extends Error {
   /**
@@ -19,10 +21,41 @@ export class ProviderError extends Error {
     this.status = info.status ?? 0;
     this.code = info.code ?? (info.status ? String(info.status) : "error");
     this.retryable = !!info.retryable;
+    const cls = classifyProviderError({ status: this.status, code: this.code, message, retryable: this.retryable });
+    this.category = info.category ?? cls.category;
+    this.fallbackWorthy = info.fallbackWorthy ?? cls.fallbackWorthy;
     if (info.retryAfterMs != null) this.retryAfterMs = info.retryAfterMs;
     if (info.provider) this.provider = info.provider;
     if (info.body !== undefined) this.body = info.body;
   }
+}
+
+/** @typedef {'rate_limit'|'overloaded'|'timeout'|'network'|'auth'|'invalid_request'|'context_length'|'model_unavailable'|'content_filter'|'unknown'} ErrorCategory */
+
+/**
+ * Normalizes a provider failure (HTTP status + provider code + message) into a category and flags.
+ * `retryable`: the same request may succeed shortly. `fallbackWorthy`: another target may succeed (auth and
+ * invalid-request errors are not: they would fail the same way or hide a user mistake).
+ * @param {{status?:number, code?:string, message?:string, retryable?:boolean}} e
+ * @returns {{category:ErrorCategory, retryable:boolean, fallbackWorthy:boolean}}
+ */
+export function classifyProviderError(e = {}) {
+  const status = e.status || 0;
+  const code = String(e.code ?? "");
+  const text = `${code} ${e.message || ""}`;
+  const out = (category, retryable, fallbackWorthy) => ({ category, retryable, fallbackWorthy });
+  if (/context[_ ]length|context[_ ]window|maximum context|prompt is too long|too many tokens|exceeds the (maximum|model)|request too large/i.test(text) || status === 413) return out("context_length", false, true);
+  if (status === 401 || status === 403 || /invalid[_ ]api[_ ]key|authentication|unauthori[sz]ed|permission_denied|permission_error|incorrect api key/i.test(text)) return out("auth", false, false);
+  if (/content[_ ]filter|content_policy|safety|moderation/i.test(text)) return out("content_filter", false, true);
+  if (/insufficient[_ ]quota|insufficient (credits|quota)|billing|credit balance|FreeUsageLimit|usage limit|quota/i.test(text) || status === 402) return out("rate_limit", false, true);
+  if (status === 429 || /rate[_ ]?limit|too many requests/i.test(text)) return out("rate_limit", true, true);
+  if (status === 529 || status === 503 || /overloaded/i.test(text)) return out("overloaded", true, true);
+  if (status === 408 || status === 504 || /timeout|timed out/i.test(text)) return out("timeout", true, true);
+  if (status === 0 && /network|stream_truncated|stream ended|failed to fetch|econn|enotfound|socket/i.test(text)) return out("network", true, true);
+  if (status === 404 || /model[_ ]not[_ ]found|model .*(not found|does not exist|not available|unavailable|deprecated|decommissioned)|no such model|not_found/i.test(text)) return out("model_unavailable", false, true);
+  if (status === 400 || status === 422 || /invalid[_ ]request|bad request|unsupported/i.test(text)) return out("invalid_request", false, false);
+  if (status >= 500) return out("unknown", true, true);
+  return out("unknown", !!e.retryable, true);
 }
 
 /** Creates an AbortError (or returns the signal's own Error reason). @param {AbortSignal} [signal] */
@@ -427,7 +460,7 @@ export function errorFromBody(body, raw, status, retryAfter, provider) {
   const c = String(code);
   let retryable = st === 408 || st === 409 || st === 425 || st === 429 || st === 529 || (st >= 500 && st !== 501 && st !== 505);
   if (/overloaded|rate_limit|api_error|server_error|timeout/i.test(c)) retryable = true;
-  if (/insufficient_quota|billing|credit|invalid_api_key|authentication|permission|not_found|invalid_request/i.test(c)) retryable = false;
+  if (/insufficient_quota|FreeUsageLimit|billing|credit|invalid_api_key|authentication|permission|not_found|invalid_request/i.test(c)) retryable = false;
   if (/insufficient (credits|quota)|billing/i.test(message)) retryable = false;
   return new ProviderError(message, { status: st, code: c, retryable, retryAfterMs: retryAfter, provider, body });
 }

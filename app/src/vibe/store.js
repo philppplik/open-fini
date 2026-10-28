@@ -42,6 +42,9 @@ export const DEFAULT_SETTINGS = () => ({
   agentBudgetTokens: 400000, // total sub-agent tokens per request (when the provider reports usage)
   enforceSkillTools: true, // honor `enforce-tools: true` in skills
   suggestSkills: true, // show the "Use skill X?" chip under the composer
+  // model routing with fallback (ai/routing.js): routes = [{ id, name, targets:[{providerId, model, label?, enabled?, timeoutMs?}], policy:{...} }]
+  routes: [],
+  activeRoute: null, // route id; null = the single activeProvider/model pair acts as a one-element route
 });
 
 /** The single store instance; emits "change" with the key group that changed. */
