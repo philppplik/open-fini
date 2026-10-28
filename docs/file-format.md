@@ -148,7 +148,10 @@ of the document ([collaboration.md](collaboration.md)). The key is absent when t
 
 Anchor kinds: `doc`; `page` (`page`); `node` (`node`, `page`); `region` (`page`, `rect {x,y,w,h}` in page coordinates);
 `text` (Office studio: `path` = JSON paragraph path, `from`, `to` offsets, `quote`); `line` (Code studio: `path` = file,
-`line`, `endLine`, `quote`). Text is plain text (never HTML). Readers validate every thread with
+`line`, `endLine`, `quote`). `element` (Code studio: `path` = HTML file, `sel` = element-sibling indexes from the root such as `0/1/3`, `elem` = parser id, `quote`).
+Migration note: `sel` was added with 0.10 (additive; older readers drop it and keep the thread). Threads from earlier versions load unchanged;
+anchors without `pin` fall back to the layer's top right corner. Messages without `nick` are shown as "Unknown author".
+Text is plain text (never HTML). Readers validate every thread with
 `collab/comments.js ▸ normalizeThreads` (unknown fields, wrong types and oversize values drop the thread); the document
 loader itself only keeps objects with an `id` (at most 2000). Comments are not undoable steps; they mark the document as
 changed.

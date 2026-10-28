@@ -175,6 +175,7 @@ A tool key is a single letter pressed while the canvas has focus. Several tools 
 | Command | Shortcut | Alternative | Id |
 | --- | --- | --- | --- |
 | Add Comment Here… | `Mod+Alt+M` |  | `collab.addCommentHere` |
+| Comment Mode (click to place a comment) | `Shift+C` |  | `collab.commentMode` |
 | Room Chat | `Mod+Alt+C` |  | `collab.chat` |
 
 ### Help and onboarding

@@ -7,21 +7,21 @@
 // Accessibility: every control is a labeled sl-select / sl-switch / native input; the preview is aria-hidden sample
 // content (not interactive), warnings are announced through a polite live region.
 import { h } from "../../core/util.js";
-import { t } from "../../i18n/index.js";
+import { t, N_ } from "../../i18n/index.js";
 import { iconEl } from "../toolbox.js";
 import { BUBBLE_DEFAULTS, normalizeBubbles, BUBBLE_PRESETS } from "../../customize/bubbles.js";
 import { applyBubbleStyle } from "./bubble-style.js";
 import { markEl } from "./logo.js";
 
 const SHAPES = [
-  ["rounded", "Rounded"],
-  ["pill", "Pill"],
-  ["square", "Square"],
-  ["speech", "Speech bubble"],
-  ["thought", "Thought bubble"],
-  ["flat", "Flat (no bubble)"],
+  ["rounded", N_("Rounded")],
+  ["pill", N_("Pill")],
+  ["square", N_("Square")],
+  ["speech", N_("Speech bubble")],
+  ["thought", N_("Thought bubble")],
+  ["flat", N_("Flat (no bubble)")],
 ];
-const PRESET_LABELS = { accent: "Accent", soft: "Soft", mono: "Mono", contrast: "Contrast", custom: "Custom colors" };
+const PRESET_LABELS = { accent: N_("Accent"), soft: N_("Soft"), mono: N_("Mono"), contrast: N_("Contrast"), custom: N_("Custom colors") };
 
 export function bubbleSettingsPane(app) {
   let state = normalizeBubbles(app.prefs.chatBubbles);
@@ -99,15 +99,15 @@ export function bubbleSettingsPane(app) {
     const fallback = (k) => (preview.style.getPropertyValue(`--of-bub-${k}-surface`) || "#4f46e5").trim();
     controls.replaceChildren(
       row(t("Shape"), select("shape", SHAPES, t("Bubble shape"))),
-      tailOn ? row(t("Tail"), sw("tail", t("Show the tail")), select("tailSide", [["sender", "Towards the author"], ["left", "Always left"], ["right", "Always right"]], t("Tail side"))) : null,
+      tailOn ? row(t("Tail"), sw("tail", t("Show the tail")), select("tailSide", [["sender", N_("Towards the author")], ["left", N_("Always left")], ["right", N_("Always right")]], t("Tail side"))) : null,
       state.shape === "rounded" || state.shape === "speech" ? row(t("Corner radius"), ...range("radius", 0, 32, t("Corner radius"))) : null,
       row(t("Colors"), select("preset", BUBBLE_PRESETS.map((p) => [p, PRESET_LABELS[p]]), t("Color preset"))),
       custom ? row(t("Your bubble"), color("userBg", t("Your bubble color"), fallback("user")), h("span.of-set__hint", t("Text")), color("userFg", t("Your bubble text color"), "#ffffff")) : null,
       custom ? row(t("Answer bubble"), color("aiBg", t("Answer bubble color"), fallback("ai")), h("span.of-set__hint", t("Text")), color("aiFg", t("Answer bubble text color"), "#ffffff")) : null,
       row(t("Bubble around answers"), sw("assistantBubble", t("Show a bubble around the assistant's answers"))),
-      row(t("Border"), sw("border", t("Border around bubbles")), select("shadow", [["none", "No shadow"], ["soft", "Soft shadow"], ["lifted", "Lifted shadow"]], t("Shadow"))),
-      row(t("Density"), select("density", [["compact", "Compact"], ["comfortable", "Comfortable"], ["spacious", "Spacious"]], t("Density"))),
-      row(t("Width"), select("width", [["narrow", "Narrow"], ["comfortable", "Comfortable"], ["wide", "Wide"]], t("Bubble width"))),
+      row(t("Border"), sw("border", t("Border around bubbles")), select("shadow", [["none", N_("No shadow")], ["soft", N_("Soft shadow")], ["lifted", N_("Lifted shadow")]], t("Shadow"))),
+      row(t("Density"), select("density", [["compact", N_("Compact")], ["comfortable", N_("Comfortable")], ["spacious", N_("Spacious")]], t("Density"))),
+      row(t("Width"), select("width", [["narrow", N_("Narrow")], ["comfortable", N_("Comfortable")], ["wide", N_("Wide")]], t("Bubble width"))),
       row(t("Chat text size"), ...range("fontSize", 12, 20, t("Chat text size"))),
       row(t("Avatars"), sw("avatars", t("Show the assistant's avatar"))),
       h("div.of-bubset__row", h("span"), reset),

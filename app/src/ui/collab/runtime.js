@@ -650,12 +650,12 @@ class CollabController {
     return this.host.commentUI();
   }
 
-  reply(doc, threadId, text) {
-    return this.host.reply(doc, threadId, text);
+  reply(doc, threadId, text, as) {
+    return this.host.reply(doc, threadId, text, as);
   }
 
-  setResolved(doc, threadId, on) {
-    return this.host.setResolved(doc, threadId, on);
+  setResolved(doc, threadId, on, by) {
+    return this.host.setResolved(doc, threadId, on, by);
   }
 
   // ------------------------------------------------------------------ versions

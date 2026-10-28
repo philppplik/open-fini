@@ -174,17 +174,18 @@ export class CommentsHost {
     return this.commentOp(doc, { op: "reanchor", threadId, anchor });
   }
 
-  reply(doc, threadId, text) {
+  /** `as` = { nick, color }: the assistant answers under its own name (the message still belongs to this device's author id). */
+  reply(doc, threadId, text, as = null) {
     const clean = cleanText(text, LIMITS.commentText).trim();
     if (!clean) throw new Error(t("The reply is empty."));
-    const a = this.author();
+    const a = { ...this.author(), ...(as || {}) };
     const mentions = this.mentionsIn(clean);
-    const msg = { id: `m${randomB64u(9)}`, author: a.id, nick: a.nick, color: a.color, text: clean, ts: Date.now(), ...(mentions.length ? { mentions } : {}) };
+    const msg = { id: `m${randomB64u(9)}`, author: this.myId, nick: a.nick, color: a.color, text: clean, ts: Date.now(), ...(mentions.length ? { mentions } : {}) };
     return this.commentOp(doc, { op: "reply", threadId, msg });
   }
 
-  setResolved(doc, threadId, on) {
-    return this.commentOp(doc, { op: on ? "resolve" : "reopen", threadId, text: (this.session?.profile || this.profile()).nick });
+  setResolved(doc, threadId, on, by = null) {
+    return this.commentOp(doc, { op: on ? "resolve" : "reopen", threadId, text: by || (this.session?.profile || this.profile()).nick });
   }
 
   /** Shows what a thread points at: selects its layer / opens the page, or opens the code file at the line. */

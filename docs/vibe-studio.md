@@ -282,9 +282,15 @@ Sources: opencode.ai/docs/server, /docs/sdk, /docs/zen, /docs/providers.
   through the same importers as File ▸ Open (images in Pixel, SVG in Vector, PDF and Illustrator in Layout with the
   default import options, PSD, IDML, Sketch, text and code files in Code). Opening asks for approval only in Careful
   mode. Attachments are kept in memory for the session; after a restart attach the file again.
-- **Collaboration**: `get_collab_status`, `read_chat`, `list_comments`, `list_versions`, `get_sharing_status`, `list_shared_documents` (read-only), `resolve_comment`,
-  `save_version`, and, with approval because they reach other people, `post_chat_message`, `add_comment`, `share_document` and
-  `reply_comment` ("summarize the open comments", "reply to Mia's thread"). Never exposes invite codes or keys. See
+- **Comments** (`tools/comments.js`, work without a room, saved in the document): `list_comments` and `get_comment_context` (read-only;
+  every thread comes with the exact target: layer id/name/type/bounds, code file + lines + excerpt, website element + HTML, Office
+  paragraph + quote; the context adds a cropped screenshot or surrounding lines), `add_comment`, `reply_comment`, `resolve_comment`.
+  Replies are signed "Vibe (AI)". Add/reply ask only while the user is in a room; resolve asks in Careful mode like any write.
+  The built-in skill `address-comments` goes through the open comments, makes the precise edit, replies and resolves. In the
+  composer `@comments` adds the open comments as context; the thread popover and the Comments panel have **Resolve with AI**
+  (`vibe/quick-actions.js`, needs AI enabled). The Demo provider replies honestly that it cannot decide the edit.
+- **Collaboration**: `get_collab_status`, `read_chat`, `list_versions`, `get_sharing_status`, `list_shared_documents` (read-only),
+  `save_version`, and, with approval because they reach other people, `post_chat_message` and `share_document`. Never exposes invite codes or keys. See
   [collaboration.md](collaboration.md).
 
 Inside Vibe Studio the assistant does not switch studios behind your back; the Canvas panel shows the document and

@@ -77,6 +77,32 @@ were added to the existing `ANCHOR` (all optional, old clients and files stay va
 Limits: there is no operational transform for anchors, so heavy concurrent editing can move a code or Office comment off
 its text (the quote is kept for display); drag a pin or re-comment to fix it. Pins over the website preview are not drawn.
 
+### Comments without a room (all studios) and for the AI
+
+Comments do not need the collaboration window or a room. The small **comments host**
+(`app/src/ui/collab/comments-host.js`) owns the threads, the inline UI and the pins; it never imports the room runtime
+(`runtime.js`: sessions, transport, crypto, versions). When you later start or join a room, the runtime attaches itself
+as `host.room`: from then on local comment changes are also broadcast and remote ones arrive through
+`host.applyRemote`. Everything else (Vibe tools, the dock panel, the status bar) uses the host only.
+
+* **Comments panel** in the right dock of Vector, Pixel, Layout and Code (command `comments.panel`, Edit menu): list
+  with Open / Resolved / All, a jump to the commented place, resolve/reopen and **Resolve with AI**. Studios without a
+  dock (Office) open the Collaboration window's Comments tab instead.
+* Status bar count, **Comment Mode** (`Shift+C`: `C` alone is the Crop tool; click where the comment belongs, `Esc` or
+  `C` leaves), Edit ▸ Add Comment Here…, and the context menu entry (registered at start-up, loads only the comment UI).
+* **Persistence**: threads are saved in the `.ofini` (`comments`, see [file-format.md](file-format.md)): anchors, replies,
+  resolved state, author nickname and color survive save and reload, and everybody who opens the file sees them. An
+  author the reader does not know is shown by the saved nickname, or as "Unknown author" when the file has none.
+  Covered by `tests/collab/comment-context.test.js` (round trip) and the app-integration tests.
+* **For the AI** (`collab/comment-context.js`, pure): `resolveTarget(anchor, env)` turns an anchor into what it points at
+  now: layer id, name, type and bounds; code file, lines, excerpt (and whether the line moved: the saved quote is searched);
+  website element (element path `sel` + HTML excerpt); Office paragraph with the quoted text. The Vibe tools
+  `list_comments` and `get_comment_context` (with a cropped screenshot for canvas anchors) return it; see
+  [vibe-studio.md](vibe-studio.md).
+* Limits: Office anchors are paragraph offsets (they drift when text before them is edited; the quote is reported as stale);
+  website elements are located by their element path and are lost when the structure changes; pins for website elements are
+  not drawn on the preview (they appear in the panel); table cells are anchored to the table layer and the click point.
+
 ## The Collaboration window
 
 The window decides its layout from **its own width** (container based, not the app window):

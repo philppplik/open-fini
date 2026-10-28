@@ -14,6 +14,8 @@ import { tool, S, requireDoc, nodeInfo } from "./helpers.js";
 import { describeThread, excerptLines } from "../../collab/comment-context.js";
 import { filterThreads } from "../../collab/comments.js";
 
+/** Replies and resolves made by the assistant carry its name so people can tell who wrote what. */
+const AI_AUTHOR = { nick: "Vibe (AI)", color: "#7c6df2" };
 const inRoom = (app) => !!app.collab?.session && app.collab.session.state === "open";
 const host = async (app) => (await import("../../ui/collab/comments-host.js")).getComments(app);
 
@@ -155,7 +157,7 @@ export function commentTools(app) {
       const doc = requireDoc(app);
       const c = await host(app);
       findThread(c, doc, a.thread_id);
-      c.reply(doc, a.thread_id, a.text);
+      c.reply(doc, a.thread_id, a.text, AI_AUTHOR);
       return { replied: a.thread_id, shared: inRoom(app) };
     }, { needsApproval: (a) => (inRoom(app) ? `Reply “${String(a.text).slice(0, 80)}” to the comment thread (it is shared with the room)?` : false) }),
 
@@ -166,7 +168,7 @@ export function commentTools(app) {
       const doc = requireDoc(app);
       const c = await host(app);
       findThread(c, doc, a.thread_id);
-      const changed = c.setResolved(doc, a.thread_id, !a.reopen);
+      const changed = c.setResolved(doc, a.thread_id, !a.reopen, AI_AUTHOR.nick);
       return { thread: a.thread_id, resolved: !a.reopen, changed };
     }),
   ];
