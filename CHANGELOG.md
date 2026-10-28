@@ -6,6 +6,8 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.9.0] — Vibe 2, folders, routing, glass 2
+
 ### Changed
 - Refactoring audit 1 ([docs/refactoring-audit.md](docs/refactoring-audit.md)): bundle, import-graph and dead-export analysis scripts (`scripts/analyze-bundle.mjs`, `scripts/import-report.mjs`, `scripts/find-dead-exports.mjs`) with the measured baseline, a risk-ranked list of candidates and the ideas that were rejected, with reasons.
 - Faster start-up: the export dialog and the Code text-tool transforms (with the HTML entity table) load on first use; start-up JavaScript 373.5 → 357.2 KiB gzip, and the CI budget is lowered from 380 to 365 KiB.

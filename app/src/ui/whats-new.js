@@ -3,6 +3,18 @@
 
 export const WHATS_NEW = [
   {
+    version: "0.9.0",
+    title: "Vibe 2, open folders, fallback models, glass 2",
+    items: [
+      { icon: "stars", title: "Vibe Studio 2", text: "Canvas and Activity on the right, everything else under Settings, Artificial intelligence. Type @ for files and layers, / for skills and ! for tools, and review every AI change as a diff." },
+      { icon: "arrow-repeat", title: "Fallback models", text: "If a model does not answer, Vibe switches to the next one in your fallback chain. OpenCode Zen is available as a provider." },
+      { icon: "folder2-open", title: "Open folders from your file manager", text: "Right-click a folder in Explorer and choose Open with OpenFini (Windows installer option; Linux and macOS via Open With)." },
+      { icon: "droplet", title: "Glass 2", text: "Liquid glass now refracts what is behind it, and Sea glass follows your accent color." },
+      { icon: "rulers", title: "Code studio accuracy", text: "The viewport and the measure tool now agree to the pixel, selecting in the preview highlights the code and the other way round, and Format works for HTML, CSS, JS and JSON." },
+      { icon: "chat-quote", title: "Comment anywhere", text: "Right-click a point and choose Add comment here. The collaboration window now has a side rail and can pop out." },
+    ],
+  },
+  {
     version: "0.8.0",
     title: "Edit together, VS Code extensions, fixes",
     items: [
