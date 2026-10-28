@@ -79,11 +79,6 @@ export function cssColor(color, alpha = 1) {
   return a >= 1 ? `rgb(${c.r},${c.g},${c.b})` : `rgba(${c.r},${c.g},${c.b},${+a.toFixed(4)})`;
 }
 
-export function withAlpha(color, a) {
-  const c = parseColor(color);
-  return rgbToHex(c.r, c.g, c.b, clamp(a, 0, 1));
-}
-
 export function rgbToHsv(r, g, b) {
   r /= 255;
   g /= 255;
@@ -157,35 +152,11 @@ export function hslToRgb(h, s, l) {
   return { r: Math.round((r + m) * 255), g: Math.round((g + m) * 255), b: Math.round((b + m) * 255) };
 }
 
-/** WCAG relative luminance 0..1. */
-export function luminance(color) {
-  const { r, g, b } = parseColor(color);
-  const f = (v) => {
-    v /= 255;
-    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-  };
-  return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
-}
-
 /** Perceptual brightness 0..1 (fast, non-linear). Used for choosing mask paint direction. */
 export function brightness(color) {
   const { r, g, b } = parseColor(color);
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 }
-
-export function mixColors(a, b, t) {
-  const A = parseColor(a);
-  const B = parseColor(b);
-  return rgbToHex(
-    A.r + (B.r - A.r) * t,
-    A.g + (B.g - A.g) * t,
-    A.b + (B.b - A.b) * t,
-    A.a + (B.a - A.a) * t,
-  );
-}
-
-export const WHITE = "#ffffff";
-export const BLACK = "#000000";
 
 /** The default swatch palette shipped with every new document. */
 export const DEFAULT_SWATCHES = [

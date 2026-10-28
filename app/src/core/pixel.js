@@ -182,9 +182,4 @@ export function removeLayerMask(app, node) {
   app.emit("selection");
 }
 
-/** Reads a layer canvas region as ImageData. */
-export function readRect(t, x, y, w, h) {
-  return t.ctx.getImageData(x, y, w, h);
-}
-
 export { Mask };

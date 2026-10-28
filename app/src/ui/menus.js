@@ -260,7 +260,6 @@ export function closeContextMenu(restoreFocus = true) {
   ctxHost._onClose = null;
   if (restoreFocus && back?.isConnected) back.focus?.({ preventScroll: true });
 }
-export const isContextMenuOpen = () => !!ctxHost?.classList.contains("open");
 
 /**
  * Floating context menu at client coordinates. It keeps to the viewport, scrolls when taller than the window,

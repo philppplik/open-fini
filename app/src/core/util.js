@@ -13,12 +13,10 @@ const rand = () => {
 export const uid = (prefix = "n") => `${prefix}_${rand()}${(counter++).toString(36)}`;
 
 export const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
-export const lerp = (a, b, t) => a + (b - a) * t;
 export const round = (v, digits = 0) => {
   const f = 10 ** digits;
   return Math.round(v * f) / f;
 };
-export const approx = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
 export const deg = (rad) => (rad * 180) / Math.PI;
 export const rad = (d) => (d * Math.PI) / 180;
 
