@@ -26,15 +26,14 @@ import { dlState } from "../../engine/dl.js";
 import { platform } from "../../platform/index.js";
 import { CollabSession, normalizeProfile } from "../../collab/session.js";
 import { createTransport } from "../../collab/transport.js";
-import { applyCommentOp, newThread, normalizeThreads } from "../../collab/comments.js";
+import { getComments, colorFor as hostColorFor } from "./comments-host.js";
 import { createVersionStore } from "../../collab/versions.js";
 import { createThrottle, followTarget } from "../../collab/presence.js";
-import { parseMentions, cleanText, COLORS, LIMITS, canDo } from "../../collab/protocol.js";
+import { cleanText, LIMITS, canDo } from "../../collab/protocol.js";
 import { randomB64u } from "../../collab/crypto.js";
 import { confirmDialog, openDialog } from "../dialogs.js";
 
 const AVATAR_KEY = "collab.avatar";
-const AUTHOR_KEY = "openfini.collab.author";
 const CANVAS_STUDIOS = ["vector", "pixel", "layout"];
 
 let controller = null;
@@ -133,11 +132,7 @@ export async function leaveRoom(app) {
 }
 
 /** A stable color for a nickname when the user has not chosen one. */
-export function colorFor(nick) {
-  let x = 0;
-  for (const ch of String(nick || "")) x = (x * 31 + ch.codePointAt(0)) >>> 0;
-  return COLORS[x % COLORS.length];
-}
+export const colorFor = hostColorFor;
 
 class CollabController {
   constructor(app) {
@@ -149,14 +144,15 @@ class CollabController {
     this.transfers = new Map(); // fid → progress for the UI
     this.received = new Map(); // fid → { transfer, bytes } kept until the user opens, saves or dismisses it
     this.versions = createVersionStore({ get: kvGet, set: kvSet, del: kvDelete });
-    this.authorId = localAuthorId();
-    this.events = new EventTarget();
+    this.host = getComments(app); // comments work without this runtime; the host broadcasts through us once we are loaded
+    this.host.room = this;
+    this.authorId = this.host.authorId;
+    this.events = this.host.events;
     app.collab = this;
     this.ready = kvGet(AVATAR_KEY).then((v) => {
       if (typeof v === "string" && v.length <= LIMITS.avatarChars) this.avatar = v;
     });
     this.#installHooks();
-    import("./overlay.js").then((m) => m.installOverlay(app, this)).catch((e) => log.error("collab", "Overlay failed to load", e));
   }
 
   /** Notifies the UI (window, overlay, settings) that something changed. */
@@ -615,89 +611,23 @@ class CollabController {
 
   /** Validated comment threads of a document (normalized once per document). */
   threads(doc) {
-    if (!doc) return [];
-    if (!this.#normalized.has(doc)) {
-      doc.comments = normalizeThreads(doc.comments);
-      this.#normalized.add(doc);
-    }
-    return doc.comments;
+    return this.host.threads(doc);
   }
-  #normalized = new WeakSet();
 
   /** Where a new comment goes: the selected layer, the code line, the office selection, or the page. */
   currentAnchor() {
-    const app = this.app;
-    if (app.studio === "code") {
-      const pr = this.presencePayload();
-      if (pr.caret?.path) return { kind: "line", path: pr.caret.path, line: pr.caret.line, quote: this.#codeLineText(pr.caret.line) };
-    }
-    // Office Suite apps: the mounted instance names its selection (docs/office-suite.md ▸ Comments)
-    if (app.studio === "office" && typeof app.officeUI?.commentAnchor === "function") {
-      const a = app.officeUI.commentAnchor();
-      if (a?.kind) return a;
-    }
-    if (app.studio === "office" && app.officeUI?.editor) {
-      const ed = app.officeUI.editor;
-      const [a, b] = ed.range;
-      const same = JSON.stringify(a.path) === JSON.stringify(b.path);
-      let quote = "";
-      try {
-        quote = String(window.getSelection()?.toString() || "").slice(0, 200);
-      } catch {
-        /* no selection */
-      }
-      return { kind: "text", path: JSON.stringify(a.path).slice(0, 512), from: a.offset, to: same ? b.offset : a.offset, ...(quote ? { quote: cleanText(quote, 200) } : {}) };
-    }
-    const n = app.activeNode?._parent ? app.activeNode : null; // never the page root
-    if (n) return { kind: "node", node: n.id, page: n._page?.id || app.page?.id, quote: cleanText(n.name || n.type, 200) };
-    if (app.page) return { kind: "page", page: app.page.id, quote: cleanText(app.page.name || "", 200) };
-    return { kind: "doc" };
-  }
-
-  #codeLineText(line) {
-    try {
-      return cleanText(this.app.codeUI.editors.view.state.doc.line(line).text.trim(), 200);
-    } catch {
-      return "";
-    }
-  }
-
-  #author() {
-    const p = this.session?.profile || this.profile();
-    return { id: this.myId, nick: p.nick, color: p.color };
-  }
-
-  #mentionsIn(text) {
-    const s = this.session;
-    if (!s) return [];
-    return parseMentions(text, [...s.room.members.values()].filter((m) => m.profile).map((m) => ({ id: m.id, nick: m.profile.nick })));
+    return this.host.currentAnchor();
   }
 
   /** Applies a local comment op, saves it in the document and sends it to the room. */
   commentOp(doc, op) {
-    const threads = this.threads(doc);
-    if (!applyCommentOp(threads, op, { sender: this.myId, isHost: !!this.session?.isHost })) return false;
-    this.#commentsDirty(doc);
-    const s = this.session;
-    if (s?.state === "open" && canDo(s.myRole, "comment")) s.comment(doc.id, op).catch((e) => log.warn("collab", e.message));
-    return true;
-  }
-
-  #commentsDirty(doc) {
-    doc.saved = false;
-    doc.modifiedAt = Date.now();
-    doc.rev++;
-    doc.emit("change", { nodes: new Set(), structure: false, meta: true, label: "Comment" });
-    this.app.emit("docs");
-    this.changed("comments");
-    this.app.requestOverlay();
+    return this.host.commentOp(doc, op);
   }
 
   #remoteComment(docId, op, sender, isHost) {
     const doc = this.app.docs.find((d) => d.id === docId);
     if (!doc) return;
-    if (applyCommentOp(this.threads(doc), op, { sender, isHost })) {
-      this.#commentsDirty(doc);
+    if (this.host.applyRemote(doc, op, sender, isHost)) {
       const mentioned = (op.thread?.messages?.[0]?.mentions || op.msg?.mentions || []).includes(this.session?.id);
       if (mentioned && this.app.prefs.collabNotify) {
         const who = this.session.member(sender)?.profile?.nick || "?";
@@ -707,37 +637,25 @@ class CollabController {
   }
 
   addThread(doc, anchor, text) {
-    const clean = cleanText(text, LIMITS.commentText).trim();
-    if (!clean) throw new Error(t("The comment is empty."));
-    const id = `c${randomB64u(9)}`;
-    const thread = newThread({ id, anchor, author: this.#author(), text: clean, ts: Date.now(), msgId: `${id}-0`, mentions: this.#mentionsIn(clean) });
-    this.commentOp(doc, { op: "add", thread });
-    return thread;
+    return this.host.addThread(doc, anchor, text);
   }
 
   /** Moves a thread's anchor (a dragged pin). Only the thread's author or the host may do this. */
   reanchor(doc, threadId, anchor) {
-    return this.commentOp(doc, { op: "reanchor", threadId, anchor });
+    return this.host.reanchor(doc, threadId, anchor);
   }
 
   /** The inline comment UI (composer, thread popovers, pins, keyboard): loaded on first use, then shared. */
   commentUI() {
-    this.#cui ||= import("./comment-ui.js").then((m) => m.installCommentUI(this.app, this));
-    return this.#cui;
+    return this.host.commentUI();
   }
-  #cui = null;
 
   reply(doc, threadId, text) {
-    const clean = cleanText(text, LIMITS.commentText).trim();
-    if (!clean) throw new Error(t("The reply is empty."));
-    const a = this.#author();
-    const mentions = this.#mentionsIn(clean);
-    const msg = { id: `m${randomB64u(9)}`, author: a.id, nick: a.nick, color: a.color, text: clean, ts: Date.now(), ...(mentions.length ? { mentions } : {}) };
-    return this.commentOp(doc, { op: "reply", threadId, msg });
+    return this.host.reply(doc, threadId, text);
   }
 
   setResolved(doc, threadId, on) {
-    return this.commentOp(doc, { op: on ? "resolve" : "reopen", threadId, text: (this.session?.profile || this.profile()).nick });
+    return this.host.setResolved(doc, threadId, on);
   }
 
   // ------------------------------------------------------------------ versions
@@ -859,19 +777,6 @@ class CollabController {
 // ------------------------------------------------------------------ helpers
 
 const round = (v) => Math.round(v * 10) / 10;
-
-function localAuthorId() {
-  try {
-    let id = localStorage.getItem(AUTHOR_KEY);
-    if (!/^[A-Za-z0-9_-]{22}$/.test(id || "")) {
-      id = randomB64u(16);
-      localStorage.setItem(AUTHOR_KEY, id);
-    }
-    return id;
-  } catch {
-    return randomB64u(16);
-  }
-}
 
 async function thumbOf(bytes) {
   try {

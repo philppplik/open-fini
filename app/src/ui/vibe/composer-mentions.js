@@ -20,6 +20,7 @@ import { layerIcon } from "./layer-icons.js";
 
 const GROUPS = {
   selection: { label: "Selection", icon: "cursor" },
+  comments: { label: "Comments", icon: "chat-quote" },
   layers: { label: "Layers", icon: "layers" },
   files: { label: "Project files", icon: "folder2-open" },
   documents: { label: "Open documents", icon: "files" },
@@ -30,7 +31,7 @@ const GROUPS = {
   recent: { label: "Recent prompts", icon: "clock-history" },
   tools: { label: "Tools", icon: "tools" },
 };
-const ORDER = { "@": ["selection", "layers", "files", "documents", "attachments", "members"], "/": ["commands", "skills", "recent"], "!": ["tools"] };
+const ORDER = { "@": ["selection", "comments", "layers", "files", "documents", "attachments", "members"], "/": ["commands", "skills", "recent"], "!": ["tools"] };
 const RECENT_KEY = "of-vibe-recent-prompts";
 const LAYER_DRAG = "application/x-openfini-layer";
 let uidn = 0;
@@ -115,6 +116,8 @@ export function createMentions({ vs, input, onChange, commands }) {
     const out = [];
     const doc = app.doc;
     if (app.selection?.length) out.push({ g: "selection", label: "selection", sub: t("{n} selected layer(s)", { n: String(app.selection.length) }), icon: "cursor", chip: { kind: "selection" } });
+    const open = doc?.comments ? doc.comments.filter((c) => c && !c.resolved).length : 0;
+    if (open) out.push({ g: "comments", label: "comments", sub: t("{n} open comment(s) of this document", { n: String(open) }), icon: "chat-quote", chip: { kind: "comments", count: open } });
     if (doc?.pages) {
       let n = 0;
       const pages = app.page ? [app.page, ...doc.pages.filter((p) => p !== app.page)] : doc.pages;
@@ -281,7 +284,7 @@ export function createMentions({ vs, input, onChange, commands }) {
     empty(chipsEl);
     chipsEl.classList.toggle("hidden", !chips.length);
     chips.forEach((c, i) => {
-      const icon = c.kind === "tool" ? "wrench" : c.kind === "skill" ? "mortarboard" : c.kind === "file" ? "file-earmark-code" : c.kind === "layer" ? layerIcon(c.type) : c.kind === "selection" ? "cursor" : c.kind === "member" ? "person" : c.kind === "attachment" ? "paperclip" : "files";
+      const icon = c.kind === "tool" ? "wrench" : c.kind === "skill" ? "mortarboard" : c.kind === "file" ? "file-earmark-code" : c.kind === "layer" ? layerIcon(c.type) : c.kind === "selection" ? "cursor" : c.kind === "comments" ? "chat-quote" : c.kind === "member" ? "person" : c.kind === "attachment" ? "paperclip" : "files";
       const title = c.kind === "tool" ? t("Vibe must use the tool {name} for this message", { name: c.name }) : c.kind === "skill" ? t("Vibe follows the skill {name}", { name: c.name }) : t("Sent as a precise target with the message");
       chipsEl.append(h("span.of-mchip", { role: "listitem", class: `of-mchip--${c.kind}`, title }, iconEl(icon), h("span", chipLabel(c)), c.args && Object.keys(c.args).length ? h("small", Object.values(c.args).map(String).join(", ").slice(0, 30)) : null, h("button", { type: "button", "aria-label": t("Remove {name}", { name: chipLabel(c) }), onclick: () => { removeAt(i); input.focus(); } }, "×")));
     });

@@ -545,4 +545,39 @@ Use this when someone asks who made OpenFini, who the developer is, or who is be
 ## Verify
 Read it aloud before sending: every sentence must trace back to a line in this skill, the language must match the user's, and nothing may sound like an unverified claim about a person. If a statement does not trace back, delete it.`;
 
-export const LIBRARY_SKILLS = [DESIGN_SYSTEM, RESPONSIVE_SITE, PHOTO_COMP, ICON_SET, PRESENTATION, BROCHURE, SOCIAL_KIT, MOBILE_UI, DATAVIZ, REFACTOR, SEO, A11Y_FIX, LOCALIZE, BRAND_FROM_LOGO, CSS_ANIM, PROJECT_LEAD, ABOUT_DEVELOPER];
+const ADDRESS_COMMENTS = `---
+name: address-comments
+description: Go through the open comments of the active document, read each one together with its exact place, make the precise edit with the right tools, reply with what changed and resolve it.
+version: 1.0.0
+tags: [comments, review, collaboration]
+allowed-tools: list_comments, get_comment_context, reply_comment, resolve_comment, get_document_info, list_layers, set_style, transform_layers, add_text, add_shape, delete_layers, screenshot, read_file, edit_file, write_file, get_page_outline, set_element_style, insert_element, office_read_document, office_replace_text, office_insert_blocks, office_apply_format, ask_user
+params:
+  - "only: Optional thread id or a keyword to address only some comments (default: all open comments)"
+when-to-use: address comments, work through the comments, resolve feedback, review comments, go through the notes, Kommentare abarbeiten, Feedback umsetzen
+---
+# Address comments
+
+Goal: every open comment of the active document is either implemented and resolved, or answered and left open when it needs a human decision. Comments are saved in the document, so they come from people who reviewed the file, with or without a live room.
+
+## Workflow
+1. Call list_comments (status open). If {{only}} is given, keep only the matching thread id or the threads whose text contains it. Work through them in the order returned (oldest first).
+2. For each thread call get_comment_context with its id. It returns the thread, the resolved target (layer id, name, type and bounds; code file and line range with the code; website element and its HTML; Office paragraph with the quoted text) and, for canvas comments, a cropped screenshot. If the target says exists false or stale true, use the saved quote to find the new place before you edit, or reply that it could not be found.
+3. Decide what the comment asks:
+   - a concrete change (color, wording, size, spacing, bug): make it with the matching tools on exactly the target, nothing else. Layers: set_style, transform_layers, add_text, delete_layers. Code: read_file around the lines, then edit_file. Website elements: set_element_style or edit_file. Office text: office_replace_text with the exact original sentence as find.
+   - a question: answer it with reply_comment and leave it open.
+   - unclear or a taste decision: ask_user once, or reply with a short question and leave it open.
+4. Verify the edit (screenshot for layers, read_file for code) before you claim it.
+5. Call reply_comment with one or two sentences: what you changed and where (layer name, file and line). Then call resolve_comment. Never resolve a comment you did not address.
+6. At the end summarize: how many were resolved, how many were left open and why.
+
+## Rules
+- Touch only what a comment points at; do not redesign. One undoable step per comment is ideal.
+- Keep the language of the comment in your reply (German comment, German reply).
+- Do not delete comments. Do not reopen resolved ones unless the user asks.
+- Replies and resolving are shared with the room when the user is in one: keep them short and factual.
+
+## Verify
+Call list_comments again: the ones you resolved must be gone from the open list, and every remaining open comment must have your reply explaining why.
+`;
+
+export const LIBRARY_SKILLS = [DESIGN_SYSTEM, RESPONSIVE_SITE, PHOTO_COMP, ICON_SET, PRESENTATION, BROCHURE, SOCIAL_KIT, MOBILE_UI, DATAVIZ, REFACTOR, SEO, A11Y_FIX, LOCALIZE, BRAND_FROM_LOGO, CSS_ANIM, PROJECT_LEAD, ABOUT_DEVELOPER, ADDRESS_COMMENTS];

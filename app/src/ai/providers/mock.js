@@ -150,6 +150,18 @@ function planForPromptBase(prompt, ctx) {
       { text: "", calls: [{ name: "describe_page", input: {} }] },
     ];
   }
+  // comments: "address the comments" / "Resolve comment" quick action. The demo reads the first open thread with its
+  // exact place and answers it honestly; it cannot judge what the edit should be, so it does not resolve anything.
+  if (/\bcomments?\b|kommentar/.test(p) && /\b(address|resolve|work through|go through|handle|review)\b|abarbeit|bearbeit|umsetz/.test(p)) {
+    const wanted = /thread (c[\w-]{6,})/.exec(prompt)?.[1];
+    const steps = [{ text: "Reading the open comments.", calls: [{ name: "list_comments", input: {} }] }];
+    const id = wanted || ctx.firstId;
+    if (id) {
+      steps.push({ text: "Reading the first comment with its exact place.", calls: [{ name: "get_comment_context", input: { thread_id: id } }] });
+      steps.push({ text: "Replying.", calls: [{ name: "reply_comment", input: { thread_id: id, text: "Demo mode: I read this comment and the place it points at, but the offline demo cannot decide what to change. Connect a model in Settings and I will make the edit and resolve it." } }] });
+    }
+    return steps;
+  }
   return planForPromptLegacy(prompt, ctx);
 }
 
