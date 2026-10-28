@@ -631,6 +631,11 @@ class CollabController {
       const pr = this.presencePayload();
       if (pr.caret?.path) return { kind: "line", path: pr.caret.path, line: pr.caret.line, quote: this.#codeLineText(pr.caret.line) };
     }
+    // Office Suite apps: the mounted instance names its selection (docs/office-suite.md ▸ Comments)
+    if (app.studio === "office" && typeof app.officeUI?.commentAnchor === "function") {
+      const a = app.officeUI.commentAnchor();
+      if (a?.kind) return a;
+    }
     if (app.studio === "office" && app.officeUI?.editor) {
       const ed = app.officeUI.editor;
       const [a, b] = ed.range;

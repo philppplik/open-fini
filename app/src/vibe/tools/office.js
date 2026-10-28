@@ -50,6 +50,7 @@ export function officeTools(app) {
   const docOf = () => {
     const d = app.doc;
     if (!d?.office) throw new Error("The active document is not an Office document. Call office_new_document, or ask the user to open a Word, ODT or RTF file (File ▸ Open).");
+    if (d.office.kind && d.office.kind !== "document") throw new Error(`The active Office document is a ${d.office.kind}, not a text document: use office_describe and the tools of that app.`);
     if (d.office.model._raw || d.office.model.version !== M.OFFICE_VERSION) d.office.model = M.normalizeDoc(d.office.model);
     return d;
   };
@@ -318,9 +319,15 @@ export function officeTools(app) {
       return { size: page.size, orientation: page.orientation, marginsMm: Object.fromEntries(Object.entries(page.margins).map(([k, v]) => [k, Math.round((v / 72) * 25.4)])) };
     }),
 
-    tool("office_export", "Exports the active Office document as docx, odt, pdf, rtf, html, md or txt: a save dialog opens for the user. The .ofini document itself is saved with File ▸ Save.", {
-      format: S.str("Target format", { enum: ["docx", "odt", "pdf", "rtf", "html", "md", "txt"] }),
+    tool("office_export", "Exports the active Office document (any kind) in a format its app writes: text documents docx, odt, pdf, rtf, html, md or txt; other kinds list theirs in office_describe. A save dialog opens for the user. The .ofini document itself is saved with File ▸ Save.", {
+      format: S.str("Target format id, e.g. docx, pdf, xlsx, csv, pptx"),
     }, ["format"], async ({ format }) => {
+      if (app.doc?.office?.kind && app.doc.office.kind !== "document") {
+        const { exportOfficeDoc } = await import("../../office/services/export.js");
+        const res = await exportOfficeDoc(app, app.doc, String(format));
+        return res ? { exported: res.name } : { exported: null, note: "The user cancelled the save dialog." };
+      }
+      if (!["docx", "odt", "pdf", "rtf", "html", "md", "txt"].includes(format)) throw new Error("Text documents export as docx, odt, pdf, rtf, html, md or txt.");
       const d = docOf();
       const { exportOffice } = await import("../../ui/office/dialogs.js");
       const res = await exportOffice(app, { prj: d.office, doc: d }, format);

@@ -9,6 +9,7 @@
 //   codeAnchor({ path, from, to, quote }) → anchor                    from/to = { line (1-based), col (0-based) }
 //   codeRange(anchor, lineAt) → { from, to } | null                   absolute offsets; lineAt(n) → { from, to } | null
 //   officeAnchor({ path, from, to, quote }) → anchor
+//   officeItemAnchor({ item, quote, label }) → anchor                 Office Suite cells / slide objects / board items
 //   elementAnchor({ elem, box, point, quote, page }) → anchor         website preview (box/point in the same space)
 //   pinNumbers(threads) → Map<threadId, number>                        creation order, 1-based, stable
 //   stepThread(ids, current, dir) → id | null                          "]" / "[" navigation, wraps around
@@ -86,6 +87,18 @@ export function officeAnchor({ path, from, to, quote }) {
   const a = Math.max(0, Math.floor(num(from)));
   const b = Math.max(a, Math.floor(num(to, a)));
   return { kind: "text", path: typeof path === "string" ? path.slice(0, 512) : JSON.stringify(path || []).slice(0, 512), from: a, to: b, ...(quote ? { quote: clip(quote) } : {}) };
+}
+
+/**
+ * Office Suite apps other than the word processor: a comment on a cell, slide object or board item, identified by the
+ * same stable record key the app uses for live editing (collab/office-records.js). `label` is shown when the item is
+ * gone ("B3", "Slide 2 · Title").
+ */
+export function officeItemAnchor({ item, quote, label }) {
+  const key = clip(item, 256);
+  if (!key) return { kind: "doc" };
+  const q = quote || label;
+  return { kind: "item", item: key, ...(q ? { quote: clip(q) } : {}) };
 }
 
 export function elementAnchor({ elem, box = null, point = null, quote, page }) {

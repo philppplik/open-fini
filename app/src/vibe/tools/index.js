@@ -15,6 +15,7 @@ import { importTools } from "./import.js";
 import { layoutDataTools } from "./layout-data.js";
 import { frameworkTools } from "./frameworks.js";
 import { officeTools } from "./office.js";
+import { officeSuiteTools } from "./office-suite.js";
 import { textcodecTools } from "./textcodec.js";
 import { customizationTools } from "./customization.js";
 import { formatTools } from "./formats.js";
@@ -31,7 +32,7 @@ import { routingTools } from "./routing.js";
  * @param {object} ctx session context: { images, knowledge, memory, skills, ask, plan, customTools }
  */
 export function createOpenFiniTools(app, ctx = {}) {
-  return [...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...formatTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...vscodeTools(app, ctx), ...routingTools(app, ctx)];
+  return [...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...officeSuiteTools(app, ctx), ...formatTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...vscodeTools(app, ctx), ...routingTools(app, ctx)];
 }
 
 /** Tools grouped for the UI. */
@@ -44,6 +45,7 @@ export const TOOL_GROUPS = {
   "Git and publishing": ["git_init", "git_status", "git_diff", "git_log", "git_commit", "git_branch", "git_checkout", "git_restore", "git_push", "git_pull", "list_publish_targets", "add_publish_target", "preflight_site", "publish_site"],
   "Tables and charts": ["add_table", "edit_table", "read_table", "list_tables", "import_csv_to_table", "add_chart", "edit_chart", "read_chart"],
   "Office documents": ["office_new_document", "office_read_document", "office_find", "office_insert_blocks", "office_replace_text", "office_set_style", "office_apply_format", "office_insert_table", "office_set_page_setup", "office_export"],
+  "Office suite": ["office_formats", "office_list_documents", "office_describe", "office_new"],
   "Imported documents": ["get_import_report", "list_pdf_pages", "describe_document_pages", "extract_pdf_text"],
   "System and files": ["get_platform_info", "list_recent_files"],
   Extensions: ["list_extensions", "run_extension_command", "install_extension_from_url", "create_extension"],

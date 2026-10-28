@@ -8,7 +8,9 @@
 //                the user's own steps.
 //   TextBinding  Code studio projects and one-file text documents: one RGA (collab/text-crdt.js) per text file, bound
 //                to the project text and to CodeMirror (remote changes are not added to the editor's history).
-//   Office documents are shared as snapshots only (their editor model has no safe op binding yet).
+//   OfficeBinding  Office Suite apps that declare a `collabAdapter` (office/apps.js): their model is flattened into keyed
+//                records and merged with collab/office-records.js (last writer wins per record). Office apps without
+//                an adapter (the word processor today) are shared as snapshots (copies).
 //
 // Wire messages (collab/protocol.js): share {doc, docName, kind, a: start|stop|pause|resume}, live {doc, a: req|have|bye,
 // to}, op {doc, kind, path?, ops[]}, and a file transfer (purpose "live", addressed `to` the requester) carrying the
@@ -33,6 +35,8 @@ import { Doc } from "../../core/doc.js";
 import { TreeCRDT, flattenDoc, diffOps, validateTreeOp } from "../../collab/tree-crdt.js";
 import { applyView } from "../../collab/tree-apply.js";
 import { TextCRDT, textDiff, validateTextOp, TEXT_LIMITS } from "../../collab/text-crdt.js";
+import { RecordsCRDT, validateRecordOp } from "../../collab/office-records.js";
+import { loadedOfficeApp, officeKindOf } from "../../office/apps.js";
 import { canDo, cleanText, LIMITS } from "../../collab/protocol.js";
 import { randomB64u } from "../../collab/crypto.js";
 import { confirmDialog } from "../dialogs.js";
@@ -46,6 +50,8 @@ const SYNC_FILE = "collab-live.json";
 
 /** "tree" | "text" | "office" */
 export const docKind = (doc) => (doc?.web ? "text" : doc?.office ? "office" : "tree");
+/** The collaboration adapter of an Office document's app, when the app is loaded and declares one. */
+const officeAdapter = (doc) => (doc?.office ? loadedOfficeApp(officeKindOf(doc))?.collabAdapter || null : null);
 
 let mgr = null;
 export function getLive(c) {
@@ -87,8 +93,8 @@ class LiveManager {
   async share(doc, mode = "live") {
     const s = this.session;
     if (!s || s.state !== "open") throw new Error(t("Join or create a room first."));
-    if (mode === "copy" || docKind(doc) === "office") {
-      if (mode !== "copy") this.app.toast("Office documents are shared as a copy for now: live editing covers Vector, Pixel structure, Layout and Code.", "primary", 6000);
+    if (mode === "copy" || (docKind(doc) === "office" && !officeAdapter(doc))) {
+      if (mode !== "copy") this.app.toast("This Office document is shared as a copy: its app does not support editing together yet.", "primary", 6000);
       return this.c.shareDoc(doc);
     }
     if (!canDo(s.myRole, "share")) throw new Error(t("Only editors can share a live document. Ask the host for the Editor role, or share a copy."));
@@ -129,7 +135,7 @@ class LiveManager {
   #bind(doc, { owner, fresh = false, state = null }) {
     const s = this.session;
     const kind = docKind(doc);
-    const B = kind === "text" ? TextBinding : TreeBinding;
+    const B = kind === "text" ? TextBinding : kind === "office" ? OfficeBinding : TreeBinding;
     const b = new B(this, doc, { owner, site: s.id, state, fresh });
     this.bindings.set(doc.id, b);
     if (!this.holders.has(doc.id)) this.holders.set(doc.id, new Set());
@@ -233,6 +239,7 @@ class LiveManager {
     this.pending.delete(transfer.doc);
     const { doc, state } = await unpackSnapshot(bytes);
     if (doc.id !== transfer.doc) throw new Error("the snapshot is for another document");
+    if (doc.office && pend.mode !== "copy") await import("../../office/index.js").then((m) => m.loadOfficeApp(officeKindOf(doc))).catch(() => null); // the binding needs the app's adapter
     if (pend.mode === "resync") {
       const b = this.bindings.get(doc.id);
       b?.replaceState(doc, state);
@@ -664,6 +671,83 @@ class TreeBinding extends BaseBinding {
     for (const [id, a] of Object.entries(fresh.assets)) if (a.bytes) this.doc.assets[id] = a;
     this.dropped = 0;
     this.#apply(null, true);
+    this.mgr.changed();
+  }
+}
+
+/** Office Suite apps: keyed records (collab/office-records.js) through the app's collabAdapter. */
+class OfficeBinding extends BaseBinding {
+  constructor(mgr, doc, opts) {
+    super(mgr, doc, opts);
+    this.kind = "office";
+    this.adapter = officeAdapter(doc);
+    if (!this.adapter) throw new Error(t("This Office document cannot be edited together."));
+    const prj = doc.office;
+    this.crdt = opts.state ? RecordsCRDT.fromJSON(opts.state, opts.site) : RecordsCRDT.fromRecords(this.adapter.records(prj.model), opts.site);
+    this.crdt.site = opts.site;
+    if (opts.state) this.#apply(null);
+    this.offs.push(prj.on("change", (info) => !this.applying && info?.origin !== "collab" && this.schedule()));
+  }
+
+  stateJSON() {
+    return this.crdt.toJSON();
+  }
+
+  flush() {
+    clearTimeout(this.timer);
+    this.timer = null;
+    const ops = this.crdt.diff(this.adapter.records(this.doc.office.model));
+    if (!ops.length) return;
+    if (!this.canEdit) {
+      this.denied();
+      this.#apply(null); // roll back to the shared state (no history entry)
+      return;
+    }
+    this.send({ doc: this.doc.id, kind: "office" }, this.crdt.applyLocal(ops));
+  }
+
+  receive(sender, msg) {
+    if (msg.kind !== "office" || this.dropWhilePaused(msg)) return;
+    let ops;
+    try {
+      ops = msg.ops.map(validateRecordOp);
+    } catch (e) {
+      log.warn("collab", `Rejected a live edit: ${e.message}`);
+      return;
+    }
+    this.flush();
+    const changes = {};
+    let lost = 0;
+    for (const op of ops) {
+      const r = this.crdt.apply(op);
+      if (r.changed) changes[op.k] = op.v;
+      if (r.overwrote) lost++;
+    }
+    if (lost) this.app.toast(t("{name} changed something you just edited; their change is shown.", { name: this.mgr.name(sender) }), "warning", 5000);
+    if (Object.keys(changes).length) this.#apply(changes);
+  }
+
+  /** Writes changes (or, with null, everything that differs from the shared view) into the model, outside the history. */
+  #apply(changes) {
+    const prj = this.doc.office;
+    const diff = changes || this.crdt.changesTo(this.adapter.records(prj.model));
+    if (!Object.keys(diff).length) return;
+    this.applying = true;
+    try {
+      prj.set(this.adapter.applyRecords(prj.model, diff), { origin: "collab", label: "Edit together", remote: true });
+    } catch (e) {
+      log.warn("collab", `A live edit could not be applied: ${e.message}`);
+    } finally {
+      this.applying = false;
+    }
+    this.doc.saved = false;
+    this.app.emit("docchange", { remote: true });
+  }
+
+  replaceState(fresh, state) {
+    this.crdt = RecordsCRDT.fromJSON(state, this.site);
+    this.dropped = 0;
+    this.#apply(null);
     this.mgr.changed();
   }
 }
