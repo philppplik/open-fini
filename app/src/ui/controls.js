@@ -2,7 +2,7 @@
 // picker, range, select, switch, dropdown); everything dense or canvas-specific is lightweight DOM.
 import { ta } from "../i18n/dom.js";
 import { t } from "../i18n/index.js";
-import { h, clamp, round, prettyShortcut, equal } from "../core/util.js";
+import { h, clamp, round, prettyShortcut, equal, optVal, optDecode } from "../core/util.js";
 import { cssColor, parseColor, toHex6, DEFAULT_SWATCHES } from "../core/color.js";
 
 // ------------------------------------------------------------------ tooltip (one shared element)
@@ -233,11 +233,11 @@ export function colorField({ value = "#000000", alpha = true, swatches = DEFAULT
 // ------------------------------------------------------------------ select / switch
 
 export function selectField({ label, value, options, onChange, cls = "", size = "small" } = {}) {
-  const sel = h("sl-select", { value, size, hoist: true, "aria-label": t(label) });
-  for (const o of options) sel.append(h("sl-option", { value: o.value }, t(o.label)));
-  sel.addEventListener("sl-change", () => onChange?.(sel.value));
+  const sel = h("sl-select", { value: optVal(value), size, hoist: true, "aria-label": t(label) });
+  for (const o of options) sel.append(h("sl-option", { value: optVal(o.value) }, t(o.label)));
+  sel.addEventListener("sl-change", () => onChange?.(optDecode(sel.value)));
   const el = h("div.of-select", { class: cls }, label ? h("span.of-num__label", t(label)) : null, sel);
-  return { el, set: (v) => (sel.value = v), select: sel };
+  return { el, set: (v) => (sel.value = optVal(v)), select: sel };
 }
 
 export function switchField({ label, value = false, onChange, cls = "" } = {}) {

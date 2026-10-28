@@ -6,12 +6,16 @@ When something does not work, open *Help ▸ Troubleshooting…* (`Ctrl+Shift+F1
 
 | Tab | Contents |
 | --- | --- |
-| Log | Live view of what the app recorded; filter by level and scope, search, pause, clear, copy, save as `.txt` or `.json`; repeated entries merge (`x3`); entries from a previous session that ended in an error are marked |
+| Log | What the app recorded, kept across sessions: a session selector (this session, all stored sessions, or one earlier session with date and entry count), filter by level and scope, search across sessions, pause, copy, save as `.txt` or `.json`, **Export all logs** (redacted) and **Clear logs**; repeated entries merge (`x3`) |
 | Problems | Warnings and errors grouped by message with counts, most serious first; a plain-language hint when the cause is known (storage full, IndexedDB blocked, font load failure, AI key rejected or rate limited, provider unreachable, blocked by offline mode, Content-Security-Policy, out of memory, part of the app failed to load after an update, extension problems). With AI on, *Explain with Vibe* sends only the redacted message, and only when you click it |
 | Environment | Version and build, desktop, installed web app or browser, platform, web view, CPU and memory, low-power mode, storage and quota, service worker state, enabled features and settings without secrets |
 | Actions | Copy the diagnostic report, save the diagnostic bundle, report an issue, restart in safe mode, reset app data, verbose logging |
 
 Error notifications have a **Details** button that opens the dialog.
+
+## How long logs are kept
+
+Logs are stored on this device (secrets, e-mail addresses and your user name in paths are removed first; never documents or keys). They rotate: at most 20,000 entries or 5 MB, and nothing older than **Settings > Security and privacy > Keep logs for N days** (default 14). Set it to 0 to keep the log for the current session only. The diagnostic report names the build and how many earlier sessions are stored.
 
 ## Report a problem
 

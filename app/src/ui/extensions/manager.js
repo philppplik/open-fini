@@ -1,6 +1,6 @@
 // Studio ▸ Extensions…: install from file, folder or URL (with a consent dialog), enable/disable, permissions,
 // settings, logs, and developer mode (Load unpacked, hot reload, new extension).
-import { h, empty } from "../../core/util.js";
+import { h, empty, optVal, optDecode } from "../../core/util.js";
 import { openDialog, confirmDialog, promptDialog } from "../dialogs.js";
 import { button } from "../controls.js";
 import { platform } from "../../platform/index.js";
@@ -120,8 +120,8 @@ function details(app, host, ext) {
         let ctl;
         if (def.type === "boolean") ctl = toggle(!!vals[k], def.title, set);
         else if (def.enum) {
-          ctl = h("sl-select", { size: "small", value: String(vals[k]), hoist: true, "aria-label": def.title }, def.enum.map((o) => h("sl-option", { value: String(o) }, String(o))));
-          ctl.addEventListener("sl-change", () => set(def.type === "number" ? Number(ctl.value) : ctl.value));
+          ctl = h("sl-select", { size: "small", value: optVal(vals[k]), hoist: true, "aria-label": def.title }, def.enum.map((o) => h("sl-option", { value: optVal(o) }, String(o))));
+          ctl.addEventListener("sl-change", () => set(def.type === "number" ? Number(optDecode(ctl.value)) : optDecode(ctl.value)));
         } else {
           ctl = h("sl-input", { size: "small", type: def.type === "number" ? "number" : "text", value: String(vals[k] ?? ""), min: def.min, max: def.max, "aria-label": def.title });
           ctl.addEventListener("sl-change", () => set(def.type === "number" ? Number(ctl.value) : ctl.value));

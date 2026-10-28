@@ -7,7 +7,7 @@
 //   renderVscodeTab(app, container)  draws the tab into `container`; returns { refresh, dispose }
 //   installVsixFile(app, {name, bytes})   install flow for a .vsix handed over by the OS or a drop (consent first)
 //   pickAndInstallVsix(app)          file picker flow
-import { h, empty } from "../../core/util.js";
+import { h, empty, optVal, optDecode } from "../../core/util.js";
 import { t } from "../../i18n/index.js";
 import { button } from "../controls.js";
 import { confirmDialog } from "../dialogs.js";
@@ -79,8 +79,8 @@ function settingControl(def, value, onSet) {
     return s;
   }
   if (def.enum?.length) {
-    const sel = h("sl-select", { size: "small", value: String(value ?? ""), hoist: true, "aria-label": label }, def.enum.map((o) => h("sl-option", { value: String(o) }, String(o))));
-    sel.addEventListener("sl-change", () => onSet(def.enum.find((o) => String(o) === sel.value) ?? sel.value));
+    const sel = h("sl-select", { size: "small", value: optVal(value ?? ""), hoist: true, "aria-label": label }, def.enum.map((o) => h("sl-option", { value: optVal(o) }, String(o))));
+    sel.addEventListener("sl-change", () => onSet(def.enum.find((o) => String(o) === optDecode(sel.value)) ?? optDecode(sel.value)));
     return sel;
   }
   if (def.type === "array" || def.type === "object") {
@@ -254,7 +254,7 @@ export function renderVscodeTab(app, container) {
     e.stopPropagation();
     if (e.key === "Enter") search();
   });
-  const category = h("sl-select", { size: "small", value: "", hoist: true, "aria-label": t("Category"), placeholder: t("Any category") }, h("sl-option", { value: "" }, t("Any category")), ...["Themes", "Snippets", "Programming Languages", "Formatters", "Linters", "Keymaps", "Other"].map((c) => h("sl-option", { value: c }, c)));
+  const category = h("sl-select", { size: "small", value: "", hoist: true, "aria-label": t("Category"), placeholder: t("Any category") }, h("sl-option", { value: "" }, t("Any category")), ...["Themes", "Snippets", "Programming Languages", "Formatters", "Linters", "Keymaps", "Other"].map((c) => h("sl-option", { value: optVal(c) }, c)));
   category.addEventListener("sl-change", () => search());
   const seg = h("div.of-seg", { role: "group" });
   const segBtn = (value, label) => {
@@ -295,7 +295,7 @@ export function renderVscodeTab(app, container) {
     const my = ++token;
     searching = true;
     draw();
-    const res = await guard(app, () => host.openVsx.search({ query: String(query.value || "").trim(), category: category.value, size: 30 }));
+    const res = await guard(app, () => host.openVsx.search({ query: String(query.value || "").trim(), category: optDecode(category.value), size: 30 }));
     if (my !== token) return;
     searching = false;
     results = res?.items || [];

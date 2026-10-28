@@ -1,13 +1,15 @@
 // Help ▸ Troubleshooting…: live log viewer, grouped problems with hints, environment, and the tools to report a bug
 // (copy report, save bundle, issue on GitHub, safe mode, reset). Loaded on demand. Everything shown or exported is redacted.
 import { h, empty, formatBytes, downloadName } from "../core/util.js";
-import { log, formatTime, entriesToText, redact, redactValue, LEVELS } from "../core/log.js";
+import { log, formatTime, formatEntry, entriesToText, redact, redactValue, LEVELS } from "../core/log.js";
 import { groupProblems, buildReport, buildBundleFiles, buildIssueUrl } from "../core/diagnostics.js";
 import { collectEnvironment, collectInventory, securityOverview } from "../core/env.js";
 import { safeModeUrl } from "../core/bootguard.js";
 import { openDialog, confirmDialog } from "./dialogs.js";
 import { platform } from "../platform/index.js";
 import { openLink } from "./links.js";
+import { filterEntries } from "../core/log-store.js";
+import { t } from "../i18n/index.js";
 
 const MAX_ROWS = 500;
 
@@ -29,10 +31,23 @@ async function copyText(app, text, what) {
   }
 }
 
+/** Build label and counts of the persisted logs of EARLIER sessions (for the report header). */
+async function persistedInfo(app) {
+  try {
+    const { getLogStore } = await import("../core/log-capture.js");
+    const store = await getLogStore();
+    const list = store ? (await store.sessions()).filter((x) => x.session !== sessionId(store)) : [];
+    return { sessions: list.length, entries: list.reduce((n, x) => n + x.count, 0), retentionDays: app.prefs.logRetentionDays, build: null };
+  } catch {
+    return { sessions: 0, entries: 0, retentionDays: app.prefs.logRetentionDays, build: null };
+  }
+}
+const sessionId = (store) => store.session;
+
 /** The full redacted report text (environment, problems, security overview, log). */
 export async function reportText(app) {
-  const [env, sec] = await Promise.all([collectEnvironment(app), securityOverview(app).catch(() => null)]);
-  return buildReport({ env, entries: log.entries(), security: sec?.checks });
+  const [env, sec, info] = await Promise.all([collectEnvironment(app), securityOverview(app).catch(() => null), persistedInfo(app)]);
+  return buildReport({ env, entries: log.entries(), security: sec?.checks, logInfo: { ...info, build: `${env.app?.version}${env.app?.commit ? "+" + String(env.app.commit).slice(0, 7) : ""}` } });
 }
 
 export async function copyReport(app) {
@@ -41,8 +56,9 @@ export async function copyReport(app) {
 
 /** Saves a ZIP with report, environment and redacted logs. Never contains documents, keys or file names. */
 export async function saveBundle(app, format = "zip") {
-  const [env, inventory, sec] = await Promise.all([collectEnvironment(app), collectInventory().catch(() => null), securityOverview(app).catch(() => null)]);
-  const files = buildBundleFiles({ env, entries: log.entries(), inventory, security: sec?.checks });
+  const [env, inventory, sec, info] = await Promise.all([collectEnvironment(app), collectInventory().catch(() => null), securityOverview(app).catch(() => null), persistedInfo(app)]);
+  const history = await (await import("../core/log-capture.js")).getLogStore().then((st) => st?.load("all")).catch(() => []);
+  const files = buildBundleFiles({ env, entries: log.entries(), inventory, security: sec?.checks, history, logInfo: { ...info, build: `${env.app?.version}${env.app?.commit ? "+" + String(env.app.commit).slice(0, 7) : ""}` } });
   const stamp = new Date().toISOString().slice(0, 10);
   if (format === "json") return writeFile(app, `openfini-diagnostics-${stamp}.json`, JSON.stringify({ format: "openfini-diagnostic-bundle", files: Object.fromEntries(Object.entries(files).map(([k, v]) => [k, k.endsWith(".json") ? JSON.parse(v) : v])) }, null, 2), "application/json", "JSON", "json");
   const { zipSync, strToU8 } = await import("../../vendor/fflate/fflate.js");
@@ -152,6 +168,9 @@ const fmtVal = (k, v) => {
  */
 export function troubleshootingDialog(app, tab = "log") {
   const filter = { level: "info", scope: "all", search: "" };
+  let source = "current"; // "current" | "all" | a stored session id
+  let stored = []; // entries of the selected stored session(s)
+  let storeRef = null;
   let paused = false;
   let frozen = null; // entries at the moment of pausing
   let current = ["log", "problems", "environment", "actions"].includes(tab) ? tab : "log";
@@ -201,22 +220,39 @@ export function troubleshootingDialog(app, tab = "log") {
   // ---- log tab
   function renderLog() {
     const level = h("select", { "aria-label": "Minimum level" }, [["debug", "All levels"], ["info", "Info and above"], ["warn", "Warnings and errors"], ["error", "Errors only"]].map(([v, t]) => h("option", { value: v, selected: v === filter.level }, t)));
-    const scope = h("select", { "aria-label": "Scope" });
+    const scope = h("select", { "aria-label": t("Scope") });
+    const sessionSel = h("select", { "aria-label": t("Session") }, h("option", { value: "current" }, t("This session")));
+    const fillSessions = async () => {
+      storeRef = await (await import("../core/log-capture.js")).getLogStore();
+      const list = storeRef ? (await storeRef.sessions()).filter((x) => x.session !== storeRef.session) : [];
+      empty(sessionSel);
+      sessionSel.append(h("option", { value: "current" }, t("This session")));
+      if (list.length) sessionSel.append(h("option", { value: "all" }, t("All stored sessions ({n})", { n: list.length + 1 })));
+      for (const x of list) sessionSel.append(h("option", { value: x.session }, `${new Date(x.t0).toLocaleString()} · ${t("{n} entries", { n: x.count })} · ${x.build}`));
+      sessionSel.value = [...sessionSel.options].some((o) => o.value === source) ? source : "current";
+    };
+    const loadSource = async () => {
+      stored = source === "current" || !storeRef ? [] : (await storeRef.flush(), await storeRef.load(source));
+      fillScopes();
+      redraw();
+    };
     const fillScopes = () => {
       const cur = filter.scope;
       empty(scope);
-      scope.append(h("option", { value: "all" }, "All scopes"), ...log.scopes().map((s) => h("option", { value: s, selected: s === cur }, s)));
+      const names = source === "current" ? log.scopes() : [...new Set(stored.map((e) => e.scope))].sort();
+      scope.append(h("option", { value: "all" }, "All scopes"), ...names.map((s) => h("option", { value: s, selected: s === cur }, s)));
     };
     fillScopes();
     const search = h("input", { type: "search", placeholder: "Search the log", "aria-label": "Search the log", value: filter.search, spellcheck: false });
     const pause = h("button.of-btn", { type: "button", "aria-pressed": String(paused) }, paused ? "Resume" : "Pause");
-    const clear = h("button.of-btn", { type: "button" }, "Clear");
+    const clear = h("button.of-btn", { type: "button" }, t("Clear logs"));
+    const exportAll = h("button.of-btn", { type: "button", title: t("Redacted logs of every stored session; never documents or keys") }, t("Export all logs"));
     const copy = h("button.of-btn", { type: "button" }, "Copy");
     const saveTxt = h("button.of-btn", { type: "button" }, "Save .txt");
     const saveJson = h("button.of-btn", { type: "button" }, "Save .json");
     const list = h("div.of-diag__log", { role: "log", "aria-live": "off", tabindex: 0, "aria-label": "Log entries" });
     const count = h("span.of-diag__count", { role: "status" });
-    const visible = () => (paused && frozen ? frozen : log.entries({ level: filter.level, scope: filter.scope, search: filter.search })).filter((e) => !(paused && frozen) || matches(e));
+    const visible = () => source !== "current" ? filterEntries(stored, filter) : (paused && frozen ? frozen : log.entries({ level: filter.level, scope: filter.scope, search: filter.search, previous: false })).filter((e) => !e.prev && (!(paused && frozen) || matches(e)));
     const matches = (e) => {
       const rank = (l) => LEVELS.indexOf(l);
       return rank(e.level) >= rank(filter.level) && (filter.scope === "all" || e.scope === filter.scope) && (!filter.search || `${e.msg} ${e.scope}`.toLowerCase().includes(filter.search.toLowerCase()));
@@ -226,9 +262,9 @@ export function troubleshootingDialog(app, tab = "log") {
       const shown = all.slice(-MAX_ROWS);
       const atEnd = list.scrollTop + list.clientHeight >= list.scrollHeight - 24;
       empty(list);
-      if (!shown.length) list.append(h("p.of-diag__empty", log.buffer.length ? "No entries match the filter." : "Nothing has been logged yet. Warnings and errors will appear here as they happen."));
+      if (!shown.length) list.append(h("p.of-diag__empty", log.buffer.length || source !== "current" ? "No entries match the filter." : "Nothing has been logged yet. Warnings and errors will appear here as they happen."));
       for (const e of shown) {
-        list.append(h(`div.of-diag__row.lv-${e.level}`, h("span.of-diag__t", formatTime(e.t)), h("span.of-diag__lv", e.level), h("span.of-diag__sc", e.scope), h("span.of-diag__msg", e.msg, e.count > 1 ? h("b.of-diag__x", ` ×${e.count}`) : null, e.prev ? h("i.of-diag__prev", " (previous session)") : null, e.stack ? h("pre.of-diag__stack", e.stack) : null)));
+        list.append(h(`div.of-diag__row.lv-${e.level}`, h("span.of-diag__t", source === "current" ? formatTime(e.t) : `${new Date(e.t).toLocaleDateString()} ${formatTime(e.t)}`), h("span.of-diag__lv", e.level), h("span.of-diag__sc", e.scope), h("span.of-diag__msg", e.msg, e.count > 1 ? h("b.of-diag__x", ` ×${e.count}`) : null, e.prev ? h("i.of-diag__prev", " (previous session)") : null, e.stack ? h("pre.of-diag__stack", e.stack) : null)));
       }
       count.textContent = `${shown.length === all.length ? all.length : `${shown.length} of ${all.length}`} entr${all.length === 1 ? "y" : "ies"}${paused ? " · paused" : ""}`;
       if (atEnd) list.scrollTop = list.scrollHeight;
@@ -245,17 +281,30 @@ export function troubleshootingDialog(app, tab = "log") {
       fillScopes();
       redraw();
     });
-    clear.addEventListener("click", () => {
+    clear.addEventListener("click", async () => {
+      if (!(await confirmDialog({ title: t("Clear logs"), message: t("Delete the log of this session and all stored logs of earlier sessions?"), ok: t("Clear logs"), danger: true }))) return;
       log.clear();
+      await (await import("../core/log-capture.js")).clearStoredErrors();
+      source = "current";
+      stored = [];
       frozen = paused ? [] : null;
+      await fillSessions();
       fillScopes();
       redraw();
+    });
+    sessionSel.addEventListener("change", () => ((source = sessionSel.value), loadSource()));
+    exportAll.addEventListener("click", async () => {
+      await storeRef?.flush();
+      const all = storeRef ? await storeRef.load("all") : [];
+      const lines = all.map((e) => `${e.session}  ${e.build}  ${formatEntry(e)}`);
+      await writeFile(app, downloadName("openfini-logs-all", "txt"), redact(lines.join("\n") ||entriesToText(log.entries({ previous: false }))), "text/plain", "Text", "txt");
     });
     copy.addEventListener("click", () => copyText(app, redact(entriesToText(visible())), "Log"));
     saveTxt.addEventListener("click", () => writeFile(app, downloadName("openfini-log", "txt"), redact(entriesToText(visible())), "text/plain", "Text", "txt"));
     saveJson.addEventListener("click", () => writeFile(app, downloadName("openfini-log", "json"), JSON.stringify(redactValue(visible().map((e) => ({ time: new Date(e.t).toISOString(), level: e.level, scope: e.scope, message: e.msg, count: e.count, stack: e.stack }))), null, 2), "application/json", "JSON", "json"));
-    panel.append(h("div.of-diag__bar", level, scope, search, pause, clear, copy, saveTxt, saveJson), list, h("div.of-diag__foot", count, h("span.of-hint", "Secrets, tokens and your user name in paths are removed before anything is recorded.")));
+    panel.append(h("div.of-diag__bar", sessionSel, level, scope, search, pause, clear, copy, saveTxt, saveJson, exportAll), list, h("div.of-diag__foot", count, h("span.of-hint", "Secrets, tokens and your user name in paths are removed before anything is recorded.")));
     redraw();
+    fillSessions().then(() => source !== "current" && loadSource());
   }
 
   // ---- problems tab

@@ -6,6 +6,13 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Logs are now kept across sessions: all info, warning and error entries are stored (redacted before they are written) in rotating segments, limited to 20,000 entries or 5 MB and to **Keep logs for N days** (Settings > Security and privacy, default 14, 0 = this session only). Troubleshooting has a session selector, search across sessions, **Export all logs** and **Clear logs**; the diagnostic report lists the build and the number of stored sessions.
+
+### Fixed
+- Code studio: switching HTML files through the editor tabs (click, Ctrl+Tab, closing a tab, Quick Open, search, outline) or through a link in the preview now also switches the visual preview, the page selector, the explorer highlight and the style panel, exactly like clicking the file in the explorer. CSS and JS tabs keep the last previewed page.
+- The console error "Option values cannot include a space" no longer occurs: select values that come from file names or extension settings are encoded (`optVal`), and a test lints `sl-option` values.
+
 ## [0.9.0] — Vibe 2, folders, routing, glass 2
 
 ### Changed

@@ -110,30 +110,84 @@ export function installLogCapture({ persist = true } = {}) {
   return log;
 }
 
-/** Saves the newest errors after they happen and loads those of the previous session. */
-async function setupPersistence() {
-  let timer = 0;
-  let kv;
+let store = null;
+let storeReady = null;
+const SESSION = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 7);
+
+/** Retention in days from the saved settings (default 14; 0 = this session only). Read directly: the App is not built yet. */
+function savedRetention() {
   try {
-    kv = await import("./storage.js");
-    log.loadPrevious(await kv.kvGet("diag.errors"));
+    const v = JSON.parse(localStorage.getItem("openfini.prefs.v1") || "{}").logRetentionDays;
+    return Number.isFinite(v) ? Math.max(0, Math.min(365, Math.floor(v))) : 14;
   } catch {
-    return;
+    return 14;
   }
+}
+
+/** The durable log store (core/log-store.js), created on first use. Resolves to null when storage is unavailable. */
+export function getLogStore() {
+  storeReady ||= (async () => {
+    try {
+      const [{ createLogStore }, kv, { buildInfo }] = await Promise.all([import("./log-store.js"), import("./storage.js"), import("./env.js")]);
+      let build = "development";
+      try {
+        const info = await buildInfo();
+        if (info?.version) build = `${info.version}${info.commit ? "+" + String(info.commit).slice(0, 7) : ""}`;
+      } catch {
+        /* development build */
+      }
+      store = createLogStore({ storage: { get: kv.kvGetRaw, set: kv.kvSetRaw, delete: kv.kvDelete }, session: SESSION, build, retentionDays: savedRetention() });
+      return store;
+    } catch {
+      return null;
+    }
+  })();
+  return storeReady;
+}
+
+/** Applies Settings ▸ "Keep logs for N days". 0 deletes what is stored and stops persisting. */
+export async function setLogRetention(days) {
+  const s = await getLogStore();
+  if (!s) return;
+  s.setRetentionDays(days);
+  if (!s.retentionDays) await s.clear();
+  else await s.prune();
+}
+
+/** Persists info+ entries in batches (debounced, flushed when the page is hidden) and loads errors of earlier sessions. */
+async function setupPersistence() {
+  const s = await getLogStore();
+  if (!s) return;
+  const kv = await import("./storage.js");
+  try {
+    // errors of earlier sessions show up as "(previous session)" in the problems list and the report
+    const prev = s.retentionDays ? (await s.load("all")).filter((e) => e.session !== SESSION && e.level === "error").slice(-50) : [];
+    log.loadPrevious(prev.length ? prev : s.retentionDays ? await kv.kvGet("diag.errors") : null);
+  } catch {
+    /* no previous sessions */
+  }
+  if (s.retentionDays) kv.kvDelete("diag.errors");
+  let timer = 0;
   const flush = () => {
     clearTimeout(timer);
     timer = 0;
-    const list = log.persistable(50);
-    if (list.length) kv.kvSet("diag.errors", list);
+    s.flush();
   };
   log.subscribe((e) => {
-    if (e && e.level === "error" && !timer) timer = setTimeout(flush, 2000);
+    if (!e) return;
+    s.append(e);
+    if (!timer) timer = setTimeout(flush, e.level === "error" ? 1500 : 5000);
   });
-  addEventListener("pagehide", () => timer && flush());
+  for (const e of log.buffer) if (!e.prev) s.append(e); // entries recorded while the store was loading
+  if (log.buffer.length) timer ||= setTimeout(flush, 5000);
+  addEventListener("pagehide", flush);
+  document.addEventListener("visibilitychange", () => document.visibilityState === "hidden" && flush());
 }
 
-/** Forgets stored errors of earlier sessions (Settings ▸ Security and privacy ▸ Privacy tools). */
+/** Forgets every stored log (Settings ▸ Security and privacy ▸ Privacy tools, Troubleshooting ▸ Clear logs). */
 export async function clearStoredErrors() {
   const { kvDelete } = await import("./storage.js");
   await kvDelete("diag.errors");
+  const s = await getLogStore();
+  await s?.clear();
 }

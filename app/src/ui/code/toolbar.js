@@ -1,5 +1,5 @@
 // Toolbar of the Code studio (shown in the context bar): view switch, page, breakpoints, zoom, preview mode.
-import { h, empty } from "../../core/util.js";
+import { h, empty, optVal, optDecode } from "../../core/util.js";
 import { BREAKPOINTS, sanitizeFileName } from "../../engine/web/index.js";
 import { iconButton, segmented, button } from "../controls.js";
 import { promptDialog } from "../dialogs.js";
@@ -23,7 +23,7 @@ export function createToolbar(ws) {
     (v) => ws.setView(v),
   );
 
-  const pageSel = h("sl-select", { size: "small", hoist: true, class: "of-codebar__page", "aria-label": "Page shown in the preview", value: ws.page || "" });
+  const pageSel = h("sl-select", { size: "small", hoist: true, class: "of-codebar__page", "aria-label": "Page shown in the preview", value: optVal(ws.page || "") });
   const addPage = iconButton({ icon: "file-earmark-plus", label: "New page…", onClick: async () => {
     const name = await promptDialog({ title: "New page", label: "File name", value: "about.html", ok: "Create" });
     if (!name) return;
@@ -92,16 +92,16 @@ export function createToolbar(ws) {
   function renderPages() {
     const pages = web.pages();
     empty(pageSel);
-    for (const p of pages) pageSel.append(h("sl-option", { value: p }, p));
+    for (const p of pages) pageSel.append(h("sl-option", { value: optVal(p) }, p));
     customElements.whenDefined("sl-select").then(() => {
-      pageSel.value = ws.page && pages.includes(ws.page) ? ws.page : pages[0] || "";
+      pageSel.value = optVal(ws.page && pages.includes(ws.page) ? ws.page : pages[0] || "");
     });
   }
-  pageSel.addEventListener("sl-change", () => pageSel.value && pageSel.value !== ws.page && ws.showPage(pageSel.value));
+  pageSel.addEventListener("sl-change", () => pageSel.value && optDecode(pageSel.value) !== ws.page && ws.showPage(optDecode(pageSel.value)));
   renderPages();
   web.on("tree", renderPages);
-  ws.on("page", () => (pageSel.value = ws.page));
-  ws.preview.on("page", () => (pageSel.value = ws.page));
+  ws.on("page", () => (pageSel.value = optVal(ws.page)));
+  ws.preview.on("page", () => (pageSel.value = optVal(ws.page)));
 
   const sync = () => {
     const bp = ws.preview.bp;
