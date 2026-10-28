@@ -9,13 +9,15 @@ The Pixel studio is for photo editing and painting: layers and masks, selections
 | Marquee (rectangular, elliptical) | `M` | `Shift`, `Alt` and `Shift+Alt` add to, subtract from or intersect the selection |
 | Lasso (freehand, polygonal) | `L` | Polygonal: click points, click the first point or press `Enter` to close, `Backspace` removes a point |
 | Magic wand, Color range | `W` | Tolerance, contiguous, sample the layer or all layers; Color range adds softness, sample size and invert |
-| Crop | `C` | Ratios; optionally delete cropped pixels |
+| Crop | `C` | Eight handles; ratios (free, original, 1:1, 4:3, 3:2, 16:9, 5:4, custom); `X` swaps portrait and landscape; drag outside the box, use the angle field or the *Straighten* level line to straighten; `O` cycles guides (thirds, grid, golden ratio, diagonals, triangle); flip; fill for empty corners; optionally delete cropped pixels; `Enter` applies |
+| Perspective crop | `C` (flyout) | Drag four corners onto a tilted rectangle and press `Enter` to straighten it |
+| Magic eraser | `E` (flyout) | Click to erase similar colors |
 | Brush, Pencil | `B` | `[` and `]` change the size; pressure sensitive; on a mask light colors reveal and dark colors hide |
 | Eraser | `E` | |
 | Clone, Heal, Spot heal, Red eye | `S`, `J`, `R` | `Alt`-click sets the source for clone and heal |
 | Smudge, Blur, Sharpen | `O` | |
 | Dodge, Burn, Sponge | `D` | Range: shadows, midtones, highlights |
-| Fill, Gradient | `F`, `G` | Respect the active selection |
+| Fill, Gradient | `F`, `G` | Respect the active selection; gradients: linear, radial, angular, reflected, diamond |
 | Liquify | `Q` | Push, twirl, pinch, bloat, reconstruct; `Enter` applies |
 | Color picker | `I` | Click = foreground, `Alt`-click = background |
 
@@ -56,7 +58,7 @@ Adjustments and filters are computed in JavaScript on the viewport pixels, at ha
 
 ## Limits
 
-8-bit sRGB only: no CMYK, ICC profiles, 16-bit editing, HDR or RAW decoding. No smart selection, patch tool, perspective or warp transforms, channels, brush dynamics or batch processing. Layers above roughly 50 megapixels depend on the web view's canvas memory. See [[Roadmap and Known Limits]].
+8-bit sRGB only: no CMYK, ICC profiles, 16-bit editing, HDR or RAW decoding. No smart selection, patch tool, content-aware fill, free-form warp transforms, channels, brush dynamics or batch processing. Layers above roughly 50 megapixels depend on the web view's canvas memory. See [[Roadmap and Known Limits]].
 
 ## Vibe
 

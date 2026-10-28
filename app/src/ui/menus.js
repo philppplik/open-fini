@@ -52,7 +52,7 @@ export const MENUS = [
   {
     label: "Document",
     studios: DESIGN,
-    items: ["doc.resize", "doc.canvasSize", "doc.cropToContent", "-", "doc.addPage", "doc.deletePage", "doc.addMaster", "-", "doc.flipH", "doc.flipV", "doc.rotate90"],
+    items: ["doc.crop", "doc.cropToSelection", "doc.cropToContent", "doc.trimTransparent", "doc.trimColor", "doc.revealAll", "-", "doc.resize", "doc.canvasSize", "-", "doc.addPage", "doc.deletePage", "doc.addMaster", "-", "doc.flipH", "doc.flipV", "doc.rotate90", "doc.rotate90ccw", "doc.rotate180", "doc.rotateArbitrary"],
   },
   {
     label: "View",

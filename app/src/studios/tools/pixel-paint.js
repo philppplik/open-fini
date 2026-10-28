@@ -7,6 +7,8 @@ import { floodFill, Mask } from "../../engine/pixel/index.js";
 import { brightness, cssColor } from "../../core/color.js";
 import { createCanvas, ctx2d } from "../../core/doc.js";
 import { sliderField, switchField, selectField } from "../../ui/controls.js";
+import { N_ } from "../../i18n/index.js";
+import { fillGradient } from "../../engine/pixel/gradient.js";
 
 /** Shared brush controls (bound to app.brush) shown in the context bar of every brush-like tool. */
 export function brushBar(app, { opacity = true, flow = true, hardness = true } = {}) {
@@ -228,7 +230,7 @@ export function pixelFill(app, e, opts) {
 // ------------------------------------------------------------------ gradient (pixel mode)
 
 export const PIXEL_GRADIENT_OPTIONS = [
-  { key: "type", label: "Type", type: "select", default: "linear", options: [{ value: "linear", label: "Linear" }, { value: "radial", label: "Radial" }, { value: "conic", label: "Angular" }] },
+  { key: "type", label: "Type", type: "select", default: "linear", options: [{ value: "linear", label: "Linear" }, { value: "radial", label: "Radial" }, { value: "conic", label: N_("Angular") }, { value: "reflected", label: N_("Reflected") }, { value: "diamond", label: N_("Diamond") }] },
   { key: "colors", label: "Colors", type: "select", default: "fg-bg", options: [{ value: "fg-bg", label: "Foreground → Background" }, { value: "fg-transparent", label: "Foreground → Transparent" }, { value: "bg-fg", label: "Background → Foreground" }] },
 ];
 
@@ -274,13 +276,17 @@ export class PixelGradientDrag {
     const tmp = createCanvas(W, H);
     const tctx = tmp.getContext("2d");
     let g;
-    if (this.opts.type === "radial") g = tctx.createRadialGradient(x0, y0, 0, x0, y0, Math.hypot(x1 - x0, y1 - y0));
+    const custom = this.opts.type === "reflected" || this.opts.type === "diamond";
+    if (custom) tctx.putImageData(new ImageData(fillGradient(W, H, this.opts.type, [x0, y0], [x1, y1], c0, c1), W, H), 0, 0);
+    else if (this.opts.type === "radial") g = tctx.createRadialGradient(x0, y0, 0, x0, y0, Math.hypot(x1 - x0, y1 - y0));
     else if (this.opts.type === "conic") g = tctx.createConicGradient(Math.atan2(y1 - y0, x1 - x0), x0, y0);
     else g = tctx.createLinearGradient(x0, y0, x1, y1);
-    g.addColorStop(0, cssColor(c0));
-    g.addColorStop(1, c1.length === 9 ? `rgba(${parseInt(c1.slice(1, 3), 16)},${parseInt(c1.slice(3, 5), 16)},${parseInt(c1.slice(5, 7), 16)},0)` : cssColor(c1));
-    tctx.fillStyle = g;
-    tctx.fillRect(0, 0, W, H);
+    if (!custom) {
+      g.addColorStop(0, cssColor(c0));
+      g.addColorStop(1, c1.length === 9 ? `rgba(${parseInt(c1.slice(1, 3), 16)},${parseInt(c1.slice(3, 5), 16)},${parseInt(c1.slice(5, 7), 16)},0)` : cssColor(c1));
+      tctx.fillStyle = g;
+      tctx.fillRect(0, 0, W, H);
+    }
     const sel = layerSpaceMask(app, t);
     if (sel) {
       tctx.globalCompositeOperation = "destination-in";
