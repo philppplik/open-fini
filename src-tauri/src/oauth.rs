@@ -84,11 +84,19 @@ fn handle(stream: &mut TcpStream, path: &str, expected_state: &str, port: u16) -
     let request = String::from_utf8_lossy(&buf[..n]).into_owned();
     match parse_callback(&request, path, expected_state, port) {
         Some(query) => {
-            respond(stream, "200 OK", "Signed in. You can close this tab and return to OpenFini.");
+            respond(
+                stream,
+                "200 OK",
+                "Signed in. You can close this tab and return to OpenFini.",
+            );
             Some(query)
         }
         None => {
-            respond(stream, "400 Bad Request", "This is not the expected sign-in callback.");
+            respond(
+                stream,
+                "400 Bad Request",
+                "This is not the expected sign-in callback.",
+            );
             None
         }
     }
@@ -114,9 +122,10 @@ fn parse_callback(request: &str, path: &str, expected_state: &str, port: u16) ->
     if !host_ok {
         return None;
     }
-    let state_ok = query
-        .split('&')
-        .any(|kv| kv.split_once('=').is_some_and(|(k, v)| k == "state" && v == expected_state));
+    let state_ok = query.split('&').any(|kv| {
+        kv.split_once('=')
+            .is_some_and(|(k, v)| k == "state" && v == expected_state)
+    });
     state_ok.then(|| query.to_string())
 }
 
