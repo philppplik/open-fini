@@ -256,7 +256,11 @@ requests in the stream go to `onMessage` and are otherwise ignored), `listTools(
 `listPrompts()` (cursor pagination), `callTool(name, args, {signal, timeoutMs})`, `readResource(uri)`,
 `getPrompt(name, args)`, `request(method, params)`, `close()` (HTTP DELETE, never throws). An expired session (404)
 is re-initialized once. JSON-RPC errors and HTTP failures throw `McpError {code, data, status}`; timeouts use code
-`'timeout'`. Authentication is a bearer header you pass in `headers`; there is no OAuth flow.
+`'timeout'`. Authentication is a bearer header you pass in `headers`, or an `auth` object (`McpAuthSession` from `ai/mcp-oauth.js`: `getAccessToken()`, `onUnauthorized()`) that adds the bearer token per request and retries once after a 401 plus a refresh. A 401 error carries the `WWW-Authenticate` challenge in `McpError.wwwAuthenticate`.
+
+### OAuth for MCP servers and the OpenAI account
+
+Pure modules, `fetch` injected: `oauth-core.js` (form posts, `parseWwwAuthenticate`, `decodeJwt`, `tokensFromResponse`, `needsRefresh`, `OAuthError`), `mcp-oauth.js` (`discoverMcpAuth` RFC 9728/8414/OIDC, `registerClient` RFC 7591, `buildAuthUrl`, `exchangeCode`, `refreshTokens`, `revokeTokens`, `McpAuthSession`/`OAuthSession` with a single-flight refresh 60 s before expiry), `openai-account.js` and `providers/openai-responses.js` (provider kind `openai-responses`: Responses API with `store:false`, `stream:true`, `getToken({force})`). Redirects, the Rust loopback listener and storage are in `app/src/vibe/account-auth.js`. Details, sources and limits: [openai-account-auth.md](openai-account-auth.md).
 
 `await mcpToolsToAgentTools(client, {prefix, serverName, usedNames?, tools?})` returns `ToolDef[]` named
 `${prefix}__${tool}` (sanitized to `[a-zA-Z0-9_-]{1,64}`, collision-safe), description prefixed with `[serverName]`,

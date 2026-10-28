@@ -150,7 +150,8 @@ URL:
 | Preset | Notes |
 | --- | --- |
 | OpenRouter | One key, hundreds of models. *Sign in with OpenRouter* (web build) creates a key through OAuth with PKCE. |
-| OpenAI | API key. Image generation and editing via the Images API. |
+| OpenAI | API key (key page link, *Save and test*, optional `OpenAI-Organization` / `OpenAI-Project` headers in *Extra headers*). Image generation and editing via the Images API. |
+| OpenAI account (ChatGPT plan, desktop) | *Sign in with OpenAI*: uses your ChatGPT plan instead of an API key through OpenAI's documented preview for open-source apps. Desktop app only; Responses API without images or embeddings. See [openai-account-auth.md](openai-account-auth.md). |
 | Anthropic (Claude) | API key; native Messages API with tool use and extended thinking. |
 | DeepSeek, xAI (Grok), Mistral, Groq, Together AI, Google Gemini (OpenAI-compatible endpoint) | API key, OpenAI-compatible. |
 | Ollama, LM Studio (local) | No key; runs on your machine. The server must allow the app's origin (for Ollama: `OLLAMA_ORIGINS`). |
@@ -162,8 +163,7 @@ Keys are stored **on this device only** and are sent only to the base URL you en
 passphrase (*Models ▸ Key protection*): they are then encrypted with AES-GCM (key derived with PBKDF2, 250 000
 iterations) and must be unlocked once per session.
 
-**Honest limits.** OpenFini cannot log in with a ChatGPT or Claude.ai *subscription*: those products do not offer a
-login for third-party apps, only API keys (billed separately). Tool calling and image input depend on the model; the
+**Honest limits.** OpenFini can use a ChatGPT plan only through OpenAI's documented "plan usage" preview (desktop app, see the OpenAI account row above); it never reuses the Codex CLI's credentials or ChatGPT's private endpoints. Claude.ai offers no login for third-party apps, only API keys (billed separately). Tool calling and image input depend on the model; the
 model list shows what each model reports. Real providers could not be exercised in CI without keys: the engine is
 tested against recorded protocol fixtures and fake servers.
 
@@ -340,7 +340,9 @@ indexed automatically. The assistant searches with `search_knowledge`; you can t
 ## MCP servers and your own tools
 
 - **MCP**: add the URL of an MCP server that speaks *Streamable HTTP* (*Tools ▸ MCP servers*). Its tools appear with an
-  `mcp_` prefix and always ask first in Balanced mode. Only bearer-token headers are supported for authentication.
+  `mcp_` prefix and always ask first in Balanced mode. Authentication: a bearer token you paste, or **Sign in** (OAuth per the MCP
+  authorization spec: discovery, dynamic registration, PKCE, automatic refresh; desktop uses a one-shot loopback callback, the web
+  build a redirect back to the app). **Sign out** revokes and removes the stored tokens. Servers that do not advertise PKCE S256 are refused.
 - **stdio servers** (most community servers) are programs, not URLs. Use the bundled gateway to expose one on
   `127.0.0.1`:
 
