@@ -19,9 +19,11 @@ const posix = (p) => p.split(sep).join("/");
 
 /**
  * Removes comments with a small scanner that skips over string, template and regular expression literals (so
- * "assets/*.svg" or "https://..." in a string never starts a comment). Literals are kept: import specifiers are strings.
+ * "assets/*.svg" or "https://..." in a string never starts a comment). Literals are kept (import specifiers are
+ * strings) unless `literals: false`, which blanks string, template and regex literals to `""`, "``" and `/re/` so only
+ * code is left (for scans such as "no `document.` in engine code"; `${...}` expressions inside templates are dropped).
  */
-export function stripComments(src) {
+export function stripComments(src, { literals = true } = {}) {
   let out = "";
   let i = 0;
   const n = src.length;
@@ -29,7 +31,7 @@ export function stripComments(src) {
     const start = i++;
     while (i < n && src[i] !== q && !(q !== "`" && src[i] === "\n")) i += src[i] === "\\" ? 2 : 1;
     i++;
-    out += src.slice(start, i);
+    out += literals ? src.slice(start, i) : q + q;
   };
   while (i < n) {
     const c = src[i];
@@ -54,7 +56,7 @@ export function stripComments(src) {
         i++;
       }
       i++;
-      out += src.slice(start, i);
+      out += literals ? src.slice(start, i) : "/re/";
     } else {
       out += c;
       i++;

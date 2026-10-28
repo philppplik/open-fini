@@ -384,16 +384,21 @@ test('fuzz: truncation and random byte flips never hang or throw non-Error', () 
   const zl = { top: 0, left: 0, bottom: 2, right: 3, name: 'z', chans: [0, 1, 2].map((id) => ({ id, data: enc.zipPred([1, 2, 3, 4, 5, 6], 3, 2, 8) })) };
   const hand = buildPsd({ width: 4, height: 4, layers: [child, zl], composite: [0, 0, ...fill(48, 5)] });
   const psb = buildPsd({ psb: true, width: 2, height: 2, layers: [{ top: 0, left: 0, bottom: 2, right: 2, name: 'p', chans: solidChans(2, 2, [1, 2, 3], 255, 'rle', true) }] });
-  const t0 = Date.now();
+  // A hang guard, not a benchmark: the run takes about 2 s locally, but a 4 s limit flaked on busy CI runners
+  // (4.8 s on macOS), so the limit is generous. One input alone can legitimately take over a second.
+  const t0 = performance.now();
   let calls = 0;
+  let slowest = 0;
   const run = (bytes) => {
     calls++;
+    const t = performance.now();
     try {
       const d = readPsd(bytes, { maxPixels: 1e6 });
       assert.ok(Array.isArray(d.layers));
     } catch (e) {
       assert.ok(e instanceof Error, 'must throw Error instances only: ' + e);
     }
+    slowest = Math.max(slowest, performance.now() - t);
   };
   for (const src of [generated, hand, psb]) {
     const step = Math.max(1, Math.floor(src.length / 150));
@@ -406,5 +411,5 @@ test('fuzz: truncation and random byte flips never hang or throw non-Error', () 
     }
   }
   assert.ok(calls > 800);
-  assert.ok(Date.now() - t0 < 4000, 'fuzz must stay fast');
+  assert.ok(performance.now() - t0 < 15000, `fuzz must not hang (slowest input ${slowest.toFixed(0)} ms)`);
 });

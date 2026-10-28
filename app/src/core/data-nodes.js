@@ -1,7 +1,7 @@
 // Table and chart nodes: creation and undoable edits shared by the UI (panel, tools, dialogs) and the Vibe tools.
 // All model logic lives in the pure modules under engine/layout/ (table-model.js, chart-data.js).
 import { clone } from "./util.js";
-import { createNode, walk } from "./nodes.js";
+import { createNode } from "./nodes.js";
 import { translate } from "./math.js";
 import { addNodes } from "./ops.js";
 import { createTable, normalizeMerges } from "../engine/layout/table-model.js";
@@ -120,24 +120,5 @@ export function setChartMatrix(chart, matrix, o = {}) {
   return chart;
 }
 
-/**
- * After cloning nodes (duplicate / paste), charts that were linked to a table that is part of the same copy are
- * re-linked to the table's clone. `originals` and `clones` are parallel arrays of top-level nodes.
- */
-export function remapLinks(originals, clones) {
-  const map = new Map();
-  originals.forEach((o, i) => {
-    const pairs = [];
-    const a = [];
-    const b = [];
-    walk(o, (n) => a.push(n));
-    walk(clones[i], (n) => b.push(n));
-    for (let k = 0; k < Math.min(a.length, b.length); k++) pairs.push([a[k], b[k]]);
-    for (const [x, y] of pairs) map.set(x.id, y.id);
-  });
-  for (const c of clones) {
-    walk(c, (n) => {
-      if (n.type === "chart" && n.chart?.source && map.has(n.chart.source.tableId)) n.chart.source.tableId = map.get(n.chart.source.tableId);
-    });
-  }
-}
+// remapLinks moved to nodes.js (ops.js needs it; importing it from here made a cycle); re-exported for callers.
+export { remapLinks } from "./nodes.js";

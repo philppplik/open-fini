@@ -144,11 +144,21 @@ characterization tests or browser checks first.
 | 11 | Split `core/app.js`, `ui/shell.js`, `commands/file.js` | none measurable | medium | M | partial | Rejected: < 500 lines each, no clear seam that removes code |
 | 12 | Replace `console.*` with `core/log.js` everywhere | consistency | low | M | — | Later: most calls are in places without the logger |
 | 13 | Lazy `fflate` | −11.8 KiB | high | — | — | Rejected: needed to restore documents at start |
+| 14 | PSD fuzz test with a 4 s wall-clock limit (flaked at 4.8 s on a macOS runner) | CI stability | low | S | itself | **Done**: kept as a hang guard with a 15 s limit and the slowest input in the message |
 
 ### Results
 
-Filled in as the PRs land (numbers from `check-size.mjs`, KiB gzip).
+Numbers from `check-size.mjs`, KiB gzip; PR rows are changes, each measured against the `main` it was based on.
 
 | PR | Change | Start-up | Shell JS | Total |
 | --- | --- | ---: | ---: | ---: |
 | baseline | `main` @ `39405b0` | 373.5 | 1271.5 | 2154.0 |
+| #42 | Export dialog on demand | −9.7 | 0 | 0 |
+| #44 | Text-tool catalog split from the transforms | −7.1 | +0.7 | +0.8 |
+| #45 | Toolbox editor listener leak | 0 | 0 | 0 |
+| #47 | Dead functions and Vibe UI v1 CSS (CSS 73.2 → 72.9) | 0 | −0.2 | −0.4 |
+| guardrails | Architecture tests, `remapLinks` moved (cycle removed), start-up budget 380 → 365 | 0 | 0 | 0 |
+| final | `main` after all of the above, including other teams' merges (collaboration UX) | **357.2** | 1290.6 | 2175.6 |
+
+Start-up JavaScript went down by 16.3 KiB (−4.4 %). Shell JS and total grew in the same period because of features
+merged in parallel (their budgets were raised by those PRs); the audit itself changed them by less than 1 KiB.
