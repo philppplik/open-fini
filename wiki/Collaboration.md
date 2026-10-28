@@ -47,7 +47,11 @@ Offline mode blocks every relay except one on this computer. WebRTC peer-to-peer
 
 ## Vibe
 
-Read-only: `get_collab_status`, `read_chat`, `list_comments`, `list_versions`. With approval: `post_chat_message`, `add_comment`, `reply_comment`, `resolve_comment`, `save_version`. Invite codes and keys are never exposed to the assistant.
+Read-only: `get_collab_status`, `read_chat`, `list_comments`, `get_comment_context`, `list_versions`. Comments work without a room and are saved in the file: the assistant reads each comment with its exact place (layer, code lines, element, text), edits, replies and resolves (skill `address-comments`, `@comments` in the composer, **Resolve with AI** in a comment). Adding or replying asks only while you are in a room. Also: `post_chat_message`, `save_version`.
+
+### Comments in every studio
+
+Comments need no room: the **Comments** panel in the right dock (Vector, Pixel, Layout, Code), Edit ▸ Add Comment Here, `Shift+C` (comment mode) and the context menu work everywhere and the comments travel inside the `.ofini` file. Invite codes and keys are never exposed to the assistant.
 
 ## See also
 

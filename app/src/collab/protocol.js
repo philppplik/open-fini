@@ -164,7 +164,8 @@ export const ANCHOR = V.obj(
     rect: RECT, // page coordinates (region), or a hint position for node/page
     pin: V.obj({ x: V.num(-1e7, 1e7), y: V.num(-1e7, 1e7) }, ["x", "y"]), // clicked point in page coordinates (fallback when the layer is gone)
     off: V.obj({ x: V.num(-1000, 1000), y: V.num(-1000, 1000) }, ["x", "y"]), // the point relative to the layer / element box (0..1 = inside)
-    elem: V.str(256), // website element id (Code studio preview) the comment is attached to
+    elem: V.str(256), // website element id (Code studio preview) the comment is attached to (transient parser id)
+    sel: V.str(256), // website element locator: element-sibling indexes from the root, "0/1/3" (see engine/web/html.js elementAtPath)
     path: V.str(512), // file path (Code studio) or paragraph path as JSON (Office studio)
     line: V.int(1, 10_000_000), // first line (Code studio)
     endLine: V.int(1, 10_000_000),

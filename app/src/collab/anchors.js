@@ -101,8 +101,10 @@ export function officeItemAnchor({ item, quote, label }) {
   return { kind: "item", item: key, ...(q ? { quote: clip(q) } : {}) };
 }
 
-export function elementAnchor({ elem, box = null, point = null, quote, page }) {
+export function elementAnchor({ elem, sel, path, box = null, point = null, quote, page }) {
   const out = { kind: "element", elem: clip(elem, 256) };
+  if (sel) out.sel = clip(sel, 256); // "0/1/3": element-sibling indexes, resolved with engine/web/html.js elementAtPath
+  if (path) out.path = clip(path, 512); // the HTML file
   if (page) out.page = page;
   if (box && point) out.off = { x: frac(point.x, box.x, box.w), y: frac(point.y, box.y, box.h) };
   if (quote) out.quote = clip(quote);

@@ -1,6 +1,6 @@
-// Collaboration tools for the Vibe assistant: comments, versions, room status and chat (docs/collaboration.md).
-// Reads are `readOnly`; anything that is sent to other people (chat messages, comments and replies while in a room)
-// asks the user first. The collaboration runtime loads lazily on the first call.
+// Collaboration tools for the Vibe assistant: versions, room status, chat and shared documents (docs/collaboration.md).
+// Comment tools live in comments.js (they work without a room). Reads are `readOnly`; anything that is sent to other
+// people (chat messages, sharing) asks the user first. The collaboration runtime loads lazily on the first call.
 import { tool, S, requireDoc } from "./helpers.js";
 
 const rt = async (app) => {
@@ -11,83 +11,8 @@ const rt = async (app) => {
 };
 const inRoom = (app) => !!app.collab?.session && app.collab.session.state === "open";
 
-function threadInfo(doc, th) {
-  return {
-    id: th.id,
-    anchor: th.anchor,
-    layer: th.anchor.kind === "node" ? doc.find(th.anchor.node)?.name || null : undefined,
-    author: th.nick,
-    resolved: !!th.resolved,
-    ...(th.resolved ? { resolvedBy: th.resolvedBy } : {}),
-    messages: th.messages.filter((m) => !m.deleted).map((m) => ({ id: m.id, author: m.nick, text: m.text, at: new Date(m.ts).toISOString() })),
-  };
-}
-
 export function collabTools(app) {
   return [
-    tool("list_comments", "Lists the comment threads of the active document (Google-Docs-style comments on layers, pages, text and code lines) with their replies. Use it to summarize open comments or find a thread to reply to.", {
-      status: S.str("Which threads", { enum: ["open", "resolved", "all"] }),
-    }, [], async (a) => {
-      const doc = requireDoc(app);
-      const c = await rt(app);
-      const { filterThreads } = await import("../../collab/comments.js");
-      const threads = filterThreads(c.threads(doc), { status: a.status || "open" });
-      return { document: doc.name, count: threads.length, threads: threads.slice(0, 100).map((th) => threadInfo(doc, th)) };
-    }, { readOnly: true }),
-
-    tool("add_comment", "Adds a comment thread to the active document, anchored to a layer (layer_id), to the current page, or to the current selection. Comments are saved in the document and shared with the room when the user is in one.", {
-      text: S.str("The comment text (plain text; @Name mentions a room member)"),
-      layer_id: S.str("Optional layer id from list_layers to anchor the comment to"),
-      at: {
-        type: "object",
-        description: "Optional precise anchor: page coordinates (x, y; together with layer_id the pin follows that layer) or a code line/range (path, line, end_line)",
-        properties: { x: S.num("Page x (px) of the pin"), y: S.num("Page y (px) of the pin"), page_id: S.str("Optional page id (default: the current page)"), path: S.str("Code studio: file path"), line: S.num("Code studio: 1-based line"), end_line: S.num("Code studio: last line of a range") },
-        additionalProperties: false,
-      },
-    }, ["text"], async (a) => {
-      const doc = requireDoc(app);
-      const c = await rt(app);
-      const { canvasAnchor, codeAnchor } = await import("../../collab/anchors.js");
-      const { pageBounds } = await import("../../core/transform.js");
-      let anchor = c.currentAnchor();
-      const at = a.at || {};
-      const node = a.layer_id ? doc.find(a.layer_id) : null;
-      if (a.layer_id && !node) throw new Error(`There is no layer with id “${a.layer_id}”. Call list_layers to see the current ids.`);
-      if (at.path && at.line) {
-        anchor = codeAnchor({ path: at.path, from: { line: at.line, col: 0 }, to: at.end_line ? { line: at.end_line, col: 1e6 } : null });
-      } else if (Number.isFinite(at.x) && Number.isFinite(at.y)) {
-        const page = (at.page_id && doc.pages.find((p) => p.id === at.page_id)) || node?._page || app.page;
-        if (!page) throw new Error("There is no page to place the comment on.");
-        anchor = canvasAnchor({ pageId: page.id, node, bounds: node ? pageBounds(node) : null, point: { x: at.x, y: at.y } });
-      } else if (node) {
-        anchor = { kind: "node", node: node.id, page: node._page?.id, quote: String(node.name || node.type).slice(0, 200) };
-      }
-      const th = c.addThread(doc, anchor, a.text);
-      return { added: th.id, anchor: th.anchor.kind, shared: inRoom(app) };
-    }, { needsApproval: (a) => `Add the comment “${String(a.text).slice(0, 80)}”${inRoom(app) ? " (it is shared with the room)" : ""}?` }),
-
-    tool("reply_comment", "Replies to a comment thread of the active document (thread ids from list_comments). Replying to a resolved thread reopens it.", {
-      thread_id: S.str("Thread id from list_comments"),
-      text: S.str("Reply text"),
-    }, ["thread_id", "text"], async (a) => {
-      const doc = requireDoc(app);
-      const c = await rt(app);
-      if (!c.threads(doc).some((t) => t.id === a.thread_id)) throw new Error(`There is no comment thread “${a.thread_id}”. Call list_comments first.`);
-      c.reply(doc, a.thread_id, a.text);
-      return { replied: a.thread_id, shared: inRoom(app) };
-    }, { needsApproval: (a) => `Reply “${String(a.text).slice(0, 80)}” to the comment thread${inRoom(app) ? " (it is shared with the room)" : ""}?` }),
-
-    tool("resolve_comment", "Marks a comment thread as resolved (or reopens it with reopen: true).", {
-      thread_id: S.str("Thread id from list_comments"),
-      reopen: S.bool("Reopen instead of resolve"),
-    }, ["thread_id"], async (a) => {
-      const doc = requireDoc(app);
-      const c = await rt(app);
-      if (!c.threads(doc).some((t) => t.id === a.thread_id)) throw new Error(`There is no comment thread “${a.thread_id}”. Call list_comments first.`);
-      const changed = c.setResolved(doc, a.thread_id, !a.reopen);
-      return { thread: a.thread_id, resolved: !a.reopen, changed };
-    }),
-
     tool("list_versions", "Lists the named versions (snapshots) of the active document that are stored on this device, newest first.", {}, [], async () => {
       const doc = requireDoc(app);
       const c = await rt(app);

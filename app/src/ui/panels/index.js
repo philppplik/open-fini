@@ -42,6 +42,7 @@ export const PANELS = {
   data: { title: "Data", icon: "table", create: lazyPanel(() => import("../data/panel.js").then((m) => m.createDataPanel)) },
   pages: { title: "Pages", icon: "files", create: createPagesPanel },
   styles: { title: "Styles", icon: "fonts", create: createStylesPanel },
+  comments: { title: "Comments", icon: "chat-quote", create: lazyPanel(() => import("./comments.js").then((m) => m.createCommentsPanel)) },
 };
 
 export function registerPanel(id, def) {

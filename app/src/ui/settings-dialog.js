@@ -238,6 +238,7 @@ export function settingsSections(app) {
             { type: "action", label: "AI data", hint: "Deletes chats, connections and keys, skills, custom tools, MCP servers, memory and the knowledge index.", button: "Delete…", danger: true, run: async () => { if (await confirmDialog({ title: "Delete AI data", message: "Delete all Vibe chats, API keys, skills, tools, MCP servers, memory and knowledge from this device?", ok: "Delete", danger: true })) { const { vibeStore } = await import("../vibe/store.js"); await vibeStore.load(); await vibeStore.clearAll(); app.toast("AI data deleted.", "success", 1800); } } },
           ],
         },
+        { title: "Chat appearance", items: [{ type: "custom", label: "Chat bubbles", render: () => bubbleSettingsHost(app) }] },
         // Vibe's models, tools, skills and knowledge (formerly side-panel tabs of Vibe Studio), loaded lazily
         { title: "Vibe Studio", items: [{ type: "custom", label: "Models, tools, skills and knowledge", render: () => aiPanelsHost(app) }] },
       ],
@@ -277,6 +278,13 @@ export function settingsSections(app) {
       custom: () => aboutPane(app),
     },
   ]);
+}
+
+/** Chat bubble settings with a live preview (lazy: ui/vibe/bubble-settings.js). */
+function bubbleSettingsHost(app) {
+  const host = h("div.of-set__bubbles");
+  import("./vibe/bubble-settings.js").then((m) => host.replaceChildren(m.bubbleSettingsPane(app)));
+  return host;
 }
 
 let aiTab = null; // sub-tab requested by settings.open { section: "ai", tab }

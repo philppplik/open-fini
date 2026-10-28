@@ -26,7 +26,7 @@ const BUILTIN = {
     blurb: "Curves, shapes, type and effects",
     tools: ["move", "node", ["pen", "pencil"], ["rect", "ellipse", "polygon", "star", "shapes", "line"], "text", ["gradient", "fill"], "eyedropper", "crop", "slice", "hand", "zoom"],
     top: ["appearance", "transform", "color", "type"],
-    bottom: ["layers", "history", "navigator"],
+    bottom: ["layers", "history", "navigator", "comments"],
   },
   pixel: {
     id: "pixel",
@@ -50,7 +50,7 @@ const BUILTIN = {
       "zoom",
     ],
     top: ["color", "brush", "adjustments", "transform"],
-    bottom: ["layers", "history", "histogram", "info", "navigator"],
+    bottom: ["layers", "history", "histogram", "info", "navigator", "comments"],
   },
   layout: {
     id: "layout",
@@ -59,7 +59,7 @@ const BUILTIN = {
     blurb: "Pages, text flow, styles and print",
     tools: ["move", "node", ["frame-text", "text"], ["rect", "ellipse", "polygon", "star", "shapes", "line"], "image-frame", "table", "chart", ["pen", "pencil"], "slice", "eyedropper", "hand", "zoom"],
     top: ["appearance", "transform", "type", "data", "color"],
-    bottom: ["pages", "layers", "styles", "history"],
+    bottom: ["pages", "layers", "styles", "history", "comments"],
   },
   // The Code studio is a website workbench (code editor + visual designer). Its left sidebar, center stage and
   // bottom panel are owned by ui/code/; only the right dock uses the regular panel registry.
@@ -70,7 +70,7 @@ const BUILTIN = {
     blurb: "HTML, CSS and JavaScript with a visual designer",
     workspace: true,
     tools: [],
-    top: ["style", "element"],
+    top: ["style", "element", "comments"],
     bottom: [],
   },
   // Vibe Studio: an AI assistant that works inside the other studios. Its whole workspace is ui/vibe/.

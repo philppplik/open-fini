@@ -179,6 +179,9 @@ export function buildContextBlocks(chips, { maxFileChars = 8000, maxTotalChars =
         if (!c.layers?.length) lines.push("[@selection: nothing selected]");
         else for (const l of c.layers.slice(0, 50)) lines.push(layerLine(l, "@selection"));
         break;
+      case "comments":
+        lines.push(`[@comments: ${c.count ?? "all"} open comment(s) of the active document] Call list_comments (each thread comes with the exact place it points at), or load the skill address-comments, and address them.`);
+        break;
       case "attachment":
         lines.push(`[@attachment: ${c.index}. ${oneLine(c.name)}]`);
         break;
@@ -211,8 +214,8 @@ export function composeMessage(text, chips, opts) {
   return `${t || "See the context below."}\n\n${CONTEXT_MARKER}\n${blocks}`;
 }
 
-const CHIP_RE = /^\[(@file|@document|@layer|@selection|@attachment|@member|!tool|\/skill): ([^\]]*)\]/;
-const KIND = { "@file": "file", "@document": "document", "@layer": "layer", "@selection": "layer", "@attachment": "attachment", "@member": "member", "!tool": "tool", "/skill": "skill" };
+const CHIP_RE = /^\[(@file|@document|@layer|@selection|@comments|@attachment|@member|!tool|\/skill): ([^\]]*)\]/;
+const KIND = { "@file": "file", "@document": "document", "@layer": "layer", "@selection": "layer", "@comments": "comments", "@attachment": "attachment", "@member": "member", "!tool": "tool", "/skill": "skill" };
 
 /** Splits a sent message into the user's text and the chips of its context section. */
 export function parseContextBlocks(message) {
@@ -248,6 +251,8 @@ export function chipLabel(c) {
       return `@${c.name || c.type}`;
     case "selection":
       return "@selection";
+    case "comments":
+      return "@comments";
     case "attachment":
       return `@${c.name}`;
     case "member":

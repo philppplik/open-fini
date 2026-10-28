@@ -25,7 +25,7 @@ export const OFFICE_MENUS = [
     label: "Edit",
     studios: ["office"],
     officeKinds: ["document"],
-    items: ["edit.undo", "edit.redo", "-", "office.cut", "office.copy", "office.paste", "office.pastePlain", "-", "office.selectAll", "-", "office.find", "office.replace", "-", "edit.preferences"],
+    items: ["edit.undo", "edit.redo", "-", "office.cut", "office.copy", "office.paste", "office.pastePlain", "-", "office.selectAll", "-", "office.find", "office.replace", "-", "collab.addCommentHere", "collab.commentMode", "comments.panel", "-", "edit.preferences"],
   },
   {
     label: "Insert",

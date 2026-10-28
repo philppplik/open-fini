@@ -16,7 +16,7 @@ export const MENUS = [
   {
     label: "Edit",
     studios: DESIGN,
-    items: ["edit.undo", "edit.redo", "-", "edit.cut", "edit.copy", "edit.paste", "edit.pasteInPlace", "edit.duplicate", "edit.delete", "-", "edit.selectAll", "edit.deselect", "-", "edit.preferences"],
+    items: ["edit.undo", "edit.redo", "-", "edit.cut", "edit.copy", "edit.paste", "edit.pasteInPlace", "edit.duplicate", "edit.delete", "-", "edit.selectAll", "edit.deselect", "-", "collab.addCommentHere", "collab.commentMode", "comments.panel", "-", "edit.preferences"],
   },
   {
     label: "Layer",
@@ -63,7 +63,7 @@ export const MENUS = [
   {
     label: "Edit",
     studios: ["code"],
-    items: ["code.undo", "code.redo", "-", "code.cut", "code.copy", "code.paste", "code.duplicateElement", "code.deleteElement", "-", "code.find", "code.findInFiles", "code.gotoLine", "-", "code.format", "code.formatSelection", "code.toggleComment", "code.syncHighlight", "-", "edit.preferences"],
+    items: ["code.undo", "code.redo", "-", "code.cut", "code.copy", "code.paste", "code.duplicateElement", "code.deleteElement", "-", "code.find", "code.findInFiles", "code.gotoLine", "-", "code.format", "code.formatSelection", "code.toggleComment", "code.syncHighlight", "-", "collab.addCommentHere", "collab.commentMode", "comments.panel", "-", "edit.preferences"],
   },
   {
     label: "Insert",

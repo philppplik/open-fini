@@ -19,11 +19,13 @@ import { pick } from "../../engine/hit.js";
 import { LIMITS, canDo } from "../../collab/protocol.js";
 import { canvasAnchor, codeAnchor, elementAnchor, moveAnchor, pinNumbers, popoverPosition, stepThread } from "../../collab/anchors.js";
 import { filterThreads, threadTitle } from "../../collab/comments.js";
-import { avatarEl } from "./runtime.js";
+import { elementPath, describe as describeEl } from "../../engine/web/html.js";
 
 const CANVAS_STUDIOS = ["vector", "pixel", "layout"];
 const CANVAS_KINDS = new Set(["canvas-empty", "canvas-layers", "canvas-text", "table", "table-cell", "chart"]);
 const fmt = (ts) => new Date(ts).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+// plain initials avatar (the full avatarEl with re-encoded images lives in runtime.js; comments only need initials)
+const avatarEl = (p, size = 22) => h("span.of-collab-avatar", { style: `--of-collab-color:${/^#[0-9a-f]{6}$/i.test(p.color || "") ? p.color : "#888888"};width:${size}px;height:${size}px;font-size:${Math.round(size * 0.4)}px`, "aria-hidden": "true" }, p.initials || "?");
 const icon = (name) => h("sl-icon", { name, "aria-hidden": "true" });
 const button = (label, onClick, { ic, title, primary = false, cls = "" } = {}) => {
   const b = h("button.of-collab-btn", { type: "button", class: `${cls}${primary ? " of-collab-btn--primary" : ""}`, title: title || undefined }, ic ? icon(ic) : null, label ? h("span", label) : null);
@@ -93,7 +95,14 @@ export function installCommentUI(app, c) {
     // website element (the website designer's hit test already ran: the menu selected the element)
     if (opts.kind === "web-element" && d.element) {
       const el = d.element;
-      return { anchor: elementAnchor({ elem: String(el.id), quote: `<${el.tag || "element"}>`, page: undefined }), at };
+      const ws = d.ws || app.codeUI;
+      let sel;
+      try {
+        sel = elementPath(el).join("/");
+      } catch {
+        /* the element has no parent chain (should not happen) */
+      }
+      return { anchor: elementAnchor({ elem: String(el.id), sel, path: ws?.page, quote: describeEl(el), page: undefined }), at };
     }
     // Office and everything else: the selection (runtime.currentAnchor knows Office paragraphs and layers)
     let pt = at;
@@ -317,7 +326,7 @@ export function installCommentUI(app, c) {
     if (mine || c.session?.isHost) head.append(button("", () => (c.commentOp(d, { op: "drop", threadId: th.id }), closePopover()), { ic: "trash3", title: t("Delete thread") }));
     head.append(button("", () => closePopover(), { ic: "x-lg", title: t("Close") }));
     const msgs = th.messages.map((m) => {
-      const row = h("div.of-thread__msg", avatarEl({ nick: m.nick, color: m.color, initials: (m.nick || "?").slice(0, 2).toUpperCase() }, 22), h("div", h("div.of-msg__head", h("span.of-msg__who", m.nick || "?"), h("time.of-msg__time", fmt(m.ts)), m.edited && !m.deleted ? h("span.of-msg__edited", t("edited")) : null), m.deleted ? h("p.of-msg__text.of-msg__text--deleted", t("Comment deleted")) : h("p.of-msg__text", m.text)));
+      const row = h("div.of-thread__msg", avatarEl({ color: m.color, initials: (m.nick || "?").slice(0, 2).toUpperCase() }, 22), h("div", h("div.of-msg__head", h("span.of-msg__who", m.nick || t("Unknown author")), h("time.of-msg__time", fmt(m.ts)), m.edited && !m.deleted ? h("span.of-msg__edited", t("edited")) : null), m.deleted ? h("p.of-msg__text.of-msg__text--deleted", t("Comment deleted")) : h("p.of-msg__text", m.text)));
       if (c.isMine(m.author) && !m.deleted) {
         row.append(h("div.of-msg__tools",
           button("", () => {
@@ -352,10 +361,22 @@ export function installCommentUI(app, c) {
       });
       kids.push(h("div.of-thread__reply", attachMentions(ta), button("", send, { ic: "send", title: t("Reply") })));
     }
+    if (!th.resolved && app.prefs.aiEnabled) kids.push(h("div.of-collab-actions", button(t("Resolve with AI"), () => (closePopover(false), resolveWithAI(th)), { ic: "stars", title: t("Let the assistant read this comment, make the edit and resolve it") })));
     kids.push(h("div.of-collab-actions", button(t("Open in Comments"), () => (closePopover(false), import("./runtime.js").then((m) => m.openCollab(app, "comments")).then(() => c.events.dispatchEvent(new CustomEvent("focus-thread", { detail: th.id })))), { ic: "chat-quote" })));
-    pop.el.setAttribute("aria-label", t("Comment thread {n} by {name}", { n: n || "", name: th.nick || "?" }));
+    pop.el.setAttribute("aria-label", t("Comment thread {n} by {name}", { n: n || "", name: th.nick || t("Unknown author") }));
     pop.el.replaceChildren(...kids);
     if (hadFocus) pop.el.querySelector("textarea[data-role=reply]")?.focus();
+  }
+
+  /** Starts a Vibe run that addresses one comment: the comment is the targeted context (vibe/quick-actions.js). */
+  async function resolveWithAI(th) {
+    if (!app.prefs.aiEnabled) return app.toast(t("AI features are off. Turn them on in Settings ▸ Artificial intelligence."), "warning", 4000);
+    const { runQuickAction } = await import("../../vibe/quick-actions.js");
+    await runQuickAction(app, {
+      label: "Resolve comment",
+      prompt: `Address the comment thread ${th.id} of the open document: call get_comment_context with thread_id "${th.id}" to read the exact place, make the precise edit with the right tools, then reply_comment with what you changed and resolve_comment. If the comment is a question or needs a decision, reply with an answer or question instead and leave it open.`,
+      extra: `Comment (${th.nick || "Unknown author"}): ${threadTitle(th)}`,
+    });
   }
 
   c.events.addEventListener("change", (e) => {
@@ -540,6 +561,8 @@ export function installCommentUI(app, c) {
     step,
     makePin,
     refreshPin,
+    anchorText,
+    resolveWithAI,
     pinsVisible,
     setPinsVisible,
     commentMode,

@@ -5,8 +5,12 @@
 // Also registers the "Share with collaboration room" context-menu section (document tabs, empty canvas, Code explorer
 // files and tabs, the Office editor) and opens the join dialog for links of the form …/#join=<invite code>.
 import { registerContextProvider } from "../ui/context-menu/index.js";
+import { getStudio } from "../studios/registry.js";
 
 const rt = () => import("../ui/collab/runtime.js");
+// Comments work in every studio without a room: only the small comments host (and its UI) loads, never the room code.
+const cm = async (app) => (await import("../ui/collab/comments-host.js")).getComments(app);
+const commentUI = async (app) => (await cm(app)).commentUI();
 
 export function registerCollabCommands(app) {
   const def = (id, label, run, extra = {}) => app.registerCommand(id, { label, run, ...extra });
@@ -19,17 +23,25 @@ export function registerCollabCommands(app) {
   def("collab.comments", "Comments", async (a) => (await rt()).openCollab(a, "comments"), { icon: "chat-quote" });
   def("collab.addComment", "Add Comment in Panel…", async (a, o) => (await rt()).addComment(a, o), { icon: "chat-quote", enabled: (a) => !!a.doc });
   // inline comments: the composer opens at the pointer / selection (docs/collaboration.md, "Comments on the canvas, in code and in text")
-  def("collab.addCommentHere", "Add Comment Here…", async (a, o) => (await rt()).addCommentHere(a, o?.ctx || o || {}), { icon: "chat-quote", shortcut: "Mod+Alt+M", enabled: (a) => !!a.doc });
-  def("collab.commentMode", "Comment Mode (click to place a comment)", async (a) => (await (await rt()).getCollab(a).commentUI()).commentMode(), { icon: "chat-quote", enabled: (a) => !!a.doc });
+  def("collab.addCommentHere", "Add Comment Here…", async (a, o) => (await commentUI(a)).composeFor(o?.ctx || o || {}), { icon: "chat-quote", shortcut: "Mod+Alt+M", enabled: (a) => !!a.doc });
+  def("collab.commentMode", "Comment Mode (click to place a comment)", async (a) => (await commentUI(a)).commentMode(), { icon: "chat-quote", shortcut: "Shift+C", enabled: (a) => !!a.doc });
   def("collab.toggleComments", "Show or Hide All Comments", async (a) => {
-    const ui = await (await rt()).getCollab(a).commentUI();
+    const ui = await commentUI(a);
     ui.setPinsVisible(!ui.pinsVisible());
   }, { icon: "eye", enabled: (a) => !!a.doc });
+  // the Comments dock panel (Vector, Pixel, Layout, Code); studios without a dock (Office) open the Collaboration window's Comments tab
+  def("comments.panel", "Comments Panel", async (a) => {
+    const s = getStudio(a.studio);
+    if (s && [...(s.top || []), ...(s.bottom || [])].includes("comments")) {
+      await cm(a);
+      a.emit("revealpanel", "comments");
+    } else await (await rt()).openCollab(a, "comments");
+  }, { icon: "chat-quote", enabled: (a) => !!a.doc });
   def("collab.popOut", "Pop Out Collaboration Window", async (a) => (await rt()).popOutCollab(a), { icon: "box-arrow-up-right" });
 
   // comments saved in a document show their pins as soon as the document is active (the runtime loads lazily)
   app.on("doc", () => {
-    if (app.doc?.comments?.length && !app.collab) rt().then((r) => r.getCollab(app)).catch(() => {});
+    if (app.doc?.comments?.length) cm(app).then((c) => c.commentUI()).catch(() => {});
   });
 
   registerContextProvider({
