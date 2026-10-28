@@ -3,6 +3,7 @@
 // and the documentation. Settings that are security relevant (AI switch, app lock, offline mode, protected mode, tokens)
 // are deliberately NOT in this list: they are never exported, imported or changed by the assistant.
 import { validateOverrides } from "./keymap.js";
+import { isValidBubbles } from "./bubbles.js";
 
 const COLOR_RE = /^#[0-9a-f]{6}$/i;
 const ID_RE = /^[A-Za-z0-9_.:@-]{1,120}$/;
@@ -44,6 +45,7 @@ export function customizationDefaults() {
     newDocDefaults: {},
     exportDefaults: {},
     textDefaults: {},
+    chatBubbles: null, // Vibe chat bubbles (shape, colors, width ...): null = defaults, see customize/bubbles.js
     profileActive: "",
   };
 }
@@ -167,6 +169,7 @@ export const SETTINGS = [
   { key: "workspaces", section: "layout", type: "json", label: "Saved workspaces per studio", check: validWorkspaces },
   { key: "newDocDefaults", section: "defaults", type: "json", label: "Default new-document settings per studio", check: validNewDoc },
   { key: "exportDefaults", section: "defaults", type: "json", label: "Default export settings", check: validExport },
+  { key: "chatBubbles", section: "appearance", type: "json", label: "Chat bubbles in Vibe (shape, colors, density, width, font size)", check: isValidBubbles },
   { key: "textDefaults", section: "defaults", type: "json", label: "Default text style", check: validText },
 ];
 

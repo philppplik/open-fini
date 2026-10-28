@@ -17,6 +17,7 @@ import { parseContextBlocks } from "./mentions.js";
 import { messageToolbar } from "./message-actions.js";
 import { messageMarkdown, retryPlan } from "../../vibe/chat-ops.js";
 import { badgeText } from "./changes.js";
+import { watchBubbleStyle } from "./bubble-style.js";
 
 const CHIP_ICON = { file: "file-earmark-code", document: "files", layer: "layers", attachment: "paperclip", member: "people", tool: "wrench", skill: "mortarboard" };
 
@@ -338,10 +339,10 @@ export function createChat(vs) {
     for (const [k, v] of Object.entries(extra)) b.setAttribute(k, v);
     return b;
   };
-  const attach = tip("paperclip", "Attach files or images", () => fileInput.click());
-  const shot = tip("camera", "Attach a picture of the current page", () => attachScreenshot());
+  // one attach button: a click opens a small menu (file or a screenshot of the current page); the prompt library lives in the "/" menu
+  const attach = tip("paperclip", "Attach files or images", () => openAttachMenu(attach), { "aria-haspopup": "menu" });
   const mic = tip("mic", "Dictate (speech input)", () => dictate());
-  const library = tip("journal-text", "Prompt library: recent and saved prompts", () => openLibrary(library), { "aria-haspopup": "menu" });
+  if (!(window.SpeechRecognition || window.webkitSpeechRecognition)) mic.hidden = true; // no speech input here: do not show a dead button
   const toolsBtn = tip("tools", "Tools for this chat", () => openToolsPopover(toolsBtn), { "aria-haspopup": "dialog" });
   const sendBtn = h("button.of-composer__send", { type: "button", ...ta({ "aria-label": "Send" }) }, iconEl("arrow-up"));
   const paintSend = () => {
@@ -381,6 +382,8 @@ export function createChat(vs) {
   const COMMANDS = () => [
     { name: "new", hint: t("Start a new chat (other chats keep running)"), run: () => session.newChat() },
     { name: "undo", hint: t("Undo the last AI run of this chat"), run: () => { const n = session.undoLastRun(); app.toast(n ? `Undid ${n} step(s).` : session.lastUndoError || "Nothing to undo.", n ? "success" : "warning", 2500); } },
+    { name: "screenshot", hint: t("Attach a screenshot of the current page"), run: () => attachScreenshot() },
+    { name: "prompt-library", hint: t("Prompt library: recent and saved prompts, templates"), run: () => openLibrary(input) },
     { name: "clear", hint: t("Clear the draft and its chips"), run: () => { input.value = ""; mentions.clear(); files = []; renderChips(); } },
     { name: "stop-all", hint: t("Stop every running chat and sub-agent"), run: () => app.toast(`Stopped ${vs.hub.stopAll()} chat(s).`, "primary", 1500) },
     { name: "create-skill", hint: t("Turn what Vibe did in this chat into a reusable skill (draft)"), run: () => (input.value = "Distill the workflow you performed in this chat into a reusable skill: call create_skill with a concrete numbered workflow (exact tools and arguments that worked), rules with numbers, {{param}} placeholders for what changes between uses (declare them in params), token-saving tips and a ## Verify section. Keep it under 120 lines.") },
@@ -389,7 +392,7 @@ export function createChat(vs) {
     ...(skillCache.length ? skillCache : vs.skills() || []).map((s) => ({ skill: true, name: s.name, hint: `${s.argumentHint ? `[${s.argumentHint}] ` : s.params?.length ? `[${s.params.map((p) => p.name).join(", ")}] ` : ""}${s.description}`, run: (rest) => useSkill(s, rest) })),
   ];
   const mentions = createMentions({ vs, input, commands: COMMANDS, onChange: () => paintSend() });
-  const box = h("div.of-composer", suggestEl, mentions.chipsEl, chips, input, h("div.of-composer__bar", { role: "toolbar", "aria-label": t("Composer") }, attach, shot, mic, library, toolsBtn, h("span.of-composer__sep"), modelPill, modePill, thinkPill, h("span.of-composer__spacer"), sendBtn), mentions.popover, mentions.live);
+  const box = h("div.of-composer", suggestEl, mentions.chipsEl, chips, input, h("div.of-composer__bar", { role: "toolbar", "aria-label": t("Composer") }, attach, mic, toolsBtn, h("span.of-composer__sep"), modelPill, modePill, thinkPill, h("span.of-composer__spacer"), sendBtn), mentions.popover, mentions.live);
   const root = h("div.of-vchat", main, h("div.of-vchat__dock", box, h("p.of-composer__hint", t("Vibe can make mistakes. Changes can be undone in the Activity tab or with Ctrl+Z. Keys and chats stay on this device."))));
 
   // grows with the text up to 40% of the panel height (max 220 px), then scrolls inside
@@ -471,6 +474,14 @@ export function createChat(vs) {
       addFiles(imgs);
     }
   });
+
+  function openAttachMenu(anchor) {
+    const r = anchor.getBoundingClientRect();
+    showContextMenu(app, r.left, Math.max(8, r.top - 12 - 70), [
+      { label: t("Attach file…"), icon: "paperclip", run: () => fileInput.click() },
+      { label: t("Attach screenshot of current page"), icon: "camera", disabled: !app.doc, run: () => attachScreenshot() },
+    ]);
+  }
 
   async function attachScreenshot() {
     const page = app.page;
@@ -771,6 +782,7 @@ export function createChat(vs) {
   });
   session.on("status", (st) => st === "idle" && settleRun());
 
+  watchBubbleStyle(app, root); // chat bubble look from Settings (customize/bubbles.js)
   renderHistory();
   paintPills();
   return { el: root, focus: () => input.focus({ preventScroll: true }), setInput: (t) => { input.value = t; autosize(); input.focus(); }, send: (t, f) => send(t), sendRaw: (t, f) => session.send(t, f), paintPills, note, addFiles, useSkill, addChip: (c) => mentions.add(c), addLayer: (n) => mentions.add(layerChip(n)) };
