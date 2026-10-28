@@ -1,7 +1,8 @@
 // Command palette entries for the code editor's text tools (`code.encodeEntitiesDecimal`, `code.sortLinesAsc`, ...).
 // The transforms live in engine/web/texttools.js; the editor side (one undoable transaction) in ui/code/text-tools.js,
 // which loads on first use. Each command works on the selection or, with an empty selection, on the word, line or file.
-import { TRANSFORMS } from "../engine/web/texttools.js";
+// Only the catalog (ids and labels) is imported here: the transforms and the character codec stay out of start-up.
+import { TRANSFORM_INFO as TRANSFORMS } from "../engine/web/texttools-catalog.js";
 
 const GROUP_LABEL = { encode: "Encode", decode: "Decode", convert: "Convert", case: "Case", lines: "Lines", wrap: "Wrap", json: "JSON", color: "Color" };
 
