@@ -254,7 +254,7 @@ export function registerPixelCommands(app) {
 
   def("doc.resize", "Resize Document…", async (a) => {
     const p = a.page;
-    const st = { w: p.w, h: p.h, lock: true };
+    const st = { w: p.w, h: p.h, lock: true, resample: "scale", dpi: a.doc.dpi };
     const fw = numField({ label: "Width", value: st.w, min: 1, max: 32000, precision: 0, unit: "px", wide: true, onChange: (v) => {
       if (st.lock) st.h = Math.round((v / st.w) * st.h);
       st.w = Math.round(v);
@@ -266,25 +266,21 @@ export function registerPixelCommands(app) {
       fw.set(st.w);
     } });
     const lock = switchField({ label: "Keep aspect ratio", value: true, onChange: (v) => (st.lock = v) });
+    const rs = selectField({ label: "Resample", value: st.resample, onChange: (v) => (st.resample = v), options: [{ value: "scale", label: "Scale layers (keep vectors sharp)" }, { value: "lanczos3", label: "Lanczos (best quality)" }, { value: "bicubic", label: "Bicubic" }, { value: "bilinear", label: "Bilinear" }, { value: "nearest", label: "Nearest neighbor (pixel art)" }] });
+    const dp = numField({ label: "Resolution", value: st.dpi, min: 1, max: 2400, precision: 0, unit: "dpi", wide: true, onChange: (v) => (st.dpi = Math.round(v)) });
     openDialog({
       title: "Resize Document",
-      body: h("div.of-form", h("div.of-row", fw.el, fh.el), lock.el, h("p.of-hint", "All content is scaled with the page; vector objects stay sharp.")),
+      body: h("div.of-form", h("div.of-row", fw.el, fh.el), lock.el, rs.el, dp.el, h("p.of-hint", "Scaling keeps vector objects sharp. A resample filter also converts the pixel layers to the new pixel size; the resolution only changes the document metadata.")),
       width: 420,
       buttons: [
         { label: "Cancel", onClick: (c) => c() },
         {
           label: "Resize",
           variant: "primary",
-          onClick: (close) => {
-            const sx = st.w / p.w;
-            const sy = st.h / p.h;
-            const doc = a.doc;
-            doc.tx("Resize Document", () => {
-              for (const n of p.root.children) doc.set(n, { m: mul(scaleM(sx, sy), n.m) });
-              doc.set(p, { w: st.w, h: st.h, guides: { h: p.guides.h.map((v) => v * sy), v: p.guides.v.map((v) => v * sx) } });
-            });
-            a.state.pixelMask = null;
-            a.cv?.fitPage();
+          onClick: async (close) => {
+            const m = await import("../core/image-ops.js");
+            const r = m.resizeDocument(a, st.w, st.h, { resample: st.resample, dpi: st.dpi });
+            if (r !== true) a.toast(r, "warning");
             close();
           },
         },

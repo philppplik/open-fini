@@ -5,6 +5,7 @@ import { registerFileCommands } from "./file.js";
 import { registerPdfCommands } from "./pdf.js";
 import { registerFormatCommands } from "./formats.js";
 import { registerPixelCommands } from "./pixel.js";
+import { registerPixelImageCommands } from "./pixel-image.js";
 import { registerLayoutCommands } from "./layout.js";
 import { registerDataCommands } from "./data.js";
 import { registerCodeCommands } from "./code.js";
@@ -25,6 +26,7 @@ export function registerCommands(app) {
   registerPdfCommands(app);
   registerFormatCommands(app);
   registerPixelCommands(app);
+  registerPixelImageCommands(app);
   registerLayoutCommands(app);
   registerDataCommands(app);
   registerCodeCommands(app);
