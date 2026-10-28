@@ -4,6 +4,11 @@ The Office studio is a page-based word processor inside OpenFini. Open a Word do
 
 ## Getting started
 
+The Office studio opens on **Home**: create a blank document or start from a template (letter, report, invoice, memo,
+meeting notes, resume), reopen a recent Office file, *Open file…*, or read how to bring files from Google Docs, Sheets
+and Slides (*Import from Google…*: download a .docx/.xlsx/.pptx copy first; OpenFini has no Google account
+connection). The bar above the document switches between Home and the Office apps of this version.
+
 - **Open the studio:** the header's *More* menu, *Studio ▸ Office Studio*, or the command palette. Add it to the header in *Settings ▸ Studios* to get an `Alt` shortcut.
 - **New document:** *File ▸ New…* in the studio, the Office card on the welcome screen, or *Document* in the *Start in* row. Templates: blank, letter, report, resume; sizes A4, US Letter, US Legal, A5.
 - **Open:** *File ▸ Open…*, drag and drop, or the operating system's *Open with* (`.docx`, `.odt` and `.rtf` are Open-with candidates, never the default). Inside the Office studio HTML, Markdown, text and CSV files open here too; elsewhere they open in the Code studio.

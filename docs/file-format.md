@@ -1,4 +1,4 @@
-# The `.ofini` file format (version 1)
+# The `.ofini` file format (version 1 and 2)
 
 An OpenFini document is a **ZIP archive** (MIME type `application/vnd.openfini+zip`). Everything is plain
 JSON plus the original image bytes, so documents can be inspected and repaired with standard tools.
@@ -90,6 +90,14 @@ A `table` node stores its whole model (see [layout-tables-charts.md](layout-tabl
 
 ### Office documents (`"office"`)
 
+**Kinds (Office Suite, additive since 0.10).** `"office"` may carry `"kind"`: `"document"` (the word processor below;
+the field is then omitted, so these files are byte-for-byte what earlier versions wrote), `"sheet"`, `"slides"`,
+`"board"` or another registered app kind ([office-suite.md](office-suite.md)). For any other kind the rest of the object
+is that app's model (documented by the app), its media live under `office/<kind>/media/<id>.<ext>` instead of
+`office/media/`, and the writer stamps `"version": 2` (see [Versioning](#versioning-and-migration)). A reader without
+an app for a kind keeps the object unchanged and saves it back as it was.
+
+
 A document created in or opened by the Office Studio has an `"office"` object in `document.json` (its `studio` is
 `"office"`; the design `pages` hold one empty page used for the thumbnail). It is the word-processing model of
 [`engine/office/model.js`](../app/src/engine/office/model.js), lengths in points:
@@ -154,6 +162,10 @@ the device (IndexedDB keys `versions.index`, `versions.data.<id>`, `versions.thu
 
 * **Old files always open.** `migrateDocumentJson` upgrades a document from its version to `FORMAT_VERSION` one step at a time (`MIGRATIONS[n]` turns version n into n + 1). Files without a version are format 0. The upgrade happens in memory; the file on disk is untouched until you save, and the toast on open says what changed.
 * **Newer files open best-effort.** A file from a newer OpenFini opens with what this version understands (unknown fields are ignored and kept in memory), the user is warned, and the first Save asks for confirmation because saving could drop data this version cannot see (use *Save As* to keep the original).
+* **Writers stamp the oldest version that can represent the document** (`ofini-migrate.js ▸ writeVersion`): 1 for
+  everything except Office documents of a kind other than `"document"`, which are 2. Version 1 → 2 needs no
+  conversion (an absent `office.kind` means `"document"`); the bump exists so OpenFini 0.9 and earlier treat a
+  spreadsheet, presentation or whiteboard as a newer file (warning before Save) instead of an empty text document.
 * **Changing the format** (checklist): bump `FORMAT_VERSION`, add the step to `MIGRATIONS`, add a frozen sample of the old `document.json` to the tests (the version 1 sample is there already), describe the change here. Never rename zip entries without a migration that is told about the entries.
 
 ## Compatibility
