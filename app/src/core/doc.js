@@ -4,7 +4,7 @@ import { Emitter, uid, clone, equal } from "./util.js";
 import { History } from "./history.js";
 import { createNode, walk } from "./nodes.js";
 import { DEFAULT_SWATCHES } from "./color.js";
-import { FORMAT_VERSION } from "./ofini-migrate.js";
+import { writeVersion } from "./ofini-migrate.js";
 
 const UNDEF = Symbol("undef");
 
@@ -750,7 +750,7 @@ export class Doc extends Emitter {
       JSON.stringify(
         {
           format: "openfini",
-          version: FORMAT_VERSION,
+          version: writeVersion({ office: this.office ? { kind: this.office.kind } : null }),
           id: this.id,
           name: this.name,
           dpi: this.dpi,

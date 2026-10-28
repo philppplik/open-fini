@@ -26,7 +26,7 @@ const ENTRIES = [`${APP}/src/main.js`, `${APP}/src/bootguard.js`];
 export const LAZY_AREAS = [
   "src/collab/", "src/ui/collab/",
   "src/vscode/", "src/extensions/", "src/ui/extensions/",
-  "src/engine/office/", "src/ui/office/",
+  "src/engine/office/", "src/ui/office/", "src/office/",
   "src/engine/formats/", "src/engine/git/", "src/engine/publish/",
   "src/ui/code/", "src/ui/vibe/", "src/vibe/", "src/ai/",
   "src/i18n/locales/",

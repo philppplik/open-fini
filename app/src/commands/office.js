@@ -123,7 +123,9 @@ export function registerOfficeCommands(app) {
   def("office.headerFooter", "Header & Footer…", () => dlg().then((m) => m.headerFooterDialog(app, ws())));
   def("office.properties", "Document Properties…", () => dlg().then((m) => m.propertiesDialog(app, ws())), { icon: "info-circle" });
   def("office.wordCount", "Word Count…", () => dlg().then((m) => m.wordCountDialog(app, ws())), { icon: "123" });
-  def("office.export", "Export…", () => dlg().then((m) => m.exportOfficeDialog(app, ws())), { icon: "box-arrow-up" });
+  // every Office kind: the active app's own export dialog, or the suite's generic one (office/services/export.js)
+  def("office.export", "Export…", () => import("../office/services/export.js").then((m) => m.officeExportDialog(app)), { icon: "box-arrow-up", enabled: (a) => a.studio === "office" && !!a.doc?.office && !!a.officeUI });
+  def("office.home", "Office Home", () => import("../office/host.js").then((m) => m.showOfficeHome(app)), { icon: "house-door", enabled: () => true });
   for (const [f, label] of [["docx", "Word (.docx)"], ["odt", "OpenDocument (.odt)"], ["rtf", "Rich Text (.rtf)"], ["pdf", "PDF (.pdf)"], ["html", "Web Page (.html)"], ["md", "Markdown (.md)"], ["txt", "Plain Text (.txt)"]]) {
     def(`office.export${f[0].toUpperCase()}${f.slice(1)}`, label, () => dlg().then((m) => m.exportOffice(app, ws(), f)));
   }
