@@ -180,3 +180,11 @@ export function prettyShortcut(s) {
     })
     .join(isMac ? "" : "+");
 }
+
+/**
+ * Shoelace `<sl-option value>` must not contain spaces (it replaces them with underscores and logs an error).
+ * `optVal` makes any string safe (reversibly) and `optDecode` restores it. Use both for dynamic values such as file
+ * names, font names and extension enums.
+ */
+export const optVal = (v) => String(v ?? "").replace(/%/g, "%25").replace(/ /g, "%20");
+export const optDecode = (v) => String(v ?? "").replace(/%20/g, " ").replace(/%25/g, "%");

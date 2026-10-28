@@ -89,6 +89,7 @@ const defaultPrefs = () => ({
   appLockOnHide: false, // lock when the window is hidden or minimized
   protectedMode: true, // website projects from files/folders open with preview scripts off until enabled
   verboseLogging: false, // also record debug-level log entries
+  logRetentionDays: 14, // keep logs across sessions for this many days (0 = this session only)
   // collaboration (docs/collaboration.md): local identity and options. Never exported in profiles; invite codes are never stored.
   collabNick: "", // nickname shown to room members ("" = ask on first use)
   collabColor: "", // presence color ("" = picked from the nickname)
@@ -198,6 +199,7 @@ export class App extends Emitter {
   setPref(key, value) {
     this.prefs[key] = value;
     if (key === "verboseLogging") log.minLevel = value ? "debug" : "info";
+    if (key === "logRetentionDays") import("./log-capture.js").then((m) => m.setLogRetention(value)).catch(() => {});
     if (key === "language") setI18nLocale(value);
     try {
       // Safe mode applies defaults, so only the changed key is merged into the stored settings

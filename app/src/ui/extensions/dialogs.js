@@ -1,6 +1,6 @@
 // Dialogs of the extension system: the install consent (permissions are always shown) and the form dialog
 // behind `openfini.ui.form`.
-import { h } from "../../core/util.js";
+import { h, optVal, optDecode } from "../../core/util.js";
 import { openDialog } from "../dialogs.js";
 import { describePermission } from "../../extensions/manifest.js";
 
@@ -74,8 +74,8 @@ export function formDialog({ title, description = "", ok = "OK", fields }) {
       } else if (f.type === "select") {
         el = h("sl-select", { label, size: "small", hoist: true, "help-text": hint });
         const opts = (Array.isArray(f.options) ? f.options : []).slice(0, 60).map((o) => (typeof o === "object" ? { value: String(o.value), label: String(o.label ?? o.value) } : { value: String(o), label: String(o) }));
-        for (const o of opts) el.append(h("sl-option", { value: o.value }, o.label));
-        el.value = String(f.default ?? opts[0]?.value ?? "");
+        for (const o of opts) el.append(h("sl-option", { value: optVal(o.value) }, o.label));
+        el.value = optVal(f.default ?? opts[0]?.value ?? "");
       } else if (f.type === "number") {
         el = h("sl-input", { type: "number", label, size: "small", value: String(f.default ?? 0), min: f.min, max: f.max, step: f.step ?? 1, "help-text": hint });
       } else el = h("sl-input", { type: "text", label, size: "small", value: String(f.default ?? ""), "help-text": hint });
@@ -90,7 +90,7 @@ export function formDialog({ title, description = "", ok = "OK", fields }) {
           let n = Number(el.value);
           if (!Number.isFinite(n)) n = Number(f.default) || 0;
           out[f.name] = Math.min(f.max ?? Infinity, Math.max(f.min ?? -Infinity, n));
-        } else out[f.name] = String(el.value ?? "");
+        } else out[f.name] = f.type === "select" ? optDecode(el.value) : String(el.value ?? "");
       }
       return out;
     };

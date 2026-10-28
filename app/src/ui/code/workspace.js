@@ -29,6 +29,7 @@ import { syncHighlight, SyncController } from "./sync.js";
 import { platform } from "../../platform/index.js";
 import { DocPreview, docKind } from "./docpreview.js";
 import { createDocTools } from "./doctools.js";
+import { previewPageFor } from "./page-routing.js";
 
 const workspaces = new WeakMap();
 
@@ -169,8 +170,9 @@ export class CodeWorkspace extends Emitter {
     this.on("cursor", () => this.app.emit("codestatus"));
     this.preview.on("breakpoint", () => this.app.emit("codestatus"));
     this.preview.on("viewport", () => this.app.emit("codestatus"));
-    this.editors.on("active", () => {
+    this.editors.on("active", (path) => {
       this.#syncDocMode();
+      this.#followActive(path);
       this.emit("active");
     });
     createDocTools(this);
@@ -375,18 +377,39 @@ export class CodeWorkspace extends Emitter {
 
   // ------------------------------------------------------------ files
 
-  openFile(path, opts = {}) {
+  /**
+   * The one way to activate a file. Opens it in the editor and, for an HTML page, shows it in the preview (unless
+   * `keepPage`). Tab clicks, keyboard tab switching and closing a tab reach the same code through the editors'
+   * "active" event (#followActive), so every path behaves like clicking the file in the explorer.
+   */
+  activateFile(path, opts = {}) {
     if (!this.web.has(path)) return;
     if (this.view === "design") this.setView("split");
-    this.editors.openFile(path, opts);
-    this.explorer.reveal(path);
-    if (/\.html?$/i.test(path) && path !== this.preview.page && !opts.keepPage) this.preview.showPage(path);
+    this.#keepPage = !!opts.keepPage;
+    try {
+      this.editors.openFile(path, opts);
+      this.#followActive(path); // also when the file was already active (no event)
+    } finally {
+      this.#keepPage = false;
+    }
   }
-  showPage(path) {
+  openFile(path, opts = {}) {
+    return this.activateFile(path, opts);
+  }
+  #keepPage = false;
+  #followActive(path) {
+    if (!path || !this.web || !this.explorer) return;
+    this.explorer.reveal(path);
+    const page = previewPageFor(path, { pages: this.web.pages(), current: this.preview.page, keepPage: this.#keepPage });
+    if (page) this.showPage(page, { follow: false });
+  }
+  /** Shows an HTML page in the preview; the editor follows (opens that file) unless `follow: false`. */
+  showPage(path, { follow = true } = {}) {
     this.preview.showPage(path);
     this.selection = null;
     this.emit("selection", null);
     this.emit("page", path);
+    if (follow && this.editors.active !== path && this.web.has(path)) this.activateFile(path, { keepPage: true });
   }
   get page() {
     return this.preview.page;

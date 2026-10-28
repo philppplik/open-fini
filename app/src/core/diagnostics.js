@@ -133,7 +133,7 @@ export function environmentSummary(env = {}) {
  * The text of the diagnostic report. Contains no documents, keys or file names: logs and environment only, redacted.
  * @param {{env?:object, entries?:object[], problems?:object[], security?:object[], generatedAt?:number, maxEntries?:number}} o
  */
-export function buildReport({ env = {}, entries = [], problems, security, generatedAt = Date.now(), maxEntries = 200 } = {}) {
+export function buildReport({ env = {}, entries = [], problems, security, generatedAt = Date.now(), maxEntries = 200, logInfo } = {}) {
   const probs = problems || groupProblems(entries);
   const lines = [];
   lines.push("# OpenFini diagnostic report", "", `Generated: ${new Date(generatedAt).toISOString()}`, `Summary: ${environmentSummary(env)}`, "");
@@ -150,7 +150,8 @@ export function buildReport({ env = {}, entries = [], problems, security, genera
   }
   lines.push("", "## Environment", "", ...environmentLines(env));
   const recent = entries.slice(-maxEntries);
-  lines.push("", `## Recent log (${recent.length} of ${entries.length} entries)`, "", recent.length ? entriesToText(recent) : "The log is empty.", "");
+  if (logInfo) lines.push("", `Build: ${logInfo.build || "development"}`, `Persisted log: ${logInfo.sessions} earlier session${logInfo.sessions === 1 ? "" : "s"}, ${logInfo.entries} entries stored (kept ${logInfo.retentionDays ? `${logInfo.retentionDays} days` : "for this session only"}).`);
+  lines.push("", `## Recent log (${recent.length} of ${entries.length} entries${logInfo ? `; ${logInfo.entries} more stored from earlier sessions` : ""})`, "", recent.length ? entriesToText(recent) : "The log is empty.", "");
   return redact(lines.join("\n"));
 }
 
@@ -158,7 +159,7 @@ export function buildReport({ env = {}, entries = [], problems, security, genera
  * Files of the diagnostic bundle (ZIP/JSON). Never contains documents, keys or file names.
  * @returns {{[name:string]: string}}
  */
-export function buildBundleFiles({ env = {}, entries = [], inventory, security, generatedAt = Date.now() } = {}) {
+export function buildBundleFiles({ env = {}, entries = [], inventory, security, generatedAt = Date.now(), logInfo, history } = {}) {
   const problems = groupProblems(entries);
   const clean = redactValue(env);
   const files = {
@@ -170,16 +171,18 @@ export function buildBundleFiles({ env = {}, entries = [], inventory, security, 
       "environment.json  environment and settings (secrets removed)",
       "log.json          the redacted log entries",
       "log.txt           the same entries as text",
+      history?.length ? "log-history.json  logs of earlier sessions (redacted)" : "",
       inventory ? "storage.json      keys and sizes of what OpenFini stores on this device (no values)" : "",
       "",
       "Documents, API keys, chat contents and file names are never included. Secrets and your user name in file paths",
       "are removed automatically, but please skim the files before sending them to anyone.",
     ].filter((l) => l !== "").join("\n"),
-    "report.txt": buildReport({ env, entries, problems, security, generatedAt }),
+    "report.txt": buildReport({ env, entries, problems, security, generatedAt, logInfo }),
     "environment.json": JSON.stringify(clean, null, 2),
     "log.json": JSON.stringify({ generatedAt: new Date(generatedAt).toISOString(), entries: entries.map((e) => ({ time: new Date(e.t).toISOString(), level: e.level, scope: e.scope, message: redact(e.msg), count: e.count, ...(e.stack ? { stack: redact(e.stack) } : {}), ...(e.prev ? { previousSession: true } : {}) })), problems: problems.map((p) => ({ level: p.level, scope: p.scope, message: redact(p.msg), count: p.count, hint: p.hint?.title || null })) }, null, 2),
     "log.txt": redact(entriesToText(entries)),
   };
+  if (history?.length) files["log-history.json"] = JSON.stringify({ note: "Logs of earlier and current sessions, redacted before they were stored.", entries: history.map((e) => ({ session: e.session, build: e.build, time: new Date(e.t).toISOString(), level: e.level, scope: e.scope, message: redact(e.msg), count: e.count, ...(e.stack ? { stack: redact(e.stack) } : {}) })) }, null, 2);
   if (inventory) files["storage.json"] = JSON.stringify(inventory, null, 2);
   return files;
 }
@@ -255,6 +258,7 @@ export function describeKey(key, kind = "kv") {
   if (k === "ui.glassImage") return { label: "Your glass background image (stays on this device, never exported)", category: "Appearance", sensitive: false };
   if (k === "applock") return { label: "App lock record (salt and check value, no passphrase)", category: "Security", sensitive: false };
   if (k === "diag.errors") return { label: "Errors of earlier sessions (redacted)", category: "Diagnostics", sensitive: false, clear: "logs" };
+  if (k === "diag.log.index" || k.startsWith("diag.seg.")) return { label: "Logs of earlier sessions (redacted, rotated)", category: "Diagnostics", sensitive: false, clear: "logs" };
   if (k === "vibe.secrets") return { label: "AI provider API keys", category: "AI", sensitive: true, clear: "ai" };
   if (k === "vibe.providers") return { label: "AI provider connections (no keys)", category: "AI", sensitive: false, clear: "ai" };
   if (k === "vibe.chats" || k.startsWith("vibe.chat.")) return { label: "Vibe chats", category: "AI", sensitive: true, clear: "ai" };
