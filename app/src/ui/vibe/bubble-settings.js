@@ -6,7 +6,7 @@
 // Public API: bubbleSettingsPane(app) → element
 // Accessibility: every control is a labeled sl-select / sl-switch / native input; the preview is aria-hidden sample
 // content (not interactive), warnings are announced through a polite live region.
-import { h } from "../../core/util.js";
+import { h, optVal, optDecode } from "../../core/util.js";
 import { t, N_ } from "../../i18n/index.js";
 import { iconEl } from "../toolbox.js";
 import { BUBBLE_DEFAULTS, normalizeBubbles, BUBBLE_PRESETS } from "../../customize/bubbles.js";
@@ -55,8 +55,8 @@ export function bubbleSettingsPane(app) {
   const row = (label, ...ctl) => h("div.of-bubset__row", h("span.of-bubset__label", label), h("div.of-bubset__ctl", ...ctl));
   const select = (key, options, label) => {
     const s = h("sl-select", { size: "small", value: String(state[key]), "aria-label": label, hoist: true });
-    for (const [v, l] of options) s.append(h("sl-option", { value: String(v) }, t(l)));
-    s.addEventListener("sl-change", () => save({ [key]: typeof BUBBLE_DEFAULTS[key] === "number" ? Number(s.value) : s.value }));
+    for (const [v, l] of options) s.append(h("sl-option", { value: optVal(String(v)) }, t(l)));
+    s.addEventListener("sl-change", () => save({ [key]: typeof BUBBLE_DEFAULTS[key] === "number" ? Number(optDecode(s.value)) : optDecode(s.value) }));
     return s;
   };
   const sw = (key, label) => {
