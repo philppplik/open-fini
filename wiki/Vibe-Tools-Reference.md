@@ -32,6 +32,7 @@ The Vibe assistant acts through tools: named functions with schemas that call in
 | Assistant | knowledge search, remember, `use_skill`, `create_skill`, ask you a question, update the plan, create a tool | |
 | Power tools | `run_plan`, `query_layers`, `describe_page`, `describe_selection`, `apply_to_many`, `evaluate`, `screenshot_layers`, `compare_screenshots`, `grid_layout`, `distribute_layers`, `snap_layers`, `make_component` | Fewer round trips; `run_plan` gives one approval and one undo step |
 | Agents | `spawn_agent`, `wait_agent`, `list_agents`, `cancel_agent` | See [[Vibe Studio]] |
+| Web | `web_search`, `fetch_page`, `download_image` | Off by default (Settings ▸ Artificial intelligence ▸ Web access); ask per domain in every mode; local and private addresses blocked; results are untrusted data. See [[Vibe Studio]] |
 | Attachments | `list_attachments`, `open_attachment` | Attachments live in memory for the session |
 | Comments | `list_comments`, `get_comment_context`, `add_comment`, `reply_comment`, `resolve_comment` | Work without a room; every comment comes with its exact place. Add/reply ask only in a room |
 | Collaboration | `get_collab_status`, `read_chat`, `list_versions`, `save_version`, `post_chat_message`, `share_document` | Messages ask |
