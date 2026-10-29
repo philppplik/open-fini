@@ -39,6 +39,7 @@ commands/file.js ─► ui/office/open.js ─► registry.appForFile / engine/of
 | Export service | `app/src/office/services/export.js` |
 | Vibe prompt summary | `app/src/office/ai.js` |
 | Document app (adapter around `ui/office/`, `engine/office/`) | `app/src/office/document/{manifest,app}.js` |
+| Presentation app ([office-slides.md](office-slides.md)) | `app/src/office/slides/` |
 | Office Toolkit | `app/src/office/toolkit/` (`ui.js` DOM; `selection`, `virtual`, `find`, `clipboard`, `numfmt`, `rough`, `export` pure or engine-only) |
 | Styles (suite + toolkit) | `app/styles/office-suite.css` (your app: its own stylesheet) |
 | Storage, undo | `app/src/core/office.js` (`OfficeProject`, `commitOffice`) |
