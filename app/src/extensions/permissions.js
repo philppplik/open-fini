@@ -93,7 +93,7 @@ export function checkPermission(granted, method, params = {}, { toolKind } = {})
 }
 
 /** Tools an extension may never call through `document.callTool` (assistant internals, network and extension management). */
-const DENIED_TOOLS = new Set(["generate_image", "edit_image", "create_tool", "remember", "use_skill", "search_knowledge", "ask_user", "update_plan", "list_extensions", "run_extension_command", "install_extension_from_url", "create_extension"]);
+const DENIED_TOOLS = new Set(["generate_image", "edit_image", "create_tool", "remember", "use_skill", "search_knowledge", "ask_user", "update_plan", "list_extensions", "run_extension_command", "install_extension_from_url", "create_extension", "web_search", "fetch_page", "download_image"]);
 
 /** "read" | "write" | "denied" for a Vibe tool definition. */
 export function classifyTool(tool) {

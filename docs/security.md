@@ -64,6 +64,30 @@ is controlled by *Ask before opening links*.
 `NetworkBlockedError`, `code === "offline_mode"`) before any outbound request. The policy is the pure module
 `app/src/core/network.js`.
 
+## Web access for the assistant
+
+The tools `web_search`, `fetch_page` and `download_image` are **off by default** and are the only way the assistant
+reaches the internet itself (apart from the AI provider and MCP servers you add). Offline mode blocks them too (kind `other`).
+
+| Protection | How |
+| --- | --- |
+| Approval | Every call asks per domain (once, always for this domain, decline). Not skipped by Auto mode or the per-tool *Always allow*. |
+| SSRF | Only `http` and `https`; no user name or password in the address; `localhost`, `*.local`, `*.internal`, single-label names, private, loopback, link-local, CGNAT and reserved IPv4 and IPv6 literals (also IPv4-mapped and decimal, hex or octal spellings, which the URL parser normalizes) are refused. Every redirect hop is checked again. |
+| No identity | `credentials: "omit"`, no referrer, no custom headers, no cache. |
+| Limits | Size (declared and read), pixels, timeout, redirect count; all configurable. |
+| Images | Detected by magic bytes (PNG, JPEG, GIF, WebP), never by name or `Content-Type`; SVG and other types are refused; width times height is capped. |
+| Prompt injection | Results are wrapped in `<untrusted_web_content>` with a data-not-instructions notice; a fake closing tag inside is defused. |
+| Lists | Allowlist (no prompt) and blocklist (always refused) with subdomain matching. |
+
+Known limits: a browser cannot read the target of a redirect (opaque redirect), so there the final address is checked
+after the request and the body is dropped when it is private; the request to the first redirect hop may already have
+been sent, though without cookies. The browser also cannot resolve DNS, so a public name that points to a private
+address (DNS rebinding) is not detected; the web view's own cross-origin and private-network rules still apply.
+Wrapping reduces but cannot remove prompt-injection risk.
+
+**For developers:** `app/src/vibe/web-access.js` (guard, fetch, extraction, backends; pure and injectable) and
+`app/src/vibe/web-hosts.js`; tests in `tests/vibe/web-access.test.js`.
+
 ## App lock
 
 An optional passphrase lock screen, on start, after a chosen idle time, when the window is hidden, or on demand

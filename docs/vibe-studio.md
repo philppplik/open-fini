@@ -234,6 +234,7 @@ Sources: opencode.ai/docs/server, /docs/sdk, /docs/zen, /docs/providers.
 *Tools* ▸ lists them all; you can switch off any single tool.
 
 - **Documents**: new document, document info, `get_save_target` (which file type Save would write and why), studio switch, undo and redo, pages.
+- **Web** (off by default, see [Web access](#web-access)): `web_search`, `fetch_page`, `download_image`.
 - **Layers and vector**: list layers, selection, screenshots, shapes, text, paths, SVG import, styles, transforms,
   grouping, ordering, alignment, boolean operations, duplicate, delete.
 - **Pixel**: effect catalog, pixel layers, adjustment and live filter layers, selections, image generation and image
@@ -307,6 +308,28 @@ offers buttons to open it in a studio. (Website editing builds the Code studio's
 Any tool can be set to *Always allow*. The approval card shows the exact arguments. Whatever the mode, the assistant
 only touches OpenFini documents: it has no access to your files, shell or network except through the connections and
 MCP servers you add.
+
+## Web access
+
+Off by default. *Settings ▸ Artificial intelligence ▸ Web access* switches on three tools (group **Web**):
+`web_search` (web or openly licensed images), `fetch_page` (readable text as markdown) and `download_image` (places a
+PNG, JPEG, GIF or WebP as a layer, or shows it in the chat). The `find-images` skill describes the workflow.
+
+- **Approval per domain.** Each call shows the domain and the exact arguments: *Allow*, *Always allow this domain*
+  (adds it to the allowlist in settings) or *Decline*. These tools ask in every permission mode, also in Auto, and the
+  per-tool *Always allow* does not apply to them. Domains on the blocklist are refused even when approved.
+- **Search backends.** Web search: Wikipedia (default, no key, articles only), SearXNG (your own instance, no key; it
+  must enable the `json` format), Brave Search (API key), Tavily (API key). Image search always uses Openverse
+  (no key needed, rate limited) with Wikimedia Commons as fallback; results include license, creator and source page.
+  Keys are stored on this device and sent only to the search service.
+- **Licenses.** `download_image` records source URL, license, creator and title in the asset (`doc.assets[id].source`)
+  and on the layer (`source`) when known, and tells you the credit line. Without a license the result says so.
+- **Limits.** Page size (default 2 MiB), image size (10 MiB), image pixels (40 MP) and timeout (15 s) are adjustable.
+- **Browser versus desktop.** There is no HTTP command in the desktop app, so requests use the web view's `fetch`
+  in both. Sites without CORS headers cannot be read (the error says so); Wikipedia, Openverse and Commons allow it.
+  A SearXNG instance or a page must send `Access-Control-Allow-Origin`.
+- **Untrusted content.** Results are wrapped in `<untrusted_web_content>` with a reminder that they are data, not
+  instructions.
 
 ## Language
 

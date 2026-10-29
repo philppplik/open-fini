@@ -118,6 +118,7 @@ export class VibeSession extends Emitter {
   #policy(t, s) {
     const mode = s.approval;
     return (input) => {
+      if (t.alwaysAsk) return t.needsApproval?.(input) || false; // web tools: per-domain approval, never skipped by a mode or "Always allow"
       if (s.autoAllow.includes(t.name)) return false;
       const own = t.needsApproval?.(input);
       if (mode === "auto") return t.name === "create_tool" || t.name.startsWith("mcp_") || t.name.startsWith("ext_") || t.name === "install_extension_from_url" || t.name === "create_extension" || t.name === "run_extension_command" || t.name === "create_skill" ? own || `Run ${t.name}?` : false;

@@ -29,6 +29,7 @@ export const DEFAULT_SETTINGS = () => ({
   reasoning: "off", // off | low | medium | high
   maxSteps: 24,
   disabledTools: [],
+  webAccess: null, // Settings ▸ Artificial intelligence ▸ Web access; defaults in vibe/web-access.js (off)
   autoAllow: [],
   extraInstructions: "",
   sendScreenshots: true,

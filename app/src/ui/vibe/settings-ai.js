@@ -16,6 +16,7 @@ import { getVibeHub } from "../../vibe/hub.js";
 export const AI_TABS = [
   { id: "models", icon: "cpu", label: "Models and connections" },
   { id: "tools", icon: "tools", label: "Tools and MCP" },
+  { id: "web", icon: "globe2", label: "Web access" },
   { id: "skills", icon: "mortarboard", label: "Skills" },
   { id: "knowledge", icon: "journal-text", label: "Knowledge and memory" },
 ];
@@ -23,6 +24,7 @@ export const AI_TABS = [
 const LOADERS = {
   models: () => import("./panel-models.js").then((m) => m.createModelsPanel),
   tools: () => import("./panel-tools.js").then((m) => m.createToolsPanel),
+  web: () => import("./panel-web.js").then((m) => m.createWebPanel),
   skills: () => import("./panel-skills.js").then((m) => m.createSkillsPanel),
   knowledge: () => import("./panel-knowledge.js").then((m) => m.createKnowledgePanel),
 };

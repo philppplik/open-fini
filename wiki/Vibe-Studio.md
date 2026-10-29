@@ -37,6 +37,10 @@ An *AI is ...* **progress pill** in every other studio shows what the AI is doin
 
 With AI on, context menus get an **AI** submenu: on the canvas (describe, restyle, variations, tidy layout, name layers, rewrite, fix spelling, translate, generate an image, auto-enhance, check contrast), in the code editor (explain, fix, refactor, comment, generate) and on website elements (improve copy, make responsive, restyle, add states). Quick actions run the same agent with the same tools and permissions.
 
+## Web access
+
+Off by default. Under *Settings ▸ Artificial intelligence ▸ Web access* you can let the assistant search, read pages and download openly licensed images (try: "find a CC-licensed photo of a red panda and place it"). Every request asks per domain (*Allow*, *Always allow this domain*, *Decline*), local and private addresses are blocked, no cookies are sent, and what comes back is treated as untrusted text. Web search uses Wikipedia without a key, or your own SearXNG, Brave or Tavily; image search uses Openverse and Wikimedia Commons. Details: [docs/vibe-studio.md](https://github.com/philppplik/open-fini/blob/main/docs/vibe-studio.md#web-access).
+
 ## Privacy
 
 Nothing is sent unless AI is on and you chose a non-Demo model. Your prompt, attachments, screenshots of your pages (switchable in Tools settings), memory notes and tool results go to the provider you chose. Chats, memory, skills, knowledge and keys are stored locally; *Settings ▸ Artificial intelligence ▸ Delete all AI data* removes them. Text from outside (web pages, MCP replies, attached files, text on a canvas) is treated as data, not instructions, but no model is immune to prompt injection: keep Balanced or Careful mode with untrusted content ([[Security and Privacy]]).
