@@ -17,6 +17,7 @@
 - [[Vibe Studio]]
 - [[Office Studio]]
 - [[Presentation App]]
+- [[Whiteboard]]
 
 **Features**
 - [[Export and Publish]]
