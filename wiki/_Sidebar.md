@@ -16,6 +16,7 @@
 - [[Code Studio]]
 - [[Vibe Studio]]
 - [[Office Studio]]
+- [[Presentation App]]
 
 **Features**
 - [[Export and Publish]]
