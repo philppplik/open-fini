@@ -1,7 +1,7 @@
 // Dialogs of the Spreadsheet app (lazy): insert function, chart, conditional formatting, filter values, find and
 // replace, custom number format. Each one commits through the view (one undo step).
 import { h } from "../../core/util.js";
-import { t } from "../../i18n/index.js";
+import { t, N_ } from "../../i18n/index.js";
 import { openDialog } from "../toolkit/ui.js";
 import { findMatches, replaceMatches } from "../toolkit/find.js";
 import { parseRange, formatRange } from "../toolkit/selection.js";
@@ -37,11 +37,10 @@ const CHART_CHOICES = ["column", "stacked-column", "bar", "line", "area", "pie",
 export function chartDialog(view, chart = null) {
   const g = view.clampRange(view.range);
   const single = g.r0 === g.r1 && g.c0 === g.c1;
-  const used = M.usedRange(view.sheet);
-  const rangeIn = input(chart?.range || formatRange(single && used ? used : g), { "aria-label": t("Data range") });
+  const rangeIn = input(chart?.range || formatRange(single ? M.currentRegion(view.sheet, g.r0, g.c0) : g), { "aria-label": t("Data range") });
   const type = select(CHART_CHOICES.map((k) => [k, CHART_TYPES[k].label]), chart?.type || "column");
   const title = input(chart?.title || "", { "aria-label": t("Chart title") });
-  const by = select([["columns", "Series in columns"], ["rows", "Series in rows"]], chart?.seriesIn || "columns");
+  const by = select([["columns", N_("Series in columns")], ["rows", N_("Series in rows")]], chart?.seriesIn || "columns");
   const body = h("div.of-oform", field("Chart type", type), field("Data range", rangeIn), field("Series", by), field("Title", title), h("p.of-hint", t("The first row holds the series names and the first column the categories.")));
   const buttons = [{ label: "Cancel", onClick: (c) => c() }];
   if (chart) buttons.unshift({ label: "Delete chart", onClick: (c) => (c(), view.deleteChart(chart.id)) });
@@ -63,8 +62,8 @@ export function chartDialog(view, chart = null) {
   openDialog({ title: chart ? "Edit chart" : "Insert chart", width: 440, body, buttons });
 }
 
-const CF_TYPES = [["gt", "Greater than"], ["lt", "Less than"], ["ge", "Greater than or equal to"], ["le", "Less than or equal to"], ["eq", "Equal to"], ["ne", "Not equal to"], ["between", "Between"], ["contains", "Text contains"], ["blank", "Is empty"], ["notBlank", "Is not empty"], ["scale", "Color scale (red to green)"]];
-const CF_STYLES = [["red", "Light red fill, dark red text", { fill: "#ffc7ce", color: "#9c0006" }], ["green", "Green fill, dark green text", { fill: "#c6efce", color: "#006100" }], ["yellow", "Yellow fill, dark yellow text", { fill: "#ffeb9c", color: "#9c5700" }], ["bold", "Bold red text", { color: "#c00000", b: true }]];
+const CF_TYPES = [["gt", N_("Greater than")], ["lt", N_("Less than")], ["ge", N_("Greater than or equal to")], ["le", N_("Less than or equal to")], ["eq", N_("Equal to")], ["ne", N_("Not equal to")], ["between", N_("Between")], ["contains", N_("Text contains")], ["blank", N_("Is empty")], ["notBlank", N_("Is not empty")], ["scale", N_("Color scale (red to green)")]];
+const CF_STYLES = [["red", N_("Light red fill, dark red text"), { fill: "#ffc7ce", color: "#9c0006" }], ["green", N_("Green fill, dark green text"), { fill: "#c6efce", color: "#006100" }], ["yellow", N_("Yellow fill, dark yellow text"), { fill: "#ffeb9c", color: "#9c5700" }], ["bold", N_("Bold red text"), { color: "#c00000", b: true }]];
 
 export function conditionalDialog(view) {
   const g = view.clampRange(view.range);
@@ -131,7 +130,7 @@ export function filterDialog(view, c) {
   const all = h("label.of-sheet__check", h("input", { type: "checkbox", checked: !hidden.size || undefined }), h("strong", t("Select all")));
   all.firstChild.addEventListener("change", () => boxes.forEach((b) => (b.firstChild.checked = all.firstChild.checked)));
   const sortBtn = (asc) => {
-    const b = h("sl-button", { size: "small" }, t(asc ? "Sort A to Z" : "Sort Z to A"));
+    const b = h("sl-button", { size: "small" }, asc ? t("Sort A to Z") : t("Sort Z to A"));
     b.addEventListener("click", () => {
       d.close();
       view.select(view.sel.r, c, false, false);

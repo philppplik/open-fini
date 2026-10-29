@@ -1257,9 +1257,7 @@ export class SheetView {
       if (f && this.sel.c >= f.c0 && this.sel.c <= f.c1) (g = f), (header = true);
     } else if (g.r0 === g.r1 && g.c0 === g.c1) {
       // a single cell sorts its current region (the used block around it, first row as header when it is text)
-      const used = M.usedRange(s);
-      if (!used) return;
-      g = { r0: used.r0, c0: used.c0, r1: used.r1, c1: used.c1 };
+      g = M.currentRegion(s, this.sel.r, this.sel.c);
       header = typeof this.calc.get(this.sid, g.r0, this.sel.c) === "string" && typeof this.calc.get(this.sid, g.r0 + 1, this.sel.c) !== "string";
     }
     const calc = this.calc;
@@ -1271,9 +1269,8 @@ export class SheetView {
     if (s.filter) return this.commit("Remove Filter", M.updateSheet(this.model, this.sid, (x) => ({ ...x, filter: null })));
     let g = this.clampRange(this.range);
     if (g.r0 === g.r1) {
-      const used = M.usedRange(s);
-      if (!used) return this.app.toast(t("Select a table with a header row first."), "warning");
-      g = used;
+      g = M.currentRegion(s, this.sel.r, this.sel.c);
+      if (g.r0 === g.r1) return this.app.toast(t("Select a table with a header row first."), "warning");
     }
     this.commit("Filter", M.updateSheet(this.model, this.sid, (x) => ({ ...x, filter: { range: formatRange(g), hide: {} } })));
   }

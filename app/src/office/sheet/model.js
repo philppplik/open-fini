@@ -101,6 +101,26 @@ export function usedRange(sheet) {
   return r1 < 0 ? null : { r0, c0, r1, c1 };
 }
 
+/** The block of filled cells around (r, c), bounded by empty rows and columns (Ctrl+A / "current region"). */
+export function currentRegion(sheet, r, c) {
+  const filled = (rr, cc) => {
+    const x = sheet.cells[rcKey(rr, cc)];
+    return !!x && (x.v !== undefined || x.f !== undefined);
+  };
+  let g = { r0: r, c0: c, r1: r, c1: c };
+  for (let pass = 0; pass < 200; pass++) {
+    let grew = false;
+    const rowHas = (rr) => rr >= 0 && Array.from({ length: g.c1 - g.c0 + 3 }, (_, i) => g.c0 - 1 + i).some((cc) => cc >= 0 && filled(rr, cc));
+    const colHas = (cc) => cc >= 0 && Array.from({ length: g.r1 - g.r0 + 3 }, (_, i) => g.r0 - 1 + i).some((rr) => rr >= 0 && filled(rr, cc));
+    if (rowHas(g.r0 - 1)) (g = { ...g, r0: g.r0 - 1 }), (grew = true);
+    if (rowHas(g.r1 + 1)) (g = { ...g, r1: g.r1 + 1 }), (grew = true);
+    if (colHas(g.c0 - 1)) (g = { ...g, c0: g.c0 - 1 }), (grew = true);
+    if (colHas(g.c1 + 1)) (g = { ...g, c1: g.c1 + 1 }), (grew = true);
+    if (!grew) break;
+  }
+  return g;
+}
+
 /** Grid extent including formatting-only cells (for scrolling and saving). */
 export function extentOf(sheet) {
   let rows = 0;

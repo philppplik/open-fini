@@ -46,7 +46,7 @@ test("registry: validation, ordering, duplicate extensions, unregister", async (
   registerOfficeApp(SHEET);
   try {
     assert.throws(() => registerOfficeApp(SHEET), /already registered/);
-    assert.deepEqual(officeApps().map((m) => m.kind).slice(0, 2), ["document", "test-sheet"]);
+    assert.deepEqual(officeApps().map((m) => m.kind).slice(0, 3), ["document", "sheet", "test-sheet"], "same order: registration order");
     assert.ok(officeOpenExtensions().includes("tcsv"));
     assert.equal(appForFile("b.tcsv").app.kind, "test-sheet");
     const impl = await loadOfficeApp("test-sheet");
