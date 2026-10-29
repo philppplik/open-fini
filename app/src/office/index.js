@@ -10,7 +10,7 @@ import { DOCUMENT_APP } from "./document/manifest.js";
 
 import { SLIDES_APP } from "./slides/manifest.js";
 
-// Whiteboard app: import { BOARD_APP } from "./board/manifest.js";
+import { BOARD_APP } from "./board/manifest.js";
 
 const BUILTIN = [
   DOCUMENT_APP,
@@ -19,7 +19,7 @@ const BUILTIN = [
 
   SLIDES_APP,
 
-  // BOARD_APP,
+  BOARD_APP,
 ];
 
 for (const m of BUILTIN) if (!officeApp(m.kind)) registerOfficeApp(m);
