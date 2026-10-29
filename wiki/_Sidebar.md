@@ -18,6 +18,7 @@
 - [[Office Studio]]
 - [[Presentation App]]
 - [[Spreadsheet]]
+- [[Whiteboard]]
 
 **Features**
 - [[Export and Publish]]
