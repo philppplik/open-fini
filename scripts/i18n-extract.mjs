@@ -22,6 +22,7 @@ export const LOCALE_DIR = join(SRC, "i18n", "locales");
 
 /** Files whose static tables are translated at render time: [path test, regex with the text in group 1 (double-quoted literal)]. */
 const STR = String.raw`"((?:[^"\\\n]|\\.)*)"`;
+const slidesFile = (p) => p.startsWith("office/slides/") || p === "commands/office-slides.js";
 export const IMPLICIT = [
   { test: (p) => p === "ui/menus.js" || p === "studios/office.js", re: new RegExp(String.raw`\blabel:\s*${STR}`, "g") },
   { test: (p) => p.startsWith("commands/"), re: new RegExp(String.raw`\bdef\(\s*"[\w.\-]+"\s*,\s*${STR}`, "g") },
@@ -49,6 +50,13 @@ export const IMPLICIT = [
   // collaboration UI: literal toasts and dialog texts (translated by app.toast / confirmDialog / promptDialog) and tab labels
   { test: (p) => p.startsWith("ui/collab/"), re: new RegExp(String.raw`\.toast\(\s*${STR}`, "g") },
   { test: (p) => p.startsWith("ui/collab/"), re: new RegExp(String.raw`\b(?:title|message|ok|label):\s*${STR}`, "g") },
+  // Presentation app: static labels (manifest, layouts, themes, menus), toolkit buttons and undo-step names
+  { test: slidesFile, re: new RegExp(String.raw`\b(?:label|description|blurb):\s*${STR}`, "g") },
+  { test: slidesFile, re: /\bname:\s*"([A-Z][^"\\\n]*)"/g },
+  { test: slidesFile, re: new RegExp(String.raw`\b(?:cmd|btn)\(\s*"[\w-]+"\s*,\s*${STR}`, "g") },
+  { test: slidesFile, re: new RegExp(String.raw`\b(?:commit|deckOp|insertElement)\(\s*${STR}`, "g") },
+  { test: slidesFile, re: new RegExp(String.raw`\b(?:toggleStyle|format)\([^;]*?,\s*${STR}\)`, "g") },
+  { test: (p) => p === "office/slides/model.js", re: /"(Click to add [a-z]+)"/g },
 ];
 
 /** Implicit patterns also hit units, numbers and technical tokens that need no translation. */
