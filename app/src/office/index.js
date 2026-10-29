@@ -8,7 +8,7 @@ import { DOCUMENT_APP } from "./document/manifest.js";
 
 // Spreadsheet app: import { SHEET_APP } from "./sheet/manifest.js";
 
-// Presentation app: import { SLIDES_APP } from "./slides/manifest.js";
+import { SLIDES_APP } from "./slides/manifest.js";
 
 // Whiteboard app: import { BOARD_APP } from "./board/manifest.js";
 
@@ -17,7 +17,7 @@ const BUILTIN = [
 
   // SHEET_APP,
 
-  // SLIDES_APP,
+  SLIDES_APP,
 
   // BOARD_APP,
 ];

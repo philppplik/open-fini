@@ -1,0 +1,88 @@
+/* Presentation app (Office Suite kind "slides"). Loaded at runtime by office/slides/view.js the first time a deck is
+   shown, so it costs nothing at start-up. UI colors come from the --of-* tokens; slide content uses the deck's own
+   theme colors (it is a document, not UI). */
+.of-sl { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--of-bg-app); color: var(--of-text); }
+.of-sl .of-tk-split { flex: 1; min-height: 0; }
+.of-sl .of-tk-split[hidden] { display: none; }
+.of-sl-caret { font-size: 9px; margin-left: -2px; }
+.of-sl-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+/* thumbnails and sorter */
+.of-sl-thumbs { height: 100%; overflow: auto; padding: 10px 8px 24px 4px; display: flex; flex-direction: column; gap: 10px; background: var(--of-bg-panel); outline: none; }
+.of-sl-sorter { flex: 1; min-height: 0; overflow: auto; padding: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(236px, 1fr)); gap: 16px; align-content: start; outline: none; }
+.of-sl-sorter[hidden] { display: none; }
+.of-sl-thumb { position: relative; display: flex; gap: 6px; align-items: flex-start; cursor: pointer; border-radius: var(--of-radius-sm); padding: 3px; }
+.of-sl-thumb .of-sl-scaled { outline: 1px solid var(--of-border); border-radius: 2px; }
+.of-sl-thumb.is-current .of-sl-scaled { outline: 2px solid var(--of-accent); }
+.of-sl-thumbs:focus-visible .is-current, .of-sl-sorter:focus-visible .is-current { box-shadow: 0 0 0 2px var(--of-accent-soft); }
+.of-sl-thumb.is-hidden .of-sl-scaled { opacity: 0.45; }
+.of-sl-thumb.is-drop::before { content: ""; position: absolute; left: 18px; right: 0; top: -6px; height: 3px; border-radius: 2px; background: var(--of-accent); }
+.of-sl-sorter .of-sl-thumb.is-drop::before { left: -9px; top: 0; bottom: 0; width: 3px; height: auto; right: auto; }
+.of-sl-thumb__num { width: 14px; font-size: 11px; color: var(--of-text-dim); text-align: right; flex: none; }
+.of-sl-thumb__hidden { position: absolute; right: 8px; bottom: 8px; color: var(--of-text-dim); }
+.of-sl-scaled { position: relative; overflow: hidden; flex: none; pointer-events: none; }
+.of-sl-scaled > .of-sl-slide { position: absolute; left: 0; top: 0; }
+
+/* stage and notes */
+.of-sl-main { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+.of-sl-stage { flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; outline: none; background: var(--of-bg-app); touch-action: none; }
+.of-sl-frame { position: relative; box-shadow: 0 2px 12px rgb(0 0 0 / 0.18); }
+.of-sl-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.of-sl-notes { flex: none; height: 96px; min-height: 40px; max-height: 50%; resize: vertical; border: 0; border-top: 1px solid var(--of-border); padding: 8px 12px; font: 13px/1.45 system-ui, sans-serif; background: var(--of-bg-panel); color: var(--of-text); }
+.of-sl-notes:focus { outline: 2px solid var(--of-accent-soft); outline-offset: -2px; }
+
+/* slide content */
+.of-sl-slide { position: relative; overflow: hidden; background-size: 100% 100%; contain: layout paint; }
+.of-sl-el { position: absolute; box-sizing: border-box; }
+.of-sl-svg { position: absolute; inset: 0; overflow: visible; }
+.of-sl-txt { position: absolute; inset: 0; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; white-space: pre-wrap; overflow-wrap: break-word; cursor: default; }
+.of-sl-txt.is-editing { overflow: visible; outline: none; cursor: text; user-select: text; }
+.of-sl-p { min-height: 1lh; }
+.of-sl-p.is-bullet { position: relative; padding-left: 1.1em; }
+.of-sl-p.is-bullet::before { content: "•"; position: absolute; left: 0; }
+.of-sl-hint { opacity: 0.45; }
+.of-sl-img { width: 100%; height: 100%; display: block; object-fit: fill; user-select: none; }
+.of-sl-missing { width: 100%; height: 100%; display: grid; place-items: center; font: 12px sans-serif; color: #666; background: repeating-linear-gradient(45deg, #eee 0 8px, #ddd 8px 16px); }
+.of-sl-table { width: 100%; height: 100%; border-collapse: collapse; table-layout: fixed; }
+.of-sl-table td, .of-sl-table th { border: 1px solid var(--of-sl-grid); padding: 2px 8px; vertical-align: middle; text-align: left; overflow: hidden; white-space: pre-wrap; }
+.of-sl-table th { background: var(--of-sl-head); color: #fff; font-weight: 700; }
+.of-sl-table [contenteditable="true"], .of-sl-table [contenteditable="plaintext-only"] { outline: 2px solid var(--of-accent); outline-offset: -2px; }
+
+/* selection */
+.of-sl-canvas .of-sl-el:hover:not(.is-selected) { outline: calc(1px * var(--of-sl-inv, 1)) dashed var(--of-accent); }
+.of-sl-overlay { position: absolute; inset: 0; pointer-events: none; }
+.of-sl-sel { position: absolute; box-sizing: border-box; outline: calc(1.5px * var(--of-sl-inv, 1)) solid var(--of-accent); }
+.of-sl-handle { position: absolute; width: calc(9px * var(--of-sl-inv, 1)); height: calc(9px * var(--of-sl-inv, 1)); margin: calc(-4.5px * var(--of-sl-inv, 1)); background: #fff; border: calc(1.5px * var(--of-sl-inv, 1)) solid var(--of-accent); border-radius: 2px; box-sizing: border-box; pointer-events: auto; }
+.of-sl-handle.is-nw { left: 0; top: 0; cursor: nwse-resize; }
+.of-sl-handle.is-n { left: 50%; top: 0; cursor: ns-resize; }
+.of-sl-handle.is-ne { left: 100%; top: 0; cursor: nesw-resize; }
+.of-sl-handle.is-e { left: 100%; top: 50%; cursor: ew-resize; }
+.of-sl-handle.is-se { left: 100%; top: 100%; cursor: nwse-resize; }
+.of-sl-handle.is-s { left: 50%; top: 100%; cursor: ns-resize; }
+.of-sl-handle.is-sw { left: 0; top: 100%; cursor: nesw-resize; }
+.of-sl-handle.is-w { left: 0; top: 50%; cursor: ew-resize; }
+.of-sl-handle.is-rot { left: 50%; top: calc(-24px * var(--of-sl-inv, 1)); border-radius: 50%; cursor: grab; }
+.of-sl-marquee { position: absolute; border: calc(1px * var(--of-sl-inv, 1)) dashed var(--of-accent); background: color-mix(in srgb, var(--of-accent) 12%, transparent); }
+
+/* slide show */
+.of-sl-show { position: fixed; inset: 0; z-index: 10000; background: #000; color: #eee; display: grid; grid-template: "aud" 1fr / 1fr; outline: none; font: 14px system-ui, sans-serif; }
+.of-sl-show__audience { grid-area: aud; position: relative; overflow: hidden; cursor: none; }
+.of-sl-show__screen { position: absolute; inset: 0; overflow: hidden; }
+.of-sl-show__slide { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.of-sl-show__side, .of-sl-show__bar { display: none; }
+.of-sl-show.is-presenter { grid-template: "aud side" 1fr "bar bar" auto / 3fr minmax(240px, 1.2fr); gap: 12px; padding: 12px; background: #1b1b1f; }
+.of-sl-show.is-presenter .of-sl-show__audience { cursor: default; background: #000; border-radius: 6px; }
+.of-sl-show.is-presenter .of-sl-show__side { grid-area: side; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.of-sl-show.is-presenter .of-sl-show__bar { grid-area: bar; display: flex; align-items: center; gap: 12px; }
+.of-sl-show__label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: #aaa; }
+.of-sl-show__next { min-height: 80px; }
+.of-sl-show__next .of-sl-scaled { border-radius: 4px; }
+.of-sl-show__end { padding: 24px; text-align: center; color: #aaa; border: 1px dashed #555; border-radius: 4px; }
+.of-sl-show__notes { flex: 1; overflow: auto; font-size: 20px; line-height: 1.45; white-space: pre-wrap; padding-right: 6px; }
+.of-sl-show__timer { font: 600 22px ui-monospace, monospace; margin-left: auto; }
+.of-sl-show__clock { color: #aaa; }
+.of-sl-show__bar .of-tk-btn { color: #eee; }
+.of-sl-show.is-black .of-sl-show__screen { visibility: hidden; }
+.of-sl-show.is-white .of-sl-show__audience { background: #fff; }
+.of-sl-show.is-white .of-sl-show__screen { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { .of-sl-thumbs .is-current { scroll-behavior: auto; } }

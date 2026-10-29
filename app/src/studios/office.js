@@ -57,4 +57,10 @@ export const OFFICE_MENUS = [
     officeKinds: ["document"],
     items: ["office.pageSetup", "office.headerFooter", "office.properties", "office.wordCount", "-", "office.export", { label: "Export As", items: ["office.exportDocx", "office.exportOdt", "office.exportRtf", "office.exportPdf", "office.exportHtml", "office.exportMd", "office.exportTxt"] }, "office.importReport"],
   },
+  // Presentation app (office/slides): commands register when the app first loads (commands/office-slides.js)
+  { label: "Edit", studios: ["office"], officeKinds: ["slides"], items: ["edit.undo", "edit.redo", "-", "slides.cut", "slides.copy", "slides.paste", "slides.duplicate", "slides.delete", "-", "slides.selectAll", "-", "edit.preferences"] },
+  { label: "Insert", studios: ["office"], officeKinds: ["slides"], items: ["slides.newSlide", "slides.duplicateSlide", "-", "slides.insertText", "slides.insertShape", "slides.insertImage", "slides.insertTable"] },
+  { label: "Format", studios: ["office"], officeKinds: ["slides"], items: ["slides.bold", "slides.italic", "slides.underline", "slides.bullets", "-", "slides.alignLeft", "slides.alignCenter", "slides.alignRight", "-", "slides.front", "slides.forward", "slides.backward", "slides.back", "slides.rotate"] },
+  { label: "Slide", studios: ["office"], officeKinds: ["slides"], items: ["slides.newSlide", "slides.duplicateSlide", "slides.deleteSlide", "slides.hideSlide", "-", "slides.moveUp", "slides.moveDown", "-", "slides.transition.none", "slides.transition.fade", "slides.transition.slide", "-", "slides.export"] },
+  { label: "View", studios: ["office"], officeKinds: ["slides"], items: ["slides.sorter", "-", "slides.present", "slides.presentCurrent", "slides.presenterView", "-", "view.theme"] },
 ];

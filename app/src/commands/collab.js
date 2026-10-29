@@ -47,7 +47,7 @@ export function registerCollabCommands(app) {
   registerContextProvider({
     id: "collab.comment",
     priority: 12,
-    matches: (c) => !!c.app.doc && (["canvas-empty", "canvas-layers", "canvas-text", "table", "table-cell", "chart", "layers-row", "code-editor", "office-document", "web-element"].includes(c.kind)),
+    matches: (c) => !!c.app.doc && (["canvas-empty", "canvas-layers", "canvas-text", "table", "table-cell", "chart", "layers-row", "code-editor", "office-document", "office-slides", "web-element"].includes(c.kind)),
     items: (c) => [{ label: "Add comment here…", icon: "chat-quote", shortcut: "Mod+Alt+M", run: () => c.app.run("collab.addCommentHere", { ctx: { kind: c.kind, x: c.x, y: c.y, data: c.data } }) }],
   });
   def("collab.versions", "Version History", async (a) => (await rt()).openCollab(a, "versions"), { icon: "clock-history", enabled: (a) => !!a.doc });
