@@ -88,6 +88,21 @@ workload tests and **production** build for start-up. Your numbers will differ; 
 
 Reproduce with `node tests/pixel/bench.mjs`.
 
+## Worker pool
+
+`app/src/core/workers/` runs heavy pure jobs off the UI thread (`runJob(name, args, { transfer, signal, onProgress })`;
+lazy, `hardwareConcurrency - 1` workers capped at 4, cancellation terminates the worker, same code runs locally when
+Workers are unavailable). Jobs were picked by measurement (Node 24, synthetic data):
+
+| Job | Blocked the UI thread for | Now |
+| --- | --- | --- |
+| `pixel.resize`: Resize Document with Lanczos, 4000×3000 → 2000×1500, per layer | ~480 ms | worker; layers in parallel. In Chromium the whole command took 0.7 s with the longest main-thread gap 115 ms (`getImageData`/`putImageData`) |
+| `pixel.trace`: Trace Image (scale-down to 900 px + trace) | ~225 ms + resize | worker; longest gap 52 ms |
+| `zip.compress`: save with an 11 MB `document.json` | ~250 ms | worker when more than 512 KB are deflated |
+
+Left on the main thread: unzip on open (~35 ms for the same file), RAG indexing (~70 ms for 2 MB of text) and live
+filter layers (they need an asynchronous render pipeline first). Add a job to `jobs.js` only with a measurement.
+
 ## Known limits
 
 * **Adjustment and filter layers are computed in JavaScript on the viewport pixels.** Simple adjustments

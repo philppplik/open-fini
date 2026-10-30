@@ -69,7 +69,13 @@ export async function saveOfini(doc) {
   } catch {
     /* thumbnails are optional */
   }
-  return zipSync(files, { level: 6 });
+  // Deflating a large document.json (or website) blocks for 100+ ms (about 25 ms per MB): do it on the worker pool.
+  let deflated = 0;
+  for (const v of Object.values(files)) if (!Array.isArray(v)) deflated += v.length;
+  else if (v[1]?.level) deflated += v[0].length;
+  if (deflated < 512 * 1024) return zipSync(files, { level: 6 });
+  const { runJob } = await import("./workers/index.js");
+  return runJob("zip.compress", { files, level: 6 });
 }
 
 /** Loads a document from .ofini bytes. */

@@ -70,6 +70,7 @@ Rules that explain most of the code:
   (the packaging tests check that Open dialogs, drag-and-drop, Tauri associations and the PWA manifest agree), routing in `commands/file.js`.
 * **An extension**: `node sdk/create-extension.mjs publisher.name`, see [extensions.md](extensions.md).
 * **A translation**: wrap with `t()`, `npm run i18n:extract`, translate `app/src/i18n/locales/de.json`; new language = one `LOCALES` entry.
+* **A heavy pure job off the UI thread**: add it to `app/src/core/workers/jobs.js` (plain data in and out, return `{ r, transfer }`) and call `runJob()` from `core/workers/index.js`; it falls back to running in-thread. Measure first ([performance.md](performance.md#worker-pool)).
 * **A dependency**: avoid. Vendored code needs an MIT-compatible license, a folder in `app/vendor/`, an entry in `THIRD_PARTY_NOTICES.md`.
 
 ## 4. Testing

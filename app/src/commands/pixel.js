@@ -4,7 +4,7 @@ import { t, N_ } from "../i18n/index.js";
 import { createNode, solid, worldMatrix, localBounds } from "../core/nodes.js";
 import { createCanvas, ctx2d } from "../core/doc.js";
 import { mul, translate, scale as scaleM, rotate, apply, ident } from "../core/math.js";
-import { Mask, listEffects, getEffect, traceImage, resizeImage } from "../engine/pixel/index.js";
+import { Mask, listEffects, getEffect } from "../engine/pixel/index.js";
 import { fitSubpath } from "../engine/vector/fit.js";
 import { addNodes, topLevelSelection } from "../core/ops.js";
 import { setMask, getMask, paintTarget, layerSpaceMask, commitPixelEdit, newPixelLayer, addLayerMask, removeLayerMask, maskCanvas } from "../core/pixel.js";
@@ -279,9 +279,11 @@ export function registerPixelCommands(app) {
           variant: "primary",
           onClick: async (close) => {
             const m = await import("../studios/tools/image-ops.js");
-            const r = m.resizeDocument(a, st.w, st.h, { resample: st.resample, dpi: st.dpi });
-            if (r !== true) a.toast(r, "warning");
             close();
+            a.status(t("Resizing…"));
+            const r = await m.resizeDocument(a, st.w, st.h, { resample: st.resample, dpi: st.dpi });
+            a.status("");
+            if (r !== true) a.toast(r, "warning");
           },
         },
       ],
@@ -352,25 +354,30 @@ function traceDialog(app) {
         variant: "primary",
         onClick: (close) => {
           close();
-          setTimeout(() => runTrace(app, target, st), 30);
+          setTimeout(() => runTrace(app, target, st).catch((err) => app.toast(err.message, "danger", 5000)), 30);
         },
       },
     ],
   });
 }
 
-function runTrace(app, target, st) {
+async function runTrace(app, target, st) {
   const res = rasterizeNodes(app, [target], { clip: false });
   if (!res) return;
   const { canvas, rect } = res;
-  const maxSide = 900;
-  const k = Math.min(1, maxSide / Math.max(canvas.width, canvas.height));
-  let img = ctx2d(canvas).getImageData(0, 0, canvas.width, canvas.height);
-  if (k < 1) img = resizeImage(img, Math.round(canvas.width * k), Math.round(canvas.height * k), { filter: "box" });
+  const img = ctx2d(canvas).getImageData(0, 0, canvas.width, canvas.height);
   app.status("Tracing…");
-  const tr = traceImage(img, { mode: st.mode, colors: st.colors, speckle: st.speckle, smoothing: st.smoothing });
-  const sx = rect.w / img.width;
-  const sy = rect.h / img.height;
+  // the scale-down and the trace (a few hundred ms) run on the worker pool
+  const { runJob } = await import("../core/workers/index.js");
+  let out;
+  try {
+    out = await runJob("pixel.trace", { img: { width: img.width, height: img.height, data: img.data }, maxSide: 900, opts: { mode: st.mode, colors: st.colors, speckle: st.speckle, smoothing: st.smoothing } }, { transfer: [img.data.buffer] });
+  } finally {
+    app.status("");
+  }
+  const tr = out.trace;
+  const sx = rect.w / out.width;
+  const sy = rect.h / out.height;
   const group = createNode("group", { name: `${target.name} (traced)` });
   for (const layer of tr.layers) {
     const subs = [];
@@ -383,7 +390,6 @@ function runTrace(app, target, st) {
     if (!subs.length) continue;
     group.children.push(createNode("path", { name: layer.color, path: { subpaths: subs }, rule: "evenodd", fill: solid(layer.color), stroke: null }));
   }
-  app.status("");
   if (!group.children.length) return app.toast("Nothing to trace.", "warning");
   addNodes(app, group, { label: "Trace Image" });
   app.toast(`Traced into ${group.children.length} shapes.`, "success");
