@@ -107,3 +107,8 @@ jobs:
       - name: Check
         working-directory: src-tauri
         run: cargo check --all-targets
+
+      # unit tests of the pure protocol code (relay frames, FTP/SMTP replies, MIME, hashes); no network
+      - name: Unit tests
+        working-directory: src-tauri
+        run: cargo test --lib

@@ -94,6 +94,7 @@ const defaultPrefs = () => ({
   collabNick: "", // nickname shown to room members ("" = ask on first use)
   collabColor: "", // presence color ("" = picked from the nickname)
   collabRelay: "ws://127.0.0.1:8787/", // last relay address used to create a room (not secret)
+  smtpAccount: null, // "Send by email" (desktop app): { host, port, security, user, from, pinnedCert }; the password is in the key store
   collabActivity: true, // post my edits as activity lines in the room chat
   collabCursors: "auto", // show other members' cursors: auto (off in low-power mode) | on | off
   collabNotify: true, // toast + title badge for @mentions and replies

@@ -269,6 +269,26 @@ export async function deployHelper(ctx) {
   return { url: config.publicUrl || last.url || "", message: last.message || "Uploaded by the publish helper." };
 }
 
+// ------------------------------------------------------------------ FTP / FTPS built into the desktop app
+
+/** What the desktop app's FTP client receives (password from the vault, never saved in the profile). */
+export function ftpTarget(config = {}, password = "") {
+  const port = Number(config.port) || null;
+  return { host: String(config.host || "").trim(), port, security: config.security || "explicit", user: String(config.username || "").trim(), password: password || "", remotePath: String(config.remotePath || "").trim(), pinnedCert: config.pinnedCert || null };
+}
+
+/** `ctx.native.ftpUpload(target, files, { onProgress, signal })` is injected by the desktop app (platform/native-net.js). */
+export async function deployFtp(ctx) {
+  const { config = {} } = ctx;
+  if (!ctx.native?.ftpUpload) throw new PublishError("FTP and FTPS uploads are built into the OpenFini desktop app. In the browser, use WebDAV, a hosted service or the publish helper.", "UNAVAILABLE");
+  const target = ftpTarget(config, ctx.secret);
+  if (!target.host) throw new PublishError("Enter the FTP server name.", "BAD_CONFIG");
+  if (!target.password && target.user && target.user !== "anonymous") throw new PublishError("Add the FTP password first.", "NO_SECRET");
+  ctx.onProgress?.({ text: `Connecting to ${target.host}…` });
+  const message = await ctx.native.ftpUpload(target, ctx.files, { onProgress: (p) => ctx.onProgress?.({ text: p.text, done: p.done, total: p.total }), signal: ctx.signal });
+  return { url: (config.publicUrl || "").trim(), message: message || `Uploaded ${ctx.files.length} files.` };
+}
+
 // ------------------------------------------------------------------ registry
 
 /** Field descriptions drive the form in the Publish dialog. `secret` names what is stored in the vault. */
@@ -277,6 +297,8 @@ export const TARGETS = [
   { id: "vercel", label: "Vercel", deploy: deployVercel, secret: "Access token", secretHelp: "Vercel ▸ Account settings ▸ Tokens.", host: "api.vercel.com", fields: [{ key: "projectName", label: "Project name" }, { key: "teamId", label: "Team ID (optional)" }] },
   { id: "github-pages", label: "GitHub Pages", deploy: deployGitHubPages, secret: "Personal access token", secretHelp: "A fine-grained token with Contents and Pages read/write access to the repository.", host: "api.github.com", fields: [{ key: "repo", label: "Repository (owner/name)" }, { key: "branch", label: "Branch", placeholder: "gh-pages" }] },
   { id: "webdav", label: "WebDAV / HTTP PUT", deploy: deployWebDav, secret: "Password or token", secretHelp: "Sent only to the address below. The server must send CORS headers (allow PUT, MKCOL and Authorization).", fields: [{ key: "url", label: "Upload address", placeholder: "https://cloud.example.com/remote.php/dav/files/me/site" }, { key: "username", label: "Username" }, { key: "mode", label: "Method", options: [["webdav", "WebDAV (creates folders with MKCOL)"], ["put", "Plain HTTP PUT"]] }, { key: "publicUrl", label: "Public address of the site (optional)" }] },
+  { id: "ftp", label: "FTP / FTPS server (desktop app)", deploy: deployFtp, desktopOnly: true, testable: true, secret: "Password", secretHelp: "Kept in this device's key store (sealed when the vault is on) and sent only to the server below.", fields: [{ key: "host", label: "Server", placeholder: "ftp.example.com" }, { key: "security", label: "Encryption", options: [["explicit", "FTPS: FTP with TLS (recommended)"], ["implicit", "FTPS with implicit TLS (port 990)"], ["none", "Plain FTP (password and files unencrypted)"]] }, { key: "port", label: "Port (optional)" }, { key: "username", label: "Username" }, { key: "remotePath", label: "Remote folder", placeholder: "/public_html" }, { key: "publicUrl", label: "Public address of the site (optional)" }] },
+  { id: "sftp", label: "SFTP server (desktop app)", unavailable: "SFTP is not built into OpenFini yet. Use “FTP / FTPS server” (most hosts offer FTPS), or SFTP through the publish helper (npm run publish:helper).", fields: [] },
   { id: "helper", label: "Server (FTP / SFTP / rsync / SMTP) via helper", deploy: deployHelper, secret: "Helper token", secretHelp: "Printed by `npm run publish:helper`. The server password is asked for per upload and never saved.", helper: true, fields: [{ key: "helperUrl", label: "Helper address", placeholder: "http://127.0.0.1:4310" }, { key: "protocol", label: "Protocol", options: [["sftp", "SFTP (ssh keys)"], ["ftp", "FTP"], ["ftps", "FTPS (explicit TLS)"], ["rsync", "rsync over ssh"], ["smtp", "Mail the site as a ZIP (SMTP)"]] }, { key: "host", label: "Host" }, { key: "port", label: "Port (optional)" }, { key: "username", label: "Username" }, { key: "remotePath", label: "Remote folder", placeholder: "/var/www/html" }, { key: "keyFile", label: "SSH key file (optional)" }, { key: "to", label: "Mail to (SMTP only)" }, { key: "publicUrl", label: "Public address of the site (optional)" }] },
   { id: "cloudflare", label: "Cloudflare Pages", unavailable: "Cloudflare's direct-upload API needs BLAKE3 file hashing and does not allow calls from web pages. Use GitHub Pages or Netlify, or connect the repository exported from Source Control to Cloudflare Pages.", fields: [] },
 ];

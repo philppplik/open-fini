@@ -158,7 +158,7 @@ export function qrSvg(text, label) {
 
 const COMMANDS = [
   { title: "This network (LAN): phones, tablets and laptops", cmd: "npm run relay -- --lan", note: "Binds every interface, serves the app, answers ws:// and wss:// on port 8787 and prints the addresses and a QR code. Other devices open https://<this computer's IP>:8787/ and accept the certificate warning once." },
-  { title: "Without a source checkout (Node 20+ only)", cmd: "node scripts/relay.mjs --lan", note: "The relay is one file without dependencies: copy scripts/relay.mjs, scripts/relay-tls.mjs and app/src/collab/qr.js (keep the folders) or run it from the OpenFini sources." },
+  { title: "Without the OpenFini sources (Node 20+ only)", cmd: "node relay.mjs --lan", note: "Download scripts/relay.mjs (and scripts/relay-tls.mjs for https, next to it) into any folder and run this command in that folder. “npm run relay” only works inside the OpenFini project folder (elsewhere npm reports ENOENT package.json)." },
   { title: "This computer only", cmd: "npm run relay", note: "ws://127.0.0.1:8787/ for windows on this computer." },
   { title: "A server on the internet (VPS) behind a TLS reverse proxy", cmd: "node scripts/relay.mjs --port 8787 --origin https://your.app.origin", note: "Keep it on 127.0.0.1 and let Caddy (relay.example.org { reverse_proxy 127.0.0.1:8787 }) or nginx (proxy_pass with Upgrade headers, see docs/collaboration.md) terminate TLS. Members use wss://relay.example.org/." },
 ];
@@ -179,7 +179,9 @@ export function relayHelpDialog(app) {
   };
   const body = h(
     "div.of-relay-help",
-    h("p", t("A relay is a tiny program that forwards the room's encrypted messages. It never sees content. Run it on one computer in your network, or on a server. It needs Node.js 20 or newer.")),
+    h("p", t("A relay is a tiny program that forwards the room's encrypted messages. It never sees content.")),
+    h("p.of-collab-note", h("sl-icon", { name: "info-circle", "aria-hidden": "true" }), t("Easiest: in the OpenFini desktop app choose Start a room ▸ Your network: start a relay on this computer. No terminal or Node.js needed.")),
+    h("p", t("The commands below run the relay with Node.js 20 or newer, for example on a server or so that browsers on phones and tablets can join (they need https).")),
     ...COMMANDS.map((c) => h("section.of-collab-card", h("h3", t(c.title)), h("div.of-relay-help__cmd", h("code", c.cmd), copyBtn(c.cmd)), h("p.of-collab-hint", t(c.note)))),
     h("p.of-collab-hint", t("Browsers cannot search the network for relays. Share the address the relay prints, a join link or its QR code instead.")),
   );

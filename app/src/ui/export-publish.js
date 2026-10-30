@@ -86,6 +86,26 @@ export function createPublishTab(app, web) {
         render();
       }
     });
+    // built-in FTP/FTPS (desktop app): a clear note in the browser, "Test connection" on the desktop
+    const desktop = typeof window !== "undefined" && !!window.__TAURI__?.core;
+    const nativeNote = t.desktopOnly && !desktop ? h("p.of-git__hint", { role: "note" }, "This target is built into the OpenFini desktop app. A browser or the installed web app cannot open FTP connections: install the desktop app, or use WebDAV, a hosted service or the publish helper here.") : null;
+    const testOut = h("p.of-git__hint", { "aria-live": "polite" });
+    let testBtn = null;
+    if (t.testable && desktop) {
+      testBtn = h("sl-button", { size: "small" }, "Test connection");
+      testBtn.addEventListener("click", async () => {
+        testBtn.disabled = true;
+        testOut.textContent = "Connecting…";
+        try {
+          const rec = draft ? { ...apply(), id: "test" } : Object.assign(profile, apply());
+          testOut.textContent = await svc.test(rec, secret.value.trim());
+        } catch (err) {
+          testOut.textContent = err.message || String(err);
+        } finally {
+          testBtn.disabled = false;
+        }
+      });
+    }
     const check = h("sl-button", { size: "small" }, "Check and list files");
     check.addEventListener("click", async () => {
       Object.assign(profile, apply());
@@ -94,8 +114,10 @@ export function createPublishTab(app, web) {
     state.current = () => ({ profile: draft ? null : cur, apply, secret: secret.value.trim() });
     return h(
       "div.of-gitform",
+      nativeNote,
       ...fields,
       field(t.secret, secret, t.secretHelp),
+      testBtn ? h("div.of-pub__row", testBtn, testOut) : null,
       field("Include only (one pattern per line, optional)", include, "gitignore-style patterns such as *.html or assets/**"),
       field("Exclude", exclude, ".git, .DS_Store and Thumbs.db are always left out."),
       h("div.of-pub__row", save, del, h("span", { style: { flex: 1 } }), check),
@@ -215,8 +237,15 @@ function progressDialog(app, svc, profile, plan, secret) {
         finish(kids);
       })
       .catch((err) => {
-        if (err.name === "AbortError") return close();
-        finish([h("p", h("strong", "Publishing failed. "), err.message || "Unknown error."), h("p.of-git__hint", "Nothing is lost: your project is unchanged. Fix the problem and try again.")]);
+        if (err.name === "AbortError" || err.code === "CANCELLED") return close();
+        const kids = [h("p", h("strong", "Publishing failed. "), err.message || "Unknown error."), h("p.of-git__hint", "Nothing is lost: your project is unchanged. Fix the problem and try again.")];
+        // the helper is a Node.js program: when it does not answer, explain how to start it instead of a raw error
+        if (profile.kind === "helper" && err.code === "NETWORK") {
+          const how = h("sl-button", { size: "small", variant: "primary" }, "How to start the helper");
+          how.addEventListener("click", () => import("./node-tools.js").then((m) => m.nodeToolDialog(app, "publish-helper")));
+          kids.push(how);
+        }
+        finish(kids);
       });
   });
 }
