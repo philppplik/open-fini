@@ -19,6 +19,8 @@ All notable changes to OpenFini are documented here. The format follows
 - OAuth for MCP servers: *Sign in* / *Sign out* per server (discovery, dynamic client registration, PKCE S256, resource indicator, refresh with rotation, 401 handling), on desktop and in the web build.
 
 ### Changed
+- Extensions: background scripts (`main.js`) now run in a dedicated worker started by their sandboxed frame, so a runaway loop no longer blocks the app and is terminated. A watchdog (heartbeat every 5 s, hung after 15–20 s, flood guard on every message, 8 MB reply cap, call timeouts on both sides) stops misbehaving extensions with a **Restart** / **Disable** notification, shows *Not responding* in the manager, logs to the persistent log and disables an extension after three stops in 30 minutes. Background scripts have no DOM. Limits per build in [docs/extensions.md](docs/extensions.md), [ADR 0019](docs/adr/0019-extension-workers-watchdog.md).
+- Worker pool (`app/src/core/workers/`): Resize Document with a resample filter, Trace Image and saving large documents run off the UI thread (cancellable, with an in-thread fallback). See [docs/performance.md](docs/performance.md#worker-pool).
 - Vibe composer: the screenshot and prompt library buttons are gone; the paperclip opens a menu (file, page screenshot), `/screenshot` and `/prompt-library` are in the `/` menu, the mic hides when speech input is unavailable.
 
 ### Fixed

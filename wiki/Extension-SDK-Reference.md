@@ -110,7 +110,7 @@ Any string in `name`, `description` and `contributes` may be a `%key%` placehold
 
 ## Honest limits
 
-Panels reload when their tab is hidden and shown again. Hot reload needs the File System Access API. Extensions cannot read arbitrary files, run programs, or read the Code editor's cursor or selection. The sandbox cannot interrupt a runaway synchronous loop.
+Panels reload when their tab is hidden and shown again. Hot reload needs the File System Access API. Extensions cannot read arbitrary files, run programs, or read the Code editor's cursor or selection. Background scripts run in a worker: they have no DOM (`window` is the worker's global scope) and are stopped when they stop answering for about 20 s. Keep long computations asynchronous or split them up. A runaway loop in a panel can only be stopped where the panel frame runs in its own process (Chromium-based builds).
 
 ## See also
 

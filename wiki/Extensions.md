@@ -37,12 +37,13 @@ While offline mode is on, extensions cannot use the network and URL installs are
 - **All communication is a validated `postMessage` RPC.** The host checks the sender, the envelope, the method and every argument, caps size (4 MB per request, 8 MB per result), rate-limits (burst 100, 60 per second sustained), times out (30 s; dialogs 10 min) and checks the permission before the handler runs.
 - **Network** is per origin (`network:https://api.example.com`); the host fetches without cookies or redirects, with a 5 MB response cap and a 30 s timeout.
 - **Documents** are changed only through the same tools the assistant uses (validated against schemas); every command, import and tool call folds into one undo step.
-- **Failure handling:** a frame that floods, sends oversized data or stops answering heartbeats is stopped and logged, and disabled after three stops.
+- **Background scripts run in a worker:** the extension's `main.js` runs in a dedicated worker started by its sandboxed frame, so a runaway loop does not block OpenFini and can be terminated.
+- **Failure handling:** an extension that floods, sends oversized data or stops answering (about 20 s) is stopped and logged; a notification offers **Restart** or **Disable**, the manager shows *Not responding*, and the third stop within 30 minutes disables it.
 - The manifest is validated at install and on every load. Themes may only set `--of-*` and `--sl-*` variables with plain values.
 
 ### Limits you should know
 
-A runaway synchronous loop in an extension can freeze the window until reload. Extensions are not signed or reviewed and there is no marketplace. A user who grants `document.write` has trusted the extension with the open document, and one who grants a network origin has allowed data to be sent there. The sandbox protects the app and your other data, not the document the extension may change.
+A runaway loop in a **panel** can still freeze the window in the macOS and Linux desktop apps and in Safari (the panel shares the app's thread there); background scripts cannot. Extensions are not signed or reviewed and there is no marketplace. A user who grants `document.write` has trusted the extension with the open document, and one who grants a network origin has allowed data to be sent there. The sandbox protects the app and your other data, not the document the extension may change.
 
 ## Vibe
 

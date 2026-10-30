@@ -113,8 +113,8 @@ Installed extensions keep working offline. README images from the internet are n
   (zip bombs), path traversal rejected, and only the files OpenFini uses are decompressed (`main` Node code is never even
   unpacked). Manifests are validated on install and on every load. README Markdown is rendered through the repository's
   allowlist sanitizer. Logs go through `core/log.js` (redacted).
-- **Limits**: like OpenFini extensions, a runaway synchronous loop in a frame can freeze the window until the heartbeat
-  stops it. Extensions are not signed by OpenFini; Open VSX shows a "verified publisher" flag, which the details show.
+- **Limits**: VS Code extensions still run in a frame (not in a worker like OpenFini background scripts), so a runaway
+  synchronous loop can freeze the window in builds where the frame shares the app's thread until the heartbeat stops it. Extensions are not signed by OpenFini; Open VSX shows a "verified publisher" flag, which the details show.
 
 ## Architecture
 

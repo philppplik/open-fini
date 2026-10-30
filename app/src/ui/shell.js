@@ -170,11 +170,12 @@ export function createShell(app, root) {
   app.on("toast", ({ message, variant, duration, action }) => {
     const icon = { primary: "info-circle", success: "check2-circle", warning: "exclamation-triangle", danger: "exclamation-octagon", neutral: "gear" }[variant] || "info-circle";
     const a = h("sl-alert", { variant, closable: true, duration }, h("sl-icon", { slot: "icon", name: icon }), message);
-    if (action?.run) {
-      const b = h("button.of-toast-action", { type: "button" }, action.label || t("Details"));
+    for (const ac of [].concat(action || [])) {
+      if (!ac?.run) continue;
+      const b = h("button.of-toast-action", { type: "button" }, ac.label || t("Details"));
       b.addEventListener("click", () => {
         a.hide?.();
-        action.run();
+        ac.run();
       });
       a.append(" ", b);
     }

@@ -10,12 +10,13 @@ import { PANELS, registerPanel } from "../ui/panels/index.js";
 import { STUDIOS } from "../studios/index.js";
 import { validateManifest, checkPackageFiles, API_VERSION, STUDIO_IDS } from "./manifest.js";
 import { localizeManifest } from "./i18n.js";
-import { localeTag } from "../i18n/index.js";
+import { localeTag, t } from "../i18n/index.js";
 import { createDispatcher, RpcError, v } from "./rpc.js";
 import { classifyTool, vibeToolName, findShortcutConflict, hasPermission, originOf } from "./permissions.js";
 import { buildMainDocument, buildPanelDocument } from "./html.js";
 import { RUNTIME_SRC } from "./runtime-src.js";
 import { createSandbox } from "./sandbox.js";
+import { recordHang, WATCHDOG } from "./watchdog.js";
 import { historyMark, mergeSince } from "./history.js";
 
 export const FALLBACK_HOST_VERSION = "0.4.0";
@@ -43,7 +44,6 @@ export class ExtensionHost extends Emitter {
     this.toolMap = null;
     this._toolsPromise = null;
     this._gen = 0;
-    this._timers = new Map();
     const throttled = (name, payload) => {
       for (const ext of this.exts.values()) {
         if (ext.state === "disabled" || !ext.subs.has(name) || ext.pendingEvents.has(name)) continue;
@@ -126,6 +126,8 @@ export class ExtensionHost extends Emitter {
       dynSkills: [],
       data: null,
       crashes: 0,
+      stops: [],
+      hung: false,
       scope: null,
       activating: null,
       registered: false,
@@ -327,7 +329,7 @@ export class ExtensionHost extends Emitter {
           ext.frame = sb;
           const r = await Promise.race([sb.ready, new Promise((res) => setTimeout(() => res({ error: "it did not finish starting within 10 seconds" }), 10_000))]);
           if (r.error) throw new Error(`“${ext.name}” could not start: ${r.error}`);
-          this.#heartbeat(ext);
+          if (r.mode !== "worker") this.#log(ext, "warn", "This browser could not start a worker for the extension; it runs in its frame and a runaway loop can freeze the window.");
         }
         ext.state = "active";
         this.#log(ext, "info", "Activated");
@@ -348,29 +350,18 @@ export class ExtensionHost extends Emitter {
   }
 
   #sandbox(ext, doc, label, hidden = true) {
-    return createSandbox({ doc, label, hidden, onRequest: (m, sb) => ext.dispatcher.dispatch(m, { sandbox: sb }), onLog: (lv, t) => this.#log(ext, lv, t) });
-  }
-
-  #heartbeat(ext) {
-    clearInterval(this._timers.get(ext.id));
-    let misses = 0;
-    this._timers.set(
-      ext.id,
-      setInterval(async () => {
-        if (!ext.frame?.alive) return;
-        try {
-          await ext.frame.invoke("ping", {}, 5000);
-          misses = 0;
-        } catch {
-          if (++misses >= 2) this.#kill(ext, "it stopped responding");
-        }
-      }, 15_000),
-    );
+    return createSandbox({
+      doc,
+      label,
+      hidden,
+      onRequest: (m, sb) => ext.dispatcher.dispatch(m, { sandbox: sb }),
+      onLog: (lv, t) => this.#log(ext, lv, t),
+      onHang: (sb) => this.#kill(ext, "it stopped responding", { hang: true, where: sb === ext.frame ? `background script, ${sb.mode}` : "panel" }),
+      onViolation: (kind) => this.#kill(ext, `it broke a limit (${kind})`),
+    });
   }
 
   #stopFrames(ext) {
-    clearInterval(this._timers.get(ext.id));
-    this._timers.delete(ext.id);
     ext.frame?.destroy();
     ext.frame = null;
     for (const p of ext.panels) p.destroy();
@@ -379,17 +370,39 @@ export class ExtensionHost extends Emitter {
     ext.declaredTools = null;
   }
 
-  /** Stops a misbehaving extension: destroys its frames, logs it and tells the user. */
-  #kill(ext, reason) {
+  /**
+   * Stops a misbehaving extension: destroys its frames (which terminates its worker), logs it to the app log and tells
+   * the user with Restart / Disable. Three stops within the hang window (watchdog.js) disable it.
+   */
+  #kill(ext, reason, { hang = false, where = "" } = {}) {
     if (ext.state === "error" || ext.state === "disabled") return;
     this.#stopFrames(ext);
     ext.state = "error";
+    ext.hung = hang;
     ext.error = `Stopped: ${reason}.`;
-    ext.crashes++;
-    this.#log(ext, "error", ext.error);
-    this.app.toast(`The extension “${ext.name}” was stopped: ${reason}. See Studio ▸ Extensions for details.`, "warning", 6000);
-    if (ext.crashes >= 3) this.setEnabled(ext.id, false).catch(() => {});
+    const h = recordHang(ext.stops, Date.now());
+    ext.stops = h.times;
+    ext.crashes = h.count;
+    this.#log(ext, "error", `${ext.error}${where ? ` (${where})` : ""} Stop ${h.count} of ${WATCHDOG.maxHangs} within ${WATCHDOG.hangWindowMs / 60_000} minutes.`);
+    if (h.disable) {
+      this.setEnabled(ext.id, false).catch(() => {});
+      this.app.toast(t("The extension “{name}” was disabled because it stopped responding or broke its limits {count} times.", { name: ext.name, count: h.count }), "danger", 10_000, { label: t("Extensions"), run: () => this.app.run?.("ext.manage") });
+    } else {
+      const msg = hang ? t("The extension “{name}” is not responding and was stopped.", { name: ext.name }) : t("The extension “{name}” was stopped: {reason}.", { name: ext.name, reason });
+      this.app.toast(msg, "warning", 12_000, [
+        { label: t("Restart"), run: () => this.restart(ext.id).catch((err) => this.app.toast(err.message, "danger", 5000)) },
+        { label: t("Disable"), run: () => this.setEnabled(ext.id, false).catch(() => {}) },
+      ]);
+    }
     this.emit("change");
+  }
+
+  /** Starts a stopped extension again (Restart in the "not responding" notification and the manager). */
+  async restart(id) {
+    const ext = this.exts.get(id);
+    if (!ext || ext.state === "disabled") return;
+    await this.reload(id);
+    if (ext.manifest?.main && ext.state === "inactive") await this.activate(id);
   }
 
   async deactivate(id) {
@@ -435,7 +448,7 @@ export class ExtensionHost extends Emitter {
       return res;
     } catch (err) {
       this.#log(ext, "error", `${cmd.title}: ${err.message}`);
-      this.app.toast(`${ext.name}: ${err.message}`, "danger", 6000);
+      if (err.code !== "STOPPED") this.app.toast(`${ext.name}: ${err.message}`, "danger", 6000); // a stop has its own notification
       return null;
     }
   }
@@ -849,6 +862,8 @@ export class ExtensionHost extends Emitter {
       ext.state = "inactive";
       ext.error = null;
       ext.crashes = 0;
+      ext.stops = [];
+      ext.hung = false;
       this.#register(ext);
       this.#fire("onStartup");
       this.#fire(`onStudio:${this.app.studio}`);

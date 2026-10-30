@@ -2,9 +2,15 @@
 // `openfini` API object and speaks the RPC protocol with the host (see rpc.js). It is written as a normal
 // function so it is syntax-checked and minified with the app; the host serializes it with toString().
 // It never runs in the app's own context. `__OFX_CFG` is defined by the script that precedes it.
+// It runs in two places: a dedicated Worker started by the extension's relay frame (background scripts, see html.js;
+// the host can then stop a runaway loop) or directly in a frame (panels, and background scripts when the frame cannot
+// start a worker). In a worker there is no document and the relay frame forwards every message.
 /* eslint-disable no-undef */
 function runtime() {
   const CFG = __OFX_CFG;
+  const G = globalThis;
+  const inWorker = typeof document === "undefined";
+  const CALL_TIMEOUT = 11 * 60_000; // longer than every host-side limit; only frees promises the host never answers
   const pending = new Map();
   const commands = new Map();
   const tools = new Map();
@@ -12,11 +18,15 @@ function runtime() {
   const listeners = { message: new Set(), settings: new Set() };
   let seq = 0;
   let settings = CFG.settings || {};
-  const send = (m) => parent.postMessage({ ofx: 1, ...m }, "*");
+  const send = inWorker ? (m) => G.postMessage({ ofx: 1, ...m }) : (m) => parent.postMessage({ ofx: 1, ...m }, "*");
   const call = (m, p) =>
     new Promise((resolve, reject) => {
       const id = ++seq;
-      pending.set(id, { resolve, reject });
+      const timer = setTimeout(() => {
+        pending.delete(id);
+        reject(Object.assign(new Error(`${m} got no answer`), { code: "TIMEOUT" }));
+      }, CALL_TIMEOUT);
+      pending.set(id, { resolve, reject, timer });
       send({ t: "req", id, m, p: p || {} });
     });
   const fmt = (a) => a.map((x) => (typeof x === "string" ? x : x instanceof Error ? x.stack || x.message : (() => { try { return JSON.stringify(x); } catch { return String(x); } })())).join(" ");
@@ -32,6 +42,7 @@ function runtime() {
   addEventListener("unhandledrejection", (e) => log("error", "Unhandled rejection:", e.reason));
 
   const applyTheme = (vars) => {
+    if (inWorker) return;
     for (const [k, v] of Object.entries(vars || {})) document.documentElement.style.setProperty(k, v);
   };
   applyTheme(CFG.theme);
@@ -62,7 +73,7 @@ function runtime() {
         for (const fn of listeners.message) try { fn(p.data); } catch (e) { log("error", e); }
         return null;
       case "deactivate":
-        if (typeof window.deactivate === "function") await window.deactivate();
+        if (typeof G.deactivate === "function") await G.deactivate();
         return null;
       case "ping":
         return "pong";
@@ -73,11 +84,12 @@ function runtime() {
 
   addEventListener("message", async (e) => {
     const d = e.data;
-    if (e.source !== parent || !d || d.ofx !== 1) return;
+    if ((!inWorker && e.source !== parent) || !d || d.ofx !== 1) return;
     if (d.t === "res") {
       const p = pending.get(d.id);
       if (!p) return;
       pending.delete(d.id);
+      clearTimeout(p.timer);
       if (d.ok) p.resolve(d.r);
       else p.reject(Object.assign(new Error(d.e?.message || "Call failed"), { code: d.e?.code }));
     } else if (d.t === "inv") {
@@ -178,12 +190,13 @@ function runtime() {
     for (const v of Object.values(o)) if (v && typeof v === "object") freeze(v);
     return Object.freeze(o);
   };
-  Object.defineProperty(window, "openfini", { value: freeze(api), writable: false, configurable: false });
+  Object.defineProperty(G, "openfini", { value: freeze(api), writable: false, configurable: false });
 
-  window.__ofxBoot = async () => {
+  G.__ofxBoot = async () => {
     try {
-      if (!CFG.panel && typeof window.activate === "function") await window.activate(window.openfini);
-      send({ t: "ready" });
+      if (G.__ofxLoadError) throw G.__ofxLoadError;
+      if (!CFG.panel && typeof G.activate === "function") await G.activate(G.openfini);
+      send({ t: "ready", mode: inWorker ? "worker" : "frame" });
     } catch (err) {
       send({ t: "ready", error: String((err && err.message) || err).slice(0, 600) });
     }

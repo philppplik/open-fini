@@ -41,10 +41,69 @@ function head(configJs, runtimeSrc) {
   return `<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${escAttr(FRAME_CSP)}"><style id="ofx-base">${BASE_CSS}</style><script src="${scriptUrl(`${configJs}\n${runtimeSrc}`)}"></script>`;
 }
 
-/** Document of an extension's background frame. */
+/**
+ * The background frame only allows a blob: worker on top of FRAME_CSP. A worker made from a blob: URL inherits the
+ * frame's policy (connect-src 'none', no nested workers) and its opaque origin.
+ */
+export const MAIN_CSP = FRAME_CSP.replace("worker-src 'none'", "worker-src blob:");
+
+/**
+ * The relay that runs in the background frame: it starts a dedicated worker with config + runtime (PRE) and the
+ * extension's script (MAIN), forwards messages both ways, terminates the worker on `{t:"kill"}`, and falls back to
+ * running the script in the frame itself when no worker can be started. The worker loads MAIN with importScripts in
+ * try/catch, so a syntax error is reported as a start error. Written as a function so it is syntax-checked; serialized
+ * with toString() and never run in the app.
+ */
+/* eslint-disable no-undef */
+function relay(PRE, MAIN) {
+  const url = (code) => `data:text/javascript;charset=utf-8,${encodeURIComponent(code)}`;
+  let w = null;
+  let started = false;
+  const up = (m) => parent.postMessage(m, "*");
+  const fallback = (why) => {
+    w = null;
+    up({ ofx: 1, t: "log", level: "warn", text: `Running in the frame without a worker (${why}); a runaway loop cannot be stopped.` });
+    for (const src of [url(PRE), url(MAIN), url("__ofxBoot()")]) {
+      const s = document.createElement("script");
+      s.src = src;
+      s.async = false;
+      document.head.append(s);
+    }
+  };
+  try {
+    const src = `self.window = self;\n${PRE}\ntry { importScripts(${JSON.stringify(url(MAIN))}); } catch (e) { self.__ofxLoadError = e; }\n__ofxBoot();\n`;
+    w = new Worker(URL.createObjectURL(new Blob([src], { type: "text/javascript" })));
+  } catch (e) {
+    return fallback(String((e && e.message) || e));
+  }
+  w.onmessage = (e) => {
+    started = true;
+    up(e.data);
+  };
+  w.onerror = (e) => {
+    if (started) return void up({ ofx: 1, t: "log", level: "error", text: String(e.message || "Worker error") });
+    e.preventDefault();
+    w.terminate();
+    fallback(String(e.message || "the worker failed to start"));
+  };
+  addEventListener("message", (e) => {
+    const d = e.data;
+    if (e.source !== parent || !w) return;
+    if (d && d.ofx === 1 && d.t === "kill") {
+      w.terminate();
+      w = null;
+      return;
+    }
+    w.postMessage(d);
+  });
+}
+/* eslint-enable no-undef */
+
+/** Document of an extension's background frame: a relay that runs the script in a worker (see relay()). */
 export function buildMainDocument({ config, runtimeSrc, mainCode }) {
   const cfg = `const __OFX_CFG = ${JSON.stringify(config).replace(/</g, "\\u003c")};`;
-  return `<!doctype html><html><head>${head(cfg, runtimeSrc)}</head><body><script src="${scriptUrl(mainCode || "")}"></script><script src="${scriptUrl("__ofxBoot()")}"></script></body></html>`;
+  const relaySrc = `(${relay.toString()})(${JSON.stringify(`${cfg}\n${runtimeSrc}`)}, ${JSON.stringify(mainCode || "")});`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${escAttr(MAIN_CSP)}"><script src="${scriptUrl(relaySrc)}"></script></head><body></body></html>`;
 }
 
 /** Applies a removal until nothing changes, so nested fragments (`<ba<base>se>`) cannot reassemble into a tag. */

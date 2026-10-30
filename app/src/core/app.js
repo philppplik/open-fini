@@ -459,7 +459,7 @@ export class App extends Emitter {
 
   // ------------------------------------------------------------ feedback
 
-  /** Shows a message. `action` ({label, run}) adds a button to the toast, for example "Details". */
+  /** Shows a message. `action` ({label, run}, or an array of them) adds buttons to the toast, for example "Details". */
   toast(message, variant = "primary", duration = 3200, action) {
     this.emit("toast", { message: t(message), variant, duration, action }); // literal messages are in the catalog; others stay as written
   }

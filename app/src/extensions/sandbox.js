@@ -1,6 +1,13 @@
 // One sandboxed <iframe> per extension (and per panel): `sandbox="allow-scripts"` without allow-same-origin, so the
 // code has an opaque origin and cannot touch the app, its storage or its cookies. All traffic is postMessage.
 // A single window listener routes messages to the right sandbox by `event.source`.
+// Background frames are relays that run the extension's script in a dedicated worker (html.js); destroy() posts
+// {t:"kill"} (the relay terminates the worker) and removes the frame, which also ends every worker it owns.
+// Watchdog (watchdog.js): every raw message passes a flood guard; with `onHang` a heartbeat pings the sandbox once
+// it is ready; answers of the extension to host calls are size-checked.
+import { createHeartbeat, createFloodGuard, WATCHDOG } from "./watchdog.js";
+import { measure } from "./rpc.js";
+
 const live = new Set();
 let listening = false;
 
@@ -11,9 +18,10 @@ function onMessage(e) {
 }
 
 /**
- * @param {{doc: string, label: string, hidden?: boolean, onRequest: (msg:any, sb:any)=>Promise<any>, onLog?: (level:string,text:string)=>void}} o
+ * @param {{doc: string, label: string, hidden?: boolean, onRequest: (msg:any, sb:any)=>Promise<any>, onLog?: (level:string,text:string)=>void,
+ *   onHang?: (sb:any)=>void, onViolation?: (kind:string, sb:any)=>void}} o
  */
-export function createSandbox({ doc, label, hidden = true, onRequest, onLog }) {
+export function createSandbox({ doc, label, hidden = true, onRequest, onLog, onHang, onViolation }) {
   if (!listening) {
     window.addEventListener("message", onMessage);
     listening = true;
@@ -32,13 +40,19 @@ export function createSandbox({ doc, label, hidden = true, onRequest, onLog }) {
   let readyDone;
   const ready = new Promise((res) => (readyDone = res));
   let readyFlag = false;
+  const flood = createFloodGuard();
+  const violation = (kind) => onViolation?.(kind, sb);
   const sb = {
     frame,
     ready,
     alive: true,
+    mode: null, // "worker" | "frame" once ready
     lastLog: 0,
+    heartbeat: null,
     _receive(m) {
-      if (!m || typeof m !== "object" || m.ofx !== 1) return;
+      if (!sb.alive || !m || typeof m !== "object" || m.ofx !== 1) return;
+      const f = flood.hit();
+      if (f !== "ok") return void (f === "kill" && violation("flood"));
       if (m.t === "req") {
         Promise.resolve(onRequest(m, sb))
           .then((res) => res && sb.alive && frame.contentWindow?.postMessage(res, "*"))
@@ -48,12 +62,23 @@ export function createSandbox({ doc, label, hidden = true, onRequest, onLog }) {
         if (!p) return;
         pending.delete(m.id);
         clearTimeout(p.timer);
-        if (m.ok) p.resolve(m.r);
-        else p.reject(Object.assign(new Error(m.e?.message || "The extension failed."), { code: m.e?.code }));
+        if (!m.ok) return void p.reject(Object.assign(new Error(m.e?.message || "The extension failed."), { code: m.e?.code }));
+        try {
+          measure(m.r, WATCHDOG.maxReplyBytes);
+        } catch (err) {
+          p.reject(Object.assign(new Error(err.message), { code: err.code }));
+          return void violation("size");
+        }
+        p.resolve(m.r);
       } else if (m.t === "ready") {
         if (!readyFlag) {
           readyFlag = true;
-          readyDone(m.error ? { error: String(m.error) } : {});
+          sb.mode = m.mode === "worker" ? "worker" : "frame";
+          if (!m.error && onHang) {
+            sb.heartbeat = createHeartbeat({ ping: () => sb.invoke("ping", {}, WATCHDOG.intervalMs * (WATCHDOG.misses + 1)), onHang: () => onHang(sb) });
+            sb.heartbeat.start();
+          }
+          readyDone(m.error ? { error: String(m.error) } : { mode: sb.mode });
         }
       } else if (m.t === "log") {
         const now = Date.now();
@@ -69,7 +94,7 @@ export function createSandbox({ doc, label, hidden = true, onRequest, onLog }) {
         const id = ++seq;
         const timer = setTimeout(() => {
           pending.delete(id);
-          reject(new Error(`The extension did not answer within ${Math.round(timeoutMs / 1000)} s.`));
+          reject(Object.assign(new Error(`The extension did not answer within ${Math.round(timeoutMs / 1000)} s.`), { code: "TIMEOUT" }));
         }, timeoutMs);
         pending.set(id, { resolve, reject, timer });
         frame.contentWindow.postMessage({ ofx: 1, t: "inv", id, m, p }, "*");
@@ -78,13 +103,19 @@ export function createSandbox({ doc, label, hidden = true, onRequest, onLog }) {
     destroy() {
       if (!sb.alive) return;
       sb.alive = false;
+      sb.heartbeat?.stop();
       live.delete(sb);
       for (const p of pending.values()) {
         clearTimeout(p.timer);
-        p.reject(new Error("The extension was stopped."));
+        p.reject(Object.assign(new Error("The extension was stopped."), { code: "STOPPED" }));
       }
       pending.clear();
-      frame.remove();
+      try {
+        frame.contentWindow?.postMessage({ ofx: 1, t: "kill" }, "*"); // the relay terminates its worker
+      } catch {
+        /* already gone */
+      }
+      frame.remove(); // removing the frame ends its document and every worker it owns
       readyDone({ error: "stopped" });
     },
   };
