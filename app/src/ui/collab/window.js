@@ -7,7 +7,7 @@
 // Accessibility: role="dialog" (non-modal), tabs with role="tablist", new chat messages announced through an
 // aria-live log, every action is a real button, Esc in a text field cancels the reply/edit, focus stays put on updates.
 import { h, formatBytes } from "../../core/util.js";
-import { t } from "../../i18n/index.js";
+import { t, N_ } from "../../i18n/index.js";
 import { platform } from "../../platform/index.js";
 import { REACTIONS, LIMITS, canDo, ROLES } from "../../collab/protocol.js";
 import { relayHost, CollabCryptoError } from "../../collab/crypto.js";
@@ -32,6 +32,7 @@ const TABS = [
 ];
 
 let win = null;
+let builtinRelay = null; // status of the relay this desktop app started (platform/native-net.js), or null
 
 export function showCollabWindow(app, c, tab) {
   if (!win) win = createWindow(app, c);
@@ -343,7 +344,17 @@ function createWindow(app, c) {
     });
     const me = h("div.of-collab-me", avatarEl(c.profile(), 36, { own: true }), h("label.of-collab-field", h("span", t("Your nickname in rooms")), nick), btn("", () => app.run("collab.profile"), { ic: "gear", title: t("Profile and collaboration settings") }));
 
-    const where = h("select.of-collab-input", { "aria-label": t("Where") }, h("option", { value: "local" }, t("This device: other windows and tabs")), h("option", { value: "relay" }, t("Relay server (local network or internet)")));
+    // the desktop app runs a relay itself (src-tauri/src/relay.rs): one click, no Node.js, no terminal
+    const desktop = !!window.__TAURI__?.core;
+    const where = h(
+      "select.of-collab-input",
+      { "aria-label": t("Where") },
+      desktop ? h("option", { value: "builtin" }, t("Your network: start a relay on this computer")) : null,
+      h("option", { value: "local" }, t("This device: other windows and tabs")),
+      h("option", { value: "relay" }, t("Relay server (local network or internet)")),
+    );
+    const builtinNote = h("p.of-collab-hint", { hidden: true }, t("OpenFini starts a small relay inside this app and creates the room on it. Others in your network join with the invite code in the OpenFini desktop app. Your firewall may ask once whether OpenFini may accept connections: allow it for private networks. The relay stops when you stop it or close OpenFini."));
+    const webNote = desktop ? null : h("p.of-collab-note", { hidden: true }, icon("info-circle"), t("A browser cannot start a relay. Enter the address of a hosted relay (wss://…), or of one started on a computer in your network with the desktop app or with node relay.mjs --lan."));
     const relay = h("input.of-collab-input", { value: app.prefs.collabRelay || "ws://127.0.0.1:8787/", spellcheck: false, "aria-label": t("Relay address"), placeholder: "wss://relay.example.org/" });
     // relay: loopback warning, "Test connection" with a diagnosis, and how to start one
     const loopNote = h("p.of-collab-note", { hidden: true }, icon("info-circle"), t("localhost is this computer only. Other devices join through this computer's network address: after creating the room, pick it under People ▸ Invite."));
@@ -368,7 +379,11 @@ function createWindow(app, c) {
     relay.addEventListener("input", checkLoop);
     checkLoop();
     const role = h("select.of-collab-input", { "aria-label": t("New members join as") }, ...["editor", "commenter", "viewer"].map((r) => h("option", { value: r }, roleLabel(r))));
-    const sync = () => (relayRow.hidden = where.value !== "relay");
+    const sync = () => {
+      relayRow.hidden = where.value !== "relay";
+      builtinNote.hidden = where.value !== "builtin";
+      if (webNote) webNote.hidden = where.value !== "relay";
+    };
     where.addEventListener("change", sync);
     sync();
     const err = h("p.of-collab-error", { role: "alert" });
@@ -377,7 +392,13 @@ function createWindow(app, c) {
       if (!app.prefs.collabNick && nick.value.trim()) app.setPref("collabNick", nick.value.trim());
       b.disabled = true;
       try {
-        await c.createRoom({ relay: where.value === "local" ? "local" : relay.value.trim(), defaultRole: role.value });
+        if (where.value === "builtin") {
+          const net = await import("../../platform/native-net.js");
+          builtinRelay = await net.relay.start({ lan: true });
+          await c.createRoom({ relay: builtinRelay.local, defaultRole: role.value });
+          // the invite carries this computer's network address, not localhost
+          if (builtinRelay.addresses[0]) c.session.setInviteRelay(builtinRelay.addresses[0]);
+        } else await c.createRoom({ relay: where.value === "local" ? "local" : relay.value.trim(), defaultRole: role.value });
         select("people");
       } catch (ex) {
         err.textContent = ex instanceof CollabCryptoError || ex.code ? ex.message : t("The room could not be created: {message}", { message: ex.message });
@@ -429,10 +450,10 @@ function createWindow(app, c) {
       h("div.of-collab-start",
         me,
         offline,
-        h("section.of-collab-card", h("h3", t("Start a room")), h("label.of-collab-field", h("span", t("Where")), where), relayRow, h("label.of-collab-field", h("span", t("New members join as")), role), h("div.of-collab-actions", create)),
+        h("section.of-collab-card", h("h3", t("Start a room")), h("label.of-collab-field", h("span", t("Where")), where), builtinNote, webNote, relayRow, h("label.of-collab-field", h("span", t("New members join as")), role), h("div.of-collab-actions", create)),
         h("section.of-collab-card", h("h3", t("Join with an invite code")), fromLink, code, h("div.of-collab-actions", join)),
         err,
-        h("p.of-collab-hint", t("Everything in a room is end-to-end encrypted with a key that only travels inside the invite code. A relay is a tiny server you run yourself: npm run relay -- --lan for your network (see How to start a relay). Comments and versions also work without a room.")),
+        h("p.of-collab-hint", desktop ? t("Everything in a room is end-to-end encrypted with a key that only travels inside the invite code. The relay only forwards encrypted messages. Comments and versions also work without a room.") : t("Everything in a room is end-to-end encrypted with a key that only travels inside the invite code. A relay is a tiny server: the desktop app starts one with a click, or see How to start a relay. Comments and versions also work without a room.")),
       ),
     );
   }
@@ -719,6 +740,45 @@ function createWindow(app, c) {
   }
 
   // ---------------------------------------------------------------- people
+  /** People ▸ the relay running in this app: its address, the invite as a QR code, and Stop. */
+  function builtinRelayCard(s) {
+    const r = builtinRelay;
+    const box = h("div.of-collab-lan");
+    const addr = r.addresses[0];
+    const parts = [
+      h("p.of-collab-status", icon("share"), h("span", addr ? t("Relay running on this computer: {url}", { url: addr }) : t("Relay running on this computer (port {port}), but no network address was found. Is this computer connected to a network?", { port: r.port }))),
+      h("p.of-collab-hint", t("Others join with the invite code in the OpenFini desktop app on the same network. Browsers on other devices need a relay with https (node relay.mjs --lan).")),
+    ];
+    const qrBox = h("div.of-collab-qr");
+    const qrBtn = btn(showQr ? t("Hide QR code") : t("Show QR code"), () => ((showQr = !showQr), renderPeople()), { ic: "phone" });
+    qrBtn.setAttribute("aria-pressed", String(showQr));
+    if (showQr) {
+      import("./network.js").then((net) => {
+        try {
+          qrBox.replaceChildren(net.qrSvg(s.shareInviteCode, t("QR code of the invite code")), h("p.of-collab-hint", t("Scan it with another device to copy the invite code. Anyone who can see this code can join the room.")));
+        } catch {
+          qrBox.replaceChildren(h("p.of-collab-hint", t("The invite code is too long for a QR code. Copy it instead.")));
+        }
+      });
+    }
+    const stop = btn(t("Stop relay"), async (e, b) => {
+      const ok = await confirmDialog({ title: N_("Stop relay"), message: t("Stop the relay on this computer? Everyone in the room, including you, is disconnected."), ok: N_("Stop relay"), danger: true });
+      if (!ok) return;
+      b.disabled = true;
+      try {
+        await c.leave(); // already confirmed above
+      } finally {
+        const net = await import("../../platform/native-net.js");
+        await net.relay.stop().catch(() => {});
+        builtinRelay = null;
+        render();
+      }
+    }, { ic: "stop", variant: "danger" });
+    parts.push(h("div.of-collab-actions", qrBtn, stop), qrBox);
+    box.replaceChildren(...parts);
+    return box;
+  }
+
   function renderPeople() {
     const s = c.session;
     const st = c.status();
@@ -740,7 +800,8 @@ function createWindow(app, c) {
     const share = app.doc && canDo(s.myRole, "file-offer") ? btn(t("Share this document…"), () => c.shareFlow(app.doc).catch((e) => app.toast(e.message, "danger", 5000)), { ic: "share" }) : null;
     // rooms across the network: the address other devices use, join link and QR code (from the relay's /info)
     const lanBox = h("div.of-collab-lan");
-    if (s.invite.relay !== "local") {
+    const builtinBox = builtinRelay && s.invite.relay === builtinRelay.local ? builtinRelayCard(s) : null;
+    if (s.invite.relay !== "local" && !builtinBox) {
       import("./network.js").then(async (net) => {
         const info = await net.relayInfo(s.invite.relay);
         const addrs = net.inviteAddresses(info, s.invite.relay);
@@ -778,6 +839,7 @@ function createWindow(app, c) {
       h("p.of-collab-hint", t("Everyone in the room sees the same six words. Compare them by phone or in person: if they differ, someone is not in the room you think, so leave.")),
       h("div.of-collab-actions", showInvite, copy, share, leave),
       lanBox,
+      builtinBox,
       inviteBox,
     );
     // documents shared in this room ("Edit together", beta)

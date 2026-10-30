@@ -95,6 +95,23 @@ export function exportDialog(app, preset = {}) {
     width: 540,
     cls: "of-exportdialog",
     buttons: [
+      {
+        // mails the Image & PDF export (built-in SMTP client of the desktop app; the browser shows how to attach it instead)
+        label: "Send by email…",
+        variant: "text",
+        onClick: async (close) => {
+          if (active !== tabs[0]) return app.toast("Send by email uses the Image & PDF settings: switch to that tab first.", "warning", 3500);
+          if (submitted) return;
+          submitted = true;
+          close();
+          try {
+            const { sendByEmailDialog } = await import("./send-email.js");
+            await runExport(app, { ...st, deliver: (files) => sendByEmailDialog(app, files, { fallbackSave: () => runExport(app, st) }) });
+          } catch (err) {
+            app.toast(err.message || "Export failed.", "danger", 6000);
+          }
+        },
+      },
       { label: "Cancel", onClick: (c) => c() },
       {
         label: active.action,
@@ -153,6 +170,7 @@ async function runExportNow(app, st) {
         bytes = r.bytes;
         pf = r.preflight;
       } else bytes = await exportPdf(app, pages, { bleed: st.bleed, cropMarks: st.marks, rasterDpi: st.rasterDpi });
+      if (st.deliver) return await st.deliver([{ name: downloadName(base, "pdf"), bytes, mime: "application/pdf" }]);
       const r = await platform.saveFile({ suggestedName: downloadName(base, "pdf"), bytes, mime: "application/pdf", filters: [{ name: "PDF", extensions: ["pdf"] }] });
       if (r) app.toast(`Exported ${r.name} (${formatBytes(bytes.length)})`, "success");
       if (r && pf?.issues.some((i) => i.severity !== "info")) (await import("./color-settings.js")).showPreflightReport(pf);
@@ -166,7 +184,7 @@ async function runExportNow(app, st) {
         if (r.warnings.length) app.toast(r.warnings.join(" "), "warning", 6000);
         out.push({ name: pages.length > 1 ? `${base}-${i + 1}.psd` : downloadName(base, "psd"), bytes: r.bytes });
       }
-      return await saveFiles(app, base, out, "image/vnd.adobe.photoshop", [{ name: "Photoshop", extensions: ["psd"] }]);
+      return await saveFiles(app, st, base, out, "image/vnd.adobe.photoshop", [{ name: "Photoshop", extensions: ["psd"] }]);
     }
     if (st.format === "svg") {
       const files = pages.map((p, i) => {
@@ -174,7 +192,7 @@ async function runExportNow(app, st) {
         if (warnings.length) app.toast(warnings.join(" "), "warning", 5000);
         return { name: pages.length > 1 ? `${base}-${i + 1}.svg` : downloadName(base, "svg"), bytes: new TextEncoder().encode(svg) };
       });
-      return await saveFiles(app, base, files, "image/svg+xml", [{ name: "SVG", extensions: ["svg"] }]);
+      return await saveFiles(app, st, base, files, "image/svg+xml", [{ name: "SVG", extensions: ["svg"] }]);
     }
     const fmt = RASTER_FORMATS[st.format];
     const files = [];
@@ -189,13 +207,14 @@ async function runExportNow(app, st) {
       const bytes = doc.settings.color?.rgb && doc.settings.color.rgb !== "srgb" ? await (await import("../core/color-doc.js")).tagRaster(doc, r.bytes, st.format) : r.bytes;
       files.push({ name: pages.length > 1 ? `${base}-${i + 1}.${fmt.ext}` : downloadName(base, fmt.ext), bytes });
     }
-    return await saveFiles(app, base, files, fmt.mime, [{ name: fmt.label, extensions: [fmt.ext] }]);
+    return await saveFiles(app, st, base, files, fmt.mime, [{ name: fmt.label, extensions: [fmt.ext] }]);
   } finally {
     app.status("");
   }
 }
 
-async function saveFiles(app, base, files, mime, filters) {
+async function saveFiles(app, st, base, files, mime, filters) {
+  if (st.deliver) return st.deliver(files.map((f) => ({ ...f, mime }))); // "Send by email…" instead of saving
   if (files.length === 1) {
     const r = await platform.saveFile({ suggestedName: files[0].name, bytes: files[0].bytes, mime, filters });
     if (r) app.toast(`Exported ${r.name} (${formatBytes(files[0].bytes.length)})`, "success");

@@ -16,6 +16,7 @@ Architecture decision records (ADRs) capture the decisions that shape OpenFini a
 | [0008](https://github.com/philppplik/open-fini/blob/main/docs/adr/0008-vibe-hub.md) | Vibe hub | Concurrent chats with a fair document write lock and tag-based run undo, so several chats and sub-agents can work without interleaving inside a step | Accepted |
 | [0009](https://github.com/philppplik/open-fini/blob/main/docs/adr/0009-bundled-extensions.md) | Bundled extensions are data | Packed from source into `.ofext` packages and a catalog, installed on demand through the normal consent dialog; none is enabled by default | Accepted |
 | [0010](https://github.com/philppplik/open-fini/blob/main/docs/adr/0010-collaboration-e2e-relay.md) | Collaboration through a dumb relay with end-to-end encryption | Rooms use a relay that forwards opaque encrypted frames (or a same-device channel); keys travel only in the invite's URL fragment; no accounts and no OpenFini server | Accepted |
+| [0018](https://github.com/philppplik/open-fini/blob/main/docs/adr/0018-built-in-network-services.md) | Built-in relay, FTP/FTPS and SMTP in the desktop shell | The desktop app runs the collaboration relay (plain `ws://`) and FTP/FTPS and SMTP clients in Rust with the system TLS stack and trust on first use; no Node.js needed. Browsers keep the Node relay and helper; SFTP is not built in | Accepted |
 
 ## Write a new ADR
 

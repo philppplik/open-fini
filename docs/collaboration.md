@@ -347,6 +347,27 @@ can still vandalize the document within these rules (as with any shared document
 
 ## Rooms across your network
 
+### One click in the desktop app (no Node.js, no terminal)
+
+*Collaborate ▸ Start a room ▸ Where: Your network: start a relay on this computer ▸ Create room*. The desktop app starts
+the relay built into it (`src-tauri/src/relay.rs`, [ADR 0018](adr/0018-built-in-network-services.md)) on port 8787 (any
+free port when 8787 is taken), on every interface, creates the room on `ws://127.0.0.1:<port>/` and puts this
+computer's network address (`ws://192.168.x.x:<port>/`) into the invite code. *People* then shows the address, *Copy
+invite code*, *Show QR code* (of the invite code, to move it to another device) and **Stop relay** (leaves the room and
+disconnects everyone). The relay also stops when OpenFini closes. Windows asks once whether OpenFini may accept
+connections: allow it for **private** networks only.
+
+It speaks exactly the protocol below (same limits, Origin allow-list, token pinning, `GET /info`) but is deliberately
+simpler than the Node relay: **plain `ws://` only and it does not serve the app.** Members join with the **desktop app**
+on the same network. Browsers on other devices (phones, tablets, the PWA) need a secure page and `wss://`, so for them
+run the Node relay with `--lan` below. The network address is the interface of the default route (one address; on
+machines with several networks pick another one by typing it into the relay address).
+
+**In the browser / PWA** a page cannot listen on a port, so this option is not offered; the Collaboration window says
+so and asks for the address of a hosted relay (`wss://…`) or of one started elsewhere.
+
+### The Node relay (`--lan`): browsers on other devices
+
 What blocked it before: the relay listened on `127.0.0.1`, invite codes carried the address as typed (`ws://localhost`
 means "this computer" on every device), an https page (the PWA) may not open `ws://` to another machine (mixed content),
 and other browsers on plain `http://` have **no WebCrypto** (only secure contexts do), so they cannot encrypt at all.
@@ -391,7 +412,17 @@ can encrypt). Browsers cannot search the network for relays; share the printed a
 
 ## Running a relay
 
+The desktop app has the relay built in (see *One click in the desktop app* above); the commands below are for servers,
+for browsers on other devices, and for people without the desktop app.
+
+`npm run relay` only works **inside the OpenFini project folder**: anywhere else npm stops with
+`ENOENT: no such file or directory, open '…/package.json'`. Without the sources, download `scripts/relay.mjs` (one file,
+no dependencies) into any folder and run `node relay.mjs --lan` there. Put `scripts/relay-tls.mjs` next to it for
+https/wss; without it the standalone relay says so and serves `ws://` only. Without the app next to it, `--lan` only
+relays (it prints a note) and the QR code is skipped when `app/src/collab/qr.js` is not found.
+
 ```sh
+node relay.mjs --lan                           # standalone: this one file in any folder
 npm run relay                                  # ws://127.0.0.1:8787/ (this computer only)
 npm run relay -- --lan                         # your network: see "Rooms across your network"
 node scripts/relay.mjs --host 0.0.0.0          # your network without serving the app (prints a warning)
