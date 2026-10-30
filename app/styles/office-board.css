@@ -1,0 +1,41 @@
+/* OpenFini — Office Suite: the Whiteboard app (app/src/office/board/view.js). UI chrome uses the --of-* tokens only;
+   the board itself is paper (its background color is part of the document). */
+
+.of-board { position: absolute; inset: 0; display: flex; flex-direction: column; min-width: 0; background: var(--of-bg-app); }
+.of-board .of-tk-ribbon { flex: none; }
+.of-board__stage { position: relative; flex: 1; min-height: 0; overflow: hidden; outline: none; touch-action: none; user-select: none; -webkit-user-select: none; cursor: default; }
+.of-board__stage:focus-visible { box-shadow: inset 0 0 0 2px var(--of-accent); }
+.of-board__scene, .of-board__overlay { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.of-board__stage[data-tool="pen"], .of-board__stage[data-tool="highlighter"], .of-board__stage[data-tool="rect"], .of-board__stage[data-tool="ellipse"],
+.of-board__stage[data-tool="diamond"], .of-board__stage[data-tool="line"], .of-board__stage[data-tool="arrow"], .of-board__stage[data-tool="frame"] { cursor: crosshair; }
+.of-board__stage[data-tool="text"] { cursor: text; }
+.of-board__stage[data-tool="sticky"] { cursor: copy; }
+.of-board__stage[data-tool="eraser"] { cursor: cell; }
+.of-board__stage[data-tool="laser"] { cursor: pointer; }
+.of-board__stage[data-tool="hand"], .of-board__stage[data-space] { cursor: grab; }
+.of-board__stage[data-panning] { cursor: grabbing; }
+
+.of-board__editor {
+  position: absolute; z-index: 2; margin: 0; padding: 0; border: 0; resize: none; overflow: hidden; background: transparent;
+  line-height: 1.25; outline: 1px dashed var(--of-accent); outline-offset: 2px; white-space: pre-wrap; word-break: break-word;
+}
+
+.of-board__select { height: 26px; max-width: 120px; }
+
+.of-board__pages {
+  flex: none; display: flex; align-items: center; gap: 6px; min-height: 34px; padding: 3px 8px;
+  border-top: 1px solid var(--of-border-soft); background: var(--of-bg-panel);
+}
+.of-board__tabs { display: flex; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
+.of-board__page {
+  height: 26px; max-width: 160px; padding: 0 10px; border: 1px solid transparent; border-radius: var(--of-radius-sm, 4px);
+  background: transparent; color: var(--of-text-dim); font: inherit; font-size: 12.5px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.of-board__page:hover { background: var(--of-hover); color: var(--of-text); }
+.of-board__page[aria-selected="true"] { background: var(--of-accent-soft); color: var(--of-text); border-color: var(--of-border-soft); }
+.of-board__page:focus-visible { outline: 2px solid var(--of-accent); outline-offset: 1px; }
+.of-board__live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .of-board__page { transition: none; }
+}

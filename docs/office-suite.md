@@ -48,7 +48,8 @@ commands/file.js ─► ui/office/open.js ─► registry.appForFile / engine/of
 | Save in the original format | `app/src/core/source-format.js`, `app/src/commands/save-source.js` |
 | Live editing | `app/src/collab/office-records.js` + `ui/collab/live.js ▸ OfficeBinding` |
 | Comment anchors | `app/src/collab/anchors.js ▸ officeItemAnchor`, `protocol.js ANCHOR kind "item"` |
-| Vibe tools | `app/src/vibe/tools/office-suite.js` (all kinds), `office.js` (text documents) |
+| Vibe tools | `app/src/vibe/tools/office-suite.js` (all kinds), `office.js` (text documents), `office-board.js` (whiteboards) |
+| Whiteboard app | `app/src/office/board/` ([office-board.md](office-board.md)) |
 | Tests | `tests/office/suite.test.js`, `tests/office/toolkit.test.js`, `tests/collab/office-records.test.js` |
 
 ## The contract
