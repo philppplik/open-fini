@@ -26,6 +26,7 @@ The Vibe assistant acts through tools: named functions with schemas that call in
 | File formats | `list_supported_formats`, `import_palette_from_text`, `export_palette` | |
 | Imported documents | `get_import_report`, `list_pdf_pages`, `describe_document_pages`, `extract_pdf_text` | |
 | Tables and charts | `add_table`, `edit_table`, `read_table`, `list_tables`, `import_csv_to_table`, `add_chart`, `edit_chart`, `read_chart` | |
+| Spreadsheets | `sheet_describe`, `sheet_read_range`, `sheet_write_range`, `sheet_set_formula`, `sheet_format`, `sheet_add_sheet`, `sheet_add_chart` | Each edit is one undo step |
 | Office documents | `office_new_document`, `office_read_document`, `office_find`, `office_insert_blocks`, `office_replace_text`, `office_set_style`, `office_apply_format`, `office_insert_table`, `office_set_page_setup`, `office_export` | Export asks first and opens a save dialog |
 | Extensions | list, run a command, install from a URL, `create_extension`; tools from extensions appear as `ext_<id>_<tool>` | Extension tools always ask |
 | Text and encoding | `encode_text`, `decode_text`, `transform_file_text` | More than one file needs approval |

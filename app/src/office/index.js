@@ -6,7 +6,7 @@
 import { registerOfficeApp, officeApp } from "./apps.js";
 import { DOCUMENT_APP } from "./document/manifest.js";
 
-// Spreadsheet app: import { SHEET_APP } from "./sheet/manifest.js";
+import { SHEET_APP } from "./sheet/manifest.js";
 
 import { SLIDES_APP } from "./slides/manifest.js";
 
@@ -15,7 +15,7 @@ import { SLIDES_APP } from "./slides/manifest.js";
 const BUILTIN = [
   DOCUMENT_APP,
 
-  // SHEET_APP,
+  SHEET_APP,
 
   SLIDES_APP,
 
