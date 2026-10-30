@@ -2,6 +2,8 @@
 // OpenFini collaboration relay: a minimal, dependency-free WebSocket server (RFC 6455) that forwards encrypted frames
 // between the members of a room. It never sees plaintext: clients encrypt and sign everything (app/src/collab/crypto.js).
 //
+//   node relay.mjs --lan                            standalone: this one file in any folder, no npm, no dependencies
+//                                                   (`npm run relay` only works inside the OpenFini project folder)
 //   npm run relay                                   127.0.0.1:8787 (this device only)
 //   npm run relay -- --lan                          the whole local network: binds 0.0.0.0, serves the app itself,
 //                                                   answers http/ws AND https/wss (self-signed) on one port, prints the
@@ -29,8 +31,18 @@ import { readFileSync, existsSync, statSync, realpathSync } from "node:fs";
 import { networkInterfaces } from "node:os";
 import { dirname, join, resolve, sep, extname } from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
-import { encodeQR, qrToText } from "../app/src/collab/qr.js";
-import { loadOrCreateCert } from "./relay-tls.mjs";
+
+// Standalone use: `node relay.mjs` works as a single downloaded file in any folder. The QR code (app/src/collab/qr.js)
+// and the self-signed certificate for --lan (relay-tls.mjs, next to this file) are optional extras loaded when present.
+const optional = async (rel) => {
+  try {
+    return await import(new URL(rel, import.meta.url).href);
+  } catch {
+    return null;
+  }
+};
+const qrMod = await optional("../app/src/collab/qr.js");
+const tlsMod = await optional("./relay-tls.mjs");
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const VERSION = (() => {
@@ -556,8 +568,14 @@ export async function runCli(opts, out = console) {
   const lanIps = lanAddresses();
   const start = { ...opts };
   let certInfo = null;
-  if (opts.lan && !opts.noTls && !opts.tlsCert) {
-    certInfo = loadOrCreateCert({ ips: ["127.0.0.1", ...lanIps], dir: opts.tlsDir });
+  if (opts.lan && opts.serveApp === true && !appDir()) {
+    // standalone relay.mjs: there is no app next to it to serve; relay only
+    start.serveApp = false;
+    out.log("Note: no OpenFini app found next to relay.mjs, so it only relays (open OpenFini on the other devices yourself).");
+  }
+  if (opts.lan && !opts.noTls && !opts.tlsCert && !tlsMod) out.log("Note: relay-tls.mjs is not next to relay.mjs, so there is no https/wss. The desktop app works; browsers on other devices need https (put relay-tls.mjs next to relay.mjs).");
+  if (opts.lan && !opts.noTls && !opts.tlsCert && tlsMod) {
+    certInfo = tlsMod.loadOrCreateCert({ ips: ["127.0.0.1", ...lanIps], dir: opts.tlsDir });
     start.tls = { cert: certInfo.cert, key: certInfo.key };
     start.dual = true;
   }
@@ -575,7 +593,8 @@ export async function runCli(opts, out = console) {
       if (relay.root) out.log(`  Open the app on another device: ${relay.tls ? `https://${ip}:${port}/` : `http://${ip}:${port}/`}`);
     }
     const first = ips[0];
-    if (relay.root && first) {
+    if (relay.root && first && qrMod) {
+      const { encodeQR, qrToText } = qrMod;
       const url = `${relay.tls ? "https" : "http"}://${first}:${port}/`;
       out.log(`\nScan to open ${url} (then join with the invite code, or use “Copy join link” in Collaboration ▸ People):\n`);
       out.log(qrToText(encodeQR(url, { ecl: "M" }), { quiet: 2, invert: true }));

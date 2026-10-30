@@ -65,6 +65,18 @@
     "opener:allow-open-url",
     "opener:allow-default-urls",
     "clipboard-manager:allow-read-image",
-    "clipboard-manager:allow-write-image"
+    "clipboard-manager:allow-write-image",
+    "allow-take-launch-files",
+    "allow-quit-app",
+    "allow-oauth-loopback-start",
+    "allow-oauth-loopback-wait",
+    "allow-relay-start",
+    "allow-relay-stop",
+    "allow-relay-status",
+    "allow-ftp-test",
+    "allow-ftp-upload",
+    "allow-smtp-test",
+    "allow-smtp-send",
+    "allow-net-cancel"
   ]
 }

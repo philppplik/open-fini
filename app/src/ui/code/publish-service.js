@@ -77,7 +77,40 @@ export class PublishService {
         return "";
       }
     };
-    return { netlify: "api.netlify.com", vercel: "api.vercel.com", "github-pages": "api.github.com", webdav: host(c.url), helper: host(c.helperUrl || "http://127.0.0.1:4310") + (c.host ? ` → ${c.host}` : "") }[profile.kind] || profile.kind;
+    return { netlify: "api.netlify.com", vercel: "api.vercel.com", "github-pages": "api.github.com", webdav: host(c.url), ftp: c.host || "", helper: host(c.helperUrl || "http://127.0.0.1:4310") + (c.host ? ` → ${c.host}` : "") }[profile.kind] || profile.kind;
+  }
+
+  /**
+   * The desktop app's FTP client with "trust this certificate?" prompts; the accepted fingerprint is kept in the
+   * profile (`config.pinnedCert`, not secret). Null in browsers (the target then explains that it needs the desktop app).
+   */
+  async nativeClient(profile) {
+    const net = await import("../../platform/native-net.js");
+    if (!net.nativeNetAvailable()) return null;
+    const trust = async (run) => {
+      const { confirmCertificate } = await import("../net-trust.js");
+      return net.withTrust(run, {
+        pin: profile.config?.pinnedCert || "",
+        confirm: (c) => confirmCertificate({ host: profile.config?.host || "", ...c }),
+        save: (fp) => {
+          profile.config.pinnedCert = fp;
+          this.save();
+        },
+      });
+    };
+    return {
+      ftpUpload: (target, files, opts) => trust((pin) => net.ftpUpload({ ...target, pinnedCert: pin || null }, files, opts)),
+      ftpTest: (target) => trust((pin) => net.ftpTest({ ...target, pinnedCert: pin || null })),
+    };
+  }
+
+  /** "Test connection" of a desktop-only target: connects and signs in, uploads nothing. */
+  async test(profile, secret) {
+    const { ftpTarget } = await import("../../engine/publish/targets.js");
+    const native = await this.nativeClient(profile);
+    if (!native) throw new Error("This needs the OpenFini desktop app: a browser cannot open FTP connections.");
+    this.app.network?.assert?.("publish", `https://${profile.config?.host || ""}`);
+    return native.ftpTest(ftpTarget(profile.config, secret || (await getSecret(this.secretKey(profile)))));
   }
 
   /**
@@ -91,10 +124,11 @@ export class PublishService {
     if (t.unavailable) throw new Error(t.unavailable);
     const dest = this.destination(profile);
     this.app.network?.assert?.("publish", profile.kind === "helper" ? profile.config?.helperUrl || "http://127.0.0.1:4310" : `https://${dest}`);
+    const native = t.desktopOnly ? await this.nativeClient(profile) : null;
     const p = plan || (await this.plan(profile));
     if (!p.files.length) throw new Error("There are no files to publish. Check the include and exclude patterns.");
     const sec = secret ?? (await getSecret(this.secretKey(profile)));
-    const res = await deploy(profile.kind, { files: p.files, config: profile.config, secret: sec, fetch: (...a) => fetch(...a), signal, onProgress, site: { name: this.app.doc?.name || "site" } });
+    const res = await deploy(profile.kind, { files: p.files, config: profile.config, secret: sec, fetch: (...a) => fetch(...a), native, signal, onProgress, site: { name: this.app.doc?.name || "site" } });
     if (res.config) Object.assign(profile.config, res.config);
     const rec = { time: Date.now(), profile: profile.label, kind: profile.kind, url: res.url || "", files: p.files.length, bytes: p.summary.bytes };
     this.state.history.unshift(rec);
