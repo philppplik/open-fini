@@ -35,6 +35,7 @@ The Vibe assistant acts through tools: named functions with schemas that call in
 | Web | `web_search`, `fetch_page`, `download_image` | Off by default (Settings ▸ Artificial intelligence ▸ Web access); ask per domain in every mode; local and private addresses blocked; results are untrusted data. See [[Vibe Studio]] |
 | Attachments | `list_attachments`, `open_attachment` | Attachments live in memory for the session |
 | Comments | `list_comments`, `get_comment_context`, `add_comment`, `reply_comment`, `resolve_comment` | Work without a room; every comment comes with its exact place. Add/reply ask only in a room |
+| Color | `set_color_mode`, `convert_colors`, `preflight_pdf` | Loading an ICC profile stays a user action; the preflight is not a certified PDF/X validation ([[Color Management]]) |
 | Collaboration | `get_collab_status`, `read_chat`, `list_versions`, `save_version`, `post_chat_message`, `share_document` | Messages ask |
 
 There are well over 100 tools (counts quoted in older documents differ because the set grows with every release); the app's Tools list is the truth.

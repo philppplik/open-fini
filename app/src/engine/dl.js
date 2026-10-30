@@ -19,9 +19,16 @@ const stopsOf = (stops) =>
   stops
     .map((s) => {
       const c = parseColor(s.color);
-      return { o: s.o, color: rgbToHex(c.r, c.g, c.b), alpha: (s.alpha ?? 1) * c.a };
+      return withCmyk({ o: s.o, color: rgbToHex(c.r, c.g, c.b), alpha: (s.alpha ?? 1) * c.a }, s);
     })
     .sort((a, b) => a.o - b.o);
+
+/** Native CMYK values (percent) and spot names travel with the paint for print output (docs/color-management.md). */
+function withCmyk(p, src) {
+  if (Array.isArray(src.cmyk) && src.cmyk.length === 4) p.cmyk = src.cmyk;
+  if (src.spot) p.spot = src.spot;
+  return p;
+}
 
 /** Fill → display-list Paint. Gradient coordinates are unit-bbox relative and resolved against `bbox`. */
 export function paintFrom(fill, bbox) {
@@ -30,7 +37,7 @@ export function paintFrom(fill, bbox) {
   switch (fill.type) {
     case "solid": {
       const c = parseColor(fill.color);
-      return { type: "solid", color: rgbToHex(c.r, c.g, c.b), alpha: (fill.alpha ?? 1) * c.a };
+      return withCmyk({ type: "solid", color: rgbToHex(c.r, c.g, c.b), alpha: (fill.alpha ?? 1) * c.a }, fill);
     }
     case "linear":
       return {

@@ -17,12 +17,17 @@
  * - Fonts whose license bits forbid embedding (OS/2 fsType restricted) and CFF2 / variable-CFF fonts fall back to base-14.
  *   TrueType fonts are subset (glyph ids kept); OpenType/CFF fonts are embedded whole.
  * - Underline and strike-through are drawn as rectangles from fixed proportions of the font size.
- * - Colors are DeviceRGB. Blend modes other than Normal need a viewer with transparency support.
+ * - Colors are DeviceRGB unless a paint carries native CMYK (`cmyk: [c,m,y,k]` in percent: DeviceCMYK) or a spot color
+ *   (`spot: "Name"`: a Separation with a DeviceCMYK alternate, always painted at 100 % tint). With `color` every RGB
+ *   color, gradient and image is converted to DeviceCMYK. Blend modes other than Normal need transparency support.
+ * - `pdfx` writes the PDF/X-1a:2003 or PDF/X-4 identification (version header, GTS_PDFXVersion, Trapped, XMP, an
+ *   OutputIntent with the given ICC profile). It does not make content conformant by itself: the caller flattens
+ *   transparency for X-1a and runs the preflight (engine/color/preflight.js). Not validated by a PDF/X validator.
  *
  * @module pdf
  */
 
-import { PdfWriter, num, pdfText, pdfDate, latin1 } from './pdf-writer.js';
+import { PdfWriter, num, pdfText, pdfDate, pdfName, latin1 } from './pdf-writer.js';
 import { FontManager } from './pdf-fonts.js';
 import { jpegInfo } from './jpeg-info.js';
 
@@ -41,6 +46,10 @@ import { jpegInfo } from './jpeg-info.js';
  * @property {number} [bleed=0]              bleed in px: sets BleedBox / TrimBox and enlarges the MediaBox
  * @property {boolean} [cropMarks=false]     draw crop marks outside the bleed area (adds a slug to the MediaBox)
  * @property {Date} [creationDate]           defaults to now (pass a fixed date for reproducible output)
+ * @property {{toCmyk:(r:number,g:number,b:number)=>number[], imageToCmyk:(rgb:Uint8Array)=>Uint8Array}} [color]
+ *   convert all RGB colors and images to DeviceCMYK with these functions (0..1 values / bytes)
+ * @property {{version:'x1a'|'x4', profile?:Uint8Array|null, identifier?:string, condition?:string, info?:string}} [pdfx]
+ * @property {{fonts?:any[]}} [report] filled with the fonts used ({family, weight, style, embedded, kind})
  */
 
 const BLEND = {
@@ -130,6 +139,49 @@ function parseColor(hex) {
 const clamp01 = (v) => (v > 1 ? 1 : v >= 0 ? v : 0);
 /** @param {{r:number,g:number,b:number}} c */
 const rgbStr = (c) => `${num(c.r)} ${num(c.g)} ${num(c.b)}`;
+const r4 = (v) => num(Math.round(v * 10000) / 10000);
+
+/**
+ * CMYK components (0..1) of a color: its native `cmyk` (percent), else the converted RGB when the document converts.
+ * @param {Doc} doc
+ * @param {{r:number,g:number,b:number,cmyk?:any}} p
+ * @returns {number[]|null}
+ */
+function cmykOf(doc, p) {
+  if (Array.isArray(p.cmyk) && p.cmyk.length === 4) return p.cmyk.map((v) => clamp01((Number(v) || 0) / 100));
+  return doc.opts.color ? doc.opts.color.toCmyk(p.r, p.g, p.b).map(clamp01) : null;
+}
+
+/**
+ * The fill or stroke color operator for a solid color (DeviceRGB, DeviceCMYK or a Separation).
+ * @param {Content} c
+ * @param {{r:number,g:number,b:number,cmyk?:any,spot?:any}} p
+ * @param {boolean} stroke
+ */
+function colorOp(c, p, stroke) {
+  const cm = cmykOf(c.doc, p);
+  if (cm && typeof p.spot === 'string' && p.spot) {
+    const name = c.colorspace(spotSpace(c.doc, p.spot, cm));
+    return stroke ? `/${name} CS 1 SCN` : `/${name} cs 1 scn`;
+  }
+  if (cm) return `${cm.map(r4).join(' ')} ${stroke ? 'K' : 'k'}`;
+  return `${rgbStr(p)} ${stroke ? 'RG' : 'rg'}`;
+}
+
+/**
+ * A Separation color space with a DeviceCMYK alternate (cached by name).
+ * @param {Doc} doc
+ * @param {string} name
+ * @param {number[]} cmyk
+ */
+function spotSpace(doc, name, cmyk) {
+  let ref = doc.spots.get(name);
+  if (!ref) {
+    ref = doc.w.add(`[/Separation /${pdfName(name)} /DeviceCMYK << /FunctionType 2 /Domain [0 1] /C0 [0 0 0 0] /C1 [${cmyk.map(r4).join(' ')}] /N 1 >>]`);
+    doc.spots.set(name, ref);
+  }
+  return ref;
+}
 
 // ---------------------------------------------------------------------------------------------------------------
 // paths
@@ -330,6 +382,8 @@ class Content {
     this.xoMap = new Map();
     /** @type {Map<number, string>} */
     this.patMap = new Map();
+    /** @type {Map<number, string>} */
+    this.csMap = new Map();
     /** @type {Mat} */
     this.ctm = IDENT;
     /** @type {Mat[]} */
@@ -396,6 +450,16 @@ class Content {
     return n;
   }
 
+  /** @param {number} ref */
+  colorspace(ref) {
+    let n = this.csMap.get(ref);
+    if (!n) {
+      n = 'CS' + (this.csMap.size + 1);
+      this.csMap.set(ref, n);
+    }
+    return n;
+  }
+
   /** Resource dictionary (direct). */
   resources() {
     let s = '<< /ProcSet [/PDF /Text /ImageB /ImageC /ImageI]';
@@ -403,6 +467,7 @@ class Content {
     if (this.fontMap.size) s += ' /Font << ' + [...this.fontMap].map(([r, n]) => `/${n} ${r} 0 R`).join(' ') + ' >>';
     if (this.xoMap.size) s += ' /XObject << ' + [...this.xoMap].map(([r, n]) => `/${n} ${r} 0 R`).join(' ') + ' >>';
     if (this.patMap.size) s += ' /Pattern << ' + [...this.patMap].map(([r, n]) => `/${n} ${r} 0 R`).join(' ') + ' >>';
+    if (this.csMap.size) s += ' /ColorSpace << ' + [...this.csMap].map(([r, n]) => `/${n} ${r} 0 R`).join(' ') + ' >>';
     return s + ' >>';
   }
 
@@ -428,6 +493,8 @@ class Doc {
     this.shadings = new Map();
     /** @type {Map<string, number>} */
     this.patterns = new Map();
+    /** @type {Map<string, number>} */
+    this.spots = new Map();
   }
 
   /**
@@ -454,7 +521,8 @@ function normStops(stops) {
     .map((st) => {
       const c = parseColor(st && st.color);
       const al = st && st.alpha !== undefined && st.alpha !== null ? clamp01(Number(st.alpha)) : 1;
-      return { o: clamp01(Number(st && st.o)), r: c.r, g: c.g, b: c.b, a: al * c.a };
+      const cmyk = st && Array.isArray(st.cmyk) && st.cmyk.length === 4 ? st.cmyk : undefined;
+      return { o: clamp01(Number(st && st.o)), r: c.r, g: c.g, b: c.b, a: al * c.a, cmyk };
     })
     .sort((a, b) => a.o - b.o);
   if (!s.length) return s;
@@ -548,8 +616,9 @@ function makeShading(doc, paint) {
   if (hit) return hit;
   const w = doc.w;
   const offs = stops.map((s) => s.o);
-  const colorFn = makeFunction(w, offs, stops.map((s) => [s.r, s.g, s.b]));
-  const sh = w.add(`<< /ShadingType ${type} /ColorSpace /DeviceRGB /Coords [${coords.map(num).join(' ')}] /Function ${colorFn} 0 R /Extend [true true] >>`);
+  const cmyk = doc.opts.color || stops.every((s) => s.cmyk);
+  const colorFn = makeFunction(w, offs, stops.map((s) => (cmyk ? /** @type {number[]} */ (cmykOf(doc, s)) : [s.r, s.g, s.b])));
+  const sh = w.add(`<< /ShadingType ${type} /ColorSpace /Device${cmyk ? 'CMYK' : 'RGB'} /Coords [${coords.map(num).join(' ')}] /Function ${colorFn} 0 R /Extend [true true] >>`);
   let alphaSh = null;
   if (stops.some((s) => s.a < 0.999)) {
     const alphaFn = makeFunction(w, offs, stops.map((s) => [s.a]));
@@ -579,7 +648,7 @@ function preparePaint(c, paint, bounds, forStroke) {
   if (paint.type === 'solid' || !paint.type) {
     const col = parseColor(paint.color);
     const a = clamp01((paint.alpha === undefined || paint.alpha === null ? 1 : Number(paint.alpha)) * col.a);
-    return { kind: 'solid', r: col.r, g: col.g, b: col.b, alpha: isFinite(a) ? a : 1 };
+    return { kind: 'solid', r: col.r, g: col.g, b: col.b, alpha: isFinite(a) ? a : 1, cmyk: paint.cmyk, spot: paint.spot };
   }
   if (paint.type === 'conic') {
     const stops = normStops(paint.stops);
@@ -624,7 +693,7 @@ function preparePaint(c, paint, bounds, forStroke) {
  * @param {boolean} stroke
  */
 function setColor(c, p, stroke) {
-  if (p.kind === 'solid') c.ops.push(`${rgbStr(p)} ${stroke ? 'RG' : 'rg'}`);
+  if (p.kind === 'solid') c.ops.push(colorOp(c, p, stroke));
   else if (p.kind === 'pattern') c.ops.push(`/Pattern ${stroke ? 'CS' : 'cs'} /${p.name} ${stroke ? 'SCN' : 'scn'}`);
 }
 
@@ -685,7 +754,7 @@ function paintConic(c, p, bounds) {
     const a0 = angle + i * step;
     const a1 = a0 + step + over;
     c.ops.push('q');
-    c.ops.push(`${rgbStr(col)} rg`);
+    c.ops.push(colorOp(c, col, false));
     if (col.a < 0.9999) setAlpha(c, clamp01(col.a), clamp01(col.a), null);
     c.ops.push(`${num(cx)} ${num(cy)} m ${num(cx + rr * Math.cos(a0))} ${num(cy + rr * Math.sin(a0))} l ${num(cx + rr * Math.cos(a1))} ${num(cy + rr * Math.sin(a1))} l h f`);
     c.ops.push('Q');
@@ -849,9 +918,11 @@ function getImage(doc, img, smooth) {
   }
   let ref = null;
   const interp = smooth ? ' /Interpolate true' : '';
+  const conv = doc.opts.color;
   if (img.jpeg instanceof Uint8Array) {
     const info = jpegInfo(img.jpeg);
-    if (info) {
+    // when converting to CMYK, RGB JPEGs are decoded pixels below (img.rgba) instead of passed through
+    if (info && !(conv && info.components === 3 && img.rgba)) {
       const cs = info.components === 1 ? '/DeviceGray' : info.components === 3 ? '/DeviceRGB' : '/DeviceCMYK';
       const decode = info.invertedCMYK ? ' /Decode [1 0 1 0 1 0 1 0]' : '';
       ref = doc.w.addStream(
@@ -880,7 +951,8 @@ function getImage(doc, img, smooth) {
       const sm = doc.stream(`/Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /DeviceGray /BitsPerComponent 8${interp}`, alpha);
       smaskRef = ` /SMask ${sm} 0 R`;
     }
-    ref = doc.stream(`/Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /DeviceRGB /BitsPerComponent 8${interp}${smaskRef}`, rgb);
+    const data = conv ? conv.imageToCmyk(rgb) : rgb;
+    ref = doc.stream(`/Type /XObject /Subtype /Image /Width ${img.width} /Height ${img.height} /ColorSpace /Device${conv ? 'CMYK' : 'RGB'} /BitsPerComponent 8${interp}${smaskRef}`, data);
   }
   doc.images.set(key, ref === null ? null : { ref });
   return ref;
@@ -969,6 +1041,9 @@ function normalizeOptions(o) {
     bleed: Number(opts.bleed) > 0 ? Number(opts.bleed) : 0,
     cropMarks: !!opts.cropMarks,
     creationDate: opts.creationDate instanceof Date && !isNaN(+opts.creationDate) ? opts.creationDate : new Date(),
+    color: opts.color && typeof opts.color.toCmyk === 'function' ? opts.color : null,
+    pdfx: opts.pdfx && (opts.pdfx.version === 'x1a' || opts.pdfx.version === 'x4') ? opts.pdfx : null,
+    report: opts.report && typeof opts.report === 'object' ? opts.report : null,
   };
 }
 
@@ -992,15 +1067,41 @@ function buildXMP(o) {
   if (o.producer) desc += `<pdf:Producer>${xmlEscape(o.producer)}</pdf:Producer>`;
   if (o.creator) desc += `<xmp:CreatorTool>${xmlEscape(o.creator)}</xmp:CreatorTool>`;
   desc += `<xmp:CreateDate>${iso}</xmp:CreateDate><xmp:ModifyDate>${iso}</xmp:ModifyDate><xmp:MetadataDate>${iso}</xmp:MetadataDate>`;
+  if (o.pdfx) {
+    const id = pdfxId(o);
+    desc += `<pdf:Trapped>False</pdf:Trapped><pdfxid:GTS_PDFXVersion>${PDFX[o.pdfx.version].version}</pdfxid:GTS_PDFXVersion>`;
+    if (o.pdfx.version === 'x1a') desc += `<pdfx:GTS_PDFXVersion>${PDFX.x1a.version}</pdfx:GTS_PDFXVersion><pdfx:GTS_PDFXConformance>${PDFX.x1a.conformance}</pdfx:GTS_PDFXConformance>`;
+    desc += `<xmpMM:DocumentID>uuid:${id}</xmpMM:DocumentID><xmpMM:InstanceID>uuid:${id}</xmpMM:InstanceID><xmpMM:VersionID>1</xmpMM:VersionID><xmpMM:RenditionClass>default</xmpMM:RenditionClass>`;
+  }
   const xml =
     `<?xpacket begin="${bom}" id="W5M0MpCehiHzreSzNTczkc9d"?>\n` +
     '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">' +
-    '<rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:pdf="http://ns.adobe.com/pdf/1.3/" xmlns:xmp="http://ns.adobe.com/xap/1.0/">' +
+    '<rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:pdf="http://ns.adobe.com/pdf/1.3/" xmlns:xmp="http://ns.adobe.com/xap/1.0/"' +
+    (o.pdfx ? ' xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/" xmlns:pdfxid="http://www.npes.org/pdfx/ns/id/" xmlns:pdfx="http://ns.adobe.com/pdfx/1.3/"' : '') +
+    '>' +
     desc +
     '</rdf:Description></rdf:RDF></x:xmpmeta>\n' +
     ' '.repeat(64) +
     '\n<?xpacket end="w"?>';
   return new TextEncoder().encode(xml);
+}
+
+/** PDF/X identification per version: header version, GTS_PDFXVersion, GTS_PDFXConformance. */
+const PDFX = {
+  x1a: { pdf: '1.4', version: 'PDF/X-1:2003', conformance: 'PDF/X-1a:2003' },
+  x4: { pdf: '1.6', version: 'PDF/X-4', conformance: '' },
+};
+
+/** Deterministic UUID-shaped document id (from title and date). @param {ReturnType<typeof normalizeOptions>} o */
+function pdfxId(o) {
+  let h = 0x811c9dc5;
+  let hex = '';
+  const src = `${o.title || ''}|${o.creationDate.toISOString()}`;
+  for (let r = 0; r < 4; r++) {
+    for (let i = 0; i < src.length; i++) h = Math.imul(h ^ (src.charCodeAt(i) + r), 16777619);
+    hex += (h >>> 0).toString(16).padStart(8, '0');
+  }
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
 }
 
 /**
@@ -1017,7 +1118,7 @@ function buildXMP(o) {
  */
 export function createPDF(pages, options) {
   const opts = normalizeOptions(options || {});
-  const w = new PdfWriter();
+  const w = new PdfWriter(opts.pdfx ? PDFX[opts.pdfx.version].pdf : undefined);
   const doc = new Doc(w, opts);
   const list = Array.isArray(pages) && pages.length ? pages : [{ width: 595.2756, height: 841.8898, items: [] }];
 
@@ -1048,7 +1149,7 @@ export function createPDF(pages, options) {
     if (opts.cropMarks) {
       c.Q();
       const gap = bleedPt + MARK_GAP;
-      c.ops.push('q 0.25 w 0 G');
+      c.ops.push(opts.color ? 'q 0.25 w 1 1 1 1 K' : 'q 0.25 w 0 G');
       for (const cx of [slug, slug + trimW]) {
         for (const cy of [slug, slug + trimH]) {
           const sx = cx === slug ? -1 : 1;
@@ -1062,12 +1163,19 @@ export function createPDF(pages, options) {
     const content = doc.stream('', c.bytes());
     const box = (a, b, cc, d) => `[${num(a)} ${num(b)} ${num(cc)} ${num(d)}]`;
     const page = w.add(
-      `<< /Type /Page /Parent ${pagesRef} 0 R /MediaBox ${box(0, 0, mediaW, mediaH)} /TrimBox ${box(slug, slug, slug + trimW, slug + trimH)} /BleedBox ${box(slug - bleedPt, slug - bleedPt, slug + trimW + bleedPt, slug + trimH + bleedPt)} /Resources ${c.resources()} /Contents ${content} 0 R /Group << /S /Transparency /CS /DeviceRGB >> >>`,
+      `<< /Type /Page /Parent ${pagesRef} 0 R /MediaBox ${box(0, 0, mediaW, mediaH)} /TrimBox ${box(slug, slug, slug + trimW, slug + trimH)} /BleedBox ${box(slug - bleedPt, slug - bleedPt, slug + trimW + bleedPt, slug + trimH + bleedPt)} /Resources ${c.resources()} /Contents ${content} 0 R${opts.pdfx && opts.pdfx.version === 'x1a' ? '' : ` /Group << /S /Transparency /CS /Device${opts.color ? 'CMYK' : 'RGB'} >>`} >>`,
     );
     pageRefs.push(page);
   }
 
   doc.fonts.finish();
+  if (opts.report) {
+    opts.report.fonts = [...doc.fonts.providerCache].map(([k, e]) => {
+      const [family, weight, style] = k.split('\u0000');
+      return { family, weight: Number(weight), style, embedded: !!e, kind: e ? e.kind : 'std' };
+    });
+    if (!doc.fonts.provider) for (const e of doc.fonts.entries.values()) if (e.kind === 'std') opts.report.fonts.push({ family: e.ps, embedded: false, kind: 'std' });
+  }
 
   w.set(pagesRef, `<< /Type /Pages /Kids [${pageRefs.map((r) => r + ' 0 R').join(' ')}] /Count ${pageRefs.length} >>`);
   let info = '<<';
@@ -1078,10 +1186,22 @@ export function createPDF(pages, options) {
   if (opts.creator) info += ` /Creator ${pdfText(opts.creator)}`;
   if (opts.producer) info += ` /Producer ${pdfText(opts.producer)}`;
   const date = pdfDate(opts.creationDate);
-  info += ` /CreationDate (${date}) /ModDate (${date}) >>`;
-  w.set(infoRef, info);
+  info += ` /CreationDate (${date}) /ModDate (${date})`;
+  let intents = '';
+  if (opts.pdfx) {
+    const x = opts.pdfx;
+    const id = PDFX[x.version];
+    info += ` /GTS_PDFXVersion (${id.version})${id.conformance ? ` /GTS_PDFXConformance (${id.conformance})` : ''} /Trapped /False`;
+    let oi = `<< /Type /OutputIntent /S /GTS_PDFX /OutputConditionIdentifier ${pdfText(x.identifier || 'Custom')}`;
+    if (x.condition) oi += ` /OutputCondition ${pdfText(x.condition)}`;
+    if (x.info) oi += ` /Info ${pdfText(x.info)}`;
+    oi += ' /RegistryName (http://www.color.org)';
+    if (x.profile instanceof Uint8Array && x.profile.length) oi += ` /DestOutputProfile ${doc.stream('/N 4', x.profile)} 0 R`;
+    intents = ` /OutputIntents [${w.add(oi + ' >>')} 0 R]`;
+  }
+  w.set(infoRef, info + ' >>');
   w.set(metaRef, w.streamBody('/Type /Metadata /Subtype /XML', buildXMP(opts), { compress: false }));
-  w.set(catalogRef, `<< /Type /Catalog /Pages ${pagesRef} 0 R /Metadata ${metaRef} 0 R >>`);
+  w.set(catalogRef, `<< /Type /Catalog /Pages ${pagesRef} 0 R /Metadata ${metaRef} 0 R${intents} >>`);
   return w.finish(`/Root ${catalogRef} 0 R /Info ${infoRef} 0 R`);
 }
 

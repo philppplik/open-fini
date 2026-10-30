@@ -16,7 +16,7 @@ import { dlState, buildPageDL } from "../engine/dl.js";
 import { renderToCanvas } from "../engine/backends/canvas.js";
 
 export const OFINI_MIME = "application/vnd.openfini+zip";
-const EXT = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif", "image/avif": "avif", "image/bmp": "bmp", "image/svg+xml": "svg" };
+const EXT = { "application/vnd.iccprofile": "icc", "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif", "image/avif": "avif", "image/bmp": "bmp", "image/svg+xml": "svg" };
 
 export async function canvasToBytes(canvas, type = "image/png", quality) {
   const blob = canvas.convertToBlob ? await canvas.convertToBlob({ type, quality }) : await new Promise((r) => canvas.toBlob(r, type, quality));

@@ -23,3 +23,4 @@ in place and are marked as such.
 | [0016](0016-office-suite-apps.md) | Office Suite: one studio, a registry of lazily loaded apps per document kind | Accepted |
 | [0017](0017-openai-account-auth.md) | OpenAI account sign-in on desktop, OAuth for MCP servers, nothing undocumented | Accepted |
 | [0019](0019-extension-workers-watchdog.md) | Extension background scripts in workers, a watchdog, and a worker pool for heavy jobs | Accepted |
+| [0020](0020-color-management.md) | Color management: compact ICC engine, no bundled CMYK profile, PDF/X with an honest preflight | Accepted |

@@ -37,7 +37,7 @@ export const IMPLICIT = [
   { test: (p) => p === "ui/titlebar.js", re: new RegExp(String.raw`const label = on \? ${STR} : ${STR}`, "g") },
   // dialogs, import/export and the context menus: property texts and literal toasts (translated centrally by the helpers
   // in ui/controls.js, ui/dialogs.js, ui/menus.js and the toast listener in ui/shell.js)
-  { test: (p) => ["ui/export-dialog.js", "ui/import-dialogs.js", "ui/context-menu/providers.js", "ui/dialogs.js"].includes(p), re: new RegExp(String.raw`\b(?:label|title|hint|placeholder|message|ok|cancel):\s*${STR}`, "g") },
+  { test: (p) => ["ui/export-dialog.js", "ui/import-dialogs.js", "ui/context-menu/providers.js", "ui/dialogs.js", "ui/color-settings.js"].includes(p), re: new RegExp(String.raw`\b(?:label|title|hint|placeholder|message|ok|cancel):\s*${STR}`, "g") },
   { test: (p) => ["ui/export-dialog.js", "ui/import-dialogs.js", "ui/dialogs.js"].includes(p) || p === "commands/file.js" || p === "commands/edit.js", re: new RegExp(String.raw`\.toast\(\s*${STR}`, "g") },
   { test: (p) => p === "ui/dialogs.js", re: new RegExp(String.raw`\["((?:[^"\\\n]|\\.)*)",\s*[\d.]+,\s*[\d.]+,\s*"(?:px|mm|in)"`, "g") },
   { test: (p) => p === "ui/dialogs.js", re: new RegExp(String.raw`^\s{2}(Screen|Print|Photo|Social|Icon):`, "gm") },
@@ -47,6 +47,10 @@ export const IMPLICIT = [
   { test: (p) => p === "ui/settings-dialog.js", re: new RegExp(String.raw`\bnum\(\s*"[\w.]+"\s*,\s*${STR}\s*,[^"\n]*"[^"\n]*"(?:\s*,\s*${STR})?`, "g") },
   { test: (p) => p === "ui/settings-dialog.js", re: new RegExp(String.raw`\}\]\s*,\s*${STR}[,)]`, "g") },
   { test: (p) => p.startsWith("commands/"), re: new RegExp(String.raw`\bregisterCommand\(\s*"[\w.\-]+"\s*,\s*\{\s*label:\s*${STR}`, "g") },
+  // color management: button() labels (translated by ui/controls.js) and the preflight message templates of the pure
+  // engine, which marks them with a local N_ (it cannot import the i18n runtime)
+  { test: (p) => p === "ui/color-settings.js", re: new RegExp(String.raw`\bbutton\(\s*${STR}`, "g") },
+  { test: (p) => p === "engine/color/preflight.js", re: new RegExp(String.raw`\bN_\(\s*${STR}`, "g") },
   // collaboration UI: literal toasts and dialog texts (translated by app.toast / confirmDialog / promptDialog) and tab labels
   { test: (p) => p.startsWith("ui/collab/"), re: new RegExp(String.raw`\.toast\(\s*${STR}`, "g") },
   { test: (p) => p.startsWith("ui/collab/"), re: new RegExp(String.raw`\b(?:title|message|ok|label):\s*${STR}`, "g") },

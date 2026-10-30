@@ -249,7 +249,7 @@ function groupHasUnsupported(g) {
 export function prepareVectorDL(dl, { rasterScale = 2 } = {}) {
   if (dlHasAdjust(dl.items)) {
     const c = renderToCanvas(dl, { scale: rasterScale, bg: null });
-    const ref = { id: uid("r"), width: c.width, height: c.height, source: c };
+    const ref = { id: uid("r"), width: c.width, height: c.height, source: c, flat: true };
     ensureRgba(ref);
     return { width: dl.width, height: dl.height, items: [{ t: "image", img: ref, m: [1 / rasterScale, 0, 0, 1 / rasterScale, 0, 0], smooth: true }] };
   }
@@ -262,7 +262,7 @@ export function prepareVectorDL(dl, { rasterScale = 2 } = {}) {
           const w = Math.min(MAX_SIDE, Math.ceil(b.w * rasterScale));
           const h = Math.min(MAX_SIDE, Math.ceil(b.h * rasterScale));
           const c = renderToCanvas({ width: dl.width, height: dl.height, items: [it] }, { crop: b, width: w, height: h, bg: null });
-          const ref = { id: uid("r"), width: w, height: h, source: c };
+          const ref = { id: uid("r"), width: w, height: h, source: c, flat: true };
           ensureRgba(ref);
           return { t: "image", img: ref, m: [b.w / w, 0, 0, b.h / h, b.x, b.y], smooth: true };
         }
@@ -301,13 +301,23 @@ export function pdfPageLists(app, pages, { rasterDpi = 200 } = {}) {
   const rasterScale = Math.max(1, rasterDpi / doc.dpi);
   return pages.map((p) => {
     const dl = prepareVectorDL(buildPageDL(doc, p), { rasterScale });
-    if (p.bg) dl.items.unshift({ t: "path", d: [["M", 0, 0], ["L", p.w, 0], ["L", p.w, p.h], ["L", 0, p.h], ["Z"]], rule: "nonzero", fill: { type: "solid", color: p.bg.slice(0, 7), alpha: 1 }, stroke: null, m: [1, 0, 0, 1, 0, 0] });
+    if (p.bg) dl.items.unshift({ t: "path", d: [["M", 0, 0], ["L", p.w, 0], ["L", p.w, p.h], ["L", 0, p.h], ["Z"]], rule: "nonzero", fill: { type: "solid", color: p.bg.slice(0, 7), alpha: 1 }, stroke: null, m: [1, 0, 0, 1, 0, 0], pageBg: true });
     return dl;
   });
 }
 
-/** Writes PDF bytes from prepared page display lists. */
-export async function writePdf(app, lists, { bleed = 0, cropMarks = false } = {}) {
+/** Rasterizes a whole display list into one opaque image item (PDF/X-1a transparency flattening). */
+export function rasterizeList(dl, scale, bg = "#ffffff") {
+  const w = Math.min(MAX_SIDE, Math.ceil(dl.width * scale));
+  const h = Math.min(MAX_SIDE, Math.ceil(dl.height * scale));
+  const c = renderToCanvas(dl, { crop: { x: 0, y: 0, w: dl.width, h: dl.height }, width: w, height: h, bg, pool: new CanvasPool({ cpu: true }) });
+  const ref = { id: uid("r"), width: w, height: h, source: c, flat: true };
+  ensureRgba(ref);
+  return { width: dl.width, height: dl.height, items: [{ t: "image", img: ref, m: [dl.width / w, 0, 0, dl.height / h, 0, 0], smooth: true }] };
+}
+
+/** Writes PDF bytes from prepared page display lists (`extra`: color, pdfx and report options of createPDF). */
+export async function writePdf(app, lists, { bleed = 0, cropMarks = false, ...extra } = {}) {
   const { createPDF } = await import("../engine/backends/pdf.js");
   return createPDF(lists, {
     pxPerInch: app.doc.dpi,
@@ -317,6 +327,7 @@ export async function writePdf(app, lists, { bleed = 0, cropMarks = false } = {}
     bleed,
     cropMarks,
     fontProvider: (font) => app.fontBytes?.(font) || null,
+    ...extra,
   });
 }
 

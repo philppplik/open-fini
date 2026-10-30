@@ -43,10 +43,11 @@ export function exportDialog(app, preset = {}) {
   const transparent = switchField({ label: "Transparent background", value: st.transparent, onChange: (v) => { st.transparent = v; } });
   const bleed = switchField({ label: "Include bleed", value: false, onChange: (v) => (st.bleed = v) });
   const marks = switchField({ label: "Crop marks", value: false, onChange: (v) => (st.marks = v) });
+  const standard = selectField({ label: "PDF standard", value: st.standard || "none", options: [{ value: "none", label: "Plain PDF" }, { value: "x1a", label: "PDF/X-1a:2003 (CMYK, no transparency)" }, { value: "x4", label: "PDF/X-4 (CMYK, live transparency)" }], onChange: (v) => (st.standard = v) });
   const rdpi = numField({ label: "Effects resolution", value: 200, min: 72, max: 600, unit: "dpi", precision: 0, wide: true, onChange: (v) => (st.rasterDpi = v) });
 
   rasterBox.append(h("div.of-row", h("span.of-slider__label", "Scale"), scale.el), quality.el, transparent.el);
-  pdfBox.append(bleed.el, marks.el, rdpi.el, h("p.of-hint", "Live effects, masks and adjustments are flattened to images at this resolution; everything else stays vector."));
+  pdfBox.append(standard.el, bleed.el, marks.el, rdpi.el, h("p.of-hint", "Live effects, masks and adjustments are flattened to images at this resolution; everything else stays vector."), h("p.of-hint", "PDF/X output converts colors with the document's Color Settings and is checked by OpenFini's preflight, not by a certified validator."));
 
   function sizeOf() {
     const p = app.page;
@@ -143,9 +144,18 @@ async function runExportNow(app, st) {
   app.status("Exporting…");
   try {
     if (st.format === "pdf") {
-      const bytes = await exportPdf(app, pages, { bleed: st.bleed, cropMarks: st.marks, rasterDpi: st.rasterDpi });
+      const std = st.standard && st.standard !== "none" ? st.standard : null;
+      let bytes;
+      let pf = null;
+      if (std || doc.settings.color?.mode === "cmyk") {
+        // print path: DeviceCMYK, PDF/X identification and preflight (core/color-doc.js, lazy)
+        const r = await (await import("../core/color-doc.js")).printPdf(app, pages, { standard: std, bleed: st.bleed, cropMarks: st.marks, rasterDpi: st.rasterDpi });
+        bytes = r.bytes;
+        pf = r.preflight;
+      } else bytes = await exportPdf(app, pages, { bleed: st.bleed, cropMarks: st.marks, rasterDpi: st.rasterDpi });
       const r = await platform.saveFile({ suggestedName: downloadName(base, "pdf"), bytes, mime: "application/pdf", filters: [{ name: "PDF", extensions: ["pdf"] }] });
       if (r) app.toast(`Exported ${r.name} (${formatBytes(bytes.length)})`, "success");
+      if (r && pf?.issues.some((i) => i.severity !== "info")) (await import("./color-settings.js")).showPreflightReport(pf);
       return;
     }
     if (st.format === "psd") {
@@ -175,7 +185,9 @@ async function runExportNow(app, st) {
         if (b) area = b;
       }
       const r = await exportRaster(app, { page: p, format: st.format, scale: st.scale, quality: st.quality, background: st.transparent && fmt.alpha ? null : undefined, area });
-      files.push({ name: pages.length > 1 ? `${base}-${i + 1}.${fmt.ext}` : downloadName(base, fmt.ext), bytes: r.bytes });
+      // documents in a wide-gamut working space are tagged with its ICC profile (sRGB files stay untagged)
+      const bytes = doc.settings.color?.rgb && doc.settings.color.rgb !== "srgb" ? await (await import("../core/color-doc.js")).tagRaster(doc, r.bytes, st.format) : r.bytes;
+      files.push({ name: pages.length > 1 ? `${base}-${i + 1}.${fmt.ext}` : downloadName(base, fmt.ext), bytes });
     }
     return await saveFiles(app, base, files, fmt.mime, [{ name: fmt.label, extensions: [fmt.ext] }]);
   } finally {

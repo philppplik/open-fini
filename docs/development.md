@@ -35,6 +35,7 @@ Rules that explain most of the code:
 | Area | Code | Doc |
 | --- | --- | --- |
 | Document model, history, ops, app state | `app/src/core/` | [architecture.md](architecture.md), [engine-contracts.md](engine-contracts.md) |
+| Color management (ICC, CMYK, PDF/X, preflight) | `app/src/engine/color/`, `app/src/core/color-doc.js`, `app/src/ui/color-settings.js` | [color-management.md](color-management.md) |
 | Vector / Pixel / Layout engines | `app/src/engine/{vector,pixel,layout,backends}` | [studios.md](studios.md), [layout-tables-charts.md](layout-tables-charts.md), [pixel-histogram.md](pixel-histogram.md) |
 | Studio registry, tools, docks | `app/src/studios/` (`registry.js` is the single list of studios) | [studios.md](studios.md) |
 | Code studio and web engine | `app/src/ui/code/`, `app/src/engine/web/`, `app/src/engine/git`, `engine/publish` | [code-studio.md](code-studio.md), [web-engine.md](web-engine.md), [frameworks.md](frameworks.md), [git-and-publishing.md](git-and-publishing.md) |
