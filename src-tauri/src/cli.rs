@@ -115,7 +115,12 @@ pub fn resolve_arg(arg: &str, cwd: Option<&Path>) -> Option<PathBuf> {
     }
     let path = if arg.starts_with("file://") {
         // Handles percent-encoding (spaces, unicode) and Windows/UNC forms.
-        tauri::Url::parse(arg).ok()?.to_file_path().ok()?
+        // A URL without a path (`file://`) names no file; on Unix it would otherwise become `/`.
+        let url = tauri::Url::parse(arg).ok()?;
+        if url.path().len() <= 1 {
+            return None;
+        }
+        url.to_file_path().ok()?
     } else if is_mangled_drive_root(arg) {
         // `"%V"` on a drive root arrives as `C:"` because Windows reads the `\"` of `"C:\"` as an escaped quote.
         PathBuf::from(format!("{}\\", &arg[..2]))
