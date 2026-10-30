@@ -6,11 +6,17 @@
 //! instance and the native clipboard.
 //!
 //! The frontend talks to this crate through the plugins registered in [`run`]
-//! and two small commands (`take_launch_files`, `quit_app`); see
-//! `app/src/platform/tauri.js`.
+//! and a few commands: `take_launch_files`, `quit_app` (see `app/src/platform/tauri.js`), the OAuth
+//! loopback (`oauth.rs`), the built-in collaboration relay (`relay.rs`) and the FTP/FTPS and SMTP
+//! clients (`ftp.rs`, `smtp.rs`; shared plumbing in `netio.rs` and `wire.rs`).
 
 mod cli;
+mod ftp;
+mod netio;
 mod oauth;
+mod relay;
+mod smtp;
+mod wire;
 
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, PoisonError};
@@ -138,6 +144,7 @@ pub fn run() {
     let app = builder
         .manage(OpenQueue::default())
         .manage(oauth::Loopback::default())
+        .manage(relay::Relay::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
@@ -147,6 +154,14 @@ pub fn run() {
             quit_app,
             oauth::oauth_loopback_start,
             oauth::oauth_loopback_wait,
+            relay::relay_start,
+            relay::relay_stop,
+            relay::relay_status,
+            ftp::ftp_test,
+            ftp::ftp_upload,
+            smtp::smtp_test,
+            smtp::smtp_send,
+            netio::net_cancel,
         ])
         .setup(|app| {
             let args = std::env::args_os()
