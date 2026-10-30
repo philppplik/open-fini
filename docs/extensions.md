@@ -74,9 +74,15 @@ While offline mode is on (*Settings ▸ Security and privacy*), extensions canno
   without `allow-same-origin`, so it has an opaque origin: it cannot read the app, its storage (IndexedDB, local
   storage, your API keys), cookies or other extensions. Scripts are delivered as `data:` URLs, exactly like the Code
   studio preview and custom Vibe tools; the host never uses `eval` or `new Function` on extension code.
-- **The frame has its own Content-Security-Policy**: `connect-src 'none'`, no frames, no workers, no forms, images and
-  fonts only from `data:`/`blob:`, scripts only from `data:`. So `fetch`, `XMLHttpRequest`, `WebSocket` and image
-  beacons do not work from inside the sandbox; the only door is the RPC below, which enforces permissions.
+- **Background scripts run in a dedicated worker.** The background frame is only a relay: it starts a `Worker` from a
+  `blob:` URL (it inherits the frame's opaque origin and policy) that runs the runtime and `main.js`, and forwards
+  messages both ways. A background script has no DOM (`window` is an alias of the worker's global scope); panels keep
+  running in their frame. If the worker cannot be started, the script runs in the frame as before and the extension
+  log says so.
+- **The frame has its own Content-Security-Policy**: `connect-src 'none'`, no frames, no forms, images and fonts only
+  from `data:`/`blob:`, scripts only from `data:`, workers only from `blob:` and only in the background frame (panels
+  allow none). So `fetch`, `XMLHttpRequest`, `WebSocket` and image beacons do not work from inside the sandbox; the only
+  door is the RPC below, which enforces permissions.
 - **All communication is a structured `postMessage` RPC** (`{ ofx: 1, t: "req", id, m, p }`). The host identifies the
   sender by `event.source`, validates the envelope, the method name and **every argument** (type, length, shape),
   measures the message (4 MB cap per request, 8 MB per result, JSON data and typed arrays only), applies a rate limit
@@ -89,16 +95,29 @@ While offline mode is on (*Settings ▸ Security and privacy*), extensions canno
   (validated against their schemas), read-only tools need `document.read`, all others `document.write`. Tools that use
   the network (image generation), the assistant's internals and the extension tools themselves are not available. Every
   extension command, import and tool call is folded into **one undo step**.
-- **Limits and failure.** A frame that floods the host, sends oversized data, stops answering heartbeats (two in a row)
-  or fails to start is stopped and logged; after three stops it is disabled. Everything is logged to the manager and to
-  the app log (`extensions` scope; secrets are redacted by the log).
+- **Watchdog** (`app/src/extensions/watchdog.js`, [ADR 0019](adr/0019-extension-workers-watchdog.md)). Every frame is
+  pinged every 5 s once it is ready; one that leaves three pings unanswered (15–20 s) is **stopped: not responding**.
+  Stopping removes the frame, which terminates its worker. Every raw message (calls, logs, replies) passes a flood guard
+  (burst 2000, 1000/s sustained; 2000 dropped within a second stop the extension), calls are rate-limited (burst 100,
+  60/s), answers to host calls are capped at 8 MB, `activate()` must finish within 10 s, host-to-extension calls time
+  out (30 s, commands 10 min) and so do extension-to-host calls (host 30 s / 10 min, runtime 11 min). A stop shows a
+  notification with **Restart** and **Disable**; the third stop within 30 minutes disables the extension. The manager
+  shows *Not responding*. Everything is logged to the manager and to the persistent app log (`extensions` scope,
+  *Troubleshooting*; secrets are redacted by the log).
 - **Validation.** The manifest is validated when it is installed **and again every time OpenFini loads it**; stored
   permissions are intersected with the manifest.
 - **Themes** may only set `--of-*` and `--sl-*` CSS variables with plain values (no `url()`, no `@import`).
 
-**Limits you should know about.** The sandbox cannot interrupt a script that loops forever on the UI thread: a
-runaway synchronous loop in an extension can freeze the window until you reload it (the heartbeat then stops it).
-Extensions are not signed or reviewed; there is no marketplace. A user who grants `document.write` has trusted the
+**Limits you should know about.** What the watchdog guarantees depends on where the code runs:
+
+| Code | Runs in | A runaway loop |
+| --- | --- | --- |
+| Background script (`main.js`) | a dedicated worker thread | never blocks the app; detected within about 20 s and the worker is terminated preemptively (the loop does not need to yield). Verified in Chromium (web build with the desktop CSP); WebView2 is Chromium. WebKit (Safari, macOS/Linux desktop) is expected to behave the same but is not verified |
+| Background script where no worker can be started (logged) | the frame | as for panels |
+| Panels | their frame | Chromium-based builds (Chrome, Edge, Windows desktop) usually give sandboxed frames their own renderer process, so the app stays usable and the extension is stopped after about 20 s. In WebKit-based builds the frame may share the app's thread: the window freezes until the engine offers to stop the script or you reload; the watchdog stops the extension afterwards |
+
+Memory cannot be capped per worker or frame: an extension that allocates without bound can still exhaust the page's
+memory. Extensions are not signed or reviewed; there is no marketplace. A user who grants `document.write` has trusted the
 extension with the content of the open document, and a user who grants a network origin has allowed data to be sent
 there. The sandbox protects the app and your other data, not the document the extension is allowed to change.
 

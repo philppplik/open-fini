@@ -11,7 +11,7 @@ const hasMask = (a) => !!a.state?.pixelMask;
 /** Runs an image-ops function lazily and toasts the reason when it declined. */
 const op = (name, ...args) => async (a) => {
   const m = await import("../studios/tools/image-ops.js");
-  const r = m[name](a, ...args);
+  const r = await m[name](a, ...args);
   if (r !== true) a.toast(r, "warning");
 };
 

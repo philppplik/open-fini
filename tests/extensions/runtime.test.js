@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { historyMark, mergeSince } from "../../app/src/extensions/history.js";
 import { History } from "../../app/src/core/history.js";
-import { buildPanelDocument, buildMainDocument, resolveRef, FRAME_CSP, scriptUrl } from "../../app/src/extensions/html.js";
+import { buildPanelDocument, buildMainDocument, resolveRef, FRAME_CSP, MAIN_CSP, scriptUrl } from "../../app/src/extensions/html.js";
 import { RUNTIME_SRC } from "../../app/src/extensions/runtime-src.js";
 import { buildScaffold } from "../../app/src/extensions/scaffold.js";
 import { validateManifest } from "../../app/src/extensions/manifest.js";
@@ -68,11 +68,15 @@ test("panel documents inline local scripts and styles, drop remote ones, and sta
   assert.ok(/<script src="data:text\/javascript;charset=utf-8,__ofxBoot/.test(out) || out.includes(scriptUrl("__ofxBoot()")));
 });
 
-test("the main document carries config, the runtime and the extension code as data: scripts", () => {
+test("the main document is a relay that runs config, runtime and extension code in a blob: worker", () => {
   const out = buildMainDocument({ config: { id: "a.b", version: "1.0.0" }, runtimeSrc: RUNTIME_SRC, mainCode: "function activate(){}" });
-  assert.ok(out.includes(scriptUrl("function activate(){}")));
-  assert.ok(!out.includes("</script><script>"), "no inline scripts");
+  assert.ok(!/<script\b[^>]*>[^<]/i.test(out), "no inline scripts");
   assert.match(out, /connect-src 'none'/);
+  assert.ok(out.includes(MAIN_CSP) && /worker-src blob:/.test(MAIN_CSP) && !/worker-src blob:/.test(FRAME_CSP), "only the background frame may start a (blob:) worker");
+  const relay = decodeURIComponent(/src="data:text\/javascript;charset=utf-8,([^"]*)"/.exec(out)[1]);
+  assert.ok(relay.includes("new Worker(") && relay.includes("terminate()"), "starts and can kill a worker");
+  assert.ok(relay.includes(JSON.stringify("function activate(){}")), "carries the extension code");
+  new Function(relay); // eslint-disable-line no-new-func -- syntax check only
 });
 
 test("the runtime source is a self-contained IIFE", () => {

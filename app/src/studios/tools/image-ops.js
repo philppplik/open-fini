@@ -7,7 +7,6 @@ import { mul, translate, scale as scaleM } from "../../core/math.js";
 import { createCanvas, ctx2d } from "../../core/doc.js";
 import { pageVisualBounds, rasterizeNodes } from "../../core/raster.js";
 import { trimBounds } from "../../engine/pixel/crop.js";
-import { resizeImage } from "../../engine/pixel/transform.js";
 import { cropPage } from "./pixel-crop-impl.js";
 
 export const RESAMPLE_FILTERS = ["lanczos3", "bicubic", "bilinear", "nearest"];
@@ -82,17 +81,19 @@ export function rotateDocument(app, degrees, { expand = true } = {}) {
  * Resizes the document to width x height. `resample` "scale" (default) only scales the layers (vector and text stay
  * sharp); a filter name ("lanczos3", "bicubic", "bilinear", "nearest") also re-samples the bitmaps of top-level pixel
  * layers so they carry the new pixel dimensions. Sets the DPI when `dpi` is given (metadata only).
+ * Async: the re-sampling (about 0.5 s per 12-megapixel layer) runs on the worker pool, all layers in parallel.
  */
-export function resizeDocument(app, width, height, { resample = "scale", dpi } = {}) {
+export async function resizeDocument(app, width, height, { resample = "scale", dpi } = {}) {
   const doc = app.doc, p = app.page;
   const w = Math.max(1, Math.min(32000, Math.round(width))), hh = Math.max(1, Math.min(32000, Math.round(height)));
   if (!Number.isFinite(w) || !Number.isFinite(hh)) return "Invalid size.";
   const sx = w / p.w, sy = hh / p.h;
+  const layers = p.root.children.map((n) => ({ n, m: mul(scaleM(sx, sy), n.m) }));
+  const baked = resample === "scale" ? [] : await Promise.all(layers.filter((l) => l.n.type === "pixel").map((l) => resampleLayer(doc, l, resample)));
+  if (app.doc !== doc || app.page !== p) return "The document changed while it was being resized.";
   doc.tx("Resize Document", () => {
-    for (const n of p.root.children) {
-      doc.set(n, { m: mul(scaleM(sx, sy), n.m) });
-      if (resample !== "scale" && n.type === "pixel") bake(doc, n, resample);
-    }
+    for (const { n, m } of layers) doc.set(n, { m });
+    for (const b of baked) if (b && p.root.children.includes(b.n)) doc.replacePixels(b.n, b.cv, { w: b.cv.width, h: b.cv.height, m: b.m }, "Resample");
     doc.set(p, { w, h: hh, guides: { h: p.guides.h.map((v) => v * sy), v: p.guides.v.map((v) => v * sx) } });
     if (dpi && dpi > 0) doc.dpi = dpi;
   });
@@ -102,16 +103,20 @@ export function resizeDocument(app, width, height, { resample = "scale", dpi } =
   return true;
 }
 
-/** Re-samples a top-level pixel layer whose matrix is a plain positive scale + translation to its on-page pixel size. */
-function bake(doc, n, filter) {
-  const [a, b, c, d, e, f] = n.m;
-  if (Math.abs(b) > 1e-9 || Math.abs(c) > 1e-9 || a <= 0 || d <= 0) return;
+/**
+ * Re-samples a top-level pixel layer whose new matrix `m` is a plain positive scale + translation to its on-page pixel
+ * size. Resolves to { n, cv, m } (the bitmap and the translation-only matrix to apply), or null when nothing changes.
+ */
+async function resampleLayer(doc, { n, m }, filter) {
+  const [a, b, c, d, e, f] = m;
+  if (Math.abs(b) > 1e-9 || Math.abs(c) > 1e-9 || a <= 0 || d <= 0) return null;
   const src = doc.getPixels(n);
   const tw = Math.max(1, Math.round(src.width * a)), th = Math.max(1, Math.round(src.height * d));
-  if (tw === src.width && th === src.height) return;
+  if (tw === src.width && th === src.height) return null;
   const img = ctx2d(src).getImageData(0, 0, src.width, src.height);
-  const out = resizeImage(img, tw, th, { filter });
+  const { runJob } = await import("../../core/workers/index.js");
+  const out = await runJob("pixel.resize", { img: { width: img.width, height: img.height, data: img.data }, width: tw, height: th, filter }, { transfer: [img.data.buffer] });
   const cv = createCanvas(tw, th);
-  ctx2d(cv).putImageData(new ImageData(new Uint8ClampedArray(out.data), tw, th), 0, 0);
-  doc.replacePixels(n, cv, { w: tw, h: th, m: translate(e, f) }, "Resample");
+  ctx2d(cv).putImageData(new ImageData(new Uint8ClampedArray(out.data.buffer, out.data.byteOffset, out.data.length), tw, th), 0, 0);
+  return { n, cv, m: translate(e, f) };
 }

@@ -7,7 +7,7 @@ import { platform } from "../../platform/index.js";
 import { describePermission } from "../../extensions/manifest.js";
 import { consentDialog } from "./dialogs.js";
 
-const STATE = { active: ["Running", "ok"], inactive: ["Idle", "dim"], activating: ["Starting…", "dim"], disabled: ["Disabled", "dim"], error: ["Stopped", "bad"], invalid: ["Invalid", "bad"] };
+const STATE = { active: ["Running", "ok"], inactive: ["Idle", "dim"], activating: ["Starting…", "dim"], disabled: ["Disabled", "dim"], error: ["Stopped", "bad"], hung: ["Not responding", "bad"], invalid: ["Invalid", "bad"] };
 
 async function hostOf(app) {
   await app.extensionsReady;
@@ -87,7 +87,7 @@ const toggle = (checked, label, onChange) => {
 
 function details(app, host, ext) {
   const m = ext.manifest;
-  const [stLabel, stCls] = STATE[ext.state] || ["", "dim"];
+  const [stLabel, stCls] = STATE[ext.state === "error" && ext.hung ? "hung" : ext.state] || ["", "dim"];
   const box = h("div.of-ext-detail");
   box.append(
     h("div.of-ext-detail__head", h("div", h("h2", ext.name), h("small", `${ext.id}${m ? ` · v${m.version}` : ""} · ${ext.rec.source?.type === "url" ? "from URL" : ext.rec.source?.type === "unpacked" ? "unpacked folder" : ext.rec.source?.type === "assistant" ? "written by Vibe" : ext.rec.source?.type === "bundled" ? "bundled with OpenFini" : "from file"}`)), h("div.of-ext-detail__ctl", h("span", { class: `of-ext-badge ${stCls}` }, stLabel), ext.valid ? toggle(ext.rec.enabled !== false, `Enable ${ext.name}`, (on) => run(app, () => host.setEnabled(ext.id, on))) : null)),
@@ -95,7 +95,7 @@ function details(app, host, ext) {
   if (m?.description) box.append(h("p", m.description));
   if (ext.error) box.append(h("pre.of-ext-error", ext.error));
   const actions = h("div.of-ext-actions");
-  if (ext.valid) actions.append(button("Restart", () => run(app, () => host.reload(ext.id)), { icon: "arrow-repeat" }));
+  if (ext.valid) actions.append(button("Restart", () => run(app, () => host.restart(ext.id)), { icon: "arrow-repeat" }));
   if (ext.dirHandle) actions.append(toggle(!!ext.watching, "Hot reload", (on) => host.watch(ext.id, on)), h("span.of-hint", "Hot reload"));
   if (ext.rec.source?.type === "url") actions.append(button("Check for update", async () => (await installFromUrl(app, ext.rec.source.url)) && app.toast("Checked.", "success", 1500), { icon: "cloud-arrow-down" }));
   actions.append(button("Uninstall", async () => { if (await confirmDialog({ title: "Uninstall extension", message: `Remove “${ext.name}” and its stored data?`, ok: "Uninstall", danger: true })) await host.uninstall(ext.id); }, { variant: "danger" }));
@@ -158,7 +158,7 @@ export function openExtensionManager(app, { select } = {}) {
     if (!list.some((e) => e.id === current)) current = list[0]?.id || null;
     empty(listEl);
     for (const ext of list) {
-      const [stLabel, stCls] = STATE[ext.state] || ["", "dim"];
+      const [stLabel, stCls] = STATE[ext.state === "error" && ext.hung ? "hung" : ext.state] || ["", "dim"];
       const b = h("button.of-ext-item", { type: "button", role: "option", "aria-selected": String(ext.id === current), class: ext.id === current ? "active" : "" }, h("strong", ext.name), h("small", ext.manifest?.description || ext.error || ext.id), h("span", { class: `of-ext-badge ${stCls}` }, stLabel));
       b.addEventListener("click", () => {
         current = ext.id;

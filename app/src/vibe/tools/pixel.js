@@ -125,7 +125,7 @@ export function pixelTools(app, ctx) {
       requireDoc(app);
       const { resizeDocument } = await import("../../studios/tools/image-ops.js");
       const p = app.page;
-      const r = resizeDocument(app, a.width, a.height ?? (a.width * p.h) / p.w, { resample: a.resample || "scale", dpi: a.dpi });
+      const r = await resizeDocument(app, a.width, a.height ?? (a.width * p.h) / p.w, { resample: a.resample || "scale", dpi: a.dpi });
       return r === true ? { ok: true, page: { w: app.page.w, h: app.page.h } } : { ok: false, error: r };
     }),
 
