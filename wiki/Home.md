@@ -13,7 +13,7 @@ OpenFini is a lightweight, open-source creative suite that runs as a small deskt
 | Layout | Brochures, books, print, tables and charts | [[Layout Studio]] |
 | Code | Websites, Markdown and LaTeX, Git | [[Code Studio]] |
 | Vibe | An AI assistant that works in every studio (off by default) | [[Vibe Studio]] |
-| Office | Word-style documents (DOCX, ODT, RTF) | [[Office Studio]] |
+| Office | Word-style documents (DOCX, ODT, RTF) and spreadsheets (XLSX, ODS, CSV) | [[Office Studio]], [[Spreadsheet]] |
 
 Export is a button in the header, not a studio: see [[Export and Publish]]. Everything stays on your device: no accounts, no telemetry, no network calls unless you switch a feature on (see [[Security and Privacy]]).
 
