@@ -13,7 +13,7 @@ Press the **Export** button in the header or `Mod+Shift+E` (*File ▸ Export…*
 | Website | Appears when the document has a Code project: ZIP archive, single-file pages, or a folder, with minify and sitemap options |
 | Publish | One-click deployment (see below) |
 
-Limits: image export is capped at 16,384 px per side and 140 megapixels. PDF output is DeviceRGB with standard or embedded fonts ([[Layout Studio]]); there is no PDF/X, tagged PDF or CMYK. SVG and PDF contain real paths and text for charts and tables ([[Tables and Charts]]).
+Limits: image export is capped at 16,384 px per side and 140 megapixels. PDF output is DeviceRGB with standard or embedded fonts ([[Layout Studio]]); CMYK documents and the PDF/X-1a and PDF/X-4 options write DeviceCMYK with an output intent and a preflight report, not validated by a certified PDF/X validator ([[Color Management]]). There is no tagged PDF. SVG and PDF contain real paths and text for charts and tables ([[Tables and Charts]]).
 
 ## Website export
 

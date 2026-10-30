@@ -69,13 +69,13 @@ export function pdfDate(d) {
   return `D:${p(d.getUTCFullYear(), 4)}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}Z`;
 }
 
-const HEADER = latin1('%PDF-1.7\n%\xE2\xE3\xCF\xD3\n');
-
 /** Collects PDF objects and serializes them with a correct xref table. */
 export class PdfWriter {
-  constructor() {
+  /** @param {string} [version] header version, default 1.7 */
+  constructor(version = '1.7') {
     /** @type {(Array<string|Uint8Array>|null)[]} object bodies by number (index 0 unused) */
     this.objs = [null];
+    this.header = latin1(`%PDF-${version}\n%\xE2\xE3\xCF\xD3\n`);
   }
 
   /**
@@ -146,8 +146,8 @@ export class PdfWriter {
    * @returns {Uint8Array}
    */
   finish(trailerBody) {
-    const parts = [HEADER];
-    let pos = HEADER.length;
+    const parts = [this.header];
+    let pos = this.header.length;
     const n = this.objs.length;
     const offsets = new Array(n).fill(0);
     for (let i = 1; i < n; i++) {

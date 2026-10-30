@@ -20,6 +20,7 @@
 
 **Features**
 - [[Export and Publish]]
+- [[Color Management]]
 - [[Git in the Code Studio]]
 - [[Frameworks and Libraries]]
 - [[Markdown and LaTeX]]

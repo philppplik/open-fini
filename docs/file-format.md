@@ -176,4 +176,8 @@ the device (IndexedDB keys `versions.index`, `versions.data.<id>`, `versions.thu
 * Readers must ignore unknown fields.
 * Unknown node types should be preserved on a best-effort basis and rendered as nothing.
 * `version` is incremented only for changes that older readers cannot ignore.
-* Colors are always sRGB; OpenFini does not (yet) store CMYK or ICC profiles.
+* Colors (`color`) are RGB in the document's working space (sRGB unless `settings.color.rgb` says otherwise). Additive
+  color management fields (no version bump, older readers see the RGB preview): `settings.color = { mode: "rgb"|"cmyk",
+  rgb: "srgb"|"display-p3"|"adobe-rgb", cmyk: <asset id>|null, cmykName, intent: 0-3, bpc }`; solid paints, gradient stops
+  and swatches may carry `cmyk: [c, m, y, k]` (percent, the native value) and `spot: "Name"`; a loaded CMYK ICC profile is
+  an asset with mime `application/vnd.iccprofile`, stored as `assets/<id>.icc`. See [color-management.md](color-management.md).

@@ -179,13 +179,21 @@ PDF, HTML, Markdown and text. Its workspace replaces the toolbox and dock: a for
 | `Mod+K` | Link |
 | `Mod+F` / `Mod+H` | Find / replace |
 
+## Color management (print)
+
+*File ▸ Color Settings…* sets the document color mode (RGB or CMYK), the RGB working space, a CMYK ICC profile (or the
+built-in approximation), the rendering intent and black point compensation. CMYK documents get C/M/Y/K sliders and spot
+color names in the Color panel; *File ▸ Convert Colors* converts to CMYK or RGB; *View ▸ Proof Colors (CMYK)* and
+*View ▸ Gamut Warning* simulate print on screen; *File ▸ Print Preflight…* checks the document. See
+[Color management](color-management.md).
+
 ## Export (popup)
 
 Export is **not a studio** — it is a popup that is available from every studio: press the **Export** button in
 the header, or `Mod+Shift+E` (*File ▸ Export…*). Its tabs:
 
 * **Image & PDF** — PNG, JPEG, WebP, SVG or PDF of the current page, all pages or the selection, with scale,
-  quality, transparency, bleed and crop marks.
+  quality, transparency, bleed and crop marks; PDF can be plain, PDF/X-1a:2003 or PDF/X-4 ([color management](color-management.md)).
 * **Slices** — draw slices with the Slice tool (`S`, in the Vector and Layout toolboxes), or create them from the
   selection / from layers, set format and scale per slice, then export them (a ZIP when there is more than one).
 * **Website** — appears when the document has a Code studio project: ZIP, single-file pages or a folder, with

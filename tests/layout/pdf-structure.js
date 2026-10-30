@@ -27,7 +27,7 @@ export function parsePdf(bytes) {
   const errors = [];
   const text = latin1Str(bytes);
   const err = (m) => errors.push(m);
-  if (!text.startsWith('%PDF-1.7\n')) err('missing %PDF-1.7 header');
+  if (!/^%PDF-1\.[3-7]\n/.test(text)) err('missing %PDF-1.x header');
   if (!text.endsWith('%%EOF\n')) err('missing %%EOF');
   const sx = text.lastIndexOf('startxref');
   const objects = new Map();

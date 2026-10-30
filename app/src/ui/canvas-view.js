@@ -305,6 +305,7 @@ export class CanvasView {
         drawDisplayList(ctx, dl, { base, region: full, pool: this.pool, draft });
       }
       ctx.setTransform(1, 0, 0, 1, 0, 0);
+      app.proof?.(ctx, px, py, pw, ph); // soft proof / gamut warning (ui/color-settings.js), off by default
     }
     this.rendered = { zoom: view.zoom, panX: view.panX, panY: view.panY };
     this.main.style.transform = this.overlay.style.transform = "";
