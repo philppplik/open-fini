@@ -13,6 +13,7 @@ export function createStudioBar(app) {
   /** @type {Map<string, HTMLButtonElement>} */
   let buttons = new Map();
   let moreBtn = null;
+  let collapsed = false; // narrow header: only the active studio shows, the others live in the "…" menu (ui/header-fit.js)
 
   function tip(s) {
     const name = t("{studio} Studio", { studio: s.label });
@@ -31,17 +32,19 @@ export function createStudioBar(app) {
       buttons.set(id, b);
       el.append(b);
     });
-    if (app.moreStudios.length) el.append(createMore());
+    el.append(createMore());
     sync();
   }
 
   function createMore() {
     moreBtn = h("button.of-studio.of-studio--more", { type: "button", slot: "trigger", "data-tip": t("More studios"), "aria-haspopup": "menu", "aria-pressed": "false" });
     const dd = h("sl-dropdown.of-studios__more", { distance: 6, hoist: true }, moreBtn);
+    dd.dataset.empty = app.moreStudios.length ? "" : "1";
     dd.addEventListener("sl-show", (e) => {
       if (e.target !== dd) return;
       for (const c of [...dd.children]) if (c.tagName === "SL-MENU") c.remove();
-      dd.append(buildMenu(app, [...app.moreStudios.map((id) => `studio.${id}`), "-", "studio.choose"]));
+      const shown = collapsed ? app.visibleStudios.filter((id) => id !== app.studio) : [];
+      dd.append(buildMenu(app, [...shown, ...app.moreStudios].map((id) => `studio.${id}`).concat(["-", "studio.choose"])));
     });
     return dd;
   }
@@ -60,6 +63,11 @@ export function createStudioBar(app) {
     moreBtn.replaceChildren(iconEl(hidden ? studioIconSpec(hidden) : "three-dots"), h("span", hidden ? hidden.label : t("More")), h("sl-icon.of-studio__caret", { name: "chevron-down" }));
   }
 
+  function setCollapsed(on) {
+    collapsed = !!on;
+    el.classList.toggle("is-collapsed", collapsed);
+  }
+
   app.on("studio", sync);
   app.on("locale", () => {
     el.setAttribute("aria-label", t("Studios"));
@@ -68,5 +76,5 @@ export function createStudioBar(app) {
   app.on("prefs", (key) => (key === "visibleStudios" || key === "*") && render());
   onStudioRegistered(render);
   render();
-  return { el, sync, render };
+  return { el, sync, render, setCollapsed };
 }

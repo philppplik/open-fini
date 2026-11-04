@@ -35,7 +35,7 @@ export function createShell(app, root) {
   brand.addEventListener("sl-show", (e) => {
     if (e.target !== brand) return;
     for (const c of [...brand.children]) if (c.tagName === "SL-MENU") c.remove();
-    brand.append(buildMenu(app, ["help.about", "-", "edit.preferences", "file.saveAll", "file.openFolder", "-", "file.lock", "-", "help.palette", "help.shortcuts", "help.tour", "help.docs", "help.issues", "help.troubleshoot"]));
+    brand.append(buildMenu(app, ["help.about", "-", "edit.preferences", "file.saveAll", "file.openFolder", "-", "collab.open", "file.lock", "-", "help.palette", "help.shortcuts", "help.tour", "help.docs", "help.issues", "help.troubleshoot"]));
   });
   const studioBar = createStudioBar(app); // max five studios + a More menu (ui/studio-bar.js)
   const undo = iconButton({ icon: "arrow-counterclockwise", label: "Undo", shortcut: "Mod+Z", onClick: () => app.run("edit.undo") });
@@ -47,10 +47,16 @@ export function createShell(app, root) {
   exportBtn.addEventListener("click", () => app.run("file.export"));
   const header = h("header.of-header", brand, createMenubar(app), studioBar.el, h("div.of-header__actions", undo, redo, theme, exportBtn, dockToggle));
 
+  undo.dataset.cmd = "edit.undo";
+  redo.dataset.cmd = "edit.redo";
+  theme.dataset.cmd = "view.theme";
+  exportBtn.dataset.cmd = "file.export";
   installTitleBar(app, header); // desktop app: the header is the window's title bar
 
   // which header buttons show, and in what order, is a setting (Settings > Toolbox and menus > Quick actions)
   mountQuickActions(app, header.querySelector(".of-header__actions"), { undo, redo, theme, export: exportBtn, panels: dockToggle });
+
+  import("./header-fit.js").then((m) => m.installHeaderFit(app, header, { studioBar })).catch((err) => console.error(err)); // lazy: responsive header (ResizeObserver)
 
   const tabs = createDocTabs(app);
   const context = createContextBar(app);

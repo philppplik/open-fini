@@ -60,6 +60,7 @@ Rules that explain most of the code:
 * **A command**: register in `app/src/commands/<area>.js` (id, label via `N_`/`t`, run, enabled, shortcut). It then shows up in
   menus (add the id to the menu list in `ui/menus.js`), the palette and the shortcut editor. Add it to `tests/` if it has logic.
 * **An Office app** (spreadsheet, slides, whiteboard …): a manifest + lazy implementation, one line in `app/src/office/index.js`; contract and worked example in [office-suite.md](office-suite.md).
+* **The header** is responsive: `ui/header-fit.js` sheds items by measured width. A new header item that must not disappear needs a place in its step list; one that may goes into the "…" menu via `data-cmd`.
 * **A studio**: one `registerStudio({...})` entry (`studios/registry.js` documents the fields); put heavy UI behind `import()`.
   It appears in the header "More" menu; users choose the five visible studios in Settings.
 * **A tool the Vibe assistant can use**: a `tool()` in `app/src/vibe/tools/<area>.js` (`helpers.js` has `tool`, `S` schema

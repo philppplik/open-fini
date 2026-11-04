@@ -130,9 +130,9 @@ function ensureChannel(app, c) {
 }
 
 /** Opens the pop-out. Must run inside the click's user gesture (the web fallback uses window.open). */
-export async function popOut(app, c) {
+export async function popOut(app, c, { quiet = false } = {}) {
   if (typeof BroadcastChannel === "undefined") {
-    app.toast(t("This browser cannot connect two windows (no BroadcastChannel)."), "warning", 5000);
+    if (!quiet) app.toast(t("This browser cannot connect two windows (no BroadcastChannel)."), "warning", 5000);
     return false;
   }
   if (isPoppedOut()) {
@@ -143,7 +143,7 @@ export async function popOut(app, c) {
   ensureChannel(app, c);
   const pid = await (await import("../popout.js")).popoutCollab(app);
   if (!pid) {
-    app.toast(t("Your browser blocked the new window. Allow pop-ups for this site and try again."), "warning", 6000);
+    if (!quiet) app.toast(t("Your browser blocked the new window. Allow pop-ups for this site and try again."), "warning", 6000);
     return false;
   }
   pending = pid;

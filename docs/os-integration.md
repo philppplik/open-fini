@@ -145,6 +145,8 @@ both read-only.
 
 ## Custom title bar (desktop app)
 
+Responsive header: `ui/header-fit.js` (lazy) measures the header with a ResizeObserver and sheds, via `core/header-plan.js` (`fitSteps`, pure and tested), in this order: brand "OpenFini" to "oFini", studio names to icons, quick actions (listed in the "…" menu), studio tabs to the active studio plus "…" (`studioBar.setCollapsed`), menubar menus (submenus of the "…" menu), brand text. The window controls (`.of-wc`) never shrink; the Tauri window minimum is 480 x 400 (`tauri.conf.json`).
+
 The desktop window has no system title bar on Windows and Linux: the app header is the title bar (drag area, double-click
 to maximize, minimize / maximize / close buttons on the right). On macOS the system traffic lights stay and float over the
 header (`titleBarStyle: "Overlay"`). The browser and the PWA keep their own chrome. Code: `app/src/ui/titlebar.js`,

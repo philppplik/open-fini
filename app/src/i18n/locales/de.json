@@ -2468,5 +2468,13 @@
   "Your desktop shows through the window. Panels stay opaque enough to keep text readable.": "Der Desktop scheint durch das Fenster. Bedienfelder bleiben deckend genug, damit Text lesbar bleibt.",
   "Window opacity": "Fensterdeckkraft",
   "Transparent (no blur)": "Transparent (ohne Unschärfe)",
-  "Under window": "Unter dem Fenster"
+  "Under window": "Unter dem Fenster",
+  "Chat-only room": "Nur-Chat-Raum",
+  "Nothing is open yet. Open a file or create a document to share it with the room, or keep a chat-only room.": "Es ist noch nichts geöffnet. Öffne eine Datei oder erstelle ein Dokument, um es mit dem Raum zu teilen, oder behalte einen reinen Chat-Raum.",
+  "On by default. While you are in a room, Collaboration opens as a separate window. Off: it opens as a panel inside this window. Browsers that block pop-ups fall back to the panel.": "Standardmäßig an. Solange du in einem Raum bist, öffnet sich die Zusammenarbeit als eigenes Fenster. Aus: Sie öffnet sich als Fenster in diesem Fenster. Browser, die Pop-ups blockieren, zeigen stattdessen das Fenster im Fenster.",
+  "Open a file…": "Datei öffnen…",
+  "Open Collaboration in its own window": "Zusammenarbeit in eigenem Fenster öffnen",
+  "Room created": "Raum erstellt",
+  "Version {version} is available": "Version {version} ist verfügbar",
+  "You have {current}.": "Du hast {current}."
 }
