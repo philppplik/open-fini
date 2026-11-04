@@ -3,6 +3,22 @@
 
 export const WHATS_NEW = [
   {
+    version: "1.0.0",
+    title: "Office Suite, print colors, built-in networking",
+    items: [
+      { icon: "file-earmark-spreadsheet", title: "Office Suite", text: "Spreadsheets, presentations and whiteboards join the word processor: open and edit xlsx, ods, csv, pptx, odp, excalidraw and tldraw files, with templates, export and Vibe tools for each." },
+      { icon: "chat-quote", title: "Comments for the AI", text: "Comments in every studio are saved in the .ofini file. Vibe reads the exact place of each comment and can resolve them for you." },
+      { icon: "person-circle", title: "Sign in with OpenAI", text: "Desktop app: use your ChatGPT plan instead of an API key (OpenAI preview). MCP servers can use OAuth sign-in too." },
+      { icon: "globe2", title: "Web access for Vibe", text: "Search the web and download openly licensed images, off by default and with approval for every domain." },
+      { icon: "people", title: "Rooms in one click", text: "The desktop app starts a relay for your network and creates the room for you. No terminal needed." },
+      { icon: "send", title: "FTP, FTPS and email built in", text: "Publish to an FTP or FTPS server and send documents by email through your own SMTP server, with no helper program." },
+      { icon: "palette", title: "Print colors", text: "CMYK documents, ICC profiles, soft proof and PDF/X export with a preflight check." },
+      { icon: "shield-check", title: "Runaway extensions are stopped", text: "A watchdog stops extensions that hang, and heavy image jobs run in the background without freezing the window." },
+      { icon: "crop", title: "More Pixel tools", text: "A rotating crop tool with guides, perspective crop, magic eraser, reflected and diamond gradients and new image operations." },
+      { icon: "chat-dots", title: "Chat bubble styles", text: "Choose speech or thought bubbles, shapes and colors for the Vibe chat, with readable icons on every bubble." },
+    ],
+  },
+  {
     version: "0.9.0",
     title: "Vibe 2, open folders, fallback models, glass 2",
     items: [
