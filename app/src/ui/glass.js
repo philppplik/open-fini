@@ -11,7 +11,7 @@
 //   stressBackdrops(vars, scrim)                  worst-case backdrops (white, black, accent) after the scrim
 //   minAlpha(vars, style)                         lowest fill opacity that keeps text AA on the worst backdrops
 //   resolveTint(style, dark, vars, s)             tint color (sea glass: derived from the accent, ui/sea-glass.js)
-//   specularVars(specular, bevel, dark)           Liquid glass highlight/bevel variables
+//   nativeGlassState(s, fx, materials, prefs)     is the desktop window material (Mica, vibrancy ...) active
 //   fxState(env)                                  is backdrop-filter active, and if not why
 //   resolveGlass(vars, prefs, env)                the CSS variables to write on <html>
 //
@@ -24,7 +24,7 @@
 import { mix, contrast, luminance, ensureContrast } from "./themes.js";
 import { seaPalette } from "./sea-glass.js";
 
-export const SURFACE_STYLES = ["solid", "glass", "liquid", "sea"];
+export const SURFACE_STYLES = ["solid", "glass", "sea"];
 export const MIN_SCRIM = 0.6;
 
 /**
@@ -34,7 +34,6 @@ export const MIN_SCRIM = 0.6;
 export const STYLE_DEFS = Object.freeze({
   solid: { id: "solid", name: "Solid", description: "Opaque panels. The default, fastest look.", blur: 0, transparency: 0, saturate: 1, tint: null, tintAmount: 0, backdrop: "aurora" },
   glass: { id: "glass", name: "Glass", description: "Frosted glass: blurred, translucent panels with a thin light edge.", blur: 18, transparency: 30, saturate: 1.5, tint: null, tintAmount: 0, backdrop: "aurora" },
-  liquid: { id: "liquid", name: "Liquid glass", description: "Thick, refractive glass with bevelled edges and a soft specular sheen.", blur: 26, transparency: 40, saturate: 1.8, tint: null, tintAmount: 0, backdrop: "ocean" },
   sea: { id: "sea", name: "Sea glass", description: "Matte, softly grained glass tinted by your accent color (or any hue), like weathered sea glass.", blur: 14, transparency: 22, saturate: 1.05, tint: { dark: "#1b5a54", light: "#86cfbd" }, tintAmount: 26, backdrop: "seaglass" },
 });
 
@@ -179,10 +178,8 @@ export function glassSettings(prefs) {
     animate: prefs.glassAnimate === true,
     seaTint: SEA_TINTS.includes(prefs.seaTint) ? prefs.seaTint : "accent",
     seaHue: clamp(Math.round(num(prefs.seaHue, 174)), 0, 359),
-    refraction: clamp(Math.round(num(prefs.glassRefraction, 60)), 0, 100),
-    bevel: clamp(Math.round(num(prefs.glassBevel, 16)), 4, 40),
-    specular: clamp(Math.round(num(prefs.glassSpecular, 60)), 0, 100),
-    dispersion: clamp(Math.round(num(prefs.glassDispersion, 20)), 0, 100),
+    material: typeof prefs.windowMaterial === "string" ? prefs.windowMaterial : "none",
+    opacity: clamp(Math.round(num(prefs.windowOpacity, 70)), 30, 100),
   };
 }
 
@@ -196,42 +193,45 @@ export const effectiveBackdrop = (s, hasImage) => (s.backdrop === "auto" || (s.b
  */
 export function resolveGlass(vars, prefs, env = {}) {
   const s = glassSettings(prefs);
-  if (s.style === "solid") return { style: "solid", on: false, reason: "solid", alpha: 1, alphaEditor: 1, requested: 1, vars: {} };
+  const off = { on: false, material: "none", reason: "solid" };
+  if (s.style === "solid") return { style: "solid", on: false, reason: "solid", alpha: 1, alphaEditor: 1, requested: 1, native: off, vars: {} };
   const fx = fxState(s.style, env);
+  const native = nativeGlassState(s, fx, env.materials);
   const dark = luminance(vars["--of-bg-app"]) < 0.4;
-  const scrim = clamp(MIN_SCRIM + (s.dim / 100) * 0.25, MIN_SCRIM, 0.95);
+  // over the desktop the scrim is the window opacity; minAlpha() then raises the panels until text is AA again
+  const scrim = native.on ? s.opacity / 100 : clamp(MIN_SCRIM + (s.dim / 100) * 0.25, MIN_SCRIM, 0.95);
   const requested = 1 - s.transparency / 100;
   const tint = resolveTint(s.style, dark, vars, s);
-  const alpha = fx.on ? Math.max(requested, minAlpha(vars, s.style, "panel", MIN_SCRIM, tint)) : 1;
-  const alphaEditor = fx.on ? Math.min(1, Math.max(requested + 0.3, minAlpha(vars, s.style, "editor"), 0.9, alpha)) : 1;
+  const stress = Math.min(scrim, MIN_SCRIM); // the scrim the contrast check assumes
+  const alpha = fx.on ? Math.max(requested, minAlpha(vars, s.style, "panel", stress, tint)) : 1;
+  const alphaEditor = fx.on ? Math.min(1, Math.max(requested + 0.3, minAlpha(vars, s.style, "editor", stress), 0.9, alpha)) : 1;
   const out = {
     "--of-glass-blur": fx.on ? `${s.blur}px` : "0px",
     "--of-glass-sat": String(fx.on ? STYLE_DEFS[s.style].saturate : 1),
     "--of-glass-alpha": String(round(alpha)),
-    // menus and dialogs: more opaque than bars. With Liquid refraction they stay a bit more see-through so the bent backdrop
-    // shows; never below `alpha`, which already carries the AA guarantee for every panel surface
-    "--of-glass-alpha-strong": String(round(fx.on ? Math.min(1, s.style === "liquid" && s.refraction > 0 ? Math.max(alpha + 0.04, 0.72) : Math.max(alpha + 0.16, 0.86)) : 1)),
+    // menus and dialogs: more opaque than bars, never below `alpha`, which already carries the AA guarantee
+    "--of-glass-alpha-strong": String(round(fx.on ? Math.min(1, Math.max(alpha + 0.16, 0.86)) : 1)),
     "--of-glass-alpha-editor": String(round(alphaEditor)),
     "--of-glass-tint": tint || "transparent",
     "--of-glass-tint-amt": `${STYLE_DEFS[s.style].tint ? STYLE_DEFS[s.style].tintAmount : 0}%`,
     "--of-glass-scrim": String(round(scrim)),
   };
-  if (fx.on) Object.assign(out, liftedText(vars, s.style, alpha, MIN_SCRIM, tint)); // AA text over the worst backdrops
+  if (fx.on) Object.assign(out, liftedText(vars, s.style, alpha, stress, tint)); // AA text over the worst backdrops
   const pal = seaPalette(vars["--of-accent"] || "#0d9488", dark, { mode: s.seaTint, hue: s.seaHue });
   Object.assign(out, pal.vars); // --of-sea-*: also used by the sea previews and the sea background layer
-  if (s.style === "liquid") Object.assign(out, specularVars(s.specular, s.bevel, dark));
-  return { style: s.style, on: fx.on, reason: fx.reason, alpha, alphaEditor, requested, vars: out };
+  return { style: s.style, on: fx.on, reason: fx.reason, alpha, alphaEditor, requested, native, vars: out };
 }
 
-/** Liquid glass: highlight strength and bevel thickness (defaults 60 and 16 reproduce the stylesheet values). */
-export function specularVars(specular, bevel, dark) {
-  const m = specular / 60;
-  const a = (base) => round(clamp(base * m, 0, 1));
-  return {
-    "--of-glass-hi": dark ? `rgba(255, 255, 255, ${a(0.22)})` : `rgba(255, 255, 255, ${a(0.85)})`,
-    "--of-glass-lo": dark ? `rgba(0, 0, 0, ${a(0.22)})` : `rgba(0, 0, 0, ${a(0.1)})`,
-    "--of-glass-bevel": `${round(clamp((bevel / 16) * 1.5, 0.5, 4))}px`,
-  };
+/**
+ * The desktop window material. `materials` are the ids the desktop shell reported (null in the browser / PWA, which keeps
+ * the in-app background layer). Off whenever the blur itself is off (low power, high contrast, reduced transparency).
+ * @returns {{on:boolean, material:string, reason:string|null}} reason: solid, fx, none, unavailable
+ */
+export function nativeGlassState(s, fx, materials) {
+  if (!s || s.style === "solid") return { on: false, material: "none", reason: "solid" };
+  if (!Array.isArray(materials) || !materials.length || !materials.includes(s.material)) return { on: false, material: "none", reason: s.material === "none" ? "none" : "unavailable" };
+  if (!fx?.on) return { on: false, material: "none", reason: "fx" };
+  return { on: true, material: s.material, reason: null };
 }
 
 const round = (n) => Math.round(n * 100) / 100;

@@ -11,7 +11,7 @@ The OpenFini logo opens the application menu: About, Settings, Save All, Open Fo
 | Section | What it controls |
 | --- | --- |
 | General | Restore the last session on start; autosave and its delay; ask before closing unsaved documents; **save opened files in their original format when possible** ([[Save in Original Format]]); show recent files and how many to remember; language (Automatic, English (United States), Deutsch); how to make OpenFini the default for file types |
-| Appearance | Mode, color theme gallery, surface style (Solid, Glass, Liquid glass, Sea glass) with blur, transparency, background and dim, accent color, density (compact, default, spacious), interface scale (80 to 160 percent), text size, font, corner radius, animation speed, canvas pointer size ([[Themes and Surface Styles]]) |
+| Appearance | Mode, color theme gallery, surface style (Solid, Glass, Sea glass) with blur, transparency, background and dim, window material and opacity (desktop app), accent color, density (compact, default, spacious), interface scale (80 to 160 percent), text size, font, corner radius, animation speed, canvas pointer size ([[Themes and Surface Styles]]) |
 | Accessibility | High contrast, reduced motion (follows the system by default), always-visible focus outlines, tooltips on or off, interface scale ([[Accessibility]]) |
 | Onboarding and help | Offer tours, hints in empty panels, restart the welcome or studio tour, reset tours and What's new, command palette tips |
 | Canvas and editing | Rulers, clip content to the page, low-power mode, undo-history memory |

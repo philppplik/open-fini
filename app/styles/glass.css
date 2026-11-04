@@ -1,7 +1,7 @@
-/* OpenFini surface styles ("glass", "liquid glass", "sea glass"). See docs/themes.md ▸ Surface styles.
+/* OpenFini surface styles ("glass", "sea glass"). See docs/themes.md ▸ Surface styles.
 
    How it works
-   - ui/glass-dom.js sets <html data-surface="glass|liquid|sea"> (absent = solid, nothing here applies), <html data-glass-fx="on|off">,
+   - ui/glass-dom.js sets <html data-surface="glass|sea"> (absent = solid, nothing here applies), <html data-glass-fx="on|off">,
      data-glass-bd (background layer id) and the --of-glass-* variables (ui/glass.js computes them: fill opacity with an AA floor,
      lifted text colors, blur, tint).
    - ONE blur layer covers the whole window chrome (.of-layout::before, behind everything). The bars and docks only paint
@@ -35,11 +35,6 @@
   --of-glass-shadow: 0 10px 34px rgba(30, 40, 70, 0.18);
 }
 :root[data-surface="glass"] { --of-radius: 8px; --of-radius-sm: 5px; }
-:root[data-surface="liquid"] {
-  --of-radius: 11px;
-  --of-radius-sm: 8px;
-  --of-glass-shadow: 0 14px 44px rgba(0, 0, 0, 0.36), 0 2px 8px rgba(0, 0, 0, 0.18);
-}
 :root[data-surface="sea"] {
   --of-radius: 9px;
   --of-radius-sm: 6px;
@@ -138,11 +133,9 @@
   background: var(--of-glass-grain) 0 0 / 160px 160px, var(--of-glass-fill-strong);
   border: 1px solid var(--of-glass-edge);
   box-shadow: var(--of-glass-shadow), inset 0 1px 0 var(--of-glass-hi);
-  -webkit-backdrop-filter: var(--of-rf, var(--of-glass-filter));
-  backdrop-filter: var(--of-rf, var(--of-glass-filter));
+  -webkit-backdrop-filter: var(--of-glass-filter);
+  backdrop-filter: var(--of-glass-filter);
 }
-/* --of-rf (Liquid refraction, ui/refraction-dom.js) is set only on the surfaces it measured; never let it leak into these */
-:root[data-surface] sl-tooltip, :root[data-surface] sl-select, :root[data-surface] sl-drawer { --of-rf: initial; }
 :root[data-surface] sl-dialog::part(panel) { border-radius: calc(var(--of-radius) + 4px); }
 /* MENUS. The blur must NOT sit on the <sl-menu> (or on any ancestor of a submenu): a backdrop-filter makes its element the
    containing block of position:fixed descendants, so Shoelace's submenu popups were laid out inside the menu's own scroll
@@ -160,8 +153,8 @@
   background: var(--of-glass-grain) 0 0 / 160px 160px, var(--of-glass-fill-strong);
   border: 1px solid var(--of-glass-edge);
   box-shadow: var(--of-glass-shadow), inset 0 1px 0 var(--of-glass-hi);
-  -webkit-backdrop-filter: var(--of-rf, var(--of-glass-filter));
-  backdrop-filter: var(--of-rf, var(--of-glass-filter));
+  -webkit-backdrop-filter: var(--of-glass-filter);
+  backdrop-filter: var(--of-glass-filter);
 }
 :root[data-surface] sl-dropdown > sl-menu, :root[data-surface] .of-ctxmenu > sl-menu { background: transparent; border-color: transparent; box-shadow: none; }
 :root[data-surface] sl-tooltip::part(body) { background: color-mix(in srgb, var(--of-bg-raised) 88%, transparent); color: var(--of-text); }
@@ -195,36 +188,28 @@
 :root[data-surface] .cm-editor, :root[data-surface] .of-code__editor { background: var(--of-glass-fill-editor); }
 :root[data-surface] iframe { background-clip: border-box; }
 
-/* ------------------------------------------------------------------ Liquid glass: bevel, specular edge, soft sheen */
-:root[data-surface="liquid"] .of-header,
-:root[data-surface="liquid"] .of-dock,
-:root[data-surface="liquid"] .of-toolbox,
-:root[data-surface="liquid"] .of-contextbar,
-:root[data-surface="liquid"] .of-status {
-  box-shadow: inset 0 1px 0 var(--of-glass-hi), inset 0 -1px 0 var(--of-glass-lo), inset 1px 0 0 color-mix(in srgb, var(--of-glass-hi) 40%, transparent);
+/* ------------------------------------------------------------------ Glass: a crisp light edge and a soft top highlight */
+:root[data-surface="glass"] .of-header,
+:root[data-surface="glass"] .of-dock,
+:root[data-surface="glass"] .of-toolbox,
+:root[data-surface="glass"] .of-contextbar,
+:root[data-surface="glass"] .of-status { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--of-glass-hi) 70%, transparent); }
+:root[data-surface="glass"] .of-header { background-image: linear-gradient(to bottom, color-mix(in srgb, var(--of-glass-hi) 35%, transparent), transparent 60%); }
+:root[data-surface="glass"] sl-dialog::part(panel),
+:root[data-surface="glass"] .of-palette__box,
+:root[data-surface="glass"] .of-popover {
+  background-image: linear-gradient(to bottom, color-mix(in srgb, var(--of-glass-hi) 45%, transparent), transparent 18%);
 }
-:root[data-surface="liquid"] .of-header,
-:root[data-surface="liquid"] .of-contextbar { background-image: linear-gradient(to bottom, color-mix(in srgb, var(--of-glass-hi) 55%, transparent), transparent 55%); }
-:root[data-surface="liquid"] sl-dialog::part(panel),
-:root[data-surface="liquid"] sl-dropdown:has(> sl-menu)::part(panel)::before,
-:root[data-surface="liquid"] .of-ctxmenu::before,
-:root[data-surface="liquid"] .of-palette__box,
-:root[data-surface="liquid"] .of-popover,
-:root[data-surface="liquid"] .of-coach,
-:root[data-surface="liquid"] sl-alert::part(base) {
-  background-image: linear-gradient(to bottom, color-mix(in srgb, var(--of-glass-hi) 70%, transparent), transparent 22%), radial-gradient(120% 60% at 50% -10%, color-mix(in srgb, var(--of-glass-hi) 50%, transparent), transparent 60%);
-  box-shadow: var(--of-glass-shadow), inset 0 var(--of-glass-bevel, 1.5px) 0 var(--of-glass-hi), inset 0 calc(var(--of-glass-bevel, 1.5px) * -1) 0 var(--of-glass-lo), inset var(--of-glass-bevel, 1.5px) 0 0 color-mix(in srgb, var(--of-glass-hi) 45%, transparent), inset calc(var(--of-glass-bevel, 1.5px) * -1) 0 0 color-mix(in srgb, var(--of-glass-hi) 25%, transparent);
-}
-/* sheen sweeping across a control on hover or press (a background-image only: the control keeps its own fill) */
-:root[data-surface="liquid"] :is(.of-btn, .of-ibtn, .of-menubtn, .of-studio, .of-tool, .of-seg__btn, .of-dock__tab) {
-  background-image: linear-gradient(115deg, transparent 35%, color-mix(in srgb, var(--of-glass-hi) 90%, transparent) 50%, transparent 65%);
-  background-repeat: no-repeat;
-  background-size: 260% 100%;
-  background-position: 130% 0;
-  transition: background-position 0.7s ease;
-}
-:root[data-surface="liquid"] :is(.of-btn, .of-ibtn, .of-menubtn, .of-studio, .of-tool, .of-seg__btn, .of-dock__tab):is(:hover, :active, :focus-visible) { background-position: -30% 0; }
-:root[data-surface="liquid"] .of-btn:active, :root[data-surface="liquid"] .of-ibtn:active { transform: scale(0.97); }
+
+/* ------------------------------------------------------------------ native window material (desktop app, ui/native-glass.js)
+   The OS paints Mica / Acrylic / vibrancy (or plain transparency on Linux) behind the transparent webview. The in-app
+   background layer is replaced by the scrim alone (the theme's app color at the chosen window opacity) and the chrome
+   layer does not blur again: the OS material is already blurred. ui/glass.js raises the panel opacity so text stays AA. */
+:root[data-native-glass="on"],
+:root[data-native-glass="on"] body { background: transparent; }
+:root[data-native-glass="on"] #of-backdrop { background: transparent; }
+:root[data-native-glass="on"] #of-backdrop > i { display: none; }
+:root[data-native-glass="on"] .of-layout::before { -webkit-backdrop-filter: none; backdrop-filter: none; }
 
 /* ------------------------------------------------------------------ Sea glass: matte, a little less contrast and a soft grain */
 :root[data-surface="sea"] .of-header, :root[data-surface="sea"] .of-dock, :root[data-surface="sea"] .of-toolbox, :root[data-surface="sea"] .of-contextbar, :root[data-surface="sea"] .of-status {
@@ -265,7 +250,6 @@
 }
 :root.of-high-contrast[data-surface] :is(.of-header, .of-dock, .of-toolbox, .of-contextbar, .of-status, sl-dialog::part(panel), sl-menu) { background-image: none; }
 :root.of-reduce-motion #of-backdrop > i, :root.of-reduce-motion #of-backdrop::before { animation: none !important; }
-:root.of-reduce-motion[data-surface="liquid"] :is(.of-btn, .of-ibtn, .of-menubtn, .of-studio, .of-tool, .of-seg__btn, .of-dock__tab) { transition: none; background-image: none; }
 
 /* ------------------------------------------------------------------ Settings ▸ Appearance: surface gallery */
 .of-surfaces { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 2px 0 4px; }

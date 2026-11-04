@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permissions of the OpenFini main window and its pop-out windows (popout-<n>, created at run time): the Tauri core, the custom title bar (minimize, maximize, close, drag), native open/save dialogs, files the user picked (or common user folders), opening web links, and the native clipboard for images.",
+  "description": "Permissions of the OpenFini main window and its pop-out windows (popout-<n>, created at run time): the Tauri core, the custom title bar (minimize, maximize, close, drag), native open/save dialogs, files the user picked (or common user folders), opening web links, and the native clipboard for images, and the native window material (Mica, Acrylic, vibrancy).",
   "windows": ["main", "popout-*"],
   "permissions": [
     "core:default",
@@ -77,6 +77,8 @@
     "allow-ftp-upload",
     "allow-smtp-test",
     "allow-smtp-send",
-    "allow-net-cancel"
+    "allow-net-cancel",
+    "allow-window-materials",
+    "allow-set-window-material"
   ]
 }

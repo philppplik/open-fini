@@ -96,7 +96,7 @@ The **Export** button in the header opens a popup from any studio: PNG / JPEG / 
 
 ## Beyond the studios
 
-- **Glass surfaces and precise web tools.** Optional Glass, Liquid glass and Sea glass styles (Settings ▸ Appearance), plus a pixel-exact viewport, a measure tool (`M`) and four split layouts in the Code studio. See [docs/themes.md](docs/themes.md) and [docs/code-studio.md](docs/code-studio.md).
+- **Glass surfaces and precise web tools.** Optional Glass and Sea glass styles (Settings ▸ Appearance; in the desktop app with real Mica, Acrylic or macOS vibrancy behind the window), plus a pixel-exact viewport, a measure tool (`M`) and four split layouts in the Code studio. See [docs/themes.md](docs/themes.md) and [docs/code-studio.md](docs/code-studio.md).
 
 - **Your files stay yours.** A file opened with *File ▸ Open* (`.txt`, `.md`, `.docx`, `.svg` …) is saved back in its own format with `Ctrl+S`; OpenFini only asks for `.ofini` when the document outgrows that format. Older `.ofini` files are upgraded when opened (see [docs/file-format.md](docs/file-format.md)), and quitting with unsaved documents shows one *Save All / Discard / Cancel* dialog.
 

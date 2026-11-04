@@ -43,7 +43,7 @@ Terms used across the OpenFini interface and documentation, in alphabetical orde
 | Story | Rich text shared by linked frames |
 | Studio | A workspace (Vector, Pixel, Layout, Code, Vibe, Office) over the shared document |
 | Sub-agent | A parallel child run of the assistant with restricted tools |
-| Surface style | How the interface chrome is drawn: Solid, Glass, Liquid glass, Sea glass |
+| Surface style | How the interface chrome is drawn: Solid, Glass, Sea glass |
 | Swatch | A saved color in the document |
 | Tool (editor) | A canvas tool such as Pen or Brush |
 | Tool (Vibe) | A function the assistant can call ([[Vibe Tools Reference]]) |
