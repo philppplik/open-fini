@@ -30,6 +30,12 @@ All notable changes to OpenFini are documented here. The format follows
 ### Removed
 - **Liquid glass** surface style and its refraction controls (`glassRefraction`, `glassBevel`, `glassSpecular`,
   `glassDispersion`; Vibe `set_theme` `refraction`). Saved settings, profiles and custom themes that use it switch to Glass.
+- **Responsive header**: on small windows the header sheds items in a fixed order (name "oFini", studio names as icons, quick actions, studio tabs down to the active studio plus "…", menus into a "…" menu) so the window controls always stay reachable. It measures the real header with a ResizeObserver instead of fixed breakpoints; the desktop window minimum is now 480 x 400.
+- **Update dialog**: with automatic checks switched on (off by default), a newer release opens "Version X is available" with a notes summary and Download installer, Later and Skip this version (the skip is remembered).
+- **Collaborate…** in the OpenFini menu works on the welcome screen. Creating a room with nothing open offers Open a file, New document or a chat-only room.
+
+### Changed
+- The Collaboration window opens as its own window by default while you are in a room (Settings > Profile and collaboration to turn it off); browsers that block pop-ups fall back to the in-page window. Starting or joining a room still uses the in-page forms, then pops out.
 
 ### Fixed
 - The Vibe Studio canvas tab now previews Office Suite documents (document pages, spreadsheet sheets, slides, whiteboard pages) with a page menu, updating live; it showed an empty page before.

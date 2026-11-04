@@ -8,11 +8,14 @@
 sl-dropdown[open] > .of-studio--more:not(.active) { color: var(--of-text); background: var(--of-hover); }
 .of-studio:focus-visible, .of-wc__btn:focus-visible { outline: 2px solid var(--of-accent); outline-offset: -2px; }
 
-@media (max-width: 1100px) {
-  /* narrow windows: icons only; the studio name stays in the tooltip and the accessible name */
-  .of-studios .of-studio span { display: none; }
-  .of-studios .of-studio { padding: 0 9px; }
-}
+/* header fitting (ui/header-fit.js sets these classes from the measured width, not from media queries) */
+.fit-icons .of-studios .of-studio span, .fit-logo .of-brand span:not(.of-brand__logo), .fit-logo .of-brand__caret { display: none; }
+.fit-icons .of-studios .of-studio { padding: 0 9px; }
+.is-fit-hidden, .of-overflow[hidden] { display: none !important; }
+.of-studios:not(.is-collapsed) .of-studios__more[data-empty="1"] { display: none; }
+.of-studios.is-collapsed .of-studio:not(.active):not(.of-studio--more) { display: none; }
+.of-studios.is-collapsed .of-studio--more:not(.active) span, .of-studios.is-collapsed .of-studio--more:not(.active) .of-studio__caret { display: none; }
+.of-overflow { display: inline-flex; }
 
 /* ------------------------------------------------------------------ title bar (desktop app only) */
 .of-header--titlebar { user-select: none; -webkit-user-select: none; }
@@ -26,6 +29,7 @@ sl-dropdown[open] > .of-studio--more:not(.active) { color: var(--of-text); backg
 .of-header--custom { padding-right: 0; }
 .of-wc {
   display: flex;
+  flex: none;
   align-self: stretch;
   margin-left: 6px;
 }

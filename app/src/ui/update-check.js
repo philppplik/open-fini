@@ -3,10 +3,9 @@
 // release page or the installer that fits the platform. Honors offline mode (`app.network.assert("update")`).
 import { h } from "../core/util.js";
 import { buildInfo } from "../core/env.js";
-import { checkForUpdates, detectPlatform, RELEASES_PAGE } from "../core/updates.js";
+import { checkForUpdates, compareVersions, detectPlatform, RELEASES_PAGE } from "../core/updates.js";
+import { shouldAutoCheck, shouldPrompt } from "../core/update-policy.js";
 import { openLink } from "./links.js";
-
-const DAY = 24 * 60 * 60 * 1000;
 
 /** Runs one check. Returns the result object of `checkForUpdates`, or `{status:"blocked"|"unknown"}`. */
 export async function runUpdateCheck(app) {
@@ -22,13 +21,14 @@ export async function runUpdateCheck(app) {
   return result;
 }
 
-/** Start-up hook: checks at most once a day, only when the user switched automatic checks on. */
+/** Start-up hook: checks at most once a day, only when the user switched automatic checks on (off by default).
+ *  A newer version opens the update dialog unless the user skipped exactly that version. */
 export async function maybeAutoCheck(app) {
-  if (!app.prefs.updateCheckAuto || app.safeMode) return;
-  if (Date.now() - (app.prefs.updateLastCheck || 0) < DAY) return;
+  const dev = !(await buildInfo())?.version;
+  if (!shouldAutoCheck({ auto: app.prefs.updateCheckAuto, lastCheck: app.prefs.updateLastCheck, offline: !!app.prefs.offlineMode, safeMode: app.safeMode, dev })) return;
   const r = await runUpdateCheck(app);
-  if (r.status === "available") {
-    app.toast(`OpenFini ${r.release.version} is available.`, "primary", 8000, { label: "Details", run: () => openLink(r.release.url) });
+  if (r.status === "available" && shouldPrompt({ release: r.release, current: r.current, skipped: app.prefs.updateSkipped, compare: compareVersions })) {
+    (await import("./update-dialog.js")).showUpdateDialog(app, r);
   }
 }
 
@@ -59,7 +59,7 @@ export function updateRows(app, { button }) {
   return [
     h("div.of-set__row", h("div.of-set__label", "Updates"), actions),
     status,
-    h("div.of-set__row", h("div.of-set__label", "Check automatically", h("div.of-set__hint", "At most once a day, at start-up. Contacts github.com only; nothing about you is sent. Off by default.")), h("div.of-set__ctl", auto)),
+    h("div.of-set__row", h("div.of-set__label", "Check automatically", h("div.of-set__hint", "At most once a day, at start-up; a newer version opens a dialog with Download, Later and Skip this version. Contacts github.com only; nothing about you is sent. Off by default: OpenFini never checks unless you switch this on.")), h("div.of-set__ctl", auto)),
     h("div.of-set__row", h("div.of-set__label", "All releases"), h("div.of-set__ctl", button("Open", () => openLink(RELEASES_PAGE)))),
   ];
 }

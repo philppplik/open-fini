@@ -125,6 +125,8 @@ the pop-out below.
 
 ### Pop-out window
 
+By default (`collabPopout`, Settings > Profile and collaboration) Collaboration opens as its own window whenever you are in a room; with it off, or when a browser blocks the pop-up, the in-page window opens. Starting or joining a room uses the forms of the in-page window (the pop-out is a remote view), and the room then pops out. *OpenFini > Collaborate…* also works on the welcome screen; creating a room with nothing open offers to open a file, create a document or keep a chat-only room (`ui/collab/entry.js`).
+
 *Pop out* (or the command *Pop Out Collaboration Window*) opens `?popout=collab` in an OS window (a popup in the
 browser, a `WebviewWindow` labeled `popout-<n>` in the desktop app). The main window **keeps the one room connection**:
 the pop-out is a UI-only remote view of the room (chat, people, comments of the active document) that talks to the main

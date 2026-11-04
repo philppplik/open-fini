@@ -124,7 +124,9 @@ h1, h2, h3 { margin: 0; }
   background: var(--of-bg-bar);
   border-bottom: 1px solid var(--of-border-soft);
   min-width: 0;
+  overflow: hidden; /* the window controls stay pinned; ui/header-fit.js sheds items until everything fits */
 }
+.of-header > * { flex: none; }
 .of-brand {
   display: flex;
   align-items: center;
@@ -785,9 +787,6 @@ sl-dialog::part(title) { font-size: 15px; font-weight: 650; }
 
 @media (max-width: 960px) {
   :root { --of-dock-w: 288px; }
-  .of-brand span { display: none; }
-  .of-studio span { display: none; }
-  .of-studio { padding: 0 9px; }
   .of-dock-toggle { display: inline-grid; }
   .of-layout { grid-template-columns: var(--of-tools-w) minmax(0, 1fr); grid-template-areas: "header header" "tabs tabs" "context context" "tools canvas" "status status"; }
   .of-dock {
@@ -806,7 +805,6 @@ sl-dialog::part(title) { font-size: 15px; font-weight: 650; }
   .of-newdoc__cols { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
-  .of-menubar { display: none; }
   :root { --of-tools-w: 44px; }
   .of-tool { width: 32px; height: 32px; }
 }

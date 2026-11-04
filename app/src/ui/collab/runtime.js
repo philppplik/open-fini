@@ -48,14 +48,23 @@ export async function openCollab(app, tab) {
   const c = getCollab(app);
   await c.ready;
   if (c.poppedOut && (await import("./remote-host.js")).noteIfPoppedOut(app, c)) return; // the UI lives in its own window
+  // default: its own window, but only inside a room (starting or joining a room needs the forms of the in-page window)
+  if (app.prefs.collabPopout !== false && c.session && c.session.state !== "left" && (await (await import("./remote-host.js")).popOut(app, c, { quiet: true }))) return;
+  // blocked or off: the in-page window below
   (await import("./window.js")).showCollabWindow(app, c, tab);
 }
 
+/** After a room was created or joined from the in-page window: offer what to do without a document, then pop out (default). */
+export async function afterRoomStart(app, { created = false } = {}) {
+  if (created && !app.doc) await (await import("./entry.js")).offerNoDocument(app);
+  if (app.prefs.collabPopout !== false) popOutCollab(app, { quiet: true }).catch(() => {});
+}
+
 /** Moves the Collaboration UI into its own OS window (UI-only remote view; this window keeps the connection). */
-export async function popOutCollab(app) {
+export async function popOutCollab(app, opts) {
   const c = getCollab(app);
   await c.ready;
-  return (await import("./remote-host.js")).popOut(app, c);
+  return (await import("./remote-host.js")).popOut(app, c, opts);
 }
 
 export async function addComment(app, opts = {}) {

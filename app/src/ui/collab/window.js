@@ -400,6 +400,7 @@ function createWindow(app, c) {
           if (builtinRelay.addresses[0]) c.session.setInviteRelay(builtinRelay.addresses[0]);
         } else await c.createRoom({ relay: where.value === "local" ? "local" : relay.value.trim(), defaultRole: role.value });
         select("people");
+        import("./runtime.js").then((m) => m.afterRoomStart(app, { created: true }));
       } catch (ex) {
         err.textContent = ex instanceof CollabCryptoError || ex.code ? ex.message : t("The room could not be created: {message}", { message: ex.message });
       } finally {
@@ -438,6 +439,7 @@ function createWindow(app, c) {
         await c.joinRoom(code.value);
         code.value = "";
         select("people");
+        import("./runtime.js").then((m) => m.afterRoomStart(app));
       } catch (ex) {
         err.textContent = ex.message;
       } finally {
