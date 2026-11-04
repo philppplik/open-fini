@@ -168,7 +168,7 @@ test("duplicate, delete, copy/paste produce independent nodes", () => {
   assert.equal(doc.pages[0].root.children.length, 2);
 });
 
-test("convert to curves and boolean ops on shapes", () => {
+test("convert to curves and boolean ops on shapes", async () => {
   const { app, doc } = makeApp();
   const a = rect(0, 0, 100, 100);
   const e = createNode("ellipse", { w: 100, h: 100, m: translate(50, 0) });
@@ -178,7 +178,7 @@ test("convert to curves and boolean ops on shapes", () => {
   assert.equal(a.type, "path");
   assert.equal(a.w, undefined);
   app.select([a, e]);
-  assert.equal(ops.booleanOp(app, "subtract"), true);
+  assert.equal(await ops.booleanOp(app, "subtract"), true);
   const res = doc.pages[0].root.children;
   assert.equal(res.length, 1);
   assert.equal(res[0].type, "path");

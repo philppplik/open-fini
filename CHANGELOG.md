@@ -23,6 +23,7 @@ All notable changes to OpenFini are documented here. The format follows
 - `<html data-os>` / `data-desktop` and `platform/os-info.js` for platform-specific code paths.
 
 ### Changed
+- Faster start: the US English hyphenation patterns and the boolean shape engine load on demand (start-up JavaScript 371 → 344 KiB gzip). Hyphenated text opened right at launch may reflow once when the patterns arrive; exports always wait for them.
 - Glass: a crisp light edge on the bars and a soft top highlight on dialogs, the command palette and popovers.
 - Linux desktop: WebKitGTK's DMA-BUF renderer is turned off on the proprietary NVIDIA driver (blank or flickering windows),
   unless `WEBKIT_DISABLE_DMABUF_RENDERER` is already set.

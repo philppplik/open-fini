@@ -58,7 +58,7 @@ export {
 
 // fonts / hyphenation -----------------------------------------------------------------------------------------------
 export { parseFont } from './sfnt.js';
-export { createHyphenator } from './hyphenation.js';
+// createHyphenator lives in ./hyphenation.js and is imported on demand (the pattern tables are about 17 KiB gzip)
 export { std14Name, std14Metrics, std14TextWidth, std14Widths, winAnsiCode, STD14_FONTS } from './std14.js';
 
 // data merge / table of contents --------------------------------------------------------------------------------------

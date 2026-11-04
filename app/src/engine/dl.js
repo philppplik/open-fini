@@ -4,8 +4,8 @@ import { shapeGeometry, visualBounds } from "../core/nodes.js";
 import { pathToData, pathBBox } from "./vector/path.js";
 import { parseColor, rgbToHex } from "../core/color.js";
 import { mul, ident, rectUnion } from "../core/math.js";
-import { layoutStory, createHyphenator } from "./layout/index.js";
-import { measurer, fontState } from "../core/fonts.js";
+import { layoutStory } from "./layout/index.js";
+import { measurer, fontState, bumpFonts } from "../core/fonts.js";
 import { renderTable } from "./layout/table-render.js";
 import { normalizeChart, resolveData, describeChart } from "./layout/chart-data.js";
 import { renderChart } from "./layout/chart-render.js";
@@ -135,9 +135,23 @@ function pixelItems(node, ctx) {
 
 // ------------------------------------------------------------------ text
 
-// US English hyphenation, created lazily (the pattern tables are only parsed when a paragraph asks for them)
+// US English hyphenation. The pattern tables (about 17 KiB gzip) load on demand: the first paragraph that asks for
+// hyphenation starts the import (or ensureHyphenation() does, which the app calls when idle and exports await).
+// Until it arrives words are kept whole; when it lands the layout caches are invalidated (main.js repaints).
 let hyphenator = null;
-const hyphenate = (word) => (hyphenator || (hyphenator = createHyphenator()))(word);
+let hyphenatorLoad = null;
+/** Loads the hyphenation patterns; resolves when hyphenated layout is available. */
+export function ensureHyphenation() {
+  return (hyphenatorLoad ||= import("./layout/hyphenation.js").then((m) => {
+    hyphenator = m.createHyphenator();
+    bumpFonts();
+  }));
+}
+const hyphenate = (word) => {
+  if (hyphenator) return hyphenator(word);
+  ensureHyphenation();
+  return [word];
+};
 
 const storyIds = new WeakMap();
 let storyCounter = 0;

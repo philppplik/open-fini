@@ -1,10 +1,10 @@
+import { createHyphenator } from '../../app/src/engine/layout/hyphenation.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {
   layoutStory,
   approxMeasurer,
-  createHyphenator,
   paragraphStarts,
   storyLength,
   plainText,
