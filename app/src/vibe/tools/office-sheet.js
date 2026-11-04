@@ -180,5 +180,33 @@ export function officeSheetTools(app) {
       c.commit("Add Chart", c.M.updateSheet(c.model, c.sheet.id, (s) => ({ ...s, charts: [...s.charts, chart] })));
       return { chart: chart.id, type: chart.type, range: chart.range, at: c.F.rcKey(pos.r0, pos.c0) };
     }),
+
+    tool("sheet_add_rule", "Adds conditional formatting to a range: data bars, a red-to-green color scale, or a highlight when a comparison is true. Watch out: put the rule on the numbers only (not the header or total row, which would stretch the bars); `value` comparisons use the computed value; check with sheet_describe (rules count) and a screenshot.", {
+      range: S.str("A1 range of the values, e.g. C2:C20"),
+      type: S.str("bar (data bars), scale (color scale), gt, lt, ge, le, eq, ne, between, contains, blank, notBlank", { enum: ["bar", "scale", "gt", "lt", "ge", "le", "eq", "ne", "between", "contains", "blank", "notBlank"] }),
+      value: S.str("Comparison value (number or text)"),
+      value2: S.str("Upper bound for between"),
+      color: S.str("Bar color, or the highlight text color, #rrggbb"),
+      fill: S.str("Highlight fill color #rrggbb (comparisons; default light red)"),
+      ...sheetArg,
+    }, ["range", "type"], async ({ range, type, value, value2, color, fill, sheet }) => {
+      const c = await ctx(sheet);
+      const g = c.range(range);
+      const hex = (v) => (/^#[0-9a-f]{6}$/i.test(v || "") ? v.toLowerCase() : null);
+      const num = (v) => (v != null && String(v).trim() !== "" && Number.isFinite(Number(v)) ? Number(v) : v ?? "");
+      const rule = { id: c.M.newId("cf"), range: c.sel.formatRange(g), type };
+      if (type === "bar") rule.colors = [hex(color) || "#638ec6"];
+      else if (type === "scale") rule.colors = ["#f8696b", "#63be7b"];
+      else {
+        if (!["blank", "notBlank"].includes(type)) {
+          if (value == null) throw new Error(`A ${type} rule needs a value.`);
+          rule.a = num(value);
+        }
+        if (type === "between") rule.b = num(value2);
+        rule.style = { color: hex(color) || "#9c0006", fill: hex(fill) || "#ffc7ce" };
+      }
+      c.commit("Conditional Formatting", c.M.updateSheet(c.model, c.sheet.id, (s) => ({ ...s, cf: [...s.cf, rule] })));
+      return { rule: rule.id, type, range: rule.range, sheet: c.sheet.name };
+    }),
   ];
 }

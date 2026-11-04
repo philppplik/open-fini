@@ -126,7 +126,11 @@ The PDF export uses its own layout (the Layout studio's text engine) and can bre
 The assistant has ten `office_` tools (see [vibe-studio.md](vibe-studio.md)): it can create documents, read the
 outline and text, insert Markdown or typed blocks, replace text, apply styles and formatting, insert tables, change
 page setup, headers and footers, and export (after your approval). The built-in skill **write-business-document**
-covers letters, reports, proposals, memos and resumes. With AI enabled, the editor's right-click menu has *AI ▸
+covers letters, reports, proposals, memos and resumes. Semantic tools work by heading (`office_list_sections`,
+`office_read_section`, `office_rewrite_section`, `office_move_section`), `office_check_accessibility` checks the
+document, and cross-app tools turn tables into a spreadsheet, a spreadsheet range into a table and the outline into
+slides ([vibe-studio.md](vibe-studio.md#office-semantic-and-cross-app-tools)); skills: `write-report`,
+`polish-document`, `accessibility-check-document`, `translate-document-keeping-format`, `meeting-notes`. With AI enabled, the editor's right-click menu has *AI ▸
 Improve writing, Fix spelling and grammar, Summarize, Translate…, Change tone…* for the selection (or the whole
 document).
 

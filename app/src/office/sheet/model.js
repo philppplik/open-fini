@@ -559,7 +559,8 @@ export function filteredRows(sheet, textOf) {
 
 // ------------------------------------------------------------------------------------------------------ conditional formats
 
-/** The style a conditional-format rule list adds to a cell value (or null). `scale` needs the range's min/max. */
+/** The style a conditional-format rule list adds to a cell value (or null). `scale` and `bar` need the range's min/max;
+ * `bar` adds `{ bar: { from, to, color } }` (fractions of the cell width). */
 export function cfStyle(rules, r, c, value, stats) {
   let out = null;
   for (const rule of rules) {
@@ -571,6 +572,17 @@ export function cfStyle(rules, r, c, value, stats) {
       if (!st || st.max === st.min) continue;
       const t = (value - st.min) / (st.max - st.min);
       out = { ...out, fill: mix(rule.colors?.[0] || "#f8696b", rule.colors?.[1] || "#63be7b", t) };
+      continue;
+    }
+    if (rule.type === "bar") {
+      // data bar: length relative to the range's extent including 0, so negative values grow left of the axis
+      if (typeof value !== "number") continue;
+      const st = stats(rule);
+      if (!st) continue;
+      const lo = Math.min(0, st.min);
+      const hi = Math.max(0, st.max);
+      if (hi === lo) continue;
+      out = { ...out, bar: { from: (Math.min(0, value) - lo) / (hi - lo), to: (Math.max(0, value) - lo) / (hi - lo), color: rule.colors?.[0] || "#638ec6" } };
       continue;
     }
     if (matchRule(rule, value)) out = { ...out, ...(rule.style || {}) };

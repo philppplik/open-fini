@@ -260,6 +260,9 @@ function readSheet(text, { name, id, pos, shared, styles, date1904, report }) {
       else if (type === "colorScale") {
         const colors = children(child(rule, "colorScale"), "color").map(argb).filter(Boolean);
         s.cf.push({ id, range: sq, type: "scale", colors: [colors[0] || "#f8696b", colors[colors.length - 1] || "#63be7b"] });
+      } else if (type === "dataBar") {
+        const color = children(child(rule, "dataBar"), "color").map(argb).find(Boolean);
+        s.cf.push({ id, range: sq, type: "bar", colors: [color || "#638ec6"] });
       } else report?.dropped?.(`Conditional formatting rules of type “${type}”.`);
     }
   }
@@ -482,6 +485,8 @@ export function writeXlsx(model, { calc = null, title = "" } = {}) {
       else if (rule.type === "scale") {
         const [a, b] = (rule.colors || ["#f8696b", "#63be7b"]).map((c) => `FF${c.slice(1).toUpperCase()}`);
         body = `<cfRule type="colorScale" priority="${++prio}"><colorScale><cfvo type="min"/><cfvo type="max"/><color rgb="${a}"/><color rgb="${b}"/></colorScale></cfRule>`;
+      } else if (rule.type === "bar") {
+        body = `<cfRule type="dataBar" priority="${++prio}"><dataBar><cfvo type="min"/><cfvo type="max"/><color rgb="FF${(rule.colors?.[0] || "#638ec6").slice(1).toUpperCase()}"/></dataBar></cfRule>`;
       }
       return body ? `<conditionalFormatting sqref="${rule.range}">${body}</conditionalFormatting>` : "";
     }).join("");

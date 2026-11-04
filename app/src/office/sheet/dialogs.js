@@ -62,7 +62,7 @@ export function chartDialog(view, chart = null) {
   openDialog({ title: chart ? "Edit chart" : "Insert chart", width: 440, body, buttons });
 }
 
-const CF_TYPES = [["gt", N_("Greater than")], ["lt", N_("Less than")], ["ge", N_("Greater than or equal to")], ["le", N_("Less than or equal to")], ["eq", N_("Equal to")], ["ne", N_("Not equal to")], ["between", N_("Between")], ["contains", N_("Text contains")], ["blank", N_("Is empty")], ["notBlank", N_("Is not empty")], ["scale", N_("Color scale (red to green)")]];
+const CF_TYPES = [["gt", N_("Greater than")], ["lt", N_("Less than")], ["ge", N_("Greater than or equal to")], ["le", N_("Less than or equal to")], ["eq", N_("Equal to")], ["ne", N_("Not equal to")], ["between", N_("Between")], ["contains", N_("Text contains")], ["blank", N_("Is empty")], ["notBlank", N_("Is not empty")], ["scale", N_("Color scale (red to green)")], ["bar", N_("Data bars")]];
 const CF_STYLES = [["red", N_("Light red fill, dark red text"), { fill: "#ffc7ce", color: "#9c0006" }], ["green", N_("Green fill, dark green text"), { fill: "#c6efce", color: "#006100" }], ["yellow", N_("Yellow fill, dark yellow text"), { fill: "#ffeb9c", color: "#9c5700" }], ["bold", N_("Bold red text"), { color: "#c00000", b: true }]];
 
 export function conditionalDialog(view) {
@@ -74,8 +74,8 @@ export function conditionalDialog(view) {
   const style = select(CF_STYLES.map(([k, l]) => [k, l]), "red");
   const sync = () => {
     b.closest("label").hidden = type.value !== "between";
-    a.closest("label").hidden = ["blank", "notBlank", "scale"].includes(type.value);
-    style.closest("label").hidden = type.value === "scale";
+    a.closest("label").hidden = ["blank", "notBlank", "scale", "bar"].includes(type.value);
+    style.closest("label").hidden = type.value === "scale" || type.value === "bar";
   };
   type.addEventListener("change", sync);
   const rules = view.sheet.cf;
@@ -102,9 +102,10 @@ export function conditionalDialog(view) {
           if (!r) return view.app.toast(t("“{ref}” is not a cell range.", { ref: rangeIn.value }), "warning");
           const num = (v) => (v.trim() !== "" && Number.isFinite(Number(v)) ? Number(v) : v);
           const rule = { id: M.newId("cf"), range: formatRange(r), type: type.value };
-          if (!["blank", "notBlank", "scale"].includes(rule.type)) rule.a = num(a.value);
+          if (!["blank", "notBlank", "scale", "bar"].includes(rule.type)) rule.a = num(a.value);
           if (rule.type === "between") rule.b = num(b.value);
           if (rule.type === "scale") rule.colors = ["#f8696b", "#63be7b"];
+          else if (rule.type === "bar") rule.colors = ["#638ec6"];
           else rule.style = CF_STYLES.find((x) => x[0] === style.value)[2];
           close();
           view.commit("Conditional Formatting", M.updateSheet(view.model, view.sid, (s) => ({ ...s, cf: [...s.cf, rule] })));

@@ -23,7 +23,8 @@ is registered when the Office suite loads, the implementation when the first spr
 * **Format** (ribbon and Format menu): font, size, bold / italic / underline / strikethrough, text and fill colors,
   alignment, wrap, merge, number formats (presets and custom codes such as `#,##0.00`, `0.0%`, `yyyy-mm-dd`,
   `"$"#,##0.00_);("$"#,##0.00)`), decimals, borders, column width / row height (drag a header border, double-click it
-  to autofit), conditional formatting (comparisons, text contains, empty / not empty, red-to-green color scale).
+  to autofit), conditional formatting (comparisons, text contains, empty / not empty, red-to-green color scale, data bars;
+  negative values grow left of zero).
 * **Data**: sort ascending / descending (a single cell sorts its block, keeping a text header row), filter (buttons in
   the header row, value checklists), freeze panes (at the selection, top row, first column), insert / delete rows and
   columns (formulas, merges, charts and rules follow).
@@ -113,7 +114,8 @@ focus; the screen reader gets the active cell and its value through a live regio
 
 `sheet_describe`, `sheet_read_range` (computed values, optional formulas and formats, 5000 cells per call),
 `sheet_write_range` (typed input, `=` formulas), `sheet_set_formula` (with `fillTo`), `sheet_format`, `sheet_add_sheet`,
-`sheet_add_chart`. Each edit is one undo step labelled "Vibe: …". `office_describe` uses the app's `aiAdapter.describe`;
+`sheet_add_chart`, `sheet_add_rule` (data bars, color scale, comparisons). Cross-app: `office_tables_to_sheet` and
+`office_sheet_to_document` ([vibe-studio.md](vibe-studio.md#office-semantic-and-cross-app-tools)). Each edit is one undo step labelled "Vibe: …". `office_describe` uses the app's `aiAdapter.describe`;
 `office_new` creates spreadsheets from the templates; `office_export` writes every format above.
 
 ## Collaboration
