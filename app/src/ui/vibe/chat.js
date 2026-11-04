@@ -30,7 +30,18 @@ export function createChat(vs) {
   const pending = h("div.of-vchat__tail.hidden", h("div.of-vmsg.of-vmsg--assistant", h("div.of-vmsg__avatar", markEl()), h("span.of-vpending.of-shimmer", "Thinking…")));
   scroller.append(thread, pending);
   const jump = h("button.of-vjump.hidden", { type: "button", ...ta({ "aria-label": "Jump to latest message" }) }, iconEl("arrow-down"), tspan("Jump to latest"));
-  const main = h("div.of-vchat__main", scroller, jump);
+  // where a right-click AI chat came from (chat.target, vibe/quick-actions.js): "Go to selection" jumps back
+  const targetBar = h("div.of-vtarget.hidden", { role: "note" });
+  const paintTarget = () => {
+    const tg = session.chat?.target;
+    targetBar.classList.toggle("hidden", !tg);
+    if (!tg) return targetBar.replaceChildren();
+    const go = h("button.of-btn.of-btn--sm", { type: "button" }, iconEl("crosshair"), tspan("Go to selection"));
+    go.addEventListener("click", () => import("../../vibe/quick-actions.js").then((m) => m.jumpToTarget(app, tg)));
+    targetBar.replaceChildren(iconEl("cursor"), h("span.of-vtarget__text", t("Context: {what} in “{doc}”", { what: tg.label || tg.kind, doc: tg.docName || t("no document") })), go);
+  };
+  paintTarget();
+  const main = h("div.of-vchat__main", targetBar, scroller, jump);
 
   // ---- follow the bottom while the assistant streams; stop when the user scrolls up
   let stick = true;
@@ -681,6 +692,7 @@ export function createChat(vs) {
     if (on) follow();
   };
   session.on("chat", () => {
+    paintTarget();
     renderHistory();
     // switching to a chat that is still working: its live events are replayed next (hub SessionView)
     if (session.running) showPending(true);

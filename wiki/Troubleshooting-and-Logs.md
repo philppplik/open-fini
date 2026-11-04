@@ -13,6 +13,13 @@ When something does not work, open *Help ▸ Troubleshooting…* (`Ctrl+Shift+F1
 
 Error notifications have a **Details** button that opens the dialog.
 
+## AI log
+
+Settings ▸ Artificial intelligence ▸ Logging and actions lists every AI request (model, tools, durations, errors). **Export
+AI log** (here in Troubleshooting or in that settings tab) saves a redacted JSON or Markdown file for the developers; API
+keys are always removed and document text is only included when you tick it. Verbose logging (prompts and tool
+results) is off unless you turn it on.
+
 ## How long logs are kept
 
 Logs are stored on this device (secrets, e-mail addresses and your user name in paths are removed first; never documents or keys). They rotate: at most 20,000 entries or 5 MB, and nothing older than **Settings > Security and privacy > Keep logs for N days** (default 14). Set it to 0 to keep the log for the current session only. The diagnostic report names the build and how many earlier sessions are stored.

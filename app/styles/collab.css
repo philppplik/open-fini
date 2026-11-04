@@ -259,3 +259,7 @@ html.is-collab-popout body { margin: 0; background: var(--of-bg-panel, #1e1e22);
 .of-cpanel__title { font-size: 12.5px; }
 .of-cpanel__tools { display: flex; flex-direction: column; gap: 4px; padding: 6px 6px 6px 0; }
 .of-cpanel__open .of-cpop__num { flex: none; }
+
+/* "AI" badge next to comments written by the Vibe assistant (comment.ai / message.ai) */
+.of-ai-badge { display: inline-block; margin-inline-start: 4px; padding: 0 4px; border-radius: 4px; font-size: 10px; font-weight: 700; line-height: 14px; letter-spacing: 0.03em; color: #fff; background: #7c6df2; vertical-align: middle; }
+.of-ai-badge--pin { position: absolute; top: -6px; right: -10px; margin: 0; font-size: 8px; line-height: 11px; padding: 0 2px; }

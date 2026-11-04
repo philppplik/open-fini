@@ -178,9 +178,9 @@ export const ANCHOR = V.obj(
   ["kind"],
 );
 
-const COMMENT_MSG = V.obj({ id: V.id(), author: V.member(), nick: V.text(LIMITS.nick), color: V.str(7, { re: COLOR_RE }), text: V.text(LIMITS.commentText, { min: 1 }), ts: V.int(0, 1e14), edited: V.int(0, 1e14), deleted: V.bool(), mentions: V.arr(V.member(), LIMITS.mentions) }, ["id", "author", "text", "ts"]);
+const COMMENT_MSG = V.obj({ id: V.id(), author: V.member(), nick: V.text(LIMITS.nick), color: V.str(7, { re: COLOR_RE }), text: V.text(LIMITS.commentText, { min: 1 }), ts: V.int(0, 1e14), edited: V.int(0, 1e14), deleted: V.bool(), mentions: V.arr(V.member(), LIMITS.mentions), ai: V.bool() }, ["id", "author", "text", "ts"]);
 export const THREAD = V.obj(
-  { id: V.id(), anchor: ANCHOR, author: V.member(), nick: V.text(LIMITS.nick), color: V.str(7, { re: COLOR_RE }), ts: V.int(0, 1e14), resolved: V.bool(), resolvedBy: V.text(LIMITS.nick), resolvedAt: V.int(0, 1e14), messages: V.arr(COMMENT_MSG, 200) },
+  { id: V.id(), anchor: ANCHOR, author: V.member(), nick: V.text(LIMITS.nick), color: V.str(7, { re: COLOR_RE }), ts: V.int(0, 1e14), resolved: V.bool(), resolvedBy: V.text(LIMITS.nick), resolvedAt: V.int(0, 1e14), messages: V.arr(COMMENT_MSG, 200), ai: V.bool() },
   ["id", "anchor", "author", "ts", "messages"],
 );
 const COMMENT_OP = V.obj(

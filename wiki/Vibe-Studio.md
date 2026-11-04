@@ -35,6 +35,12 @@ An *AI is ...* **progress pill** in every other studio shows what the AI is doin
 
 ## Right-click AI
 
+Every right-click ▸ AI action opens a **new Vibe chat** with the selection and the instruction, so you can keep
+talking about it. **Go to selection** above the chat jumps back to what you right-clicked. **Custom instruction…**
+lets you type your own request, reuse recent ones and choose what to attach. Change the behavior (new chat, reuse the
+last one, or no chat) under Settings ▸ Artificial intelligence ▸ Logging and actions. Comments that Vibe writes carry
+an **AI** badge.
+
 With AI on, context menus get an **AI** submenu: on the canvas (describe, restyle, variations, tidy layout, name layers, rewrite, fix spelling, translate, generate an image, auto-enhance, check contrast), in the code editor (explain, fix, refactor, comment, generate) and on website elements (improve copy, make responsive, restyle, add states). Quick actions run the same agent with the same tools and permissions.
 
 ## Web access

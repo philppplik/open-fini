@@ -212,7 +212,7 @@ export function bootCollabPopout(app, params) {
           send();
         }
       });
-      const msgs = th.messages.map((m) => h("div.of-thread__msg", avatar(m), h("div", h("div.of-msg__head", h("span.of-msg__who", m.nick), h("time.of-msg__time", fmtTime(m.ts))), h("p.of-msg__text", m.deleted ? t("Comment deleted") : m.text))));
+      const msgs = th.messages.map((m) => h("div.of-thread__msg", avatar(m), h("div", h("div.of-msg__head", h("span.of-msg__who", m.nick), m.ai ? h("span.of-ai-badge", { title: t("Written by the AI assistant") }, "AI") : null, h("time.of-msg__time", fmtTime(m.ts))), h("p.of-msg__text", m.deleted ? t("Comment deleted") : m.text))));
       const card = h("article.of-thread", { class: th.resolved ? "of-thread--resolved" : "", style: `--of-collab-color:${th.color}` },
         h("div.of-thread__head", btn(`${th.n}. ${th.where}`, () => act("comment.jump", { thread: th.id }), { ic: "crosshair", title: t("Show where this comment is in the main window") }), btn(th.resolved ? t("Reopen") : t("Resolve"), async () => report(await act("comment.resolve", { thread: th.id, on: !th.resolved })), { ic: th.resolved ? "arrow-counterclockwise" : "check2-circle" })),
         ...msgs,

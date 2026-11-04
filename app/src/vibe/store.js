@@ -46,6 +46,10 @@ export const DEFAULT_SETTINGS = () => ({
   // model routing with fallback (ai/routing.js): routes = [{ id, name, targets:[{providerId, model, label?, enabled?, timeoutMs?}], policy:{...} }]
   routes: [],
   activeRoute: null, // route id; null = the single activeProvider/model pair acts as a one-element route
+  // right-click AI and logging (Settings ▸ Artificial intelligence ▸ Logging and actions; docs/ai-logging.md)
+  quickActionChat: "new", // new | reuse | inline
+  aiLog: true, // record run metadata (model, routing, tools, durations, errors, tokens, approvals)
+  aiLogVerbose: false, // also record prompts, tool arguments, results and replies (redacted)
 });
 
 /** The single store instance; emits "change" with the key group that changed. */

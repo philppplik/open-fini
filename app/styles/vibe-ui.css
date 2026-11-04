@@ -159,3 +159,23 @@ button.of-mchip:hover { border-color: var(--of-accent); }
   .of-composer__bar .of-pill-btn span { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .of-vsum { margin-left: 0; }
 }
+
+/* right-click AI chats: where the chat came from (chat.target) */
+.of-vtarget { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--of-border, rgba(127, 127, 127, 0.25)); font-size: 12px; color: var(--of-text-2, inherit); }
+.of-vtarget__text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* custom instruction dialog and the AI log panel */
+.of-ci { display: grid; gap: 10px; }
+.of-ci__prompt { width: 100%; resize: vertical; min-height: 84px; box-sizing: border-box; }
+.of-ci__target, .of-ci__label { margin: 0; font-size: 12px; opacity: 0.8; }
+.of-ci__history { display: flex; flex-wrap: wrap; gap: 6px; }
+.of-ci__recent { cursor: pointer; max-width: 100%; }
+.of-ci__opts { display: grid; gap: 4px; }
+.of-ci__opt { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.of-ailog { display: grid; gap: 10px; }
+.of-ailog h3 { margin: 8px 0 0; font-size: 13px; }
+.of-ailog__bar { display: flex; flex-wrap: wrap; gap: 6px; }
+.of-ailog__list { display: grid; gap: 2px; max-height: 280px; overflow: auto; }
+.of-ailog__row { display: grid; grid-template-columns: 1.4fr 1fr 1.2fr 0.6fr 0.6fr; gap: 8px; padding: 4px 6px; text-align: start; font-size: 12px; background: none; border: 0; border-radius: 4px; color: inherit; cursor: pointer; }
+.of-ailog__row:hover, .of-ailog__row:focus-visible { background: var(--of-hover, rgba(127, 127, 127, 0.12)); }
+.of-ailog__row[data-status="error"] { color: var(--of-danger, #d33); }
+.of-ailog__detail { max-height: 260px; overflow: auto; font-size: 11px; padding: 8px; border-radius: 6px; background: var(--of-surface-2, rgba(127, 127, 127, 0.08)); white-space: pre-wrap; }

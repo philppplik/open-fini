@@ -160,11 +160,12 @@ export class CommentsHost {
     return true;
   }
 
-  addThread(doc, anchor, text) {
+  /** `as` = { nick, color, ai }: the assistant comments under its own name (author id stays this device's). */
+  addThread(doc, anchor, text, as = null) {
     const clean = cleanText(text, LIMITS.commentText).trim();
     if (!clean) throw new Error(t("The comment is empty."));
     const id = `c${randomB64u(9)}`;
-    const thread = newThread({ id, anchor, author: this.author(), text: clean, ts: Date.now(), msgId: `${id}-0`, mentions: this.mentionsIn(clean) });
+    const thread = newThread({ id, anchor, author: { ...this.author(), ...(as || {}) }, text: clean, ts: Date.now(), msgId: `${id}-0`, mentions: this.mentionsIn(clean) });
     this.commentOp(doc, { op: "add", thread });
     return thread;
   }
@@ -180,7 +181,7 @@ export class CommentsHost {
     if (!clean) throw new Error(t("The reply is empty."));
     const a = { ...this.author(), ...(as || {}) };
     const mentions = this.mentionsIn(clean);
-    const msg = { id: `m${randomB64u(9)}`, author: this.myId, nick: a.nick, color: a.color, text: clean, ts: Date.now(), ...(mentions.length ? { mentions } : {}) };
+    const msg = { id: `m${randomB64u(9)}`, author: this.myId, nick: a.nick, color: a.color, text: clean, ts: Date.now(), ...(mentions.length ? { mentions } : {}), ...(a.ai ? { ai: true } : {}) };
     return this.commentOp(doc, { op: "reply", threadId, msg });
   }
 

@@ -73,8 +73,11 @@ A live preview of the active document: zoom (Fit, 50, 100, 200 %, wheel, `+`/`�
 keys, a page switcher, a **layers outline** (click to select, eye and lock toggles, `H`/`L` keys, `A` adds the layer to
 the composer, drag onto the composer), rings around the layers the AI touched in the last run plus **Touched by AI**
 chips, the before/after slider, **Open in …** (split button: Vector, Pixel, Layout, Code, Office), **Export…** and the
-document size, pages and layer count. Website projects show the live preview with Desktop / Tablet / Phone widths. The
-preview renders only while the panel is visible, debounced and at most 1800 px on the long side.
+document size, pages and layer count. Website projects show the live preview with Desktop / Tablet / Phone widths.
+Office Suite documents render with each app's own helpers (`office/preview.js`, loaded on first use): word-processor
+pages, the grid of a spreadsheet sheet, presentation slides and whiteboard pages; the page menu then lists pages,
+sheets, slides or board pages, and the preview follows edits live. The preview renders only while the panel is visible
+(a render skipped while it was hidden runs when it becomes visible), debounced and at most 1800 px on the long side.
 
 ## Message toolbars
 
@@ -389,9 +392,37 @@ With AI enabled, context menus get an **AI** submenu:
   and accessibility.
 - **Code editor** (selected code): explain, fix problems, refactor, add comments, generate code here.
 - **Website elements**: improve copy, make responsive, restyle, add hover and focus states.
+- **Office**: the word processor (improve writing, fix grammar, summarize, translate, change tone), the spreadsheet
+  (explain, clean up data, add a chart for the selected range), the presentation (explain, improve this slide) and the
+  whiteboard (explain, tidy up).
+- **Custom instruction…** in every AI submenu: a prompt field, the recent custom instructions (kept on this device,
+  12 at most) and what to attach: the selection, the whole document, a screenshot of the selection, or "only answer".
 
-Quick actions run the same agent with the same tools and permissions. Changes can be undone with the bar that
-appears afterwards, or with `Ctrl+Z`.
+**Every action opens a Vibe chat** (Settings ▸ Artificial intelligence ▸ Logging and actions ▸ *Right-click AI actions
+open*: **a new Vibe chat** (default), **the last right-click chat** while it is idle, or **no chat**, the old inline
+behavior with the answer in a dialog). The chat:
+
+- is titled from the action and the target (“Rewrite · Headline”, “Explain · Budget!A2:C9”, “Fix problems ·
+  app.js:12-30”) and is kept in the chat list, so you can follow up there;
+- carries the context: document name, type and studio, the target (layer ids, text, cell range, code lines, website
+  element, slide or board elements, at most 50 ids) and the instruction, in one `[Vibe context]` block limited to
+  12,000 characters; a small PNG of the selected layers is attached when screenshots may be sent;
+- remembers its target (`chat.target`): **Go to selection** above the conversation switches back to the document and
+  selects the layers, code lines, cells, slide or board elements again;
+- runs in the background: the AI progress pill shows it (Stop cancels it), approvals and questions are asked right away
+  in a dialog while you are not in Vibe Studio, and the bar afterwards offers **Undo** (one step for the whole run)
+  and **Open chat**. "Answer" actions show the answer with **Continue in chat**.
+
+The same rules apply as for every chat: AI must be on, a model connected, offline mode blocks remote providers,
+the chat's model can be changed in its composer, and the per-chat approval mode is respected.
+
+## AI log
+
+Every request is recorded in a separate, rotating "ai" log channel (model, routing and fallbacks, a hash of the system
+prompt, skills available and loaded, every tool call with name, argument names, duration, status and result size,
+errors, retries, approvals and token usage). Prompts, tool arguments, results and replies are only recorded with
+**Verbose** on. Settings ▸ Artificial intelligence ▸ Logging and actions shows the runs and has **Export AI log for the
+developer** (also in the Troubleshooting dialog). Format: [ai-logging.md](ai-logging.md).
 
 ## Privacy and safety
 
