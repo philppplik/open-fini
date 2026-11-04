@@ -133,6 +133,9 @@ test("surface styles: the optional `surface` field is validated and kept, and gl
   const ok = { id: "s", name: "S", light: { vars: {} }, dark: { vars: {} } };
   for (const surface of ["none", "solid", "glass", "liquid", "sea"]) assert.deepEqual(validateTheme({ ...ok, surface }), [], surface);
   assert.ok(validateTheme({ ...ok, surface: "frosty" }).length);
+  const legacy = registerTheme({ ...ok, id: "surface-legacy", surface: "liquid" });
+  assert.equal(getTheme("surface-legacy").surface, "glass", "the removed Liquid glass recommendation maps to Glass");
+  legacy();
   const off = registerTheme({ ...ok, id: "surface-test", surface: "none" });
   assert.equal(getTheme("surface-test").surface, "none");
   off();
@@ -141,7 +144,7 @@ test("surface styles: the optional `surface` field is validated and kept, and gl
   for (const t of listThemes()) {
     for (const m of MODES) {
       const v = resolveVars(t, m);
-      for (const style of ["glass", "liquid", "sea"]) {
+      for (const style of ["glass", "sea"]) {
         const g = resolveGlass(v, { surfaceStyle: style, glassTransparency: 50 }, {});
         for (const bd of stressBackdrops(v)) {
           const fill = glassFill(v["--of-bg-panel"], bd, { alpha: g.alpha, tint: STYLE_DEFS[style].tint?.[m], tintAmount: STYLE_DEFS[style].tintAmount });

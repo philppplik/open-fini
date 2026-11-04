@@ -19,9 +19,10 @@ in place and are marked as such.
 | [0012](0012-vscode-extensions.md) | VS Code extensions from Open VSX: declarative parts plus a sandboxed web-extension API subset | Accepted |
 | [0013](0013-collab-popout.md) | The Collaboration window pops out as a UI-only remote view | Accepted |
 | [0014](0014-model-routing-fallback.md) | Model routing with fallback as a provider wrapper | Accepted |
-| [0015](0015-liquid-glass-refraction.md) | Liquid glass refraction: own SVG displacement-map code instead of vendoring amazing-glass | Accepted |
+| [0015](0015-liquid-glass-refraction.md) | Liquid glass refraction: own SVG displacement-map code instead of vendoring amazing-glass | Superseded by 0021 |
 | [0016](0016-office-suite-apps.md) | Office Suite: one studio, a registry of lazily loaded apps per document kind | Accepted |
 | [0017](0017-openai-account-auth.md) | OpenAI account sign-in on desktop, OAuth for MCP servers, nothing undocumented | Accepted |
 | [0018](0018-built-in-network-services.md) | Built-in relay, FTP/FTPS and SMTP in the desktop shell | Accepted |
 | [0019](0019-extension-workers-watchdog.md) | Extension background scripts in workers, a watchdog, and a worker pool for heavy jobs | Accepted |
 | [0020](0020-color-management.md) | Color management: compact ICC engine, no bundled CMYK profile, PDF/X with an honest preflight | Accepted |
+| [0021](0021-native-window-materials.md) | Native window materials (Mica, Acrylic, vibrancy) instead of Liquid glass refraction | Accepted |

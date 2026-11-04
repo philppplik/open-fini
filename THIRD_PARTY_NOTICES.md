@@ -28,10 +28,6 @@ libraries are shipped next to them in `app/vendor/**`.
 
 ## Credits (no code included)
 
-- **Liquid glass refraction** (`app/src/ui/refraction.js`, `refraction-dom.js`) re-implements, in OpenFini's own code, the
-  technique described by [tomacco/amazing-glass](https://github.com/tomacco/amazing-glass) (MIT License, Copyright (c) tomacco):
-  a displacement map derived from a rim height profile and Snell's law, applied with `backdrop-filter: url(#svg-filter)`.
-  None of its source is copied or vendored; the credit is given for the idea.
 - **Sea glass** look: design inspiration from [mweinbach/SeaGlass](https://github.com/mweinbach/SeaGlass) (Android; the
   repository has no license, so no code, assets or text were used).
 

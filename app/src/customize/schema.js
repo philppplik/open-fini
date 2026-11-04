@@ -20,6 +20,20 @@ export const DEFAULT_QUICK_ACTIONS = ["undo", "redo", "export", "collab.open"];
 /** The default of versions up to 0.5: stored unchanged by users who never customized it, so it is migrated. */
 export const LEGACY_QUICK_ACTIONS = ["undo", "redo", "theme", "export", "panels"];
 
+/** Preferences of the removed Liquid glass style (1.0 and earlier). */
+export const REMOVED_GLASS_KEYS = ["glassRefraction", "glassBevel", "glassSpecular", "glassDispersion"];
+
+/**
+ * Migrates saved preferences (in place, also returned): the Liquid glass surface style was removed after 1.0, so a stored
+ * "liquid" becomes the plain Glass style and its four tuning values are dropped.
+ */
+export function migrateSurfacePrefs(prefs) {
+  if (!prefs || typeof prefs !== "object") return prefs;
+  if (prefs.surfaceStyle === "liquid") prefs.surfaceStyle = "glass";
+  for (const k of REMOVED_GLASS_KEYS) delete prefs[k];
+  return prefs;
+}
+
 /** Defaults of the preferences added by the customization system (merged into `defaultPrefs()` in core/app.js). */
 export function customizationDefaults() {
   return {
@@ -106,7 +120,7 @@ export const SETTINGS = [
   { key: "themeId", section: "appearance", type: "string", label: "Color theme id", check: (v) => typeof v === "string" && /^[A-Za-z0-9_-]{1,40}$/.test(v) },
   { key: "accent", section: "appearance", type: "string", label: "Accent color id", check: (v) => typeof v === "string" && /^[a-z]{1,16}$/.test(v) },
   { key: "accentCustom", section: "appearance", type: "color", label: "Custom accent color", check: color },
-  { key: "surfaceStyle", section: "appearance", type: "enum", options: ["solid", "glass", "liquid", "sea"], label: "Surface style", check: oneOf("solid", "glass", "liquid", "sea") },
+  { key: "surfaceStyle", section: "appearance", type: "enum", options: ["solid", "glass", "sea"], label: "Surface style", check: oneOf("solid", "glass", "sea") },
   { key: "glassBlur", section: "appearance", type: "integer", min: 0, max: 40, label: "Glass blur (px, empty = style default)", check: (v) => v === null || int(0, 40)(v) },
   { key: "glassTransparency", section: "appearance", type: "integer", min: 0, max: 50, label: "Glass transparency (%, empty = style default)", check: (v) => v === null || int(0, 50)(v) },
   { key: "glassBackdrop", section: "appearance", type: "enum", options: ["auto", "aurora", "ocean", "dusk", "seaglass", "mono", "accent", "image"], label: "Glass background layer (your own image is never exported)", check: oneOf("auto", "aurora", "ocean", "dusk", "seaglass", "mono", "accent", "image") },
@@ -114,10 +128,8 @@ export const SETTINGS = [
   { key: "glassAnimate", section: "appearance", type: "boolean", label: "Animate the glass background", check: bool },
   { key: "seaTint", section: "appearance", type: "enum", options: ["accent", "teal", "custom"], label: "Sea glass tint (follow the accent, classic teal or an own hue)", check: oneOf("accent", "teal", "custom") },
   { key: "seaHue", section: "appearance", type: "integer", min: 0, max: 359, label: "Sea glass hue (degrees, for the custom tint)", check: int(0, 359) },
-  { key: "glassRefraction", section: "appearance", type: "integer", min: 0, max: 100, label: "Liquid glass refraction strength (%)", check: int(0, 100) },
-  { key: "glassBevel", section: "appearance", type: "integer", min: 4, max: 40, label: "Liquid glass edge thickness (px)", check: int(4, 40) },
-  { key: "glassSpecular", section: "appearance", type: "integer", min: 0, max: 100, label: "Liquid glass specular highlight (%)", check: int(0, 100) },
-  { key: "glassDispersion", section: "appearance", type: "integer", min: 0, max: 100, label: "Liquid glass chromatic dispersion (%)", check: int(0, 100) },
+  { key: "windowMaterial", section: "appearance", type: "enum", options: ["none", "mica", "tabbed", "acrylic", "sidebar", "under-window", "hud", "window", "transparent"], label: "Window material (desktop app)", check: oneOf("none", "mica", "tabbed", "acrylic", "sidebar", "under-window", "hud", "window", "transparent") },
+  { key: "windowOpacity", section: "appearance", type: "integer", min: 30, max: 100, label: "Window opacity over the desktop (%)", check: int(30, 100) },
   { key: "density", section: "appearance", type: "enum", options: ["compact", "default", "spacious"], label: "Density", check: oneOf("compact", "default", "spacious") },
   { key: "uiScale", section: "appearance", type: "integer", min: 80, max: 160, label: "Interface scale (%)", check: int(80, 160) },
   { key: "uiFontSize", section: "appearance", type: "integer", min: 11, max: 18, label: "Interface text size (px)", check: int(11, 18) },

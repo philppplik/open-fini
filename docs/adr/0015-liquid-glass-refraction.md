@@ -1,6 +1,6 @@
 # 0015: Liquid glass refraction: own SVG displacement-map code instead of vendoring amazing-glass
 
-Status: Accepted
+Status: Superseded by [0021](0021-native-window-materials.md) (Liquid glass was removed after 1.0)
 
 ## Context
 

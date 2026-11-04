@@ -69,8 +69,8 @@ and `color-mix()` for tints; never hard-code colors.
 ## Surface styles
 
 An optional second axis next to the color theme: how the *chrome* is drawn. Settings ▸ Appearance ▸ **Surface style**:
-**Solid** (default, the unchanged look), **Glass** (frosted glassmorphism), **Liquid glass** (thicker bevels, specular top
-edge, a soft sheen sweeping over controls on hover/press, larger corners) and **Sea glass** (matte, softly grained, tinted by the accent,
+**Solid** (default, the unchanged look), **Glass** (frosted glassmorphism with a crisp light edge and a soft top
+highlight) and **Sea glass** (matte, softly grained, tinted by the accent,
 slightly lower-contrast backdrop). Each combines with every color theme and both modes.
 
 Controls: **Blur** (0-40 px), **Transparency** (0-50 %: how see-through the fill is), **Dim** (darkens the background
@@ -80,38 +80,32 @@ accent-derived mesh, or **My image** (file picker; stored only as a Blob in Inde
 `glassTransparency`, `glassBackdrop`, `glassDim`, `glassAnimate` (`null` blur/transparency = the style's default). They are
 ordinary customization settings, so profiles carry them (except the image).
 
-### Liquid glass refraction
+### Native window material (desktop app)
 
-Chromium-based engines (Chrome, Edge, WebView2 = the Windows desktop app) really bend what is behind a floating surface;
-Settings > Appearance > Surface style > *Refraction* has four controls: **Refraction strength** (`glassRefraction`, 0-100 %,
-0 = off), **Edge thickness** (`glassBevel`, 4-40 px), **Specular highlight** (`glassSpecular`, 0-100 %) and **Chromatic
-dispersion** (`glassDispersion`, 0-100 %). The defaults (60 / 16 / 60 / 20) keep the previous Liquid highlight unchanged.
+In the desktop app, Glass and Sea glass can let the **desktop wallpaper and other windows** show through the window
+(Settings > Appearance > Surface style > **Window material**, `windowMaterial`, and **Window opacity**, `windowOpacity`
+30-100 %). The picker only appears when the desktop shell reports at least one material (Tauri command
+`window_materials`, `src-tauri/src/effects.rs`); in the browser and the PWA nothing changes and the in-app background layer
+(the "fake glass") stays.
 
-Technique (own code, no library; see [ADR 0015](adr/0015-liquid-glass-refraction.md)): the rim of a glass slab has a height
-profile (a quarter sine over `bevel` px); its slope tilts the surface normal and a vertical ray bends by Snell's law (n = 1.5).
-`ui/refraction.js` turns that into an RGBA **displacement map** of the rounded box (R/G = direction x strength, 128 = none),
-drawn once per **size class** (sizes snap to a geometric ladder, maps are cached, longest side 256 px). `ui/refraction-dom.js`
-(lazy, loaded only while Liquid is active) creates one inline SVG `<filter>` per surface (`feImage` map, then
-`feDisplacementMap`; three of them with slightly different scales for dispersion, added with `feComposite arithmetic`) and sets
-`--of-rf: url(#id) blur() saturate()` on the surface; glass.css uses `var(--of-rf, var(--of-glass-filter))` as its
-backdrop-filter. A `ResizeObserver` (120 ms debounce) only rewrites the filter size; nothing runs per frame.
+| OS | Materials | How |
+| --- | --- | --- |
+| Windows 11 (build 22000+) | Mica, Mica Alt, Acrylic | Tauri window effects (DWM backdrop) |
+| Windows 10 1809+ | Acrylic | Tauri window effects |
+| macOS | Sidebar, Under window, HUD, Window background | `NSVisualEffectView` materials, follows the active state |
+| Linux | Transparent (no blur) | transparent window; needs a compositing window manager |
 
-* **Targets:** dialogs, dropdown menus, context menus, command palette, top-level popovers, coach marks, toasts. Not the
-  canvas, artboards, color pickers, the editor or the chrome layer: the header and docks sit on the single `.of-layout::before`
-  layer (a second refracting layer there would nest backdrop-filters), so only floating surfaces refract.
-* **Direction:** the shift points inward (the rim magnifies content from inside the box). A backdrop-filter has no pixels
-  beyond its box, so outward samples would be transparent holes. Dispersion channels are added with `feComposite arithmetic`
-  (`feBlend screen` shifts colors).
-* **Contrast:** refraction only moves pixels the backdrop already contains, so the worst-case backdrops of `ui/glass.js` still
-  bound every fill. With refraction on, menus and dialogs may be as see-through as the panels (`--of-glass-alpha-strong` is
-  at least `--of-glass-alpha`, floor 0.72) but never more: the AA floor (`minAlpha`) and the lifted text colors are unchanged.
-* **Fallbacks:** feature detection is `CSS.supports("backdrop-filter", "url(#x) blur(1px)")` plus a probe element whose
-  computed `backdrop-filter` still contains `url(` plus a Chromium engine check (`urlBackdropSupported`). Safari/WebKit
-  (including the macOS and Linux desktop shells) and Firefox get plain blur and the specular edge, and Settings says so.
-  Low-power mode, High contrast, `prefers-reduced-transparency` and `prefers-contrast: more` switch it off like the blur.
-* **Credits:** the idea (a displacement map from a rim height profile and Snell's law fed to `backdrop-filter: url()`, three
-  channels for dispersion) follows [tomacco/amazing-glass](https://github.com/tomacco/amazing-glass) (MIT, (c) tomacco). No
-  source is copied or vendored; see `THIRD_PARTY_NOTICES.md`.
+With a material active, `<html data-native-glass="on">` makes the page background transparent, hides the in-app background
+picture and drops the chrome blur layer (the OS material is already blurred). The **window opacity** is the scrim: the
+theme's app color at that opacity over the desktop. `resolveGlass` treats it like a lower scrim: `minAlpha()` and
+`liftedText()` run against white, black and the accent behind that scrim, so panels become as opaque as needed for AA text
+whatever the wallpaper (tested in `tests/ui/glass.test.js` for every theme at 30, 60 and 100 %). Low-power mode, High
+contrast and reduced transparency turn the material off with the blur. Decision record: [ADR 0021](adr/0021-native-window-materials.md);
+platform details and limits: [platform-notes.md](platform-notes.md).
+
+Liquid glass (SVG displacement refraction, ADR 0015) was removed after 1.0: it only worked in Chromium engines and looked
+uneven. Saved settings and imported profiles that name it switch to **Glass** (`migrateSurfacePrefs` in
+`customize/schema.js`); a custom theme with `"surface": "liquid"` still loads and recommends Glass.
 
 ### Sea glass tint
 
@@ -128,15 +122,16 @@ into the panel color and goes through the same `minAlpha()` / `liftedText()` flo
 translucency, soft caustics, tinted depth, grain) is inspired by mweinbach/SeaGlass (Android, no license): design inspiration
 only, no code used.
 
-Vibe: `set_theme({ seaTint: "accent" | "teal" | "210", refraction: 0-100 })`.
+Vibe: `set_theme({ seaTint: "accent" | "teal" | "210" })`.
 
 ### Architecture / where things live
 
 | File | Role |
 | --- | --- |
 | `app/src/ui/glass.js` | **Pure** math and decisions: `blend`, `glassFill`, `stressBackdrops`, `liftedText`, `minAlpha`, `fxState`, `resolveGlass` (returns the `--of-glass-*` variables). Header comment lists the invariants. |
-| `app/src/ui/sea-glass.js`, `app/src/ui/refraction.js` | Pure: sea palette from the accent; rim profile, displacement map, size classes, feature-detection decision. |
-| `app/src/ui/refraction-dom.js` | Lazy: probe, one SVG filter per surface, observers. |
+| `app/src/ui/sea-glass.js` | Pure: sea palette from the accent. |
+| `app/src/platform/os-info.js` | Platform info, the material list from the desktop shell, `set_window_material`. |
+| `src-tauri/src/effects.rs` | Desktop: Mica / Acrylic / vibrancy / transparency through Tauri window effects. |
 | `app/src/ui/glass-dom.js` | Writes variables and `data-surface` / `data-glass-fx` / `data-glass-bd` / `data-glass-anim` on `<html>`, owns `#of-backdrop` and the user image. Called from `appearance.js` after the theme. |
 | `app/src/ui/surface-gallery.js` | The Settings block (cards, sliders, background choices). |
 | `app/styles/glass.css` | All visuals; everything is scoped to `:root[data-surface]`, so solid is untouched. |
@@ -176,7 +171,7 @@ enough while a glass style is active; they are written inline after the theme.
 * **Automatic fallbacks** (same tint, opaque panels, background hidden): Low-power mode (`app.perf.low`), the *High contrast*
   preference and `prefers-contrast: more`, `prefers-reduced-transparency: reduce`, no `backdrop-filter` support
   (`CSS.supports` and an `@supports` rule). Settings shows why blur is off. The animation stops with Reduce motion, in
-  Low-power mode and when the surface is solid; the liquid sheen is a static highlight under Reduce motion.
+  Low-power mode and when the surface is solid.
 * **Layer budget.** One chrome layer plus at most one floating surface at a time (a menu or dialog or the palette). The
   background mesh is a single composited layer; the animation only transforms it.
 
@@ -190,12 +185,12 @@ enough while a glass style is active; they are written inline after the theme.
 3. **Never glass the document.** Canvas, artboards, previews, color pickers/swatches and thumbnails stay opaque.
 4. New chrome: use the `--of-glass-fill-*` variables (or leave the usual `--of-bg-*` background on an opaque work area); do not
    hard-code colors or write your own `backdrop-filter`.
-5. Test a new surface in Glass, Liquid and Sea, light and dark, and with *High contrast* and *Low-power mode* on.
+5. Test a new surface in Glass and Sea, light and dark, and with *High contrast* and *Low-power mode* on.
 
 ### Themes and extensions
 
 `registerTheme({ ..., surface })` is optional and additive: `"none"` opts the theme out (surface styles never apply with it,
-the Settings block says so), `"glass" | "liquid" | "sea" | "solid"` is a recommendation shown as a hint (it never overrides the
+the Settings block says so), `"glass" | "sea" | "solid"` (legacy `"liquid"` means `"glass"`) is a recommendation shown as a hint (it never overrides the
 user's choice). `validateTheme` rejects other values.
 
 Vibe: `set_theme({ surface })` and `list_themes` (field `surfaces`, `current.surface`).

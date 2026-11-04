@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { SURFACE_STYLES, STYLE_DEFS, blend, glassFill, stressBackdrops, minAlpha, fxState, glassSettings, resolveGlass, resolveTint, effectiveBackdrop, MIN_SCRIM } from "../../app/src/ui/glass.js";
+import { SURFACE_STYLES, STYLE_DEFS, nativeGlassState, blend, glassFill, stressBackdrops, minAlpha, fxState, glassSettings, resolveGlass, resolveTint, effectiveBackdrop, MIN_SCRIM } from "../../app/src/ui/glass.js";
 import { seaPalette, hexToHsl } from "../../app/src/ui/sea-glass.js";
 import { listThemes, resolveVars, contrast } from "../../app/src/ui/themes.js";
 
@@ -74,7 +74,7 @@ test("effects switch off (opaque, same tint) in low power, high contrast, reduce
 test("settings are clamped and fall back to the style defaults", () => {
   assert.equal(glassSettings({}).style, "solid");
   assert.equal(glassSettings({ surfaceStyle: "nope" }).style, "solid");
-  const s = glassSettings({ surfaceStyle: "liquid", glassBlur: 999, glassTransparency: -5, glassDim: 500, glassBackdrop: "x" });
+  const s = glassSettings({ surfaceStyle: "glass", glassBlur: 999, glassTransparency: -5, glassDim: 500, glassBackdrop: "x" });
   assert.deepEqual([s.blur, s.transparency, s.dim, s.backdrop], [40, 0, 80, "auto"]);
   assert.equal(glassSettings({ surfaceStyle: "glass", glassBlur: null }).blur, STYLE_DEFS.glass.blur);
   assert.equal(effectiveBackdrop(glassSettings({ surfaceStyle: "sea" }), false), "seaglass");
@@ -157,9 +157,39 @@ test("sea glass keeps AA text for every accent preset, theme and mode, in all ti
   }
 });
 
-test("sea and liquid settings are clamped with sane defaults", () => {
+test("sea and window-material settings are clamped with sane defaults", () => {
   const d = glassSettings({ surfaceStyle: "sea" });
-  assert.deepEqual([d.seaTint, d.seaHue, d.refraction, d.bevel, d.specular, d.dispersion], ["accent", 174, 60, 16, 60, 20]);
-  const x = glassSettings({ surfaceStyle: "liquid", seaTint: "bogus", seaHue: 9999, glassRefraction: 500, glassBevel: 1, glassSpecular: -3, glassDispersion: "x" });
-  assert.deepEqual([x.seaTint, x.seaHue, x.refraction, x.bevel, x.specular, x.dispersion], ["accent", 359, 100, 4, 0, 20]);
+  assert.deepEqual([d.seaTint, d.seaHue, d.material, d.opacity], ["accent", 174, "none", 70]);
+  const x = glassSettings({ surfaceStyle: "sea", seaTint: "bogus", seaHue: 9999, windowMaterial: 5, windowOpacity: 2 });
+  assert.deepEqual([x.seaTint, x.seaHue, x.material, x.opacity], ["accent", 359, "none", 30]);
+  assert.ok(!SURFACE_STYLES.includes("liquid"), "Liquid glass was removed");
+  assert.equal(glassSettings({ surfaceStyle: "liquid" }).style, "solid", "unmigrated values fall back safely");
+});
+
+test("native window material: only with a reported material, a glass style and blur on", () => {
+  const s = (style, material) => glassSettings({ surfaceStyle: style, windowMaterial: material });
+  const on = { on: true };
+  assert.deepEqual(nativeGlassState(s("glass", "mica"), on, ["mica", "acrylic"]), { on: true, material: "mica", reason: null });
+  assert.equal(nativeGlassState(s("glass", "mica"), on, null).reason, "unavailable", "browser / PWA: no shell");
+  assert.equal(nativeGlassState(s("glass", "mica"), on, ["acrylic"]).reason, "unavailable", "Windows 10: no Mica");
+  assert.equal(nativeGlassState(s("glass", "none"), on, ["mica"]).reason, "none");
+  assert.equal(nativeGlassState(s("solid", "mica"), on, ["mica"]).reason, "solid");
+  assert.equal(nativeGlassState(s("sea", "sidebar"), { on: false }, ["sidebar"]).reason, "fx", "low power / high contrast turn it off");
+});
+
+test("native window material keeps text AA at any window opacity", () => {
+  for (const t of listThemes()) {
+    for (const m of MODES) {
+      const v = resolveVars(t, m);
+      for (const opacity of [30, 60, 100]) {
+        const g = resolveGlass(v, { surfaceStyle: "glass", windowMaterial: "acrylic", windowOpacity: opacity, glassTransparency: 50 }, { supported: true, materials: ["acrylic"] });
+        assert.ok(g.native.on);
+        assert.equal(g.vars["--of-glass-scrim"], String(opacity / 100));
+        for (const bd of stressBackdrops(v, Math.min(opacity / 100, MIN_SCRIM))) {
+          const fill = glassFill(v["--of-bg-panel"], bd, { alpha: g.alpha });
+          assert.ok(contrast(g.vars["--of-text"], fill) >= 4.5, `${t.id}/${m}/${opacity} over ${bd}`);
+        }
+      }
+    }
+  }
 });

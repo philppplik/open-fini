@@ -6,7 +6,7 @@
 //   applyBubbleStyle(el, prefs) → { warnings, settings }                 sets vars and `of-bubscope` / `of-bub--*` classes
 //   watchBubbleStyle(app, el) → stop()                                   re-applies on preference and theme changes
 // The panel color is read from what is really behind the chat (computed background colors up the tree, composited), so
-// glass, liquid and sea surfaces and custom themes are covered; the bubbles themselves are opaque.
+// glass and sea surfaces and custom themes are covered; the bubbles themselves are opaque.
 import { parseColor } from "../../core/color.js";
 import { composite, hex, luminance } from "../themes.js";
 import { bubbleStyle } from "../../customize/bubbles.js";

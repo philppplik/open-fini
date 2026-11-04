@@ -7,17 +7,18 @@ import { t } from "../i18n/index.js";
 import { sliderField, switchField, button, selectField } from "./controls.js";
 import { SURFACE_STYLES, STYLE_DEFS, BACKDROPS, glassSettings, effectiveBackdrop, fxState } from "./glass.js";
 import { seaPalette } from "./sea-glass.js";
+import { materialsNow, materialChoices } from "../platform/os-info.js";
 import { glassEnv, hasGlassImage, glassImageName, onGlassImageChange, setGlassImage, clearGlassImage } from "./glass-dom.js";
 import { getTheme, resolveVars } from "./themes.js";
 import { isDark, accentOverride } from "./appearance.js";
 
-const NAMES = { solid: () => t("Solid"), glass: () => t("Glass"), liquid: () => t("Liquid glass"), sea: () => t("Sea glass") };
+const NAMES = { solid: () => t("Solid"), glass: () => t("Glass"), sea: () => t("Sea glass") };
 const DESCS = {
   solid: () => t("Opaque panels. The default and the fastest look."),
   glass: () => t("Frosted glass: blurred, translucent panels with a thin light edge."),
-  liquid: () => t("Thick, refractive glass with bevelled edges and a soft specular sheen."),
   sea: () => t("Matte, softly grained glass tinted by your accent color (or any hue), like weathered sea glass."),
 };
+const MAT_NAMES = { none: () => t("None (in-app background)"), "under-window": () => t("Under window"), window: () => t("Window background"), transparent: () => t("Transparent (no blur)"), sidebar: () => t("Sidebar") };
 const BD_NAMES = { auto: () => t("Automatic"), aurora: () => t("Aurora"), ocean: () => t("Ocean"), dusk: () => t("Dusk"), seaglass: () => t("Sea glass"), mono: () => t("Mono"), accent: () => t("Accent"), image: () => t("My image") };
 const REASONS = {
   "low-power": () => t("Blur is off because Low-power mode is on. Panels are drawn opaque with the same tint."),
@@ -49,8 +50,8 @@ function card(style, dark, selected, sea) {
   set("--sp-fill", `color-mix(in srgb, color-mix(in srgb, var(--of-bg-panel), ${tint} ${def.tintAmount}%) ${Math.round(alpha * 100)}%, transparent)`);
   if (!(style === "sea" && sea)) set("--sp-edge", style === "solid" ? "var(--of-border)" : dark ? "rgba(255,255,255,.28)" : "rgba(255,255,255,.8)");
   set("--sp-blur", `${Math.round(def.blur / 3)}px`);
-  set("--sp-r", style === "liquid" ? "6px" : style === "sea" ? "5px" : "3px");
-  set("--sp-shadow", style === "liquid" ? "inset 0 1px 0 rgba(255,255,255,.55), inset 0 -1px 0 rgba(0,0,0,.2)" : "none");
+  set("--sp-r", style === "sea" ? "5px" : style === "glass" ? "4px" : "3px");
+  set("--sp-shadow", style === "glass" ? "inset 0 1px 0 rgba(255,255,255,.45)" : "none");
   set("--sp-canvas", "var(--of-bg-canvas)");
   return h("button.of-surface", { type: "button", role: "radio", "aria-checked": String(selected), tabindex: selected ? "0" : "-1", "data-surface-id": style, "aria-label": `${NAMES[style]()}. ${DESCS[style]()}` },
     pv, h("span.of-surface__name", NAMES[style](), h("sl-icon", { name: "check-circle-fill" })), h("span.of-surface__desc", DESCS[style]()));
@@ -112,20 +113,16 @@ export function surfaceGallery(app) {
       );
       parts.push(ctl);
 
-      if (cur === "liquid") {
-        const lq = h("div.of-surface-ctl");
-        const rnote = h("div.of-surface-note", { role: "note", hidden: true }, t("This browser cannot bend what is behind a panel, so Liquid glass shows blur and a specular edge only. Refraction needs a Chromium-based engine (Chrome, Edge, the Windows desktop app)."));
-        lq.append(
-          h("div.of-set__label", t("Refraction")),
-          slider(t("Refraction strength"), "glassRefraction", s.refraction, 0, 100, "%"),
-          slider(t("Edge thickness"), "glassBevel", s.bevel, 4, 40, "px"),
-          slider(t("Specular highlight"), "glassSpecular", s.specular, 0, 100, "%"),
-          slider(t("Chromatic dispersion"), "glassDispersion", s.dispersion, 0, 100, "%"),
-          rnote,
-          h("div.of-surface-note", t("Refraction applies to dialogs, menus, the command palette, popovers and toasts. Low-power mode, High contrast and reduced transparency turn it off.")),
-        );
-        import("./refraction-dom.js").then((m) => { rnote.hidden = m.urlBackdropOk(); }).catch(() => {});
-        parts.push(lq);
+      // desktop app: the OS material (Mica, Acrylic, vibrancy) behind the window; only where the shell reports one
+      const mats = materialChoices(materialsNow());
+      if (mats.length) {
+        const nc = h("div.of-surface-ctl");
+        nc.append(selectField({ label: t("Window material"), value: mats.some((m) => m.id === s.material) ? s.material : "none", options: mats.map((m) => ({ value: m.id, label: MAT_NAMES[m.id]?.() || m.name })), onChange: (v) => set("windowMaterial", v) }).el);
+        if (s.material !== "none") {
+          nc.append(slider(t("Window opacity"), "windowOpacity", s.opacity, 30, 100, "%"));
+          nc.append(note(fx.on ? t("Your desktop shows through the window. Panels stay opaque enough to keep text readable.") : t("The window material is off while blur is off.")));
+        } else nc.append(note(t("Let the desktop and other windows show through OpenFini.")));
+        parts.push(nc);
       }
       if (cur === "sea") {
         const sc = h("div.of-surface-ctl");

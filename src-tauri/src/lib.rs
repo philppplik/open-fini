@@ -8,9 +8,11 @@
 //! The frontend talks to this crate through the plugins registered in [`run`]
 //! and a few commands: `take_launch_files`, `quit_app` (see `app/src/platform/tauri.js`), the OAuth
 //! loopback (`oauth.rs`), the built-in collaboration relay (`relay.rs`) and the FTP/FTPS and SMTP
-//! clients (`ftp.rs`, `smtp.rs`; shared plumbing in `netio.rs` and `wire.rs`).
+//! clients (`ftp.rs`, `smtp.rs`; shared plumbing in `netio.rs` and `wire.rs`) and native window
+//! materials (`effects.rs`).
 
 mod cli;
+mod effects;
 mod ftp;
 mod netio;
 mod oauth;
@@ -113,6 +115,18 @@ fn quit_app(app: AppHandle) {
     app.exit(0);
 }
 
+/// Linux: WebKitGTK's DMA-BUF renderer shows a blank or flickering window on the proprietary NVIDIA
+/// driver. Turn it off there unless the user already chose (docs/platform-notes.md).
+fn linux_webkit_workarounds() {
+    #[cfg(target_os = "linux")]
+    if std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none()
+        && std::path::Path::new("/proc/driver/nvidia/version").exists()
+    {
+        // Called at the very start of `run`, before any other thread exists.
+        std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    }
+}
+
 /// Builds and runs the application.
 pub fn run() {
     // `--version` and `--help` are answered before anything else starts (also before the single-instance
@@ -123,6 +137,8 @@ pub fn run() {
         cli::print(&text);
         return;
     }
+
+    linux_webkit_workarounds();
 
     let mut builder = tauri::Builder::default();
 
@@ -162,6 +178,8 @@ pub fn run() {
             smtp::smtp_test,
             smtp::smtp_send,
             netio::net_cancel,
+            effects::window_materials,
+            effects::set_window_material,
         ])
         .setup(|app| {
             let args = std::env::args_os()

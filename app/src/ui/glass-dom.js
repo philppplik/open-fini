@@ -8,12 +8,13 @@
 //   clearGlassImage() / hasGlassImage() / onGlassImageChange(fn)
 //
 // Invariants
-//   * <html data-surface="glass|liquid|sea"> is present only for a styled surface; absent means the unchanged solid look.
+//   * <html data-surface="glass|sea"> is present only for a styled surface; absent means the unchanged solid look.
 //   * <html data-glass-fx="on|off">: "off" (low power, high contrast, reduced transparency, no backdrop-filter) keeps the
 //     tint but draws opaque panels and hides the background layer.
+//   * <html data-native-glass="on"> while the desktop window material (Mica, Acrylic, vibrancy) shows through.
 //   * The image never leaves the device: it is a Blob in IndexedDB (key `ui.glassImage`), never in prefs or profiles.
 import { resolveGlass, glassSettings, effectiveBackdrop } from "./glass.js";
-import { refractionState } from "./refraction.js";
+import { loadMaterials, materialsNow, applyMaterial, markOs } from "../platform/os-info.js";
 
 export const GLASS_IMAGE_KEY = "ui.glassImage";
 const MAX_SIDE = 1920;
@@ -24,8 +25,6 @@ let backdrop = null;
 let image = { loaded: false, loading: null, full: null, small: null, name: "" };
 const listeners = new Set();
 let envHooked = false;
-let rfTicket = 0;
-let refraction = null; // the lazily loaded ui/refraction-dom.js (Liquid glass only)
 
 const mq = (q) => (typeof matchMedia === "function" ? matchMedia(q) : { matches: false, addEventListener() {} });
 
@@ -39,6 +38,7 @@ export function glassEnv(app) {
     reducedTransparency: mq("(prefers-reduced-transparency: reduce)").matches,
     contrastMore: mq("(prefers-contrast: more)").matches,
     supported: glassSupported(),
+    materials: materialsNow(), // null in the browser and until the desktop shell answered
   };
 }
 
@@ -57,6 +57,9 @@ export function applyGlass(app, vars, theme) {
   const root = document.documentElement;
   const prefs = theme?.surface === "none" ? { ...app.prefs, surfaceStyle: "solid" } : app.prefs;
   const g = resolveGlass(vars, prefs, glassEnv(app));
+  if (g.native.on) root.dataset.nativeGlass = "on";
+  else delete root.dataset.nativeGlass;
+  applyMaterial(g.native.on ? g.native.material : "none");
 
   for (const k of owned) root.style.removeProperty(k);
   owned = new Set(Object.keys(g.vars));
@@ -76,36 +79,17 @@ export function applyGlass(app, vars, theme) {
     if (s.backdrop === "image" || prefs.glassBackdrop === "image") loadImage().then(() => updateBackdrop(app, prefs, g));
     updateBackdrop(app, prefs, g);
   }
-  syncRefraction(app, prefs, g);
   if (!envHooked) {
     envHooked = true;
+    markOs(root);
+    // the desktop shell reports its materials asynchronously: re-apply once it did, if a material is chosen
+    loadMaterials().then((m) => m?.length && app.prefs.windowMaterial !== "none" && app.emit("prefs", "*"));
     // the system can change these at any time: re-apply the whole appearance
     const redo = () => app.emit("prefs", "*");
     for (const q of ["(prefers-reduced-transparency: reduce)", "(prefers-contrast: more)", "(prefers-reduced-motion: reduce)"]) mq(q).addEventListener?.("change", redo);
   }
   return g;
 }
-
-/** Liquid glass refraction: loads ui/refraction-dom.js on demand, stops it for every other state. */
-function syncRefraction(app, prefs, g) {
-  const s = glassSettings(prefs);
-  const fx = { on: g.on };
-  // `supported` is only known after the probe, which lives in the lazy module: assume yes for the decision, the module re-checks
-  const want = refractionState(g.style, fx, true, s).on;
-  const ticket = ++rfTicket; // the import below is async: only the latest request may start the module
-  if (!want) {
-    refraction?.stop();
-    delete document.documentElement.dataset.glassRf;
-    return;
-  }
-  const blur = Math.round(Math.min(s.blur, 22) * 0.8);
-  import("./refraction-dom.js").then((m) => {
-    refraction = m;
-    if (ticket !== rfTicket) return;
-    m.syncRefraction({ on: true, strength: s.refraction, bevel: s.bevel, dispersion: s.dispersion, blur, sat: STYLE_SAT });
-  }).catch(() => {});
-}
-const STYLE_SAT = 1.8;
 
 function updateBackdrop(app, prefs, g) {
   const root = document.documentElement;

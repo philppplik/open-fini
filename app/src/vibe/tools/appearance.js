@@ -16,7 +16,7 @@ export function appearanceTools(app) {
     surface: SURFACE_STYLES.includes(app.prefs.surfaceStyle) ? app.prefs.surfaceStyle : "solid",
   });
   return [
-    tool("list_themes", "Lists the color themes of the interface (each has a light and a dark variant), the available accent colors, the surface styles (solid, glass, liquid glass, sea glass) and what is currently selected. Call before set_theme.", {}, [], () => ({
+    tool("list_themes", "Lists the color themes of the interface (each has a light and a dark variant), the available accent colors, the surface styles (solid, glass, sea glass) and what is currently selected. Call before set_theme.", {}, [], () => ({
       themes: listThemes().map((t) => ({ id: t.id, name: t.name, group: t.group, description: t.description })),
       accents: ACCENTS.map((a) => ({ id: a.id, label: a.label, color: a.color })),
       modes: ["dark", "light", "auto"],
@@ -24,15 +24,14 @@ export function appearanceTools(app) {
       current: state(),
     }), { readOnly: true }),
 
-    tool("set_theme", "Changes how OpenFini itself looks: color theme, dark/light/auto mode, accent color and surface style (solid, glass, liquid, sea). Only affects the interface, never the document. Omit what should stay unchanged.", {
+    tool("set_theme", "Changes how OpenFini itself looks: color theme, dark/light/auto mode, accent color and surface style (solid, glass, sea). Only affects the interface, never the document. Omit what should stay unchanged.", {
       theme: S.str("Theme id from list_themes"),
       mode: S.str("dark, light or auto (follow the system)", { enum: ["dark", "light", "auto"] }),
-      surface: S.str("Surface style of the panels: solid (default), glass (frosted), liquid (refractive glass) or sea (matte, tinted by the accent). Blur switches off automatically in Low-power mode and High contrast.", { enum: SURFACE_STYLES }),
+      surface: S.str("Surface style of the panels: solid (default), glass (frosted) or sea (matte, tinted by the accent). Blur switches off automatically in Low-power mode and High contrast.", { enum: SURFACE_STYLES }),
       seaTint: S.str("Sea glass tint: accent (follow the accent, default), teal (classic) or a hue 0-359 as a number string, e.g. \"210\".", { }),
-      refraction: S.num("Liquid glass refraction strength 0-100 (0 = off). Only Chromium-based engines bend the backdrop; elsewhere it stays blur plus a specular edge.", { min: 0, max: 100 }),
       accent: S.str("An accent id from list_themes (use \"violet\" for the theme's own accent) or a #rrggbb color"),
     }, [], (a) => {
-      if (a.theme == null && a.mode == null && a.accent == null && a.surface == null && a.seaTint == null && a.refraction == null) throw new Error("Pass at least one of theme, mode, accent, surface, seaTint or refraction.");
+      if (a.theme == null && a.mode == null && a.accent == null && a.surface == null && a.seaTint == null) throw new Error("Pass at least one of theme, mode, accent, surface or seaTint.");
       if (a.surface != null) {
         if (!SURFACE_STYLES.includes(a.surface)) throw new Error(`Unknown surface “${a.surface}”. Use one of ${SURFACE_STYLES.join(", ")}.`);
         app.setPref("surfaceStyle", a.surface);
@@ -45,7 +44,6 @@ export function appearanceTools(app) {
           app.setPref("seaTint", "custom");
         } else throw new Error("seaTint must be accent, teal or a hue 0-359.");
       }
-      if (a.refraction != null) app.setPref("glassRefraction", Math.max(0, Math.min(100, Math.round(Number(a.refraction) || 0))));
       if (a.theme != null) {
         if (!getTheme(a.theme)) throw new Error(`Unknown theme “${a.theme}”. Available: ${listThemes().map((t) => t.id).join(", ")}.`);
         app.setPref("themeId", a.theme);

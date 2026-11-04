@@ -14,6 +14,8 @@ const COMMANDS: &[&str] = &[
     "smtp_test",
     "smtp_send",
     "net_cancel",
+    "window_materials",
+    "set_window_material",
 ];
 
 fn main() {

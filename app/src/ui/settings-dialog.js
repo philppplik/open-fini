@@ -85,7 +85,7 @@ export function settingsSections(app) {
       label: "Appearance",
       icon: "palette",
       lead: "Theme, color and density of the interface in every studio.",
-      keywords: "theme dark light color accent density compact scale zoom size glass blur transparency frosted liquid sea background surface",
+      keywords: "theme dark light color accent density compact scale zoom size glass blur transparency frosted sea background surface window material mica acrylic vibrancy opacity desktop",
       groups: [
         {
           title: "Theme",

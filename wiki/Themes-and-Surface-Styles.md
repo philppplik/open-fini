@@ -19,13 +19,16 @@ For every theme, both modes and the high-contrast treatment, tests verify text a
 | Style | Look |
 | --- | --- |
 | Solid | The default, unchanged |
-| Glass | Frosted glassmorphism |
-| Liquid glass | Thicker bevels, a specular top edge, a soft sheen over controls on hover and press, larger corners |
+| Glass | Frosted glassmorphism with a crisp light edge |
 | Sea glass | Muted green-teal tint, matte, light grain, slightly lower-contrast backdrop |
 
 Each combines with every color theme and both modes. Controls: **Blur** (0 to 40 px), **Transparency** (0 to 50 percent), **Dim** (0 to 80 percent), **Slowly move the background**, and the background layer: Aurora, Ocean, Dusk, Sea glass, Mono, an accent-derived mesh, or **My image** (stored only as a blob on this device, downscaled to 1920 px, never in settings, profiles or exports).
 
 The document canvas, artboards, color pickers, swatches and studio work areas (Code preview, Vibe, Office documents) stay opaque, so color accuracy is never affected.
+
+### Desktop window material
+
+In the desktop app, Glass and Sea glass can show the desktop through the window: **Window material** (Windows 11: Mica, Mica Alt, Acrylic; Windows 10: Acrylic; macOS: Sidebar, Under window, HUD, Window background; Linux: Transparent, where a compositor runs) and **Window opacity** (30 to 100 percent). Panels stay opaque enough for readable text. The picker is hidden in the browser and the PWA. Liquid glass was removed after 1.0; it switches to Glass automatically.
 
 ### Automatic fallbacks
 

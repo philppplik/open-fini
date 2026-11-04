@@ -1,7 +1,7 @@
 // Profiles: export, strict import validation, preview (diff) and merge/replace. Pure (no DOM).
 // A profile (.ofprofile) is JSON: { format: "openfini-profile", version: 1, name, created, app, settings: { key: value } }
 // where every key is a portable setting of schema.js. Secrets, API keys, tokens, documents and security switches never appear.
-import { SETTINGS, SETTING_KEYS, getSettingDef, validateSetting, FORBIDDEN_KEY } from "./schema.js";
+import { SETTINGS, SETTING_KEYS, getSettingDef, validateSetting, FORBIDDEN_KEY, migrateSurfacePrefs } from "./schema.js";
 
 export const PROFILE_FORMAT = "openfini-profile";
 export const PROFILE_VERSION = 1;
@@ -45,8 +45,8 @@ export function validateProfile(input) {
   if (json.version > PROFILE_VERSION) return fail(`This profile was made by a newer OpenFini (profile version ${json.version}). Update OpenFini to import it.`);
   const name = typeof json.name === "string" ? json.name.replace(/[\u0000-\u001f<>]/g, "").trim().slice(0, 60) : "";
   if (json.name !== undefined && typeof json.name !== "string") errors.push("name must be text.");
-  const s = json.settings;
-  if (s === null || typeof s !== "object" || Array.isArray(s)) return fail("The profile has no settings object.");
+  if (json.settings === null || typeof json.settings !== "object" || Array.isArray(json.settings)) return fail("The profile has no settings object.");
+  const s = migrateSurfacePrefs({ ...json.settings }); // profiles from 1.0 may still name Liquid glass
   for (const k of Object.keys(json)) if (!["format", "version", "name", "created", "app", "settings"].includes(k)) warnings.push(`Unknown field “${k.slice(0, 30)}” ignored.`);
   const settings = {};
   for (const k of Object.keys(s)) {

@@ -14,6 +14,22 @@ All notable changes to OpenFini are documented here. The format follows
 - Pixel studio: native photo edits without image generation (*Document ▸ Photo Edits*): Remove Background (border colors grown inward, stopped at edges, feathered), Auto White Balance, Auto Levels, Auto Contrast, Replace Color (foreground with background color, shading kept), Unsharp Mask, Reduce Noise, Vignette, Tilt-Shift Blur and Upscale 2x (Lanczos plus a detail pass). Each is one undo step and respects the pixel selection; the heavy ones run on the worker pool.
 - *Select ▸ Select Subject*: edge-aware region growing from the image border, no AI model.
 - Vibe: `edit_pixels`, `remove_background` and `select_subject` (new group *Image editing*), `reorder_pages`, and `reorder_layers` action `position`.
+- **Native window material** in the desktop app (Settings > Appearance > Surface style, Glass and Sea glass): the desktop
+  wallpaper and other windows show through OpenFini. Windows 11: Mica, Mica Alt, Acrylic; Windows 10: Acrylic; macOS:
+  vibrancy materials; Linux: plain transparency where a compositor runs. **Window opacity** (30-100 %) with panels kept
+  opaque enough for AA text. Only offered where the shell reports support; the browser and the PWA keep the in-app
+  background ([docs/themes.md](docs/themes.md), [docs/platform-notes.md](docs/platform-notes.md), ADR 0021). New
+  preferences `windowMaterial`, `windowOpacity`.
+- `<html data-os>` / `data-desktop` and `platform/os-info.js` for platform-specific code paths.
+
+### Changed
+- Glass: a crisp light edge on the bars and a soft top highlight on dialogs, the command palette and popovers.
+- Linux desktop: WebKitGTK's DMA-BUF renderer is turned off on the proprietary NVIDIA driver (blank or flickering windows),
+  unless `WEBKIT_DISABLE_DMABUF_RENDERER` is already set.
+
+### Removed
+- **Liquid glass** surface style and its refraction controls (`glassRefraction`, `glassBevel`, `glassSpecular`,
+  `glassDispersion`; Vibe `set_theme` `refraction`). Saved settings, profiles and custom themes that use it switch to Glass.
 
 ### Fixed
 - The Vibe Studio canvas tab now previews Office Suite documents (document pages, spreadsheet sheets, slides, whiteboard pages) with a page menu, updating live; it showed an empty page before.

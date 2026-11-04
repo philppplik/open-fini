@@ -8,7 +8,7 @@ import { log } from "./log.js";
 import { t, locale as i18nLocale, setLocale as setI18nLocale, onLocaleChange } from "../i18n/index.js";
 import { createNetwork } from "./network.js";
 import { isSafeMode } from "./bootguard.js";
-import { customizationDefaults } from "../customize/schema.js";
+import { customizationDefaults, migrateSurfacePrefs } from "../customize/schema.js";
 import { studioIds, hasStudio, resolveVisibleStudios, overflowStudios, DEFAULT_VISIBLE_STUDIOS } from "../studios/registry.js";
 
 const PREF_KEY = "openfini.prefs.v1";
@@ -18,17 +18,15 @@ const defaultPrefs = () => ({
   theme: "dark", // mode: dark | light | auto
   themeId: "default", // color theme (ui/themes.js); every theme has a light and a dark variant
   accent: "violet",
-  surfaceStyle: "solid", // solid | glass | liquid | sea (ui/glass.js); sits on top of the color theme
+  surfaceStyle: "solid", // solid | glass | sea (ui/glass.js); sits on top of the color theme
   glassBlur: null, // 0-40 px, null = the style's default
   glassTransparency: null, // 0-50 %, null = the style's default
   glassBackdrop: "auto", // auto | aurora | ocean | dusk | seaglass | mono | accent | image
   glassDim: 0, // 0-80 %, darkens the background layer
   seaTint: "accent", // sea glass tint: accent | teal | custom
   seaHue: 174, // 0-359, used by the custom sea tint
-  glassRefraction: 60, // Liquid glass refraction strength, 0-100 % (0 = off)
-  glassBevel: 16, // Liquid glass edge thickness, 4-40 px
-  glassSpecular: 60, // Liquid glass specular highlight, 0-100 %
-  glassDispersion: 20, // Liquid glass chromatic dispersion, 0-100 %
+  windowMaterial: "none", // desktop app only: none | mica | tabbed | acrylic | sidebar | under-window | hud | window | transparent
+  windowOpacity: 70, // desktop app with a window material: opacity of the panels over the desktop, 30-100 %
   glassAnimate: false, // slowly drifting mesh gradient
   density: "default", // compact | default | spacious
   uiScale: 100, // percent
@@ -112,7 +110,7 @@ function loadPrefs() {
   // Safe mode: saved settings stay untouched on disk but are not applied in this session.
   if (safeMode()) return defaultPrefs();
   try {
-    return { ...defaultPrefs(), ...JSON.parse(localStorage.getItem(PREF_KEY) || "{}") };
+    return migrateSurfacePrefs({ ...defaultPrefs(), ...JSON.parse(localStorage.getItem(PREF_KEY) || "{}") });
   } catch {
     return defaultPrefs();
   }

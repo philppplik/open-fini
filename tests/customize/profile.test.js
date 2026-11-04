@@ -148,3 +148,15 @@ test("canvas style", () => {
   assert.equal(cursorFor("grab", "large"), "grab");
   assert.match(cursorFor("crosshair", "xlarge"), /^url\("data:image\/svg\+xml;utf8,%3Csvg.*crosshair$/);
 });
+
+test("Liquid glass (removed after 1.0) migrates to Glass in saved prefs and imported profiles", async () => {
+  const { migrateSurfacePrefs } = await import("../../app/src/customize/schema.js");
+  const p = migrateSurfacePrefs({ surfaceStyle: "liquid", glassRefraction: 80, glassBevel: 10, glassSpecular: 50, glassDispersion: 5, glassBlur: 20 });
+  assert.deepEqual(p, { surfaceStyle: "glass", glassBlur: 20 });
+  assert.deepEqual(migrateSurfacePrefs({ surfaceStyle: "sea" }), { surfaceStyle: "sea" });
+  assert.equal(migrateSurfacePrefs(null), null);
+  const v = validateProfile({ format: "openfini-profile", version: 1, name: "old", settings: { surfaceStyle: "liquid", glassRefraction: 40 } });
+  assert.ok(v.ok, JSON.stringify(v.errors));
+  assert.equal(v.profile.settings.surfaceStyle, "glass");
+  assert.ok(!("glassRefraction" in v.profile.settings));
+});
