@@ -20,6 +20,7 @@ import { undoRun, runSteps } from "./run-undo.js";
 import { AgentManager } from "./agents.js";
 import { agentTools } from "./tools/agents.js";
 import { officeSummary } from "../office/ai.js";
+import { createRunLog, recordRun } from "./ai-log.js";
 
 const MAX_TEXT_ATTACHMENT = 60_000;
 // tools a skill restriction never blocks: the assistant must still be able to talk, plan and load skills
@@ -348,8 +349,12 @@ export class VibeSession extends Emitter {
       language: app.i18n?.locale(),
     });
 
+    // AI log (vibe/ai-log.js, docs/ai-logging.md): metadata by default, content only when verbose logging is on
+    const runLog = vibeStore.settings.aiLog !== false ? createRunLog({ verbose: !!vibeStore.settings.aiLogVerbose }) : null;
+    runLog?.start({ chat: this.id, model, provider: providerId, route: route.chain ? s.activeRoute || "chain" : null, system, skills: (this.ctx.skills || []).map((x) => x.name), tools: tools.length, prompt: text, source: this.chat.source || (this.hidden ? "quick-action" : "chat"), mode: s.approval });
     const approve = (call) => new Promise((resolve) => {
       const req = { ...call, chatId: this.id, resolve: (ok) => {
+        runLog?.approval(call.name, ok, call.reason);
         this.pendingApprovals = this.pendingApprovals.filter((x) => x !== req);
         this.#setStatus(this.pendingApprovals.length || this.pendingAsks.length ? "approval" : "running");
         resolve(ok);
@@ -360,6 +365,7 @@ export class VibeSession extends Emitter {
       this.emit("approval", req);
     });
     const emitEvent = (ev) => {
+      runLog?.event(ev);
       if (LIVE_TYPES.has(ev.type)) this.live.push(ev);
       if (ev.type === "route_fallback") {
         this.activity = "route_fallback";
@@ -405,8 +411,10 @@ export class VibeSession extends Emitter {
     this.agentMgr = makeManager(tools, 0, null, this.abortCtl.signal, "a");
 
     let failed = false;
+    let res = null;
+    let runError = null;
     try {
-      const res = await ai.runAgent({
+      res = await ai.runAgent({
         provider,
         model,
         system,
@@ -425,6 +433,7 @@ export class VibeSession extends Emitter {
       this.emit("done", res);
     } catch (err) {
       failed = true;
+      runError = err;
       log.warn("ai", "The assistant run failed", err);
       this.emit("error", err);
     } finally {
@@ -440,6 +449,7 @@ export class VibeSession extends Emitter {
         if (edits) this.runs.push({ doc: d, run: this.runId, title: text.slice(0, 40), edits, marker: Math.max(0, d.history.index - edits) });
       }
       this.runDocs = null;
+      if (runLog) recordRun(runLog.finish({ stopReason: res?.stopReason, error: runError }));
       this.#setStatus(failed ? "error" : "done");
       this.emit("status", "idle");
       if (!this.hidden) vibeStore.saveChat(this.chat).catch(() => {});

@@ -6,6 +6,9 @@
 //   diag.log.index        [{ key, session, build, t0, t1, count, bytes }]   one row per segment, oldest first
 //   diag.seg.<n>          { session, build, entries: [entry...] }           at most `segmentSize` entries
 //
+// Channels: `indexKey` / `segPrefix` select a separate channel in the same store (the AI log, vibe/ai-log.js, uses
+// "ai.log.index" / "ai.seg."); the defaults are the diagnostics log.
+//
 // Public API: createLogStore(o) -> { append(entry), flush(), sessions(), load(sessionId|"all"), clear(), prune(),
 //   setRetentionDays(n), stats() }; pure helpers: pruneIndex(), summarizeSessions(), filterEntries(), newSessionId().
 // Invariants: a segment only ever holds entries of ONE session; retention 0 persists nothing (session only); pruning
@@ -80,8 +83,10 @@ const sizeOf = (entries) => entries.reduce((n, e) => n + (e.msg?.length || 0) + 
  * @param {string} [o.build]  build/version label stored with every segment
  * @param {() => number} [o.now]
  * @param {number} [o.retentionDays=14]  0 = persist nothing
+ * @param {string} [o.indexKey]  channel index key (default INDEX_KEY)
+ * @param {string} [o.segPrefix]  channel segment key prefix (default SEG_PREFIX)
  */
-export function createLogStore({ storage, session, build = "development", now = () => Date.now(), retentionDays = DEFAULTS.retentionDays, maxEntries = DEFAULTS.maxEntries, maxBytes = DEFAULTS.maxBytes, segmentSize = DEFAULTS.segmentSize }) {
+export function createLogStore({ storage, session, build = "development", now = () => Date.now(), retentionDays = DEFAULTS.retentionDays, maxEntries = DEFAULTS.maxEntries, maxBytes = DEFAULTS.maxBytes, segmentSize = DEFAULTS.segmentSize, indexKey = INDEX_KEY, segPrefix = SEG_PREFIX }) {
   let days = retentionDays;
   let index = null; // loaded lazily
   let seg = null; // { key, entries: [{src, copy}] } the open segment of this session
@@ -90,8 +95,8 @@ export function createLogStore({ storage, session, build = "development", now = 
   let chain = Promise.resolve();
   const serial = (fn) => (chain = chain.then(fn, fn));
 
-  const loadIndex = async () => (index ||= ((await storage.get(INDEX_KEY)) || []).filter((r) => r && r.key));
-  const nextKey = () => `${SEG_PREFIX}${Math.max(0, ...index.map((r) => Number(r.key.slice(SEG_PREFIX.length)) || 0)) + 1}`;
+  const loadIndex = async () => (index ||= ((await storage.get(indexKey)) || []).filter((r) => r && r.key));
+  const nextKey = () => `${segPrefix}${Math.max(0, ...index.map((r) => Number(r.key.slice(segPrefix.length)) || 0)) + 1}`;
 
   return {
     session,
@@ -127,7 +132,7 @@ export function createLogStore({ storage, session, build = "development", now = 
             closed.shift();
           }
           closed.length = 0;
-          await storage.set(INDEX_KEY, index);
+          await storage.set(indexKey, index);
           await this.prune();
         } catch {
           dirty = true; // storage unavailable or full: retry on the next flush
@@ -141,7 +146,7 @@ export function createLogStore({ storage, session, build = "development", now = 
       if (!drop.length) return 0;
       index = keep;
       for (const r of drop) await storage.delete(r.key);
-      await storage.set(INDEX_KEY, index);
+      await storage.set(indexKey, index);
       return drop.length;
     },
     /** Sessions on disk (including the open one), newest first. */
@@ -167,7 +172,7 @@ export function createLogStore({ storage, session, build = "development", now = 
         seg = null;
         closed.length = 0;
         dirty = false;
-        await storage.delete(INDEX_KEY);
+        await storage.delete(indexKey);
       });
     },
     async stats() {

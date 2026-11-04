@@ -15,7 +15,7 @@ import { describeThread, excerptLines } from "../../collab/comment-context.js";
 import { filterThreads } from "../../collab/comments.js";
 
 /** Replies and resolves made by the assistant carry its name so people can tell who wrote what. */
-const AI_AUTHOR = { nick: "Vibe (AI)", color: "#7c6df2" };
+const AI_AUTHOR = { nick: "Vibe (AI)", color: "#7c6df2", ai: true };
 const inRoom = (app) => !!app.collab?.session && app.collab.session.state === "open";
 const host = async (app) => (await import("../../ui/collab/comments-host.js")).getComments(app);
 
@@ -146,7 +146,7 @@ export function commentTools(app) {
       } else if (node) {
         anchor = { kind: "node", node: node.id, page: node._page?.id, quote: String(node.name || node.type).slice(0, 200) };
       }
-      const th = c.addThread(doc, anchor, a.text);
+      const th = c.addThread(doc, anchor, a.text, AI_AUTHOR);
       return { added: th.id, anchor: th.anchor.kind, shared: inRoom(app) };
     }, { needsApproval: (a) => (inRoom(app) ? `Add the comment “${String(a.text).slice(0, 80)}” (it is shared with the room)?` : false) }),
 

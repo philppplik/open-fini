@@ -1,7 +1,9 @@
 // Vibe Studio side panel "Canvas": a live preview of the active document with zoom and pan, a page switcher, a layers
 // outline (select, show/hide, lock, drag onto the composer), rings around the layers the AI just touched, a before /
 // after slider for the chat's last run, "Open in studio" and "Export…" shortcuts and document info. Website projects
-// show their live preview frame with device presets.
+// show their live preview frame with device presets. Office Suite documents (word processor, spreadsheet, presentation,
+// whiteboard) render through office/preview.js (each app's own render helpers, lazily); the page menu then lists their
+// pages, sheets, slides or board pages.
 //
 // Public API: createCanvasPanel(vs) → { el, show, compare(runId) } (vs.canvas is set to it)
 // Performance invariants: the page is rendered only when the panel is visible, debounced (350 ms) after a change,
@@ -71,19 +73,22 @@ export function createCanvasPanel(vs) {
   let device = "desktop";
   let comparing = null; // runId
   let showOutline = true;
+  let office = null; // { w, h, labels } of the Office preview on screen
+  let officeIdx = 0;
+  const pg = () => (office && app.doc?.office ? office : app.page);
   const collapsed = new Set();
   const visible = () => el.isConnected && el.offsetParent !== null;
 
   // ---- geometry
   function fitScale() {
-    const p = app.page;
+    const p = pg();
     if (!p) return 1;
     const r = stage.getBoundingClientRect();
     return Math.max(0.02, Math.min((r.width - 16) / p.w, (r.height - 16) / p.h));
   }
   const scaleNow = () => (zoom === "fit" ? fitScale() : zoom);
   function applyView() {
-    const p = app.page;
+    const p = pg();
     if (!p) return;
     const k = scaleNow();
     const r = stage.getBoundingClientRect();
@@ -95,7 +100,7 @@ export function createCanvasPanel(vs) {
     zoomLabel.textContent = zoom === "fit" ? `${t("Fit")} · ${Math.round(k * 100)}%` : `${Math.round(k * 100)}%`;
   }
   function setZoom(z, at = null) {
-    const p = app.page;
+    const p = pg();
     if (!p) return;
     const old = scaleNow();
     const next = z === "fit" ? "fit" : Math.max(0.05, Math.min(8, z));
@@ -157,12 +162,20 @@ export function createCanvasPanel(vs) {
     pan = { x: pan.x + dx, y: pan.y + dy };
     applyView();
   }
-  if (typeof ResizeObserver === "function") new ResizeObserver(() => visible() && (zoom === "fit" ? applyView() : null)).observe(stage);
+  // a render skipped while the panel was hidden or not laid out yet runs as soon as the stage gets its size
+  let stale = false;
+  if (typeof ResizeObserver === "function")
+    new ResizeObserver(() => {
+      if (!visible()) return;
+      if (zoom === "fit") applyView();
+      if (stale) (stale = false), scheduleRender();
+    }).observe(stage);
 
   // ---- render (debounced, bounded, only while visible)
   async function render() {
     const doc = app.doc;
     paintChrome();
+    if (doc && !visible()) stale = true;
     if (!doc || !visible()) return;
     if (busy) {
       again = true;
@@ -187,15 +200,21 @@ export function createCanvasPanel(vs) {
       }
       siteWrap.classList.add("hidden");
       paper.classList.remove("hidden");
-      if (doc.office && !page.root.children.length) return;
+      if (doc.office && !page.root.children.length) {
+        const { officePreview } = await import("../../office/preview.js");
+        const r = await officePreview(doc, { index: officeIdx, maxPx: MAX_RENDER });
+        if (!r || app.doc !== doc) return void (again = true);
+        office = { w: r.width, h: r.height, labels: r.labels };
+        officeIdx = r.index;
+        showImage(r.bytes);
+        paintPages();
+        return;
+      }
+      office = null;
       const want = Math.min(2, scaleNow() * (devicePixelRatio || 1));
       const k = Math.min(want, MAX_RENDER / Math.max(page.w, page.h));
       const r = await exportRaster(app, { page, format: "png", scale: Math.max(0.02, k) });
-      const next = URL.createObjectURL(new Blob([r.bytes], { type: "image/png" }));
-      img.src = next;
-      if (url) URL.revokeObjectURL(url);
-      url = next;
-      applyView();
+      showImage(r.bytes);
       paintRings();
     } catch {
       /* the page may be empty or mid-edit */
@@ -208,6 +227,13 @@ export function createCanvasPanel(vs) {
     }
   }
   const scheduleRender = debounce(render, 350);
+  function showImage(bytes) {
+    const next = URL.createObjectURL(new Blob([bytes], { type: "image/png" }));
+    img.src = next;
+    if (url) URL.revokeObjectURL(url);
+    url = next;
+    applyView();
+  }
   function sizeSite() {
     const w = DEVICES.find((d) => d[0] === device)[2];
     const r = stage.getBoundingClientRect();
@@ -224,9 +250,7 @@ export function createCanvasPanel(vs) {
     el.classList.toggle("is-web", !!(doc?.web && !app.page?.root.children.length));
     if (!doc) return paintEmpty();
     const page = app.page;
-    empty(pageSel);
-    doc.pages.forEach((p, i) => pageSel.append(h("option", { value: String(i), selected: p === page }, `${i + 1}. ${p.name || t("Page")}`)));
-    pageSel.classList.toggle("hidden", doc.pages.length < 2);
+    paintPages();
     const main = studioFor(doc);
     const m = STUDIOS.find((s) => s[0] === main);
     openMain.replaceChildren(iconEl(m[2]), h("span", t("Open in {studio}", { studio: t(m[1]) })));
@@ -235,11 +259,28 @@ export function createCanvasPanel(vs) {
     if (el.classList.contains("is-web")) for (const [id, label, , icon] of DEVICES) deviceBar.append(btn(icon, label, () => { device = id; paintChrome(); sizeSite(); }, { "aria-pressed": String(device === id) }));
     let layers = 0;
     for (const p of doc.pages) (function count(n) { for (const c of n.children || []) { layers++; count(c); } })(p.root);
-    info.replaceChildren(...[h("strong", doc.name), h("span", `${Math.round(page.w)} × ${Math.round(page.h)} px`), h("span", t("{n} page(s)", { n: String(doc.pages.length) })), h("span", t("{n} layer(s)", { n: String(layers) })), doc.web ? h("span", t("{n} website file(s)", { n: String(doc.web.files.size) })) : null].filter(Boolean));
+    if (doc.office && !page.root.children.length) info.replaceChildren(...[h("strong", doc.name), office ? h("span", t("{n} page(s)", { n: String(office.labels.length) })) : null].filter(Boolean));
+    else info.replaceChildren(...[h("strong", doc.name), h("span", `${Math.round(page.w)} × ${Math.round(page.h)} px`), h("span", t("{n} page(s)", { n: String(doc.pages.length) })), h("span", t("{n} layer(s)", { n: String(layers) })), doc.web ? h("span", t("{n} website file(s)", { n: String(doc.web.files.size) })) : null].filter(Boolean));
     paintOutline();
     paintTouched();
   }
+  function paintPages() {
+    const doc = app.doc;
+    if (!doc) return;
+    empty(pageSel);
+    if (doc.office && office) {
+      office.labels.forEach((label, i) => pageSel.append(h("option", { value: String(i), selected: i === officeIdx }, `${i + 1}. ${label}`)));
+      pageSel.classList.toggle("hidden", office.labels.length < 2);
+      return;
+    }
+    doc.pages.forEach((p, i) => pageSel.append(h("option", { value: String(i), selected: p === app.page }, `${i + 1}. ${p.name || t("Page")}`)));
+    pageSel.classList.toggle("hidden", doc.pages.length < 2);
+  }
   pageSel.addEventListener("change", () => {
+    if (app.doc?.office && office) {
+      officeIdx = Number(pageSel.value);
+      return scheduleRender();
+    }
     const p = app.doc?.pages[Number(pageSel.value)];
     if (p) app.setActivePage(p);
   });
@@ -412,7 +453,7 @@ export function createCanvasPanel(vs) {
   slider.addEventListener("pointerdown", (e) => e.stopPropagation());
 
   // ---- wiring
-  for (const ev of ["docchange", "doc", "page"]) app.on(ev, () => visible() && scheduleRender());
+  for (const ev of ["docchange", "doc", "page"]) app.on(ev, () => (visible() ? scheduleRender() : (stale = true)));
   app.on("studio", () => visible() && scheduleRender());
   app.on("selection", () => {
     if (!visible()) return;
@@ -420,7 +461,12 @@ export function createCanvasPanel(vs) {
     paintOutlineSoon();
   });
   const paintOutlineSoon = debounce(() => visible() && paintChrome(), 200);
-  app.on("doc", () => stopCompare());
+  app.on("doc", () => {
+    stopCompare();
+    office = null;
+    officeIdx = 0;
+  });
+  app.on("officestatus", () => visible() && app.doc?.office && scheduleRender());
   vs.changes?.on("change", () => {
     ringsFresh = true;
     if (visible()) paintOutlineSoon();

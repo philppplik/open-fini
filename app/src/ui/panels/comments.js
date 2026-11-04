@@ -50,7 +50,7 @@ export function createCommentsPanel(app) {
   function row(doc, th, n, ui) {
     const go = h("button.of-cpanel__open", { type: "button", "aria-label": t("Show comment {n}: {text}", { n, text: threadTitle(th) }) },
       h("span.of-cpop__num", { style: `background:${th.color || "#888888"}` }, String(n || "")),
-      h("span.of-cpanel__text", h("strong", th.nick || t("Unknown author")), h("span.of-cpanel__where", ui.anchorText(doc, th.anchor)), h("span.of-cpanel__title", threadTitle(th)), h("time", fmt(th.ts)), th.messages.length > 1 ? h("span.of-cpanel__replies", t("{n} replies", { n: th.messages.length - 1 })) : null));
+      h("span.of-cpanel__text", h("strong", th.nick || t("Unknown author")), th.ai ? h("span.of-ai-badge", { title: t("Written by the AI assistant") }, "AI") : null, h("span.of-cpanel__where", ui.anchorText(doc, th.anchor)), h("span.of-cpanel__title", threadTitle(th)), h("time", fmt(th.ts)), th.messages.length > 1 ? h("span.of-cpanel__replies", t("{n} replies", { n: th.messages.length - 1 })) : null));
     go.addEventListener("click", () => {
       host.reveal(doc, th);
       setTimeout(() => ui.openThread(th.id, { focus: true }), 160);

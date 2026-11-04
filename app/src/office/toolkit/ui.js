@@ -22,7 +22,7 @@
 // observers are disconnected by `el.destroy?.()` (call it from your app's destroy()).
 import { h } from "../../core/util.js";
 import { t } from "../../i18n/index.js";
-import { openContextMenu } from "../../ui/context-menu/index.js";
+import { openContextMenu, registerContextProvider } from "../../ui/context-menu/index.js";
 import { NUMBER_FORMATS } from "./numfmt.js";
 export { openDialog, confirmDialog, promptDialog } from "../../ui/dialogs.js";
 
@@ -288,5 +288,22 @@ export function virtualGrid({ rows, cols, renderCell, overscan = 2, label = "Gri
 /** Opens the context menu framework for an Office surface: kind `office-<app kind>` (see docs/context-menus.md). */
 export function officeContextMenu(app, event, kind, data = {}) {
   event?.preventDefault?.();
+  registerOfficeAi();
   return openContextMenu(app, { kind, x: event?.clientX ?? 0, y: event?.clientY ?? 0, event, target: event?.target, data });
+}
+
+let aiRegistered = false;
+/** Right-click ▸ AI for the Spreadsheet, Presentation and Whiteboard surfaces (vibe/quick-actions.js ▸ officeAppAiItems). */
+function registerOfficeAi() {
+  if (aiRegistered) return;
+  aiRegistered = true;
+  registerContextProvider({
+    id: "office.ai.apps",
+    priority: -20,
+    matches: (c) => ["office-sheet", "office-slides", "office-board"].includes(c.kind) && !!c.app.prefs.aiEnabled,
+    items: (c) => {
+      const ai = c.app.aiQuick?.officeAppAiItems?.(c.app, c.kind, c.data || {}) || [];
+      return ai.length ? [{ label: "AI", icon: "stars", items: ai }] : [];
+    },
+  });
 }

@@ -318,7 +318,7 @@ function createWindow(app, c) {
     const d = app.doc;
     const list = d ? filterThreads(c.threads(d), { status: commentFilter.status, mine: commentFilter.mine ? c.myId : null }) : [];
     aside.replaceChildren(h("h3.of-collab-aside__title", t("Threads")), ...(list.length ? list.map((th) => {
-      const b = h("button.of-collab-aside__row", { type: "button", "data-aside-thread": th.id }, h("span.of-collab-aside__dot", { style: `background:${th.color || "#888888"}` }), h("span", threadTitle(th) || "…"));
+      const b = h("button.of-collab-aside__row", { type: "button", "data-aside-thread": th.id }, h("span.of-collab-aside__dot", { style: `background:${th.color || "#888888"}` }), h("span", threadTitle(th) || "…"), th.ai ? h("span.of-ai-badge", { title: t("Written by the AI assistant") }, "AI") : null);
       b.addEventListener("click", () => ((focusThread = th.id), renderComments()));
       return b;
     }) : [h("p.of-collab-hint", t("Nothing here."))]));
@@ -993,7 +993,7 @@ function createWindow(app, c) {
     card.append(head);
     if (th.anchor.quote && th.anchor.kind !== "node" && th.anchor.kind !== "page") card.append(h("blockquote.of-thread__quote", th.anchor.quote));
     for (const m of th.messages) {
-      const msg = h("div.of-thread__msg", avatarEl({ nick: m.nick, color: m.color, initials: (m.nick || "?").slice(0, 2).toUpperCase() }, 22), h("div", h("div.of-msg__head", h("span.of-msg__who", m.nick || "?"), h("time.of-msg__time", fmtDate(m.ts)), m.edited && !m.deleted ? h("span.of-msg__edited", t("edited")) : null), m.deleted ? h("p.of-msg__text.of-msg__text--deleted", t("Comment deleted")) : h("p.of-msg__text", m.text)));
+      const msg = h("div.of-thread__msg", avatarEl({ nick: m.nick, color: m.color, initials: (m.nick || "?").slice(0, 2).toUpperCase() }, 22), h("div", h("div.of-msg__head", h("span.of-msg__who", m.nick || "?"), m.ai ? h("span.of-ai-badge", { title: t("Written by the AI assistant") }, "AI") : null, h("time.of-msg__time", fmtDate(m.ts)), m.edited && !m.deleted ? h("span.of-msg__edited", t("edited")) : null), m.deleted ? h("p.of-msg__text.of-msg__text--deleted", t("Comment deleted")) : h("p.of-msg__text", m.text)));
       if (c.isMine(m.author) && !m.deleted) {
         msg.append(h("div.of-msg__tools",
           btn("", () => {

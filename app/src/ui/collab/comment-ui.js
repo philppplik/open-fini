@@ -326,7 +326,7 @@ export function installCommentUI(app, c) {
     if (mine || c.session?.isHost) head.append(button("", () => (c.commentOp(d, { op: "drop", threadId: th.id }), closePopover()), { ic: "trash3", title: t("Delete thread") }));
     head.append(button("", () => closePopover(), { ic: "x-lg", title: t("Close") }));
     const msgs = th.messages.map((m) => {
-      const row = h("div.of-thread__msg", avatarEl({ color: m.color, initials: (m.nick || "?").slice(0, 2).toUpperCase() }, 22), h("div", h("div.of-msg__head", h("span.of-msg__who", m.nick || t("Unknown author")), h("time.of-msg__time", fmt(m.ts)), m.edited && !m.deleted ? h("span.of-msg__edited", t("edited")) : null), m.deleted ? h("p.of-msg__text.of-msg__text--deleted", t("Comment deleted")) : h("p.of-msg__text", m.text)));
+      const row = h("div.of-thread__msg", avatarEl({ color: m.color, initials: (m.nick || "?").slice(0, 2).toUpperCase() }, 22), h("div", h("div.of-msg__head", h("span.of-msg__who", m.nick || t("Unknown author")), m.ai ? h("span.of-ai-badge", { title: t("Written by the AI assistant") }, "AI") : null, h("time.of-msg__time", fmt(m.ts)), m.edited && !m.deleted ? h("span.of-msg__edited", t("edited")) : null), m.deleted ? h("p.of-msg__text.of-msg__text--deleted", t("Comment deleted")) : h("p.of-msg__text", m.text)));
       if (c.isMine(m.author) && !m.deleted) {
         row.append(h("div.of-msg__tools",
           button("", () => {
@@ -421,6 +421,8 @@ export function installCommentUI(app, c) {
     b.style.setProperty("--of-collab-color", th.color || "#888888");
     b.textContent = String(n);
     b.classList.toggle("is-selected", api.selected === th.id);
+    b.classList.toggle("is-ai", !!th.ai);
+    if (th.ai) b.append(h("span.of-ai-badge.of-ai-badge--pin", { "aria-hidden": "true" }, "AI"));
     const label = t("Comment {n} by {name}: {text}", { n, name: th.nick || "?", text: threadTitle(th) });
     b.setAttribute("aria-label", label);
     b.title = label;

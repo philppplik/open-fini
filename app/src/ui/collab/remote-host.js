@@ -46,7 +46,7 @@ function snapshot(app, c) {
     chat,
     unread: s?.chatStore.unread || 0,
     doc: d ? { id: d.id, name: d.name } : null,
-    threads: d ? c.threads(d).map((th) => ({ id: th.id, nick: th.nick, color: th.color, resolved: !!th.resolved, n: nums.get(th.id), where: where(th), messages: th.messages })) : [],
+    threads: d ? c.threads(d).map((th) => ({ id: th.id, nick: th.nick, color: th.color, ai: !!th.ai, resolved: !!th.resolved, n: nums.get(th.id), where: where(th), messages: th.messages })) : [],
   });
 }
 

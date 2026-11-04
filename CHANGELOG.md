@@ -6,6 +6,15 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Right-click AI opens a Vibe chat: every action from right-click ▸ AI (canvas, code editor, website elements, word processor, and now the spreadsheet, presentation and whiteboard) starts a new chat titled from the action and the target, carrying the document, the selection (layer ids, text, cell range, code lines, element, slide or board elements; bounded context) and a small selection screenshot, so you can follow up there. **Go to selection** jumps back to the target. Setting: new chat (default) / reuse the last right-click chat / no chat (Settings ▸ Artificial intelligence ▸ Logging and actions). Background runs ask approvals in a dialog, show in the AI pill (Stop) and end with **Undo** and **Open chat**.
+- **Custom instruction…** in every right-click AI submenu: a prompt field, recent instructions (local), and attach toggles for the selection, the whole document and a screenshot.
+- Comments written by Vibe show an **AI** badge next to the author in the thread popover, the Comments panel, the Collaboration window, pop-out windows and on pins (additive `ai: true` on comments and replies, see [docs/file-format.md](docs/file-format.md#comments)). `add_comment` now also signs as "Vibe (AI)".
+- AI log ([docs/ai-logging.md](docs/ai-logging.md)): a separate rotating log channel with one record per assistant request (model, routing and fallbacks, system prompt hash, skills, tool calls with durations, status and sizes, errors, retries, approvals, token usage); verbose content is opt-in. A viewer in Settings ▸ Artificial intelligence ▸ Logging and actions and **Export AI log for the developer** (redacted JSON or Markdown; document content only when ticked) there and in Troubleshooting.
+
+### Fixed
+- The Vibe Studio canvas tab now previews Office Suite documents (document pages, spreadsheet sheets, slides, whiteboard pages) with a page menu, updating live; it showed an empty page before.
+
 ## [1.0.0] — Office Suite, print colors, built-in networking
 
 ### Added

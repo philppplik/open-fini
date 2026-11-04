@@ -8,7 +8,7 @@ import { pageDisplayList } from "./render.js";
 import { sortedPages, toBase64 } from "./model.js";
 
 /** Decodes the model's images once for an export: ImageRefs for canvas (source), SVG (href) and PDF (rgba / jpeg). */
-async function exportImages(model, { rgba = false } = {}) {
+export async function exportImages(model, { rgba = false } = {}) {
   const out = new Map();
   for (const [id, md] of Object.entries(model.media || {})) {
     if (!md?.bytes) continue;

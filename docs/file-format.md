@@ -141,7 +141,7 @@ of the document ([collaboration.md](collaboration.md)). The key is absent when t
     "anchor": { "kind": "node", "node": "n_…", "page": "p_…", "quote": "Hero box" },
     "resolved": false, "resolvedBy": "Hana", "resolvedAt": 1760000000000,
     "messages": [ { "id": "cAbC…-0", "author": "…", "nick": "Mia", "color": "#0090ff", "text": "Bigger?", "ts": 1760000000000,
-                    "edited": 1760000000000, "deleted": false, "mentions": ["<member id>"] } ]
+                    "edited": 1760000000000, "deleted": false, "mentions": ["<member id>"], "ai": true } ]
   }
 ]
 ```
@@ -149,7 +149,10 @@ of the document ([collaboration.md](collaboration.md)). The key is absent when t
 Anchor kinds: `doc`; `page` (`page`); `node` (`node`, `page`); `region` (`page`, `rect {x,y,w,h}` in page coordinates);
 `text` (Office studio: `path` = JSON paragraph path, `from`, `to` offsets, `quote`); `line` (Code studio: `path` = file,
 `line`, `endLine`, `quote`). `element` (Code studio: `path` = HTML file, `sel` = element-sibling indexes from the root such as `0/1/3`, `elem` = parser id, `quote`).
-Migration note: `sel` was added with 0.10 (additive; older readers drop it and keep the thread). Threads from earlier versions load unchanged;
+Migration note: `sel` was added with 0.10 (additive; older readers drop it and keep the thread). `ai: true` on a thread
+or a message (added after 1.0.0, additive, no format version bump) marks text written by the Vibe assistant (still
+signed `"nick": "Vibe (AI)"`); every comment UI shows an "AI" badge next to the name. Older readers drop the field and
+keep the comment; comments without it are shown as written by people. Threads from earlier versions load unchanged;
 anchors without `pin` fall back to the layer's top right corner. Messages without `nick` are shown as "Unknown author".
 Text is plain text (never HTML). Readers validate every thread with
 `collab/comments.js ▸ normalizeThreads` (unknown fields, wrong types and oversize values drop the thread); the document

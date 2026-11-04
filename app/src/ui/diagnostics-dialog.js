@@ -302,7 +302,9 @@ export function troubleshootingDialog(app, tab = "log") {
     copy.addEventListener("click", () => copyText(app, redact(entriesToText(visible())), "Log"));
     saveTxt.addEventListener("click", () => writeFile(app, downloadName("openfini-log", "txt"), redact(entriesToText(visible())), "text/plain", "Text", "txt"));
     saveJson.addEventListener("click", () => writeFile(app, downloadName("openfini-log", "json"), JSON.stringify(redactValue(visible().map((e) => ({ time: new Date(e.t).toISOString(), level: e.level, scope: e.scope, message: e.msg, count: e.count, stack: e.stack }))), null, 2), "application/json", "JSON", "json"));
-    panel.append(h("div.of-diag__bar", sessionSel, level, scope, search, pause, clear, copy, saveTxt, saveJson, exportAll), list, h("div.of-diag__foot", count, h("span.of-hint", "Secrets, tokens and your user name in paths are removed before anything is recorded.")));
+    const aiLog = h("button.of-btn", { type: "button", title: t("Redacted record of AI runs (models, tools, errors) for the developer") }, t("Export AI log"));
+    aiLog.addEventListener("click", () => import("./vibe/panel-ailog.js").then((m) => m.exportAiLogDialog(app)));
+    panel.append(h("div.of-diag__bar", sessionSel, level, scope, search, pause, clear, copy, saveTxt, saveJson, exportAll, aiLog), list, h("div.of-diag__foot", count, h("span.of-hint", "Secrets, tokens and your user name in paths are removed before anything is recorded.")));
     redraw();
     fillSessions().then(() => source !== "current" && loadSource());
   }
@@ -333,7 +335,7 @@ export function troubleshootingDialog(app, tab = "log") {
         const actions = [show, copy];
         if (app.prefs.aiEnabled && app.aiQuick?.runQuickAction) {
           const ex = h("button.of-btn", { type: "button", title: "Sends this redacted message (not your documents) to your AI provider" }, "Explain with Vibe");
-          ex.addEventListener("click", () => app.aiQuick.runQuickAction(app, { label: "Explain this error", mode: "answer", prompt: `Explain this OpenFini error in plain language and tell me what I can do about it. Do not change the document.\n\nScope: ${p.scope}\nMessage: ${redact(p.msg)}${p.stack ? `\nStack:\n${redact(p.stack)}` : ""}${p.hint ? `\nKnown cause: ${p.hint.title}` : ""}` }));
+          ex.addEventListener("click", () => app.aiQuick.runQuickAction(app, { label: "Explain this error", mode: "answer", target: { kind: "error", studio: app.studio, docId: app.doc?.id || null, docName: app.doc?.name || "", label: String(p.scope || "error").slice(0, 30) }, prompt: `Explain this OpenFini error in plain language and tell me what I can do about it. Do not change the document.\n\nScope: ${p.scope}\nMessage: ${redact(p.msg)}${p.stack ? `\nStack:\n${redact(p.stack)}` : ""}${p.hint ? `\nKnown cause: ${p.hint.title}` : ""}` }));
           actions.push(ex);
         }
         panel.append(h(`article.of-diag__prob.lv-${p.level}`,

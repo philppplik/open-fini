@@ -5,8 +5,9 @@
 // other members with `applyCommentOp`, which is idempotent (ids) and enforces authorship (only the author edits or
 // deletes a message; any commenter may resolve/reopen; only the thread author or the host may drop a whole thread).
 //
-// Thread = { id, anchor, author, nick, color, ts, resolved?, resolvedBy?, resolvedAt?, messages: [Message] }
-// Message = { id, author, nick, color, text, ts, edited?, deleted?, mentions? }
+// Thread = { id, anchor, author, nick, color, ts, resolved?, resolvedBy?, resolvedAt?, ai?, messages: [Message] }
+// Message = { id, author, nick, color, text, ts, edited?, deleted?, mentions?, ai? }
+// `ai: true` (additive, 1.0.x): written by the Vibe assistant; every comment UI shows an "AI" badge next to the name.
 // Anchor = { kind: "doc"|"page"|"node"|"region"|"text"|"line"|"element", page?, node?, rect?, pin?, off?, elem?, path?, line?, endLine?, col?, endCol?, from?, to?, quote? }
 //          (how each studio builds one: collab/anchors.js)
 //
@@ -29,7 +30,8 @@ export function newThread({ id, anchor, author, text, ts = Date.now(), msgId, me
     color: author.color,
     ts,
     resolved: false,
-    messages: [{ id: msgId || `${id}-0`, author: author.id, nick: author.nick, color: author.color, text: cleanText(text, LIMITS.commentText), ts, ...(mentions.length ? { mentions } : {}) }],
+    ...(author.ai ? { ai: true } : {}),
+    messages: [{ id: msgId || `${id}-0`, author: author.id, nick: author.nick, color: author.color, text: cleanText(text, LIMITS.commentText), ts, ...(mentions.length ? { mentions } : {}), ...(author.ai ? { ai: true } : {}) }],
   };
 }
 
