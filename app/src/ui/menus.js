@@ -36,7 +36,7 @@ export const MENUS = [
   {
     label: "Select",
     studios: DESIGN,
-    items: ["select.all", "select.none", "select.reselect", "select.invert", "-", "select.feather", "select.grow", "select.shrink", "select.border", "select.smooth", "-", "select.colorRange", "-", "select.toLayer", "select.toMask", "select.toPath"],
+    items: ["select.all", "select.none", "select.reselect", "select.invert", "select.subject", "-", "select.feather", "select.grow", "select.shrink", "select.border", "select.smooth", "-", "select.colorRange", "-", "select.toLayer", "select.toMask", "select.toPath"],
   },
   { label: "Filter", studios: DESIGN, items: [{ dynamic: "filters" }] },
   {
@@ -52,7 +52,7 @@ export const MENUS = [
   {
     label: "Document",
     studios: DESIGN,
-    items: ["doc.crop", "doc.cropToSelection", "doc.cropToContent", "doc.trimTransparent", "doc.trimColor", "doc.revealAll", "-", "doc.resize", "doc.canvasSize", "-", "doc.addPage", "doc.deletePage", "doc.addMaster", "-", "doc.flipH", "doc.flipV", "doc.rotate90", "doc.rotate90ccw", "doc.rotate180", "doc.rotateArbitrary"],
+    items: ["doc.crop", "doc.cropToSelection", "doc.cropToContent", "doc.trimTransparent", "doc.trimColor", "doc.revealAll", "-", "doc.resize", "doc.canvasSize", "-", "doc.addPage", "doc.deletePage", "doc.addMaster", "-", "doc.flipH", "doc.flipV", "doc.rotate90", "doc.rotate90ccw", "doc.rotate180", "doc.rotateArbitrary", "-", { label: "Photo Edits", items: ["photo.removeBackground", "photo.autoWhiteBalance", "photo.autoLevels", "photo.autoContrast", "photo.replaceColor", "-", "photo.sharpen", "photo.denoise", "photo.vignette", "photo.tiltShift", "photo.upscale"] }],
   },
   {
     label: "View",

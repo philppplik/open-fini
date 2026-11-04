@@ -2455,5 +2455,17 @@
   "The export contains models, routing, tool names, durations, sizes, errors, token counts and approvals. API keys, tokens and passwords are always removed.": "Der Export enthält Modelle, Routing, Werkzeugnamen, Dauer, Größen, Fehler, Token-Zahlen und Freigaben. API-Schlüssel, Tokens und Passwörter werden immer entfernt.",
   "Verbose: also record prompts, tool arguments, results and replies (redacted; may contain document text)": "Ausführlich: auch Prompts, Werkzeugargumente, Ergebnisse und Antworten aufzeichnen (bereinigt; kann Dokumenttext enthalten)",
   "What should Vibe do? For example: make this warmer and more playful": "Was soll Vibe tun? Zum Beispiel: Mach das wärmer und verspielter",
-  "Written by the AI assistant": "Vom KI-Assistenten geschrieben"
+  "Written by the AI assistant": "Vom KI-Assistenten geschrieben",
+  "Auto Contrast": "Auto-Kontrast",
+  "Auto Levels": "Auto-Tonwertkorrektur",
+  "Auto White Balance": "Automatischer Weißabgleich",
+  "Photo Edits": "Fotobearbeitung",
+  "Reduce Noise": "Rauschen reduzieren",
+  "Remove Background": "Hintergrund entfernen",
+  "Replace Foreground Color with Background Color": "Vordergrundfarbe durch Hintergrundfarbe ersetzen",
+  "Select Subject": "Motiv auswählen",
+  "Tilt-Shift Blur": "Tilt-Shift-Unschärfe",
+  "Unsharp Mask": "Unscharf maskieren",
+  "Upscale 2x": "Hochskalieren 2x",
+  "Vignette": "Vignette"
 }

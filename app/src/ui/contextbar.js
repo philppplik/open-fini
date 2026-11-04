@@ -27,6 +27,16 @@ export function createContextBar(app) {
     const tool = app.tool;
     const Cls = tool && app.toolClasses.get(tool.id);
     const left = h("div.of-contextbar__left");
+    // A closed option list keeps the focus after a pick (e.g. the Crop ratio); Enter / Escape then belong to the tool
+    // (apply / cancel), not to the list, which would open again.
+    left.addEventListener("keydown", (ev) => {
+      const t = ev.target;
+      if (t?.tagName !== "SL-SELECT" || t.open || (ev.key !== "Enter" && ev.key !== "Escape") || !app.tool?.keyDown) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      t.blur();
+      app.tool.keyDown(ev);
+    }, true);
     if (Cls) {
       left.append(h("span.of-contextbar__title", Cls.label));
       const options = Cls.getOptions ? Cls.getOptions(app.studio) : Cls.options;

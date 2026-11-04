@@ -11,9 +11,13 @@ All notable changes to OpenFini are documented here. The format follows
 - **Custom instruction…** in every right-click AI submenu: a prompt field, recent instructions (local), and attach toggles for the selection, the whole document and a screenshot.
 - Comments written by Vibe show an **AI** badge next to the author in the thread popover, the Comments panel, the Collaboration window, pop-out windows and on pins (additive `ai: true` on comments and replies, see [docs/file-format.md](docs/file-format.md#comments)). `add_comment` now also signs as "Vibe (AI)".
 - AI log ([docs/ai-logging.md](docs/ai-logging.md)): a separate rotating log channel with one record per assistant request (model, routing and fallbacks, system prompt hash, skills, tool calls with durations, status and sizes, errors, retries, approvals, token usage); verbose content is opt-in. A viewer in Settings ▸ Artificial intelligence ▸ Logging and actions and **Export AI log for the developer** (redacted JSON or Markdown; document content only when ticked) there and in Troubleshooting.
+- Pixel studio: native photo edits without image generation (*Document ▸ Photo Edits*): Remove Background (border colors grown inward, stopped at edges, feathered), Auto White Balance, Auto Levels, Auto Contrast, Replace Color (foreground with background color, shading kept), Unsharp Mask, Reduce Noise, Vignette, Tilt-Shift Blur and Upscale 2x (Lanczos plus a detail pass). Each is one undo step and respects the pixel selection; the heavy ones run on the worker pool.
+- *Select ▸ Select Subject*: edge-aware region growing from the image border, no AI model.
+- Vibe: `edit_pixels`, `remove_background` and `select_subject` (new group *Image editing*), `reorder_pages`, and `reorder_layers` action `position`.
 
 ### Fixed
 - The Vibe Studio canvas tab now previews Office Suite documents (document pages, spreadsheet sheets, slides, whiteboard pages) with a page menu, updating live; it showed an empty page before.
+- Crop: after picking a ratio (or another option list in the context bar), Enter and Escape applied / cancelled nothing because the closed list kept the keyboard; they now go to the tool.
 
 ## [1.0.0] — Office Suite, print colors, built-in networking
 

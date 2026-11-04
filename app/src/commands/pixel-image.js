@@ -38,4 +38,12 @@ export function registerPixelImageCommands(app) {
       ],
     });
   }, { enabled: hasDoc });
+  // native photo edits on the active pixel layer (studios/tools/native-edit-ops.js, lazy)
+  const ne = (fn, ...args) => async (a) => {
+    const r = await (await import("../studios/tools/native-edit-ops.js"))[fn](a, ...args.map((x) => (typeof x === "function" ? x(a) : x)));
+    if (r !== true) a.toast(r, "warning");
+  };
+  const px = { enabled: (a) => a.activeNode?.type === "pixel" };
+  for (const [id, label, name, p] of [["removeBackground", N_("Remove Background"), "remove_background"], ["autoWhiteBalance", N_("Auto White Balance"), "auto_white_balance"], ["autoLevels", N_("Auto Levels"), "auto_levels"], ["autoContrast", N_("Auto Contrast"), "auto_contrast"], ["replaceColor", N_("Replace Foreground Color with Background Color"), "color_replace", (a) => ({ from: a.style?.primary, to: a.style?.secondary })], ["sharpen", N_("Unsharp Mask"), "sharpen"], ["denoise", N_("Reduce Noise"), "denoise"], ["vignette", N_("Vignette"), "vignette"], ["tiltShift", N_("Tilt-Shift Blur"), "tilt_shift"], ["upscale", N_("Upscale 2x"), "upscale", { factor: 2 }]]) def(`photo.${id}`, label, ne("editLayer", name, p || {}), px);
+  def("select.subject", "Select Subject", ne("selectSubject"), { enabled: hasDoc });
 }
