@@ -72,6 +72,7 @@ Ten `office_` tools create, read, edit, format and export documents; the built-i
 ## See also
 
 - [[Presentation App]]
+- [[Whiteboard]]
 - [[File Formats]]
 - [[Save in Original Format]]
 - [[Studio Overview]]
