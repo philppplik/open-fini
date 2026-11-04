@@ -6,6 +6,7 @@ import { Emitter, h, empty, formatBytes } from "../../core/util.js";
 import { languageOf, parseHtml, parseCss, resolveRef, dirname, formatText, formatRange, canFormat } from "../../engine/web/index.js";
 import { expandHtml, expandCss, abbreviationBefore } from "../../engine/web/emmet.js";
 import { tailwindClasses, BOOTSTRAP_CLASSES, TAILWIND_VARIANTS, splitVariant, attributeOptions, htmxValues } from "../../engine/web/index.js";
+import { LATEX_COMMANDS, LATEX_ENVIRONMENTS, latexCompletionContext, latexLabels, bibKeys } from "../../engine/web/index.js";
 import { fileIcon, fuzzyScore, trimmedChange } from "./util.js";
 import { markContext } from "../context-menu/index.js";
 import { registerCodeContext, openEditorMenu } from "./context.js";
@@ -274,6 +275,24 @@ export class CodeEditors extends Emitter {
         }
         return out.filter((o) => !prefix || o.label.toLowerCase().includes(prefix.toLowerCase()));
       };
+      if (lang === "latex" && !/\.bib$/i.test(path)) {
+        // LaTeX: \commands, \begin{environments}, \ref{labels} and \cite{keys} from every project file (latex-tools.js)
+        const c = latexCompletionContext(before);
+        if (!c) return null;
+        const from = pos - c.prefix.length;
+        const texts = (re) => self.web.paths.filter((p) => re.test(p)).map((p) => self.web.text(p) || "");
+        let options;
+        if (c.kind === "ref") options = latexLabels(...texts(/\.(tex|latex)$/i)).map((l) => ({ label: l, type: "constant", detail: "label" }));
+        else if (c.kind === "cite") options = bibKeys(texts(/\.bib$/i), texts(/\.(tex|latex)$/i)).map((k) => ({ label: k.key, type: "constant", detail: k.title.slice(0, 60) }));
+        else if (c.kind === "env") options = LATEX_ENVIRONMENTS.map((e) => ({ label: e, type: "type" }));
+        else if (c.kind === "file") options = fileOptions(c.prefix).map((o) => ({ ...o, label: /\.(tex|bib)$/.test(o.label) && !/includegraphics/.test(before) ? o.label.replace(/\.(tex|bib)$/, "") : o.label }));
+        else {
+          options = LATEX_COMMANDS.map(([name, body, detail]) => CM.snippetCompletion(body, { label: name, detail, type: "function" }));
+          options.push(CM.snippetCompletion("begin{${env}}\n\t${}\n\\end{${env}}", { label: "begin", detail: "Environment", type: "keyword" }));
+          options.push(...extSnips("latex"));
+        }
+        return { from, options, validFor: /^[\w:.\-/*]*$/ };
+      }
       if (lang === "html") {
         let m = /\sclass\s*=\s*"([^"]*)$/i.exec(before) || /\sclass\s*=\s*'([^']*)$/i.exec(before);
         if (m) {

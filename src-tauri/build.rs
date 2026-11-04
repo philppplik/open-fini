@@ -16,6 +16,12 @@ const COMMANDS: &[&str] = &[
     "net_cancel",
     "window_materials",
     "set_window_material",
+    "preview_server_start",
+    "preview_server_put",
+    "preview_server_stop",
+    "preview_dir_stamps",
+    "latex_engines",
+    "latex_compile",
 ];
 
 fn main() {

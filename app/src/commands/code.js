@@ -30,6 +30,12 @@ export function registerCodeCommands(app) {
   def("code.console", "Show Console", () => ws().bottom.show("console"), { icon: "terminal" });
   def("code.previewMode", "Toggle Design Mode / Live Preview", () => ws().preview.setMode(!ws().preview.edit), { shortcut: "Mod+Alt+P", icon: "play-circle" });
   def("code.reload", "Reload Preview", () => ws().preview.rebuild(), { shortcut: "Mod+Alt+R", icon: "arrow-repeat" });
+  const lp = (fn) => () => ws().local().then(fn).catch((err) => app.toast(err.message, "danger", 6000));
+  def("code.openInBrowser", "Open Preview in Browser", lp((l) => l.openInBrowser()), { icon: "box-arrow-up-right" });
+  def("code.previewFile", "Preview File…", () => import("../ui/code/local-preview.js").then((m) => m.previewFileDialog(app)), { enabled: () => true, icon: "eye" });
+  const tex = (a) => live(a) && /\.(tex|latex)$/i.test(a.codeUI.editors.active || "");
+  def("code.latexCompile", "Compile LaTeX", () => ws().docPreview.compile(), { enabled: tex, icon: "file-earmark-pdf" });
+  def("code.latexExportPdf", "Export LaTeX as PDF…", () => ws().docPreview.compile({ save: true }), { enabled: tex, icon: "file-earmark-arrow-down" });
   def("code.measure", "Measure Tool", () => {
     if (ws().view === "code") ws().setView("split");
     ws().preview.setMeasure(!ws().preview.measuring);

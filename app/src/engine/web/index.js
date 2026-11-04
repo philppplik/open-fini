@@ -12,6 +12,8 @@ export * from "./elements.js";
 export * from "./highlight.js";
 export * from "./markdown.js";
 export * from "./latex.js";
+export * from "./latex-tools.js";
+export * from "./local-serve.js";
 export * from "./libs.js";
 export * from "./frameworks.js";
 export * from "./ssg.js";

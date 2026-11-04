@@ -42,6 +42,11 @@ All notable changes to OpenFini are documented here. The format follows
 - The Vibe Studio canvas tab now previews Office Suite documents (document pages, spreadsheet sheets, slides, whiteboard pages) with a page menu, updating live; it showed an empty page before.
 - Crop: after picking a ratio (or another option list in the context bar), Enter and Escape applied / cancelled nothing because the closed list kept the keyboard; they now go to the tool.
 
+- Code studio: live preview for folders opened from disk. Files that change on disk reload into the project (desktop watcher; File System Access polling on the web) unless they have unsaved edits.
+- Code studio: **Open Preview in Browser**. The desktop app serves the project from a local server on 127.0.0.1 with a per-session token, correct MIME types, live reload on edit and on disk change, an optional single-page-app fallback, a port setting and opt-in LAN preview with a warning. The web build opens the page in a sandboxed tab.
+- **Preview File…**: Markdown, SVG, images, PDF, JSON, CSV, text and HTML files outside the project.
+- LaTeX: completion for commands, environments, `ef` labels and `cite` keys; **Compile to PDF** and **Export LaTeX as PDF** with an installed TeX engine (desktop; allow-listed arguments, no shell escape, time limit), the PDF in the app and clickable log errors; optional remote compile URL for the web (no default). Vibe tool group "LaTeX" and skills write-paper, fix-latex-errors, make-beamer, bibtex-help. See docs/latex.md.
+
 ## [1.0.0] — Office Suite, print colors, built-in networking
 
 ### Added

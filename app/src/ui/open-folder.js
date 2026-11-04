@@ -12,6 +12,19 @@ import { pickFiles, entriesFromPicked, entriesFromDrop, MAX_IMPORT_BYTES } from 
 import { isTextPath, normalizePath } from "../engine/web/paths.js";
 
 const WEB = /\.(html?|css|m?js|json|svg|webmanifest|txt|md|markdown|mdx|tex|latex|bib|ya?ml|xml|csv|toml|ini|tsx?|jsx)$/i;
+/**
+ * Where an opened website project lives on disk (never saved in documents): project → { kind: "path", path } (desktop)
+ * or { kind: "handle", handle } (web, File System Access). Used by the Code studio's disk watcher and local preview
+ * server (ui/code/local-preview.js).
+ */
+export const localSources = new WeakMap();
+function remember(app, source) {
+  const web = app.doc?.web;
+  if (!web) return;
+  localSources.set(web, source);
+  if (app.codeUI?.built && app.codeUI.web === web) app.codeUI.local().then((l) => l.attach(source));
+}
+
 export const OPENABLE = /\.(ofini|svg|png|jpe?g|gif|webp|avif|bmp|psd|psb|idml|pdf|ai|tiff?|ora|docx|odt|rtf)$/i;
 
 /**
@@ -118,7 +131,9 @@ export async function openFolderPath(app, path, { allowPrompt = true } = {}) {
     if (unreadable) notes.push(t("{n, plural, one {# item could not be read} other {# items could not be read}}", { n: unreadable }));
     if (notes.length) app.toast(t("“{name}”: {notes}.", { name, notes: notes.join("; ") }), "warning", 7000);
     const entries = result.files.map((f) => ({ path: f.path, file: new File([f.bytes], f.path.split("/").pop()) }));
+    const before = app.doc;
     await openFolderEntries(app, entries, result.name);
+    if (app.doc !== before) remember(app, { kind: "path", path });
     addRecent({ name: result.name, path, isDir: true }).then((r) => app.emit("recents", r)).catch(() => {});
   } catch (err) {
     app.toast(err?.message || t("Could not open the folder “{name}”.", { name }), "danger", 6000);
@@ -133,6 +148,21 @@ export async function openFolderDialog(app) {
   if (platform.isDesktop && platform.pickFolder && platform.readFolder) {
     const folder = await platform.pickFolder();
     return folder ? openFolderPath(app, folder, { allowPrompt: false }) : undefined;
+  }
+  if (typeof window.showDirectoryPicker === "function") {
+    // File System Access: keep the handle so the Code studio reloads files that change on disk
+    let handle;
+    try {
+      handle = await window.showDirectoryPicker({ mode: "read" });
+    } catch {
+      return; // cancelled
+    }
+    const { walkHandle } = await import("./code/local-preview.js");
+    const files = await walkHandle(handle);
+    const before = app.doc;
+    await openFolderEntries(app, Object.entries(files).map(([path, file]) => ({ path, file })), handle.name);
+    if (app.doc !== before) remember(app, { kind: "handle", handle });
+    return;
   }
   const picked = await pickFiles({ directory: true });
   if (!picked.length) return;
