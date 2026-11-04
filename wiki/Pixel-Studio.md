@@ -42,6 +42,12 @@ Adjustments and live filters are **non-destructive layers**: reorder, mask, hide
 
 Every adjustment layer has Enabled, Opacity, Hold to compare, a mask button, Reset and Apply to layer, plus a small before/after histogram.
 
+## Photo edits
+
+*Document ▸ Photo Edits* has Remove Background, Auto White Balance, Auto Levels, Auto Contrast, Replace Color, Unsharp Mask,
+Reduce Noise, Vignette, Tilt-Shift Blur and Upscale 2x, and *Select ▸ Select Subject* selects the subject. None of them uses
+image generation; Vibe can call them too (`edit_pixels`, `remove_background`, `select_subject`).
+
 ## Histogram, Levels and Curves
 
 The bottom dock has a live **Histogram**, the **Info** panel shows the color under the pointer, and the Adjust panel has interactive **Levels** and **Curves**. See [[Histogram and Tone Tools]].

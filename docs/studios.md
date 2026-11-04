@@ -91,6 +91,12 @@ Flatten.
 
 Panels: **Histogram** (live, with source and channel choice, statistics, clipping overlay, compact mode), **Info** (color under the pointer) and **Adjust** (interactive Levels and Curves with histogram backdrop and eyedroppers, before / after histograms). See the [Histogram guide](pixel-histogram.md).
 
+**Photo edits** (*Document ▸ Photo Edits*, no image generation): Remove Background, Auto White Balance, Auto Levels,
+Auto Contrast, Replace Color (foreground with background color), Unsharp Mask, Reduce Noise, Vignette, Tilt-Shift Blur and
+Upscale 2x act on the active pixel layer as one undo step, limited to the pixel selection. *Select ▸ Select Subject* selects
+what differs from the image border. Both are classical algorithms (engine/pixel/native-edit.js): they work best on plain or
+evenly colored backgrounds and are not a replacement for a segmentation model.
+
 Adjustments and live filters are **non-destructive layers** you can reorder, mask, hide and re-edit.
 Enable *Apply to the selected layer only* in the Adjust panel to nest them under a layer instead of
 affecting everything below.

@@ -129,7 +129,7 @@ test("idle workers are terminated after idleMs", async () => {
 });
 
 test("the real jobs give the same results as the engines, through the public entry (local fallback in Node)", async () => {
-  assert.deepEqual(JOB_NAMES.sort(), ["pixel.resize", "pixel.trace", "zip.compress"]);
+  assert.deepEqual(JOB_NAMES.sort(), ["pixel.edit", "pixel.resize", "pixel.trace", "zip.compress"]);
   const img = { width: 8, height: 6, data: new Uint8ClampedArray(8 * 6 * 4).map((_, i) => (i * 37) & 255) };
   const viaPool = await runJob("pixel.resize", { img, width: 4, height: 3, filter: "bicubic" });
   assert.deepEqual(viaPool, resizeImage(img, 4, 3, { filter: "bicubic" }));

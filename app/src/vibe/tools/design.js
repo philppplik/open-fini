@@ -283,10 +283,30 @@ export function designTools(app, ctx) {
       ops.duplicateSelection(app, { offset: a.offset ?? 0 });
       return { ids: app.selection.map((n) => n.id) };
     }),
-    tool("reorder_layers", "Changes stacking order.", { ids: S.ids(), action: S.str("Where to move", { enum: ["front", "forward", "backward", "back"] }) }, ["ids", "action"], (a) => {
-      app.select(nodesById(app, a.ids));
-      ops.arrange(app, a.action);
-      return { ok: true };
+    tool("reorder_layers", "Changes stacking order (one undo step): action front/forward/backward/back, or 'position' with index (0 = bottom of the layer's parent).", { ids: S.ids(), action: S.str("Where to move", { enum: ["front", "forward", "backward", "back", "position"] }), index: S.num("Target index for action 'position' (0 = bottom)") }, ["ids", "action"], (a) => {
+      const nodes = nodesById(app, a.ids);
+      if (a.action !== "position") {
+        app.select(nodes);
+        ops.arrange(app, a.action);
+        return { ok: true };
+      }
+      if (!Number.isFinite(a.index)) throw new Error("index is required for action 'position'.");
+      app.doc.tx("Move Layers", () => {
+        nodes.forEach((n, i) => {
+          const parent = n.parent;
+          if (!parent) return;
+          const to = Math.max(0, Math.min(parent.children.length - 1, Math.round(a.index) + i));
+          app.doc.move(n, parent, to);
+        });
+      });
+      return { ok: true, order: nodes.map((n) => ({ id: n.id, index: n.parent?.children.indexOf(n) })) };
+    }),
+    tool("reorder_pages", "Moves a page to a new 1-based position (one undo step).", { page: S.str("Page id or 1-based number"), to: S.num("New 1-based position") }, ["page", "to"], (a) => {
+      const doc = requireDoc(app);
+      const page = doc.pages.find((p) => p.id === a.page) || doc.pages[Math.round(Number(a.page)) - 1];
+      if (!page) throw new Error(`There is no page “${a.page}”.`);
+      doc.tx("Move Page", () => doc.movePage(page, Math.max(0, Math.min(doc.pages.length - 1, Math.round(a.to) - 1))));
+      return { ok: true, pages: doc.pages.map((p) => p.id) };
     }),
     tool("align_layers", "Aligns layers to each other or to the page.", {
       ids: S.ids(), mode: S.str("Alignment", { enum: ["left", "centerH", "right", "top", "centerV", "bottom"] }), toPage: S.bool("Align to the page instead of to each other"),

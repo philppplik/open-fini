@@ -17,6 +17,16 @@ const JOBS = {
     const src = k < 1 ? resizeImage(img, Math.round(img.width * k), Math.round(img.height * k), { filter: "box" }) : img;
     return { r: { width: src.width, height: src.height, trace: traceImage(src, opts) } };
   },
+  /** args: { name, img, params } → the image after a WORKER_EDITS edit, or for name "subject_mask" the subject mask (Uint8Array) (engine/pixel/native-edit.js applyEdit) */
+  async "pixel.edit"({ name, img, params }) {
+    if (name === "subject_mask") {
+      const r = (await import("../../engine/pixel/native-edit.js")).subjectMask(img, params);
+      return { r, transfer: [r.buffer] };
+    }
+    const [{ applyEdit }, { resizeImage }] = await Promise.all([import("../../engine/pixel/native-edit.js"), import("../../engine/pixel/transform.js")]);
+    const r = applyEdit(name, { width: img.width, height: img.height, data: new Uint8ClampedArray(img.data.buffer, img.data.byteOffset, img.data.length) }, params, { resizeImage });
+    return { r, transfer: [r.data.buffer] };
+  },
   /** args: { files: fflate zip input, level } → zip bytes */
   async "zip.compress"({ files, level = 6 }) {
     const { zipSync } = await import("../../../vendor/fflate/fflate.js");
