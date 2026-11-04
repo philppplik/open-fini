@@ -2,9 +2,13 @@
 
 A relay is a small dependency-free Node program that forwards encrypted frames between the members of a room. It never sees plaintext. You can run it on your own computer, on your local network or on a server behind a TLS proxy. This page covers each setup, the options, the limits and the protocol in brief.
 
+## The easy way: the desktop app
+
+You do not need anything on this page for a room in your own network: in the desktop app choose *Collaborate ▸ Start a room ▸ Where: Your network: start a relay on this computer ▸ Create room*. The app starts its built-in relay, puts this computer's network address into the invite code and shows *Copy invite code*, a QR code and *Stop relay* under *People*. Allow OpenFini in the firewall for private networks when Windows asks. Others join with the invite code in the desktop app. The built-in relay is plain `ws://` and does not serve the app, so browsers on phones and tablets need the Node relay with `--lan` below. In the browser or installed web app there is no built-in relay: enter the address of a hosted relay.
+
 ## Requirements
 
-Node.js 20 or newer and the OpenFini repository (the relay is `scripts/relay.mjs`; there is nothing to install).
+Node.js 20 or newer. Inside the OpenFini repository use `npm run relay`. Without the repository, download `scripts/relay.mjs` (one file, no dependencies) into any folder and run `node relay.mjs --lan` in that folder; add `scripts/relay-tls.mjs` next to it for https/wss. Running `npm run relay` outside the project folder fails with `ENOENT … package.json`.
 
 ## Run it
 

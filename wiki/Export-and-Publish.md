@@ -41,8 +41,12 @@ Pre-publish checks cover broken links and missing files, dead `#anchors`, images
 | Vercel | Uploads files, then creates a deployment | Access token (optional team id) |
 | GitHub Pages | One commit with the whole site to a branch (default `gh-pages`), then enables Pages | Token with Contents and Pages access |
 | WebDAV / HTTP PUT | `MKCOL` and `PUT` per file | Password or token; the server must send CORS headers |
+| FTP / FTPS server (desktop app) | Built into the desktop app: FTPS with explicit TLS (default), implicit TLS or plain FTP; *Test connection* | Password, kept in this device's key store |
+| SFTP server (desktop app) | Not built in yet: use FTPS, or the helper | |
 | FTP, FTPS, SFTP, rsync, SMTP | Through the **publish helper** (`npm run publish:helper`), a small local Node program | Helper token; server credentials per upload |
 | Cloudflare Pages | Not available (its direct upload cannot be called from web pages) | Use GitHub Pages or Netlify |
+
+**Send by email** (*Export ▸ Send by email…*, desktop app): exports with the *Image & PDF* settings and mails the file through your own SMTP server (STARTTLS, TLS or none for a local server; set the account once, *Test connection*). The password stays in this device's key store and is sent only over an encrypted connection. Self-signed server certificates show *Trust this certificate?* with the SHA-256 fingerprint; once trusted, exactly that certificate is accepted and a change is reported. In the browser these features say they need the desktop app.
 
 The helper listens on `127.0.0.1` only, checks the browser origin, requires a bearer token, accepts one upload at a time (256 MB limit) and never writes passwords to disk. SFTP and rsync use your system `ssh` tools with key authentication only.
 

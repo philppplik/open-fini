@@ -91,13 +91,50 @@ https sites, files over 10 MB, a missing entry page. Errors do not block publish
 | Vercel | Files uploaded with `POST /v2/files` (SHA-1 digest), then `POST /v13/deployments`, polled until `READY` | Access token | Optional team id. Production alias is used when present. |
 | GitHub Pages | One commit with the whole site to a branch (default `gh-pages`) through the Git Data API, then `POST /repos/{o}/{r}/pages` | Token with Contents and Pages access | Replaces everything on that branch; refuses the repository's default branch. Adds `.nojekyll`. |
 | WebDAV / HTTP PUT | `MKCOL` for folders, `PUT` per file (Basic or Bearer auth) | Password or token | Nextcloud, ownCloud, own servers. The server must send CORS headers (allow `PUT`, `MKCOL`, `Authorization`). Credentials travel only over https (or to localhost). |
-| Server: FTP, FTPS, SFTP, rsync, SMTP | Through the **publish helper** (below) | Helper token; server password per upload | Browsers cannot open TCP sockets. |
+| FTP / FTPS server (desktop app) | Built into the desktop app (`src-tauri/src/ftp.rs`, below): FTPS with explicit TLS (default), implicit TLS (port 990) or plain FTP; passive mode; folders created with `MKD` | Password (kept in the key store) | Desktop only; the web build says so. *Test connection* signs in without uploading. |
+| SFTP server (desktop app) | **Not built in yet** | | Use FTPS, or SFTP through the publish helper. |
+| Server: FTP, FTPS, SFTP, rsync, SMTP | Through the **publish helper** (below) | Helper token; server password per upload | Browsers cannot open TCP sockets. When the helper does not answer, the dialog explains how to install Node.js and start it. |
 | Cloudflare Pages | **Not available.** Direct Upload needs BLAKE3 content hashing and the Cloudflare API does not allow calls from web pages. | | Use GitHub Pages or Netlify, or connect an exported repository to Cloudflare Pages. |
 
 These targets are written against each vendor's documented HTTP API and unit-tested with a mock `fetch`
 (request shapes, polling, errors, cancellation). **Not verified here:** live calls to the vendors (no accounts or
 network were used) and whether each vendor currently allows cross-origin requests from a web page; if a request is
 blocked the dialog says so and suggests the helper or a different target.
+
+### Built-in FTP/FTPS and Send by email (desktop app)
+
+The desktop app has its own FTP/FTPS and SMTP clients in Rust ([ADR 0018](adr/0018-built-in-network-services.md);
+`src-tauri/src/ftp.rs`, `smtp.rs`, shared `netio.rs`), so publishing to a classic web host and mailing an export need no
+helper program and no Node.js.
+
+* **FTP / FTPS target**: server, encryption (FTPS explicit TLS = default; implicit TLS on 990; plain FTP is offered but
+  labeled as unencrypted), port, user, remote folder, public address. Passive mode (`EPSV`, then `PASV`); the data
+  connection always goes to the control connection's address. File names with `..`, empty segments, backslashes or
+  control characters are refused. *Cancel* stops between files.
+* **Send by email** (*Export ▸ Send by email…*, uses the *Image & PDF* settings): the export is attached to a mail sent
+  through your own SMTP server (STARTTLS on 587 = default, TLS on 465, or none for a server on this computer), `AUTH
+  PLAIN` or `LOGIN`, MIME multipart with base64 attachments (25 MB limit), RFC 2047 subjects. The account (server, port,
+  encryption, user, sender) is the `smtpAccount` setting; *Test connection* signs in without sending. The password is
+  sent only over TLS (or to localhost).
+* **Credentials**: the FTP and SMTP passwords are stored like the other publish secrets (`ui/code/secrets.js`: this
+  device's private storage, sealed with the Vibe vault passphrase when the vault is on, encrypted by the app lock). They
+  are handed to the Rust command for one call and are never logged; error messages never contain them.
+* **Certificates (trust on first use)**: TLS uses the operating system's stack and trusted certificates (`native-tls`:
+  SChannel on Windows, Secure Transport on macOS, OpenSSL on Linux). When verification fails, a second connection that
+  sends nothing reads the server's certificate and the app asks *Trust this certificate?* with its SHA-256 fingerprint.
+  On *Trust* the fingerprint is pinned (`pinnedCert` in the target, or in `smtpAccount`) and from then on exactly that
+  certificate is accepted, without host name or chain checks. A different certificate later shows *Certificate
+  changed* (possible interception) and needs a new confirmation. Changing the SMTP server clears its pin.
+* **In the browser / PWA** these features are unavailable (no raw TCP); the target and the mail dialog say so and offer
+  WebDAV, a hosted service, the helper, or saving the file instead.
+* **SFTP** is not built in: an SSH client (`russh`) would add a large async crypto dependency tree for one target. Use
+  FTPS, or SFTP/rsync through the helper.
+* Tested: Rust unit tests (reply parsing, EPSV/PASV, paths, MIME, dot-stuffing, addresses, dates, fingerprints), and
+  during development a throwaway harness drove the Rust code against local fake servers on Windows (plain FTP upload,
+  FTPS explicit TLS with a protected data channel, SMTP plain/STARTTLS/implicit TLS, self-signed → fingerprint → pinned).
+  **Not tested:** real FTP/mail servers and providers, macOS and Linux TLS stacks at runtime (CI only compiles them),
+  servers that require TLS session reuse on the FTPS data channel (for example vsftpd with `require_ssl_reuse=YES`;
+  `native-tls` cannot reuse the session explicitly, so such servers may refuse uploads).
 
 ### Publish helper
 
