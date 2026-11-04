@@ -50,6 +50,7 @@ commands/file.js ─► ui/office/open.js ─► registry.appForFile / engine/of
 | Comment anchors | `app/src/collab/anchors.js ▸ officeItemAnchor`, `protocol.js ANCHOR kind "item"` |
 | Vibe tools | `app/src/vibe/tools/office-suite.js` (all kinds), `office.js` (text documents) |
 | Tests | `tests/office/suite.test.js`, `tests/office/toolkit.test.js`, `tests/collab/office-records.test.js` |
+| Spreadsheet app | `app/src/office/sheet/` ([office-sheet.md](office-sheet.md)) |
 
 ## The contract
 

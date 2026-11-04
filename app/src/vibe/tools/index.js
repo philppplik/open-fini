@@ -17,6 +17,7 @@ import { frameworkTools } from "./frameworks.js";
 import { officeTools } from "./office.js";
 import { officeSuiteTools } from "./office-suite.js";
 import { slidesTools } from "./office-slides.js";
+import { officeSheetTools } from "./office-sheet.js";
 import { textcodecTools } from "./textcodec.js";
 import { customizationTools } from "./customization.js";
 import { formatTools } from "./formats.js";
@@ -36,7 +37,7 @@ import { colorTools } from "./color.js";
  * @param {object} ctx session context: { images, knowledge, memory, skills, ask, plan, customTools }
  */
 export function createOpenFiniTools(app, ctx = {}) {
-  return [...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...officeSuiteTools(app, ctx), ...slidesTools(app, ctx), ...formatTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...commentTools(app, ctx), ...vscodeTools(app, ctx), ...routingTools(app, ctx), ...webAccessTools(app, ctx), ...colorTools(app, ctx)];
+  return [...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...officeSuiteTools(app, ctx), ...officeSheetTools(app, ctx), ...slidesTools(app, ctx), ...formatTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...commentTools(app, ctx), ...vscodeTools(app, ctx), ...routingTools(app, ctx), ...webAccessTools(app, ctx), ...colorTools(app, ctx)];
 }
 
 /** Tools grouped for the UI. */
@@ -51,6 +52,7 @@ export const TOOL_GROUPS = {
   "Office documents": ["office_new_document", "office_read_document", "office_find", "office_insert_blocks", "office_replace_text", "office_set_style", "office_apply_format", "office_insert_table", "office_set_page_setup", "office_export"],
   "Office suite": ["office_formats", "office_list_documents", "office_describe", "office_new"],
   Presentation: ["slides_describe", "slides_add_slide", "slides_delete", "slides_set_text", "slides_add_shape", "slides_add_image", "slides_apply_layout", "slides_apply_theme", "slides_reorder", "slides_set_notes", "slides_set_transition"],
+  Spreadsheets: ["sheet_describe", "sheet_read_range", "sheet_write_range", "sheet_set_formula", "sheet_format", "sheet_add_sheet", "sheet_add_chart"],
   "Imported documents": ["get_import_report", "list_pdf_pages", "describe_document_pages", "extract_pdf_text"],
   "System and files": ["get_platform_info", "list_recent_files"],
   Extensions: ["list_extensions", "run_extension_command", "install_extension_from_url", "create_extension"],

@@ -1,0 +1,40 @@
+/* Spreadsheet app of the Office Suite (app/src/office/sheet/). Loaded on demand by view.js; colors come from the
+   --of-* theme tokens, the grid itself reads --of-sheet-* (light paper by default, darker in dark themes). */
+.of-sheet {
+  --of-sheet-bg: #ffffff;
+  --of-sheet-grid: #e2e3e6;
+  --of-sheet-head: #f3f4f6;
+  --of-sheet-head-text: #4b5563;
+  --of-sheet-text: #111827;
+  position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--of-bg-canvas); color: var(--of-text);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .of-sheet { --of-sheet-head: #2a2d33; --of-sheet-head-text: #c3c8d0; --of-sheet-grid: #d9dbe0; }
+}
+:root[data-theme="dark"] .of-sheet { --of-sheet-head: #2a2d33; --of-sheet-head-text: #c3c8d0; }
+.of-sheet__grid { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--of-sheet-bg); }
+.of-sheet__canvas { position: absolute; left: 0; top: 0; pointer-events: none; }
+.of-sheet__scroller { position: absolute; inset: 0; overflow: auto; outline: none; cursor: cell; touch-action: pan-x pan-y; }
+.of-sheet__scroller:focus-visible { box-shadow: inset 0 0 0 2px var(--of-accent); }
+.of-sheet__sizer { pointer-events: none; }
+.of-sheet__editor {
+  position: absolute; display: none; z-index: 2; box-sizing: border-box; margin: 0; padding: 2px 3px; resize: none; overflow: hidden;
+  border: 2px solid var(--of-accent); background: #ffffff; color: #111827; font-family: Calibri, Carlito, "Segoe UI", Arial, sans-serif;
+  line-height: 1.2; outline: none; white-space: pre; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+.of-sheet__editor.is-on { display: block; }
+.of-sheet__live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.of-sheet__tabs { display: flex; align-items: stretch; gap: 2px; min-height: 30px; padding: 0 6px; overflow-x: auto; border-top: 1px solid var(--of-border-soft); background: var(--of-bg-bar); }
+.of-sheet__tab, .of-sheet__tab-add {
+  flex: none; display: inline-flex; align-items: center; gap: 4px; padding: 0 12px; border: 0; border-bottom: 2px solid transparent;
+  background: transparent; color: var(--of-text-dim); font: inherit; font-size: 12.5px; cursor: pointer; white-space: nowrap;
+}
+.of-sheet__tab-add { padding: 0 8px; }
+.of-sheet__tab:hover, .of-sheet__tab-add:hover { background: var(--of-hover); color: var(--of-text); }
+.of-sheet__tab[aria-selected="true"] { color: var(--of-text); border-bottom-color: var(--of-accent); background: var(--of-bg-panel); font-weight: 600; }
+.of-sheet__tab:focus-visible, .of-sheet__tab-add:focus-visible { outline: 2px solid var(--of-accent); outline-offset: -2px; }
+.of-sheet__checks { max-height: 260px; overflow: auto; display: flex; flex-direction: column; gap: 2px; padding: 4px; border: 1px solid var(--of-border-soft); border-radius: var(--of-radius-sm, 4px); }
+.of-sheet__check { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.of-sheet__rules { margin: 4px 0 8px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
+.of-sheet__rules li { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12.5px; }
+@media (prefers-reduced-motion: reduce) { .of-sheet__editor { box-shadow: none; } }

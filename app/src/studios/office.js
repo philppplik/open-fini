@@ -63,4 +63,13 @@ export const OFFICE_MENUS = [
   { label: "Format", studios: ["office"], officeKinds: ["slides"], items: ["slides.bold", "slides.italic", "slides.underline", "slides.bullets", "-", "slides.alignLeft", "slides.alignCenter", "slides.alignRight", "-", "slides.front", "slides.forward", "slides.backward", "slides.back", "slides.rotate"] },
   { label: "Slide", studios: ["office"], officeKinds: ["slides"], items: ["slides.newSlide", "slides.duplicateSlide", "slides.deleteSlide", "slides.hideSlide", "-", "slides.moveUp", "slides.moveDown", "-", "slides.transition.none", "slides.transition.fade", "slides.transition.slide", "-", "slides.export"] },
   { label: "View", studios: ["office"], officeKinds: ["slides"], items: ["slides.sorter", "-", "slides.present", "slides.presentCurrent", "slides.presenterView", "-", "view.theme"] },
+  // Spreadsheet (commands/office-sheet.js, registered when the app loads)
+  ...[
+    ["Edit", "edit.undo edit.redo - sheet.cut sheet.copy sheet.paste sheet.pasteValues - sheet.fillDown sheet.fillRight sheet.clear sheet.clearAll - sheet.selectAll sheet.find sheet.replace"],
+    ["Insert", "sheet.insertRowAbove sheet.insertRowBelow sheet.insertColLeft sheet.insertColRight - sheet.insertFunction sheet.insertChart - sheet.addSheet"],
+    ["Format", "sheet.bold sheet.italic sheet.underline sheet.strike - sheet.alignLeft sheet.alignCenter sheet.alignRight sheet.wrap sheet.merge sheet.unmerge - sheet.numberFormat sheet.moreDecimals sheet.fewerDecimals - sheet.bordersAll sheet.bordersOuter sheet.bordersNone - sheet.conditional sheet.clearFormats - sheet.colWidth sheet.rowHeight sheet.autofit"],
+    ["Data", "sheet.sortAsc sheet.sortDesc - sheet.filter - sheet.deleteRows sheet.deleteCols"],
+    ["View", "sheet.freeze sheet.freezeRow sheet.freezeCol sheet.unfreeze - sheet.zoomIn sheet.zoomOut sheet.zoom100 - view.theme"],
+    ["Sheet", "sheet.addSheet sheet.renameSheet sheet.duplicateSheet sheet.deleteSheet - office.export sheet.exportXlsx sheet.exportOds sheet.exportCsv sheet.exportPdf sheet.exportPng"],
+  ].map(([label, items]) => ({ label, studios: ["office"], officeKinds: ["sheet"], items: items.split(" ") })),
 ];

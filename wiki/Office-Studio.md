@@ -1,6 +1,6 @@
 # Office Studio
 
-The Office studio is a page-based word processor inside OpenFini. Open a Word document, edit it on pages with styles, lists, tables and images, and export it as Word, OpenDocument, PDF or another format. Everything runs locally. This first phase covers text documents; spreadsheets and presentations are not supported yet.
+The Office studio is a page-based word processor inside OpenFini. Open a Word document, edit it on pages with styles, lists, tables and images, and export it as Word, OpenDocument, PDF or another format. Everything runs locally. Spreadsheets have their own app: see [[Spreadsheet]]; presentations are not supported yet.
 
 ## Getting started
 
