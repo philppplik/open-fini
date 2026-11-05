@@ -29,6 +29,7 @@ export const DEFAULT_SETTINGS = () => ({
   reasoning: "off", // off | low | medium | high
   maxSteps: 24,
   disabledTools: [],
+  terminal: null, // Settings ▸ Artificial intelligence ▸ Terminal; defaults in vibe/terminal-policy.js (off)
   webAccess: null, // Settings ▸ Artificial intelligence ▸ Web access; defaults in vibe/web-access.js (off)
   autoAllow: [],
   extraInstructions: "",

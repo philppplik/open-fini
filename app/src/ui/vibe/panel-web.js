@@ -41,7 +41,7 @@ export function createWebPanel() {
       save({ enabled: on.checked });
       render();
     });
-    el.append(h("div.of-vcard", h("strong", t("Web access")), h("p.of-hint", t("Lets the assistant search the web, read pages and download images (tools web_search, fetch_page, download_image). Off by default. Every request asks for your approval per domain; local and private addresses are always blocked; no cookies or credentials are sent; fetched text is treated as untrusted data.")), on));
+    el.append(h("div.of-vcard", h("strong", t("Web access")), h("p.of-hint", t("Lets the assistant search the web, read pages and download images (tools web_search, fetch_page, scrape_page, crawl_site, http_request, download_image). Off by default. Every request asks for your approval per domain; local and private addresses are always blocked; no cookies or credentials are sent; fetched text is treated as untrusted data.")), on));
     if (!w.enabled) return;
     const backend = h("select.of-vfield__in", BACKENDS.map(([v, l]) => h("option", { value: v, selected: v === w.searchBackend }, t(l))));
     backend.addEventListener("change", () => {
@@ -54,7 +54,8 @@ export function createWebPanel() {
     el.append(search);
     el.append(h("div.of-vcard", h("strong", t("Domains")),
       field(t("Always allowed"), list(w.allowDomains, (v) => save({ allowDomains: v })), t("No approval is asked for these (subdomains match too). Added when you choose “Always allow this domain”.")),
-      field(t("Blocked"), list(w.blockDomains, (v) => save({ blockDomains: v })), t("Always refused, even when approved."))));
+      field(t("Blocked"), list(w.blockDomains, (v) => save({ blockDomains: v })), t("Always refused, even when approved.")),
+      field(t("API domains"), list(w.apiDomains, (v) => save({ apiDomains: v })), t("The only hosts http_request may call (JSON APIs). Every call still asks for your approval."))));
     el.append(h("div.of-vcard", h("strong", t("Limits")),
       field(t("Largest page (KiB)"), num(w.maxPageBytes, 1024, (v) => save({ maxPageBytes: v }), 16)),
       field(t("Largest image (MiB)"), num(w.maxImageBytes, 1048576, (v) => save({ maxImageBytes: v }), 1)),

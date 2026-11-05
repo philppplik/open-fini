@@ -26,7 +26,7 @@
 import { createServer as createHttp } from "node:http";
 import { createServer as createHttps } from "node:https";
 import { createServer as createNet, isIP } from "node:net";
-import { createHash } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { readFileSync, existsSync, statSync, realpathSync } from "node:fs";
 import { networkInterfaces } from "node:os";
 import { dirname, join, resolve, sep, extname } from "node:path";
@@ -181,6 +181,22 @@ export function encodeFrame(opcode, payload) {
  * Starts a relay. Resolves when listening.
  * @returns {Promise<{port:number, host:string, close:()=>Promise<void>, stats:()=>object, server:any}>}
  */
+/**
+ * Relay key (--auth-token or OPENFINI_RELAY_TOKEN): members add `?key=<token>` to the relay address. It only decides who
+ * may use this relay at all (an internet relay is not an open proxy); content stays end-to-end encrypted either way.
+ */
+export function tokenOk(url, token) {
+  let got = "";
+  try {
+    got = new URL(String(url || "/"), "http://x").searchParams.get("key") || "";
+  } catch {
+    return false;
+  }
+  const a = createHash("sha256").update(got).digest();
+  const b = createHash("sha256").update(String(token)).digest();
+  return got.length > 0 && timingSafeEqual(a, b);
+}
+
 export function startRelay(options = {}) {
   const o = { ...DEFAULTS, ...options };
   const origins = o.origins === "*" ? "*" : [...DEFAULT_ORIGINS, ...(o.origins || [])];
@@ -213,6 +229,7 @@ export function startRelay(options = {}) {
       servesApp: !!root,
       appUrls: root ? [...(!tls || dual ? urls("http") : []), ...(tls ? urls("https") : [])] : [],
       originAllowed: allowedFor(req),
+      auth: !!o.authToken,
     };
   };
 
@@ -274,6 +291,10 @@ export function startRelay(options = {}) {
     if (req.headers["sec-websocket-version"] !== "13") return deny(426, "Upgrade Required");
     const key = req.headers["sec-websocket-key"];
     if (typeof key !== "string" || !/^[A-Za-z0-9+/]{22}==$/.test(key)) return deny(400, "Bad Request");
+    if (o.authToken && !tokenOk(req.url, o.authToken)) {
+      log("refused: missing or wrong relay key");
+      return deny(401, "Unauthorized");
+    }
     if (!allowedFor(req)) {
       log(`refused origin ${String(req.headers.origin).slice(0, 80)}`);
       return deny(403, "Forbidden");
@@ -524,6 +545,7 @@ export function parseArgs(argv) {
     else if (a === "--max-peers") o.maxPeers = num(v(), "max-peers");
     else if (a === "--rate") o.rate = num(v(), "rate");
     else if (a === "--quiet") o.log = false;
+    else if (a === "--auth-token") o.authToken = v();
     else if (a === "--lan") o.lan = true;
     else if (a === "--serve-app") o.serveApp = argv[i + 1] && !argv[i + 1].startsWith("--") ? argv[++i] : true;
     else if (a === "--no-serve-app") o.serveApp = false;
@@ -553,6 +575,7 @@ const HELP = `OpenFini collaboration relay (forwards end-to-end encrypted frames
   --port <n>          port (default 8787; 0 = any free port)
   --tls-cert <file>   PEM certificate: serve wss:// directly (with --tls-key)
   --tls-key <file>    PEM private key
+  --auth-token <t>    require ?key=<t> in the relay address (or set OPENFINI_RELAY_TOKEN); for internet relays
   --origin <origin>   allow browser pages from this origin (repeatable; the desktop app, localhost and pages this
                       relay serves itself are always allowed)
   --any-origin        allow every origin (not recommended)
@@ -579,6 +602,7 @@ export async function runCli(opts, out = console) {
     start.tls = { cert: certInfo.cert, key: certInfo.key };
     start.dual = true;
   }
+  if (!start.authToken && process.env.OPENFINI_RELAY_TOKEN) start.authToken = process.env.OPENFINI_RELAY_TOKEN;
   const relay = await startRelay(start);
   const { port, host } = relay;
   const pub = host !== "127.0.0.1" && host !== "localhost" && host !== "::1";

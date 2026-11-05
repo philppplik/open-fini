@@ -353,7 +353,8 @@ function createWindow(app, c) {
       h("option", { value: "local" }, t("This device: other windows and tabs")),
       h("option", { value: "relay" }, t("Relay server (local network or internet)")),
     );
-    const builtinNote = h("p.of-collab-hint", { hidden: true }, t("OpenFini starts a small relay inside this app and creates the room on it. Others in your network join with the invite code in the OpenFini desktop app. Your firewall may ask once whether OpenFini may accept connections: allow it for private networks. The relay stops when you stop it or close OpenFini."));
+    const tunnelBox = h("input", { type: "checkbox" });
+    const builtinNote = h("p.of-collab-hint", { hidden: true }, h("label", tunnelBox, " ", t("Also reach it from other networks through a tunnel (cloudflared, ngrok or tailscale, if installed; asks first)")), h("br"), t("OpenFini starts a small relay inside this app and creates the room on it. Others in your network join with the invite code in the OpenFini desktop app. Your firewall may ask once whether OpenFini may accept connections: allow it for private networks. The relay stops when you stop it or close OpenFini."));
     const webNote = desktop ? null : h("p.of-collab-note", { hidden: true }, icon("info-circle"), t("A browser cannot start a relay. Enter the address of a hosted relay (wss://…), or of one started on a computer in your network with the desktop app or with node relay.mjs --lan."));
     const relay = h("input.of-collab-input", { value: app.prefs.collabRelay || "ws://127.0.0.1:8787/", spellcheck: false, "aria-label": t("Relay address"), placeholder: "wss://relay.example.org/" });
     // relay: loopback warning, "Test connection" with a diagnosis, and how to start one
@@ -398,6 +399,13 @@ function createWindow(app, c) {
           await c.createRoom({ relay: builtinRelay.local, defaultRole: role.value });
           // the invite carries this computer's network address, not localhost
           if (builtinRelay.addresses[0]) c.session.setInviteRelay(builtinRelay.addresses[0]);
+          if (tunnelBox.checked) {
+            const tun = await (await import("./network.js")).startTunnel(app, builtinRelay.port);
+            if (tun) {
+              c.session.setInviteRelay(tun.url);
+              app.toast(t("Public relay address: {url}. Anyone with the invite code can join from the internet. Stop the room to close the tunnel.", { url: tun.url }), "warning", 15000);
+            }
+          }
         } else await c.createRoom({ relay: where.value === "local" ? "local" : relay.value.trim(), defaultRole: role.value });
         select("people");
         import("./runtime.js").then((m) => m.afterRoomStart(app, { created: true }));

@@ -1,0 +1,16 @@
+# docker compose -f deploy/relay/compose.yaml up -d   (from the repository root)
+# Put the relay key in a .env file next to this file (OPENFINI_RELAY_TOKEN=...), never in git.
+# Terminate TLS in front of it (Caddy, nginx, a Cloudflare tunnel); members use wss://your.host/?key=<token>.
+services:
+  relay:
+    build:
+      context: ../..
+      dockerfile: deploy/relay/Dockerfile
+    environment:
+      - OPENFINI_RELAY_TOKEN=${OPENFINI_RELAY_TOKEN:-}
+    ports:
+      - "127.0.0.1:8787:8787"
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]

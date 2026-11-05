@@ -135,9 +135,8 @@ test("search backends parse results and image search records licenses", async ()
 // ---------------------------------------------------------------- tools and approval
 
 const tools = () => Object.fromEntries(webAccessTools(fakeApp()).map((t) => [t.name, t]));
-
 test("tools are registered in the Web group and always ask", () => {
-  assert.deepEqual(TOOL_GROUPS.Web, ["web_search", "fetch_page", "download_image"]);
+  assert.deepEqual(TOOL_GROUPS.Web, ["web_search", "fetch_page", "scrape_page", "crawl_site", "http_request", "download_image"]);
   for (const t of Object.values(tools())) assert.equal(t.alwaysAsk, true);
 });
 

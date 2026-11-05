@@ -88,6 +88,45 @@ Wrapping reduces but cannot remove prompt-injection risk.
 **For developers:** `app/src/vibe/web-access.js` (guard, fetch, extraction, backends; pure and injectable) and
 `app/src/vibe/web-hosts.js`; tests in `tests/vibe/web-access.test.js`.
 
+## Scraping, crawling and API requests
+
+`scrape_page`, `crawl_site` and `http_request` reuse the web access guard (http(s) only, no private or local targets
+after every redirect, no cookies or credentials, size and time limits, results wrapped as untrusted). Additionally:
+
+- **crawl_site** stays on the start URL's origin (optionally under a path prefix), reads `robots.txt` first and obeys
+  it (group `OpenFini`, else `*`), waits at least 1 s between requests and at least the site's `Crawl-delay` (capped at
+  10 s), and stops at hard caps (25 pages, depth 3, 120,000 characters). Every crawl is approved on its own; there is
+  no "always allow".
+- **http_request** only reaches hosts on *Web access ▸ API domains*, never follows redirects, refuses `Cookie`, `Host`,
+  `Origin`, `Referer` and proxy headers, and asks for approval on every call. The allowlist is the boundary: data the
+  model has can be sent to an allowlisted API, so list only services you trust with it.
+- **run_code** runs JavaScript in a fresh Web Worker whose network, storage, import and worker globals are removed from
+  the global object and its prototype chain, under the app's Content-Security-Policy, and terminated after at most 30 s.
+- **clipboard_read** asks every time; the text is treated as untrusted.
+- **Knowledge base** sources are indexed on this device. Embeddings are computed by your configured embedding provider
+  when one is set (the chunk text is sent to it); without one, retrieval is BM25 with no network at all.
+
+## Terminal access for the assistant
+
+Off by default and only in the desktop app (*Settings ▸ Artificial intelligence ▸ Terminal*). `run_command`:
+
+- runs **one program with an argv**, never through a shell (`sh`, `bash`, `cmd`, `powershell` and friends are refused
+  in JavaScript and again in Rust, `src-tauri/src/cmd.rs`), so there is no interpolation, piping or globbing;
+- must name a program on the **allow list** and not on the **deny list** or a **deny pattern** (all editable; deny wins);
+- runs only with a working folder **inside a folder opened with File ▸ Open Folder** (checked after canonicalizing on
+  the Rust side, so `..` and symbolic links cannot leave it);
+- has a time limit (default 60 s, at most 10 min) and an output cap (default 256 KiB); output streams into a panel with
+  **Stop**, and aborting the chat kills the process;
+- asks for approval on **every** call, showing the exact argv and folder; there is no "always allow";
+- is recorded in the AI log like every tool call (arguments only with verbose logging).
+
+Limits: an allowed interpreter or build tool (`node`, `python`, `npm run`, `cargo build` with build scripts) can run
+arbitrary code as you; the allow list cannot make that safe, only your approval of each call can. The program inherits
+your environment variables. The Rust side trusts the folder list the page sends; a compromised web view could already
+read files through the file system plugin.
+
+Computer use (screen and input control of the OS) is not built; see [ADR 0023](adr/0023-computer-use.md).
+
 ## App lock
 
 An optional passphrase lock screen, on start, after a chosen idle time, when the window is hidden, or on demand

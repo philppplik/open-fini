@@ -331,6 +331,24 @@ Any tool can be set to *Always allow*. The approval card shows the exact argumen
 only touches OpenFini documents: it has no access to your files, shell or network except through the connections and
 MCP servers you add.
 
+## More tools (scrape, crawl, APIs, knowledge base, utilities, terminal)
+
+- **Web** (with web access on): `scrape_page` extracts text, CSS-selector matches (tag, `#id`, `.class`, `[attr=value]`,
+  descendant and `>` combinators), tables as Markdown, links or metadata; `crawl_site` reads up to 25 pages of one site
+  obeying robots.txt and Crawl-delay with at least 1 s between requests (approved every time, optional
+  `addToKnowledge`); `http_request` calls JSON APIs on the *API domains* allowlist (approved every time).
+- **Knowledge base**: `rag_add_source` (a URL, the open project's files, an opened folder on disk in the desktop app, or
+  text; caps: 300 files, 2 MiB per file, 20 MiB and 60 s per call; progress in the tool card), `rag_search` (numbered
+  passages with source and line, cite as `[n] source:line`), `rag_list`, `rag_remove`. Retrieval is hybrid when an
+  embedding model is selected, otherwise BM25 on this device with no network.
+- **Utilities**: `calculate` (no eval), `convert_units`, `date_calc`, `run_code` (JavaScript in a sandboxed worker, no
+  network, time limit), `clipboard_read` (asks every time). **Code**: `file_search` and `apply_patch` (unified diff).
+  PDFs: `extract_pdf_text` on an imported PDF.
+- **Terminal** (desktop app, off by default): `run_command` runs one allow-listed program with an argv (no shell) in an
+  opened folder, approved per call, with a live output panel and **Stop**. Policy and limits: *Settings ▸ Artificial
+  intelligence ▸ Terminal* and [docs/security.md](security.md#terminal-access-for-the-assistant). There is no
+  interactive terminal panel in the Code studio, and no computer use ([ADR 0023](adr/0023-computer-use.md)).
+
 ## Web access
 
 Off by default. *Settings ▸ Artificial intelligence ▸ Web access* switches on three tools (group **Web**):

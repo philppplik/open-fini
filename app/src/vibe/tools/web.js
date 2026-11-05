@@ -107,6 +107,28 @@ export function webTools(app) {
       return { ok: true, replaced: changes.length };
     }),
 
+    tool("apply_patch", "Applies a unified diff (one file, @@ -a,b +c,d @@ hunks with exact context lines) to a project file. Use it for several related edits at once; read the file first so the context matches.", {
+      path: S.str("File path"), patch: S.str("Unified diff of this one file"),
+    }, ["path", "patch"], async (a) => {
+      const ws = await workspace();
+      const text = ws.web.text(a.path);
+      if (text == null) throw new Error(`“${a.path}” does not exist. Call list_files.`);
+      const { applyPatch } = await import("../utility-lib.js");
+      const next = applyPatch(text, a.patch);
+      ws.editors.applyChanges(a.path, [{ from: 0, to: text.length, insert: next }], { userEvent: "input.ai" });
+      return { ok: true, lines: next.split("\n").length };
+    }),
+
+    tool("file_search", "Searches the text files of the open project (the folder you opened or the website project) for a word, phrase or regular expression; optional glob such as **/*.css. Returns path, line and the matching line.", {
+      query: S.str("Text or regular expression"), regex: S.bool("Treat query as a regular expression"), caseSensitive: S.bool("Match case"), glob: S.str("Only paths matching this glob"), max: S.num("Maximum matches (default 50)", { minimum: 1, maximum: 300 }),
+    }, ["query"], async (a) => {
+      const ws = await workspace({ show: false });
+      const { searchFiles } = await import("../utility-lib.js");
+      const files = ws.web.paths.filter((p) => ws.web.isText(p)).map((p) => ({ path: p, text: ws.web.text(p) }));
+      const matches = searchFiles(files, a.query, { regex: a.regex, caseSensitive: a.caseSensitive, glob: a.glob, max: a.max || 50 });
+      return { matches, files: files.length, note: matches.length ? undefined : "No matches." };
+    }, { readOnly: true }),
+
     tool("format_file", "Formats a project file with the built-in formatter (HTML, CSS, JavaScript, JSON, Markdown): consistent indentation and wrapping, no change to what the page renders. Optionally only the lines startLine..endLine.", {
       path: S.str("File path"), startLine: S.num("First line to format (1-based)", { minimum: 1 }), endLine: S.num("Last line to format", { minimum: 1 }),
     }, ["path"], async (a) => {

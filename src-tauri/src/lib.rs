@@ -13,6 +13,7 @@
 //! installed TeX engine (`latex.rs`).
 
 mod cli;
+mod cmd;
 mod effects;
 mod ftp;
 mod latex;
@@ -165,6 +166,7 @@ pub fn run() {
         .manage(oauth::Loopback::default())
         .manage(relay::Relay::default())
         .manage(preview_server::PreviewServer::default())
+        .manage(cmd::Procs::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
@@ -177,6 +179,10 @@ pub fn run() {
             relay::relay_start,
             relay::relay_stop,
             relay::relay_status,
+            cmd::cmd_run,
+            cmd::cmd_kill,
+            cmd::tunnel_detect,
+            cmd::tunnel_start,
             ftp::ftp_test,
             ftp::ftp_upload,
             smtp::smtp_test,

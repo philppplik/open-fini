@@ -27,4 +27,7 @@ export function hostsOf(name, input, web = {}) {
 export const allAllowed = (hosts, web) => hosts.length > 0 && hosts.every((h) => (web.allowDomains || []).some((p) => hostMatches(h, p)));
 
 /** Hosts for the "Always allow this domain" button of a web tool approval (empty for other tools). */
-export const WEB_TOOL_NAMES = new Set(["web_search", "fetch_page", "download_image"]);
+export const WEB_TOOL_NAMES = new Set(["web_search", "fetch_page", "download_image", "scrape_page"]);
+
+/** Tools whose approval card offers no "Always allow": every call is approved on its own. */
+export const ONCE_ONLY_TOOLS = new Set(["crawl_site", "http_request", "run_command", "clipboard_read", "rag_add_source"]);

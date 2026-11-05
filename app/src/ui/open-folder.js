@@ -134,6 +134,7 @@ export async function openFolderPath(app, path, { allowPrompt = true } = {}) {
     const before = app.doc;
     await openFolderEntries(app, entries, result.name);
     if (app.doc !== before) remember(app, { kind: "path", path });
+    (app.openedFolders ||= new Set()).add(path); // run_command and rag_add_source may only use opened folders
     addRecent({ name: result.name, path, isDir: true }).then((r) => app.emit("recents", r)).catch(() => {});
   } catch (err) {
     app.toast(err?.message || t("Could not open the folder “{name}”.", { name }), "danger", 6000);

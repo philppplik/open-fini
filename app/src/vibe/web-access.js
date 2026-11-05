@@ -16,6 +16,7 @@ export const DEFAULT_WEB = () => ({
   apiKey: "", // Brave / Tavily
   allowDomains: [], // approved with "always for this domain"; a leading "*." matches subdomains
   blockDomains: [],
+  apiDomains: [], // http_request may only reach these (JSON APIs); every call still asks
   maxPageBytes: 2 * 1024 * 1024,
   maxImageBytes: 10 * 1024 * 1024,
   maxPixels: 40e6,
