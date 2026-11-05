@@ -51,6 +51,10 @@ export const DEFAULT_SETTINGS = () => ({
   quickActionChat: "new", // new | reuse | inline
   aiLog: true, // record run metadata (model, routing, tools, durations, errors, tokens, approvals)
   aiLogVerbose: false, // also record prompts, tool arguments, results and replies (redacted)
+  // cross-chat memory (Settings ▸ Artificial intelligence ▸ Memory; docs/vibe-memory.md)
+  memoryEnabled: true, // global switch: off = no memories are sent and the memory tools are removed
+  memoryAutoSave: false, // remember saves without asking (a notice with Undo is shown instead)
+  memoryPerRequest: 8, // relevant memories sent per request (pinned ones come on top)
 });
 
 /** The single store instance; emits "change" with the key group that changed. */
@@ -62,7 +66,7 @@ class VibeStore extends Emitter {
   skills = []; // user skills: { name, description, body, enabled }
   customTools = []; // { name, description, inputSchema, code, enabled }
   mcpServers = []; // { id, name, url, headers, enabled }
-  memory = []; // [{ id, text, time }]
+  memory = []; // records of vibe/memory.js ({ id, text, kind, scope, enabled, pinned, … }); old { id, text, time } rows are migrated on first use
   skillStats = {}; // { [skillName]: { uses, last } }
   loaded = false;
   locked = false; // vault enabled and not yet unlocked this session
@@ -173,10 +177,52 @@ class VibeStore extends Emitter {
     this.mcpServers = list;
     return this.#save(K.mcp, list, "mcp");
   }
-  async addMemory(text) {
-    this.memory.push({ id: uid("m"), text: String(text).slice(0, 400), time: Date.now() });
-    this.memory = this.memory.slice(-60);
+  /**
+   * Saves a memory, or updates the existing one that says (nearly) the same thing.
+   * @param {string} text
+   * @param {{kind?:string, scope?:string, pinned?:boolean, source?:{chat:string,title:string}|null}} [o]
+   * @returns {Promise<{id:string, updated:boolean, previous?:object}>}
+   */
+  async addMemory(text, o = {}) {
+    const M = await import("./memory.js");
+    this.memory = this.memory.map((m) => M.normalizeMemory(m));
+    const now = Date.now();
+    const dup = M.findDuplicate(this.memory, text);
+    if (dup) {
+      const previous = { ...dup };
+      Object.assign(dup, M.normalizeMemory({ ...dup, ...o, text, updated: now, source: o.source || dup.source }));
+      await this.#save(K.memory, this.memory, "memory");
+      return { id: dup.id, updated: true, previous };
+    }
+    const rec = M.normalizeMemory({ ...o, id: uid("m"), text, created: now });
+    if (!rec.text) throw new Error("A memory needs some text.");
+    this.memory.push(rec);
+    // over the cap: drop the oldest unpinned memories first
+    while (this.memory.length > M.MAX_MEMORIES) {
+      const i = this.memory.findIndex((m) => !m.pinned);
+      this.memory.splice(i < 0 ? 0 : i, 1);
+    }
     await this.#save(K.memory, this.memory, "memory");
+    return { id: rec.id, updated: false };
+  }
+  /** Changes one memory (text, kind, scope, enabled, pinned). */
+  async updateMemory(id, patch) {
+    const M = await import("./memory.js");
+    const i = this.memory.findIndex((m) => m.id === id);
+    if (i < 0) throw new Error("This memory no longer exists.");
+    this.memory[i] = M.normalizeMemory({ ...M.normalizeMemory(this.memory[i]), ...patch, id, updated: Date.now() });
+    await this.#save(K.memory, this.memory, "memory");
+    return this.memory[i];
+  }
+  deleteMemory(id) {
+    return this.saveMemory(this.memory.filter((m) => m.id !== id));
+  }
+  /** Counts that memories went into a request (shown as "used N times" in the Memory panel). Local only. */
+  noteMemoryUse(ids) {
+    if (!ids?.length) return Promise.resolve();
+    const now = Date.now();
+    for (const m of this.memory) if (ids.includes(m.id)) Object.assign(m, { uses: (m.uses || 0) + 1, lastUsed: now });
+    return this.#save(K.memory, this.memory, "memory-use");
   }
   saveMemory(list) {
     this.memory = list;
@@ -195,7 +241,7 @@ class VibeStore extends Emitter {
     return (await kvGet(K.chat(id))) || null;
   }
   async saveChat(chat) {
-    const meta = { id: chat.id, title: chat.title, updated: Date.now(), model: chat.model || "" };
+    const meta = { id: chat.id, title: chat.title, updated: Date.now(), model: chat.model || "", ...(chat.parent?.id ? { parent: chat.parent.id } : {}) };
     const i = this.chats.findIndex((c) => c.id === chat.id);
     if (i >= 0) this.chats[i] = meta;
     else this.chats.unshift(meta);

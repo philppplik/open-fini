@@ -1,9 +1,9 @@
 // Settings ▸ Artificial intelligence: hosts the Vibe panels that used to be side-panel tabs (Models, Tools and MCP,
-// Skills, Knowledge and memory) behind a small sub-navigation. The panel factories are reused unchanged; they get a
+// Skills, Knowledge, Memory) behind a small sub-navigation. The panel factories are reused unchanged; they get a
 // `vs`-like object that works even before Vibe Studio was opened (the hub is created on demand).
 //
 // Public API
-//   aiSettingsPanels(app, tab?) → HTMLElement   (tab: "models" | "tools" | "web" | "terminal" | "skills" | "knowledge" | "logging")
+//   aiSettingsPanels(app, tab?) → HTMLElement   (tab: "models" | "tools" | "web" | "terminal" | "skills" | "knowledge" | "memory" | "logging")
 //   AI_TABS                                     the sub-tabs (id, icon, label)
 //   openAiSettings(app, tab)                    opens Settings at Artificial intelligence ▸ tab
 // Invariants: one panel instance per tab and app (they subscribe to vibeStore once); remounting just moves the element.
@@ -19,7 +19,8 @@ export const AI_TABS = [
   { id: "web", icon: "globe2", label: "Web access" },
   { id: "terminal", icon: "terminal", label: "Terminal" },
   { id: "skills", icon: "mortarboard", label: "Skills" },
-  { id: "knowledge", icon: "journal-text", label: "Knowledge and memory" },
+  { id: "knowledge", icon: "journal-text", label: "Knowledge" },
+  { id: "memory", icon: "lightbulb", label: "Memory" },
   { id: "logging", icon: "card-text", label: "Logging and actions" },
 ];
 
@@ -30,6 +31,7 @@ const LOADERS = {
   terminal: () => import("./panel-terminal.js").then((m) => m.createTerminalPanel),
   skills: () => import("./panel-skills.js").then((m) => m.createSkillsPanel),
   knowledge: () => import("./panel-knowledge.js").then((m) => m.createKnowledgePanel),
+  memory: () => import("./panel-memory.js").then((m) => m.createMemoryPanel),
   logging: () => import("./panel-ailog.js").then((m) => m.createLogPanel),
 };
 
