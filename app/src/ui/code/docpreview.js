@@ -80,7 +80,10 @@ export class DocPreview {
     this.problems = h("details.of-docproblems.hidden");
     this.page = h("article.of-docpage");
     this.scroll = h("div.of-docscroll", { tabindex: "0", role: "region", "aria-label": "Document preview" }, this.page);
-    this.el = h("div.of-docpreview.hidden", h("div.of-docbar", this.title, this.status, this.actions), this.notice, this.problems, this.scroll);
+    // compiled PDF (desktop TeX engine or a remote service, latex-compile.js) shown instead of the approximate preview
+    this.pdfView = h("div.of-texpdf.hidden", { tabindex: "0", role: "region", "aria-label": "Compiled PDF" });
+    this.logProblems = h("details.of-docproblems.hidden");
+    this.el = h("div.of-docpreview.hidden", h("div.of-docbar", this.title, this.status, this.actions), this.notice, this.logProblems, this.problems, this.scroll, this.pdfView);
     this.refreshSoon = debounce(() => this.refresh(), 250);
     this.#wire();
   }
@@ -110,6 +113,8 @@ export class DocPreview {
     this.path = path;
     this.kind = docKind(path);
     this.el.classList.remove("hidden");
+    this.#showPdf(false);
+    this.logProblems.classList.add("hidden");
     this.#buildBar();
     this.refresh();
   }
@@ -127,11 +132,16 @@ export class DocPreview {
       add(iconButton({ icon: "download", label: "Download the HTML page", onClick: () => this.downloadHtml() }));
       add(iconButton({ icon: "file-earmark-text", label: k === "latex" ? "Print or save as PDF (the preview, not a TeX engine)" : "Print or save as PDF", onClick: () => this.print() }));
     }
+    if (k === "latex") {
+      add(iconButton({ icon: "file-earmark-pdf", label: "Compile to PDF with a TeX engine", onClick: () => this.compile() }));
+      add(iconButton({ icon: "file-earmark-arrow-down", label: "Export as PDF (TeX engine)…", onClick: () => this.compile({ save: true }) }));
+      add(iconButton({ icon: "eye", label: "Switch between the compiled PDF and the approximate preview", onClick: () => this.#showPdf(this.pdfView.classList.contains("hidden") && !!this.pdfView.firstChild) }));
+    }
     add(iconButton({ icon: "box-arrow-up-right", label: "Save this file to your computer…", onClick: () => this.saveSource() }));
     this.notice.classList.toggle("hidden", k !== "latex");
     if (k === "latex") {
       empty(this.notice);
-      this.notice.append(h("strong", "Preview only. "), "This is a simplified converter, not a TeX engine: layout, fonts, page breaks and many packages are not reproduced. Unsupported commands are highlighted.");
+      this.notice.append(h("strong", "Preview only. "), "This is a simplified converter, not a TeX engine: layout, fonts, page breaks and many packages are not reproduced. Unsupported commands are highlighted. Use Compile to PDF for the real result (desktop app with a TeX distribution).");
     }
   }
 
@@ -334,6 +344,59 @@ export class DocPreview {
     });
     frame.srcdoc = html;
     document.body.append(frame);
+  }
+
+  #showPdf(on) {
+    this.pdfView.classList.toggle("hidden", !on);
+    this.scroll.classList.toggle("hidden", on);
+    this.problems.classList.toggle("hidden", on || !this.problems.firstChild);
+  }
+
+  /** Compiles the project's main .tex file with a real TeX engine; shows the PDF and the log's errors (or saves the PDF). */
+  async compile({ save = false } = {}) {
+    const path = this.path && /\.(tex|latex)$/i.test(this.path) ? this.path : this.ws.editors.active;
+    const m = await import("./latex-compile.js");
+    this.status.textContent = "Compiling…";
+    let r;
+    try {
+      r = await m.compileLatex(this.app, this.web, path);
+    } catch (err) {
+      this.status.textContent = "";
+      if (err instanceof m.LatexUnavailableError) {
+        const { confirmDialog } = await import("../dialogs.js");
+        return void confirmDialog({ title: "Compile LaTeX", message: err.message, ok: "OK", cancel: "Close" });
+      }
+      return this.app.toast(`LaTeX: ${err.message}`, "danger", 6000);
+    }
+    this.lastCompile = r;
+    this.#renderLog(r);
+    const errors = r.problems.filter((p) => p.severity === "error").length;
+    this.status.textContent = r.timedOut ? "Stopped: the TeX run took too long" : r.ok ? `PDF compiled with ${r.engine}` : `${r.engine}: ${errors || "no"} error${errors === 1 ? "" : "s"}`;
+    if (!r.pdf) return this.app.toast(r.timedOut ? "The TeX run was stopped after the time limit." : "LaTeX did not produce a PDF. See the errors above the preview.", "warning", 5000);
+    if (save) {
+      const name = r.main.split("/").pop().replace(/\.(tex|latex)$/i, ".pdf");
+      await platform.saveFile({ suggestedName: name, bytes: r.pdf, mime: "application/pdf", filters: [{ name: "PDF", extensions: ["pdf"] }] });
+    }
+    await m.renderPdfInto(this.pdfView, r.pdf);
+    this.#showPdf(true);
+  }
+
+  /** Errors and warnings from the compile log; clicking one opens the file at that line (no SyncTeX needed). */
+  #renderLog(r) {
+    const list = r.problems;
+    empty(this.logProblems);
+    this.logProblems.classList.toggle("hidden", !list.length && r.ok);
+    this.logProblems.open = list.some((p) => p.severity === "error");
+    this.logProblems.append(h("summary", list.length ? `Compile log: ${list.length} problem${list.length === 1 ? "" : "s"}` : r.ok ? "Compile log" : "Compile log (no PDF)"));
+    const ul = h("ul");
+    for (const p of list.slice(0, 100)) {
+      const file = this.web.has(p.file) ? p.file : r.main;
+      const b = h("button.of-linkbtn", { type: "button" }, `${file}:${p.line || "?"}`);
+      b.addEventListener("click", () => this.ws.editors.openFile(file, { line: p.line || 1, focus: true }));
+      ul.append(h("li", { class: p.severity }, b, ` ${p.message}`));
+    }
+    const raw = h("details", h("summary", "Full log"), h("pre.of-texlog", r.log.slice(-60000)));
+    this.logProblems.append(ul, raw);
   }
 
   destroy() {

@@ -8,14 +8,17 @@
 //! The frontend talks to this crate through the plugins registered in [`run`]
 //! and a few commands: `take_launch_files`, `quit_app` (see `app/src/platform/tauri.js`), the OAuth
 //! loopback (`oauth.rs`), the built-in collaboration relay (`relay.rs`) and the FTP/FTPS and SMTP
-//! clients (`ftp.rs`, `smtp.rs`; shared plumbing in `netio.rs` and `wire.rs`) and native window
-//! materials (`effects.rs`).
+//! clients (`ftp.rs`, `smtp.rs`; shared plumbing in `netio.rs` and `wire.rs`), native window materials
+//! (`effects.rs`), the Code studio's local preview server (`preview_server.rs`) and LaTeX compiling with an
+//! installed TeX engine (`latex.rs`).
 
 mod cli;
 mod effects;
 mod ftp;
+mod latex;
 mod netio;
 mod oauth;
+mod preview_server;
 mod relay;
 mod smtp;
 mod wire;
@@ -161,6 +164,7 @@ pub fn run() {
         .manage(OpenQueue::default())
         .manage(oauth::Loopback::default())
         .manage(relay::Relay::default())
+        .manage(preview_server::PreviewServer::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
@@ -180,6 +184,12 @@ pub fn run() {
             netio::net_cancel,
             effects::window_materials,
             effects::set_window_material,
+            preview_server::preview_server_start,
+            preview_server::preview_server_put,
+            preview_server::preview_server_stop,
+            preview_server::preview_dir_stamps,
+            latex::latex_engines,
+            latex::latex_compile,
         ])
         .setup(|app| {
             let args = std::env::args_os()

@@ -30,6 +30,7 @@ import { platform } from "../../platform/index.js";
 import { DocPreview, docKind } from "./docpreview.js";
 import { createDocTools } from "./doctools.js";
 import { previewPageFor } from "./page-routing.js";
+import { localSources } from "../open-folder.js";
 
 const workspaces = new WeakMap();
 
@@ -128,6 +129,7 @@ export class CodeWorkspace extends Emitter {
     this.sync = new SyncController(this); // selection/hover/CSS-rule sync + breadcrumb bar (ui/code/sync.js)
     // Markdown / LaTeX / BibTeX files get a document preview instead of the canvas (docpreview.js)
     this.docPreview = new DocPreview(this);
+    if (localSources.has(web)) this.local(); // a folder opened from disk: watch it for changes
     const libsEl = h("div.of-side__pane.of-libspane");
     let libsMounted = false;
     this.libsPane = { el: libsEl, show: () => !libsMounted && ((libsMounted = true), import("./libraries-ui.js").then((m) => m.mountLibraries(this, libsEl))) };
@@ -1024,8 +1026,15 @@ export class CodeWorkspace extends Emitter {
     });
   }
 
+  /** The local preview helper (disk watcher, Open in Browser), loaded on first use (local-preview.js). */
+  local() {
+    this.localPromise ||= import("./local-preview.js").then((m) => (this.localPreview = new m.LocalPreview(this)));
+    return this.localPromise;
+  }
+
   dispose() {
     if (!this.built) return;
+    this.localPreview?.destroy();
     this.preview.destroy();
     this.docPreview?.destroy();
     this.sync?.destroy();

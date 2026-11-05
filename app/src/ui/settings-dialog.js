@@ -217,6 +217,16 @@ export function settingsSections(app) {
           items: [
             sw("previewScripts", "Run JavaScript in the preview", "Off shows the page without its scripts (safer for projects you did not write). Navigation and editing keep working."),
             { type: "info", label: "Isolation", text: "The preview runs in a sandboxed frame that cannot read OpenFini, its storage or your other documents." },
+            num("codePreviewPort", "Local preview server port", 0, 65535, 1, "", "Used by Open in Browser in the desktop app. 0 picks 5520 or any free port."),
+            sw("codePreviewSpa", "Single-page app fallback", "Unknown paths without a file extension show the entry page, as client-side routers expect."),
+            sw("codePreviewLan", "Allow other devices in the network", "Warning: anyone in the same network who knows the address can open the preview. Off keeps it on this computer only."),
+          ],
+        },
+        {
+          title: "LaTeX",
+          items: [
+            seg("latexEngine", "TeX engine", ["auto", "latexmk", "pdflatex", "xelatex", "lualatex", "tectonic"].map((v) => ({ value: v, label: v === "auto" ? "Automatic" : v, text: v === "auto" ? "Auto" : v })), "The desktop app compiles with a TeX distribution installed on this computer (TeX Live, MiKTeX, MacTeX or Tectonic)."),
+            { type: "text", key: "latexRemoteUrl", label: "Remote compile service", placeholder: "https://…", hint: "Optional, for the web version only. Your LaTeX files are sent to this address to compile. Leave empty to never send them anywhere." },
           ],
         },
       ],

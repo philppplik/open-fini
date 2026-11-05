@@ -70,6 +70,7 @@ export function createToolbar(ws) {
   const measure = iconButton({ icon: "rulers", label: "Measure tool (M): hover to measure, Alt for distances, Esc to leave", onClick: () => ws.app.run("code.measure") });
   const mode = iconButton({ icon: "cursor", label: "Design mode — click to select and edit", onClick: () => ws.preview.setMode(!ws.preview.edit) });
   const reload = iconButton({ icon: "arrow-repeat", label: "Reload preview", onClick: () => ws.preview.rebuild() });
+  const browser = iconButton({ icon: "box-arrow-up-right", label: "Open preview in browser", onClick: () => ws.local().then((l) => l.openInBrowser()).catch((err) => ws.app.toast(err.message, "danger", 6000)) });
   const format = iconButton({ icon: "text-indent-left", label: "Format document (Shift+Alt+F)", onClick: () => ws.editors.format() });
   const palette = iconButton({ icon: "terminal", label: "Command palette (Ctrl+Shift+P)", onClick: () => ws.palette() });
   const bottomBtn = iconButton({ icon: "layout-text-window-reverse", label: "Console and problems (Ctrl+J)", onClick: () => ws.bottom.toggle() });
@@ -84,7 +85,7 @@ export function createToolbar(ws) {
     h("span.of-sep"),
     h("div.of-codebar__group.of-codebar__design", bps.el, bpLabel),
     h("span.of-sep"),
-    h("div.of-codebar__group.of-codebar__design", measure, mode, reload),
+    h("div.of-codebar__group.of-codebar__design", measure, mode, reload, browser),
     h("span.of-codebar__spacer"),
     h("div.of-codebar__group", format, bottomWrap, palette, publish),
   );

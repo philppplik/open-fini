@@ -79,6 +79,12 @@
     "allow-smtp-send",
     "allow-net-cancel",
     "allow-window-materials",
-    "allow-set-window-material"
+    "allow-set-window-material",
+    "allow-preview-server-start",
+    "allow-preview-server-put",
+    "allow-preview-server-stop",
+    "allow-preview-dir-stamps",
+    "allow-latex-engines",
+    "allow-latex-compile"
   ]
 }

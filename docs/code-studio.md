@@ -230,6 +230,18 @@ part of an export.
   `cdnjs.cloudflare.com` and `unpkg.com`. `fetch` / `XMLHttpRequest` to other servers are blocked in the **desktop
   preview**; the web version has no such restriction. Forms are not submitted in the preview.
 
+## Local folders and Open in Browser
+
+A folder opened with File ▸ Open Folder (desktop by path, web through the directory picker) stays linked to the disk for
+the session (`localSources` in `ui/open-folder.js`, never saved in documents). `ui/code/local-preview.js` polls it
+(desktop: the `preview_dir_stamps` command, web: the directory handle) and reloads changed files that have no unsaved
+edits, so the preview updates live. **Open Preview in Browser** starts `src-tauri/src/preview_server.rs` on the desktop:
+std-only HTTP on 127.0.0.1 (all interfaces only with *Allow other devices in the network*, confirmed each time), every URL
+below a random token, Host header checked, `..`/backslash/drive/control-character paths refused, symbolic links that leave
+the folder not followed, folder must be in the granted fs scope. Unsaved edits are pushed as an overlay; HTML gets a
+live-reload script. Port and SPA fallback: Settings ▸ Code studio. The web build opens a sandboxed tab instead.
+Pure helpers and tests: `engine/web/local-serve.js`, `tests/web/local-serve.test.js`. LaTeX: see [latex.md](latex.md).
+
 ## Publishing
 
 **Export ▸ Website** (header button or `File ▸ Export…`):

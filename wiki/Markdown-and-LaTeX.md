@@ -54,6 +54,13 @@ Highlighting uses CodeMirror's `stex` mode. **The preview is not a TeX engine.**
 
 ## See also
 
+## Compiling LaTeX to PDF
+
+The preview of a .tex file is an approximation. For the real PDF, install a TeX distribution (TeX Live, MiKTeX, MacTeX or
+Tectonic) and use the PDF button in the preview bar or View ▸ Compile LaTeX in the desktop app. Errors appear above the
+PDF; click one to jump to its line. Export LaTeX as PDF saves the result. The web version needs the desktop app or a
+remote compile service you set yourself in Settings ▸ Code studio ▸ LaTeX.
+
 - [[Code Studio]]
 - [[Frameworks and Libraries]]
 - [[File Formats]]

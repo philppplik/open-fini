@@ -72,6 +72,11 @@ const defaultPrefs = () => ({
   codeMeasurePpi: 96, // pixels per inch behind mm / cm / in / pt (96 = CSS reference)
   codeMeasureDpr: false, // count device pixels (CSS px x device pixel ratio) for physical units
   codeViewportSizes: [], // saved preview sizes [{ name, w, h }]
+  codePreviewPort: 0, // local preview server port (0 = 5520 or any free port)
+  codePreviewLan: false, // let other devices in the network open the local preview (opt-in, warned)
+  codePreviewSpa: false, // serve the entry page for unknown extension-less paths (single-page apps)
+  latexEngine: "auto", // TeX engine of the desktop app: auto | latexmk | pdflatex | xelatex | lualatex | tectonic
+  latexRemoteUrl: "", // optional remote compile service (web build); empty = none
   gitName: "", // author of commits in Source Control
   gitEmail: "",
   previewScripts: true,
