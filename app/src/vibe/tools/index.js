@@ -20,6 +20,7 @@ import { officeSuiteTools } from "./office-suite.js";
 import { slidesTools } from "./office-slides.js";
 import { officeSheetTools } from "./office-sheet.js";
 import { officeBoardTools } from "./office-board.js";
+import { officeSemanticTools } from "./office-semantic.js";
 import { textcodecTools } from "./textcodec.js";
 import { customizationTools } from "./customization.js";
 import { formatTools } from "./formats.js";
@@ -54,10 +55,10 @@ export const TOOL_GROUPS = {
   LaTeX: ["latex_outline", "latex_compile", "latex_insert_snippet", "latex_insert_table", "latex_insert_figure", "latex_insert_bibliography", "latex_fix_errors"],
   "Git and publishing": ["git_init", "git_status", "git_diff", "git_log", "git_commit", "git_branch", "git_checkout", "git_restore", "git_push", "git_pull", "list_publish_targets", "add_publish_target", "preflight_site", "publish_site"],
   "Tables and charts": ["add_table", "edit_table", "read_table", "list_tables", "import_csv_to_table", "add_chart", "edit_chart", "read_chart"],
-  "Office documents": ["office_new_document", "office_read_document", "office_find", "office_insert_blocks", "office_replace_text", "office_set_style", "office_apply_format", "office_insert_table", "office_set_page_setup", "office_export"],
-  "Office suite": ["office_formats", "office_list_documents", "office_describe", "office_new"],
+  "Office documents": ["office_new_document", "office_read_document", "office_find", "office_insert_blocks", "office_replace_text", "office_set_style", "office_apply_format", "office_insert_table", "office_set_page_setup", "office_export", "office_list_sections", "office_read_section", "office_rewrite_section", "office_move_section", "office_check_accessibility"],
+  "Office suite": ["office_formats", "office_list_documents", "office_describe", "office_new", "office_tables_to_sheet", "office_sheet_to_document", "office_document_to_slides"],
   Presentation: ["slides_describe", "slides_add_slide", "slides_delete", "slides_set_text", "slides_add_shape", "slides_add_image", "slides_apply_layout", "slides_apply_theme", "slides_reorder", "slides_set_notes", "slides_set_transition"],
-  Spreadsheets: ["sheet_describe", "sheet_read_range", "sheet_write_range", "sheet_set_formula", "sheet_format", "sheet_add_sheet", "sheet_add_chart"],
+  Spreadsheets: ["sheet_describe", "sheet_read_range", "sheet_write_range", "sheet_set_formula", "sheet_format", "sheet_add_sheet", "sheet_add_chart", "sheet_add_rule"],
   Whiteboard: ["board_describe", "board_add_shape", "board_add_sticky", "board_add_text", "board_add_connector", "board_update", "board_delete", "board_arrange", "board_page", "board_import", "board_export"],
   "Imported documents": ["get_import_report", "list_pdf_pages", "describe_document_pages", "extract_pdf_text"],
   "System and files": ["get_platform_info", "list_recent_files"],
