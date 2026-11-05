@@ -701,6 +701,7 @@ export function readDocx(bytes, o = {}) {
   if (c.images) report.kept(`${plural(c.images, "image")}.`);
   if (c.links) report.kept(`${plural(c.links, "link")}.`);
   if (Object.keys(ctx.footnotes).length) report.kept(`${plural(Object.keys(ctx.footnotes).length, "footnote")}.`);
+  if (model.blocks.some((b) => b.type === "paragraph" && b.runs.some((r) => r.ins || r.del))) report.kept("Tracked changes (insertions and deletions with their authors; accept or reject them with Document ▸ Review Changes…).");
   const doc = normalizeDoc(model);
   return { doc, report };
 }

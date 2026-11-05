@@ -260,16 +260,21 @@ All in `app/src/office/toolkit/`; module headers document the full API.
 ## Roadmap: Office depth
 
 Done: semantic section tools, cross-app tools (tables → sheet, sheet range → table, outline → slides, board →
-document, sheet range → slide chart), the accessibility check, nine Office skills and spreadsheet data bars
+document, sheet range → slide chart), the accessibility check, Office skills and spreadsheet data bars
 ([vibe-studio.md](vibe-studio.md#office-semantic-and-cross-app-tools)); presentation slide master and layout editing,
 footers and slide numbers, mixed formatting in a text box, charts from sheet data, designed templates and a themes
 gallery ([office-slides.md](office-slides.md)).
+Document: themes with a custom theme, style sets, update style from selection, sections with visible columns, floating
+text boxes and wrapped images, the table style gallery with banding, table sort, total row, distribute and fit,
+tracked changes with accept / reject (kept in DOCX), a generated table of contents (a TOC field in DOCX), designed
+templates (newsletter, proposal, academic paper, event flyer) and themed starter templates, with the design Vibe tools
+([vibe-studio.md](vibe-studio.md#office-design-and-review-tools), [office-studio.md](office-studio.md#design-and-review)).
 Still open, roughly by payoff:
 
-* **Document**: style gallery with update-from-selection, themes (font and color sets), visible multi-column layout and
-  section breaks, first/even-page headers, page borders and backgrounds, floating text boxes, shapes and wrapped images,
-  table styles gallery with banding, column resize by drag, table sort and formulas, multilevel numbering styles,
-  tracked changes, generated table of contents, smart typography while typing, designed templates (newsletter).
+* **Document**: first/even-page headers, page borders and backgrounds, drawing shapes, rich text inside text boxes,
+  text boxes and columns in ODT, multi-column sections that split across pages in the editor, column resize by drag,
+  table formulas, multilevel numbering styles, tracking paragraph splits and formatting changes, smart typography
+  while typing.
 * **Spreadsheet**: quick analysis; table styles, named ranges, data validation, paste special, row/column groups, page
   setup and print, dynamic arrays with spilling, pivot-lite, sparklines and sheet chart data for other apps are done
   ([office-sheet.md](office-sheet.md#tables-validation-and-data-tools)); still open there: XLSX/ODS round trip of these
