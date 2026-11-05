@@ -147,26 +147,29 @@ Depth: sheet_format_table (header, bands, total row) -> sheet_define_name for in
 ## Verify
 sheet_read_range on totals and a few formula cells; look for #REF!, #DIV/0!, #NAME? and #SPILL! values.`,
 
-  `${fm("slides", "How to work with presentations: layouts, placeholders, themes, notes and checking each slide.", "office_describe, office_new, slides_describe, slides_add_slide, slides_set_text, slides_add_shape, slides_add_image, slides_apply_layout, slides_apply_theme, slides_set_notes, slides_reorder", "presentation, slides, deck, pptx, pitch")}
+  `${fm("slides", "How to work with presentations: layouts, placeholders, themes, notes and checking each slide.", "office_describe, office_new, slides_describe, slides_add_slide, slides_set_text, slides_add_shape, slides_add_image, slides_apply_layout, slides_apply_theme, slides_apply_design, slides_set_footer, slides_edit_master, slides_edit_layout, slides_format_text, slides_insert_chart, slides_refresh_charts, slides_set_notes, slides_reorder", "presentation, slides, deck, pptx, pitch")}
 # Presentation guide
 
 ## Start
 1. office_describe or slides_describe (size, theme, per slide id, layout, placeholders and boxes); office_new kind slides if none is open.
 
 ## Tool order
-slides_apply_theme once -> slides_add_slide per slide with layout and placeholder texts (body: one bullet per line) -> slides_add_image / slides_add_shape -> slides_set_notes -> slides_reorder.
+slides_apply_design (or slides_apply_theme) once -> slides_set_footer (slide numbers, footer text) -> slides_add_slide per slide with layout and placeholder texts (body: one bullet per line) -> slides_format_text for the one phrase to emphasize -> slides_insert_chart from an open spreadsheet / slides_add_image / slides_add_shape -> slides_set_notes -> slides_reorder.
 
 ## Behavior
 - Slides are addressed by number or id from slides_describe; boxes are [x, y, w, h] in slide units as described there.
 - Placeholders: title, subtitle, body, body2; slides_set_text adds a missing placeholder in the layout position.
+- Deck-wide look belongs on the master: logos and accent bars with slides_edit_master, placeholder positions with slides_edit_layout; never copy the same shape onto every slide.
+- Charts keep a snapshot of the spreadsheet range; call slides_refresh_charts after the numbers change.
 
 ## Pitfalls
 - More than 6 bullets or 40 words per slide; text boxes overlapping placeholders; images not from an attachment or data: URI.
 
 ## Verify
-slides_describe after the deck is built: every slide has a title, no empty placeholders, notes where promised.`,
+slides_describe after the deck is built: every slide has a title, no empty placeholders, notes where promised; slides_describe slide @master shows the footer you set.`,
 
-  `${fm("board", "How to work on the whiteboard: elements, connectors, frames, arrange and checking the layout.", "office_describe, office_new, board_describe, board_add_shape, board_add_sticky, board_add_text, board_add_connector, board_update, board_arrange, board_page", "whiteboard, board, sticky notes, flowchart, mind map, diagram")}
+
+  `${fm("board", "How to work on the whiteboard: elements, connectors, frames, arrange and checking the layout.", "office_describe, office_new, board_describe, board_add_shape, board_add_sticky, board_add_text, board_add_connector, board_update, board_arrange, board_page, office_board_to_document", "whiteboard, board, sticky notes, flowchart, mind map, diagram")}
 # Whiteboard guide
 
 ## Start
@@ -178,6 +181,8 @@ Frames (board_add_shape type frame) -> shapes and stickies -> board_add_connecto
 ## Behavior
 - Coordinates are board units on the current page; connectors follow the elements they link.
 - board_update changes only the given properties; board_delete leaves connectors to deleted elements in place (delete them too).
+- office_board_to_document writes the board up as a new text document: one section per page and frame, sticky notes and labels as bullets, connectors as "A → B" lines. Group ideas in frames first so the sections make sense.
+
 
 ## Pitfalls
 - Placing every element by hand instead of board_arrange; connectors drawn to points instead of element ids.

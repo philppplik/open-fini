@@ -10,6 +10,7 @@
 //   slideToPng(deck, slide, { width }) → Promise<Uint8Array>
 //   deckToPngZip(deck, { width }) → Promise<Uint8Array>   one PNG per visible slide
 import * as M from "./model.js";
+import { renderChart } from "../../engine/layout/chart-render.js";
 
 export const TEXT_PAD = { x: 9.6, y: 4.8 };
 export const LINE_HEIGHT = 1.2;
@@ -37,7 +38,9 @@ export function layoutText(deck, e, measureFn, box = { w: e.w, h: e.h }) {
   const indent = look.bullets ? size * BULLET_INDENT : 0;
   const maxW = Math.max(1, box.w - TEXT_PAD.x * 2 - indent);
   const lines = [];
+  let paraStart = 0;
   for (const para of String(e.text || "").split("\n")) {
+    const lineFrom = lines.length;
     const words = para.split(/(\s+)/);
     let cur = "";
     let first = true;
@@ -65,6 +68,14 @@ export function layoutText(deck, e, measureFn, box = { w: e.w, h: e.h }) {
       }
     }
     push(cur.trimEnd());
+    // source offsets of each line (lines are trimmed pieces of the paragraph, in order) for mixed formatting
+    let at = 0;
+    for (let i = lineFrom; i < lines.length; i++) {
+      const k = lines[i].text ? para.indexOf(lines[i].text, at) : at;
+      lines[i].start = paraStart + Math.max(at, k);
+      at = Math.max(at, k) + lines[i].text.length;
+    }
+    paraStart += para.length + 1;
   }
   const lh = size * LINE_HEIGHT;
   const total = lines.length * lh;
@@ -88,7 +99,19 @@ function textRuns(deck, e, measureFn, box) {
   const fill = solid(look.color);
   for (const l of lines) {
     if (l.bullet) runs.push({ text: "•", x: l.x - indent, y: l.y, width: measureFn(font, "•"), font, fill, stroke: null, letterSpacing: 0, underline: false, strike: false });
-    if (l.text) runs.push({ text: l.text, x: l.x, y: l.y, width: l.width, font, fill, stroke: null, letterSpacing: 0, underline: !!look.underline, strike: false });
+    if (!l.text) continue;
+    if (!e.spans?.length) {
+      runs.push({ text: l.text, x: l.x, y: l.y, width: l.width, font, fill, stroke: null, letterSpacing: 0, underline: !!look.underline, strike: false });
+      continue;
+    }
+    let x = l.x;
+    for (const seg of M.spanSegments(e.text, e.spans, l.start, l.start + l.text.length)) {
+      const f = seg.fmt;
+      const sf = { ...font, weight: (f.bold ?? look.bold) ? 700 : 400, style: (f.italic ?? look.italic) ? "italic" : "normal" };
+      const width = measureFn(sf, seg.text);
+      runs.push({ text: seg.text, x, y: l.y, width, font: sf, fill: f.color ? solid(f.color) : fill, stroke: null, letterSpacing: 0, underline: !!(f.underline ?? look.underline), strike: false });
+      x += width;
+    }
   }
   return runs;
 }
@@ -99,8 +122,12 @@ export function slideDisplayList(deck, slide, images, measureFn) {
   const items = [{ t: "path", d: M.shapePath("rect", W, H), rule: "nonzero", fill: solid(slide.background?.color || deck.theme.bg), stroke: null, m: [1, 0, 0, 1, 0, 0] }];
   const bgImg = slide.background?.media && images.get(slide.background.media);
   if (bgImg) items.push({ t: "image", img: bgImg, m: [W / bgImg.width, 0, 0, H / bgImg.height, 0, 0], smooth: true });
-  for (const e of slide.elements) {
+  for (const e of M.renderElements(deck, slide)) {
     const m = elementMatrix(e);
+    if (e.type === "chart") {
+      for (const it of chartItems(deck, e, measureFn)) items.push({ ...it, m: mul(m, it.m) });
+      continue;
+    }
     if (e.type === "image") {
       const img = images.get(e.media);
       if (img) items.push({ t: "image", img, m: mul(m, [e.w / img.width, 0, 0, e.h / img.height, 0, 0]), smooth: true });
@@ -129,7 +156,15 @@ export function slideDisplayList(deck, slide, images, measureFn) {
   return { width: W, height: H, items };
 }
 
+/** Display-list items of a chart element in its local box (0..w, 0..h). `measureFn(font, text)` measures text. */
+export function chartItems(deck, e, measureFn) {
+  const chart = M.slideChart(deck, e);
+  const measurer = { measure: (font, text) => measureFn(font, text) };
+  return renderChart(chart, chart.data, e.w, e.h, measurer).items;
+}
+
 /** Decodes the deck's pictures once: Map id → ImageRef with a canvas source (screen/PNG) and RGBA or JPEG (PDF). */
+
 export async function decodeImages(deck, { rgba = false } = {}) {
   const out = new Map();
   for (const [id, m] of Object.entries(deck.media || {})) {

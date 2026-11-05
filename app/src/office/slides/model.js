@@ -2,19 +2,30 @@
 // tested in tests/office/slides.test.js. User guide and format notes: docs/office-slides.md.
 //
 //   Deck    = { version: 1, size: { w, h } (px, 96 per inch), theme: Theme, meta: { title }, slides: Slide[],
-//               media: { <id>: { id, mime, name, w, h, bytes } } }
+//               media: { <id>: { id, mime, name, w, h, bytes } }, master: Master, layouts: { <layout id>: Ph[] } }
+//   Master  = { elements: Element[] (drawn behind every slide's own elements), footer: { text, date, number (bool),
+//               skipTitle (bool: no footer on "title" layout slides) } }
+//   Ph      = [role, fx, fy, fw, fh]: a layout's placeholder box as fractions of the slide; `layouts` holds only the
+//               layouts the user edited (the rest come from LAYOUTS)
 //   Slide   = { id, ord (fractional key), layout, background: null | { color } | { media }, elements: Element[],
-//               notes: string, transition: { type: "none"|"fade"|"slide", duration: s }, hidden?: true }
-//   Element = { id, z (fractional key), type: "text"|"shape"|"image"|"table", x, y, w, h, rot (degrees), ph?,
-//               text?: string ("\n" separates paragraphs), style?: TextStyle,
+//               notes: string, transition: { type: "none"|"fade"|"slide", duration: s }, hidden?: true,
+//               hideMaster?: true (no master graphics; the footer stays) }
+//   Element = { id, z (fractional key), type: "text"|"shape"|"image"|"table"|"chart", x, y, w, h, rot (degrees), ph?,
+//               text?: string ("\n" separates paragraphs), style?: TextStyle, spans?: Span[],
 //               shape?: "rect"|"roundRect"|"ellipse"|"triangle"|"diamond"|"arrow"|"line", fill?, stroke?, strokeWidth?,
-//               media? (image), rows?: string[][] (table), flipH?, flipV? }
+//               media? (image), rows?: string[][] (table), flipH?, flipV?,
+//               chart? (engine/layout/chart-data.js definition with a data snapshot), source?: { doc, sheet, range } }
 //   TextStyle = { font?, size (pt), color?, bold?, italic?, underline?, align: "left"|"center"|"right"|"justify",
 //               valign: "top"|"middle"|"bottom", bullets? }
+//   Span    = { start, end (UTF-16 offsets into `text`), bold?, italic?, underline?, color? }: mixed formatting inside
+//               one text box; a span value overrides the element's TextStyle for those characters
+// The master and each layout are edited like slides through pseudo slide ids ("@master", "@layout:<id>"): slideById
+// and updateSlide accept them, so every element operation below works on them too.
 // Element order in `elements` is the z-order (back to front); `z` and `ord` mirror the array order as fractional keys
 // so concurrent moves in "Edit together" merge (collab/fractional.js). Colors are "#rrggbb" or null; a null text color
 // or font means "from the theme".
 import { keyBetween, isKey } from "../../collab/fractional.js";
+import { normalizeChart } from "../../engine/layout/chart-data.js";
 
 export const SLIDES_VERSION = 1;
 export const SIZES = { "16:9": { w: 960, h: 540 }, "4:3": { w: 960, h: 720 }, "16:10": { w: 960, h: 600 } };
@@ -26,6 +37,10 @@ export const THEMES = [
   { id: "paper", name: "Paper", bg: "#fbf7ef", text: "#3b3226", accent: "#b45309", accent2: "#15803d", heading: "Georgia", body: "Georgia" },
   { id: "ocean", name: "Ocean", bg: "#ecfeff", text: "#083344", accent: "#0e7490", accent2: "#f97316", heading: "Verdana", body: "Verdana" },
   { id: "bold", name: "Bold", bg: "#111111", text: "#fafafa", accent: "#facc15", accent2: "#ef4444", heading: "Arial", body: "Arial" },
+  { id: "aurora", name: "Aurora", bg: "#0b1220", text: "#e5e7eb", accent: "#a78bfa", accent2: "#34d399", heading: "Trebuchet MS", body: "Segoe UI" },
+  { id: "slate", name: "Slate", bg: "#f8fafc", text: "#0f172a", accent: "#334155", accent2: "#0ea5e9", heading: "Segoe UI", body: "Segoe UI" },
+  { id: "sunrise", name: "Sunrise", bg: "#fff7ed", text: "#431407", accent: "#ea580c", accent2: "#be123c", heading: "Georgia", body: "Verdana" },
+  { id: "forest", name: "Forest", bg: "#f0fdf4", text: "#14532d", accent: "#15803d", accent2: "#a16207", heading: "Georgia", body: "Calibri" },
 ];
 
 /** Layouts: placeholder boxes as fractions of the slide (x, y, w, h). */
@@ -38,6 +53,11 @@ export const LAYOUTS = [
   { id: "blank", name: "Blank", ph: [] },
 ];
 export const SHAPES = ["rect", "roundRect", "ellipse", "triangle", "diamond", "arrow", "line"];
+export const PH_ROLES = ["title", "subtitle", "body", "body2"];
+export const CHART_KINDS = ["column", "bar", "line", "area", "pie", "donut", "stacked-column", "scatter"];
+export const MASTER_ID = "@master";
+export const LAYOUT_PREFIX = "@layout:";
+export const SPAN_KEYS = ["bold", "italic", "underline", "color"];
 export const TRANSITIONS = ["none", "fade", "slide"];
 
 const PH_STYLE = {
@@ -102,7 +122,7 @@ function normStyle(s = {}, ph) {
 }
 
 export function normElement(e) {
-  const type = ["text", "shape", "image", "table"].includes(e?.type) ? e.type : "text";
+  const type = ["text", "shape", "image", "table", "chart"].includes(e?.type) ? e.type : "text";
   const out = { id: typeof e?.id === "string" && e.id ? e.id.slice(0, 64) : newId(), z: e?.z, type, x: num(e?.x), y: num(e?.y), w: Math.max(1, num(e?.w, 200)), h: Math.max(type === "shape" && e?.shape === "line" ? 0 : 1, num(e?.h, 80)), rot: num(e?.rot) % 360 };
   if (e?.ph) out.ph = String(e.ph).slice(0, 16);
   if (e?.flipH) out.flipH = true;
@@ -113,6 +133,8 @@ export function normElement(e) {
     out.fill = color(e.fill);
     out.stroke = color(e.stroke);
     out.strokeWidth = clamp(num(e.strokeWidth, type === "shape" ? 2 : 0), 0, 100);
+    const spans = normSpans(e.spans, out.text.length);
+    if (spans.length) out.spans = spans;
   }
   if (type === "shape") out.shape = SHAPES.includes(e.shape) ? e.shape : "rect";
   if (type === "image") out.media = String(e.media || "");
@@ -124,6 +146,11 @@ export function normElement(e) {
     out.header = e.header !== false;
     out.fill = color(e.fill);
     out.stroke = color(e.stroke) || "#9ca3af";
+  }
+  if (type === "chart") {
+    out.chart = normalizeChart(e.chart);
+    const src = e.source;
+    if (src && typeof src === "object" && src.range) out.source = { doc: String(src.doc || "").slice(0, 200), sheet: String(src.sheet || "").slice(0, 100), range: String(src.range).slice(0, 40) };
   }
   return out;
 }
@@ -139,8 +166,36 @@ export function normSlide(s) {
     notes: typeof s?.notes === "string" ? s.notes : "",
     transition: { type: TRANSITIONS.includes(s?.transition?.type) ? s.transition.type : "none", duration: clamp(num(s?.transition?.duration, 0.5), 0.1, 5) },
     ...(s?.hidden ? { hidden: true } : {}),
+    ...(s?.hideMaster ? { hideMaster: true } : {}),
   };
 }
+
+/** Master graphics and footer settings (normalizeDeck). Master elements never are placeholders. */
+export function normMaster(m = {}) {
+  const f = m?.footer || {};
+  return {
+    elements: fixOrder((Array.isArray(m?.elements) ? m.elements : []).slice(0, 100).map((e) => {
+      const { ph, ...rest } = normElement({ ...e, ph: undefined });
+      return rest;
+    }), "z"),
+    footer: { text: typeof f.text === "string" ? f.text.slice(0, 300) : "", date: typeof f.date === "string" ? f.date.slice(0, 80) : "", number: !!f.number, skipTitle: f.skipTitle !== false },
+  };
+}
+
+/** Edited layouts: only known layout ids and roles, boxes clamped to the slide. */
+export function normLayouts(l = {}) {
+  const out = {};
+  for (const [id, ph] of Object.entries(l || {})) {
+    if (!LAYOUTS.some((x) => x.id === id) || !Array.isArray(ph)) continue;
+    const seen = new Set();
+    out[id] = ph.filter((p) => Array.isArray(p) && PH_ROLES.includes(p[0]) && !seen.has(p[0]) && seen.add(p[0])).map(([role, ...b]) => {
+      const [x, y, w, h] = [0, 1, 2, 3].map((i) => clamp(num(b[i]), 0, 1));
+      return [role, round4(x), round4(y), round4(clamp(w, 0.01, Math.max(0.01, 1 - x))), round4(clamp(h, 0.01, Math.max(0.01, 1 - y)))];
+    });
+  }
+  return out;
+}
+const round4 = (v) => Math.round(v * 10000) / 10000;
 
 /** Validates and completes a model from disk, an import, Vibe or a collaborator. */
 export function normalizeDeck(m = {}) {
@@ -155,19 +210,24 @@ export function normalizeDeck(m = {}) {
     meta: { title: String(m.meta?.title || "") },
     slides: fixOrder((Array.isArray(m.slides) && m.slides.length ? m.slides : [{ layout: "blank" }]).map(normSlide), "ord"),
     media,
+    master: normMaster(m.master),
+    layouts: normLayouts(m.layouts),
   };
 }
 const pick = (o, keys) => Object.fromEntries(keys.filter((k) => typeof o?.[k] === "string" && o[k]).map((k) => [k, o[k]]));
 
 // ---------------------------------------------------------------- creating
 
-/** Placeholder elements of a layout for a slide size. */
-export function layoutElements(layoutId, size, text = {}) {
-  return layoutOf(layoutId).ph.map(([ph, fx, fy, fw, fh]) => normElement({ type: "text", ph, x: Math.round(fx * size.w), y: Math.round(fy * size.h), w: Math.round(fw * size.w), h: Math.round(fh * size.h), text: text[ph] || "" }));
+/** Placeholder boxes of a layout: the deck's edited version (deck.layouts) or the built-in one. */
+export const layoutPh = (deck, layoutId) => deck?.layouts?.[layoutOf(layoutId).id] || layoutOf(layoutId).ph;
+
+/** Placeholder elements of a layout for a slide size (`deck` supplies edited layouts). */
+export function layoutElements(layoutId, size, text = {}, deck = null) {
+  return layoutPh(deck, layoutId).map(([ph, fx, fy, fw, fh]) => normElement({ type: "text", ph, x: Math.round(fx * size.w), y: Math.round(fy * size.h), w: Math.round(fw * size.w), h: Math.round(fh * size.h), text: text[ph] || "" }));
 }
 
 export function makeSlide(deck, layout = "title-content", text = {}) {
-  return normSlide({ layout, elements: layoutElements(layout, deck.size, text) });
+  return normSlide({ layout, elements: layoutElements(layout, deck.size, text, deck) });
 }
 
 const TEMPLATE_SLIDES = {
@@ -190,20 +250,98 @@ const TEMPLATE_SLIDES = {
     ["title-only", { title: "Numbers" }],
     ["title-content", { title: "Next steps", body: "Priority\nOwner and date\nRisks" }],
   ],
+  lesson: () => [
+    ["title", { title: "Lesson title", subtitle: "Course · Unit · Date" }],
+    ["title-content", { title: "Learning goals", body: "By the end you can…\nYou will practice…\nYou will know why…" }],
+    ["section", { title: "Warm-up", subtitle: "A question to start with" }],
+    ["two-content", { title: "Key idea", body: "Definition\nExample", body2: "Common mistake\nHow to avoid it" }],
+    ["title-content", { title: "Practice", body: "Task one\nTask two\nTask three" }],
+    ["title-content", { title: "Summary", body: "What we learned\nHomework\nNext lesson" }],
+  ],
+  project: () => [
+    ["title", { title: "Project update", subtitle: "Project name · Status date" }],
+    ["title-content", { title: "Status at a glance", body: "Scope: on track\nSchedule: at risk\nBudget: on track" }],
+    ["two-content", { title: "Done and next", body: "Done this period\nDone this period", body2: "Next period\nNext period" }],
+    ["title-only", { title: "Numbers" }],
+    ["title-content", { title: "Risks and decisions", body: "Risk, owner and mitigation\nDecision needed by date" }],
+  ],
+  roadmap: () => [
+    ["title", { title: "Product roadmap", subtitle: "Where we are going and when" }],
+    ["title-only", { title: "Timeline" }],
+    ["two-content", { title: "Now and next", body: "Now: what ships this quarter\nNow: what we are fixing", body2: "Next: what we start after\nLater: ideas we are testing" }],
+    ["title-content", { title: "What we will not do", body: "Out of scope\nWhy\nWhen we revisit it" }],
+    ["section", { title: "Questions", subtitle: "Feedback and next review date" }],
+  ],
+  portfolio: () => [
+    ["title", { title: "Your name", subtitle: "Designer · Portfolio 2026" }],
+    ["two-content", { title: "About me", body: "What I do\nWho I work with", body2: "Tools\nAwards and clients" }],
+    ["title-content", { title: "Project one", body: "The brief\nWhat I did\nThe result in one number" }],
+    ["title-content", { title: "Project two", body: "The brief\nWhat I did\nThe result in one number" }],
+    ["section", { title: "Let's work together", subtitle: "email@example.com · website" }],
+  ],
 };
 
-/** A new deck from a template id ("blank", "pitch", "report"). */
+/** The roadmap timeline: an accent line with four milestone dots and labels. */
+function timeline(deck) {
+  const t = deck.theme;
+  const y = 270;
+  const out = [normElement({ type: "shape", shape: "rect", x: 80, y: y - 3, w: 800, h: 6, fill: t.accent, strokeWidth: 0 })];
+  ["Q1", "Q2", "Q3", "Q4"].forEach((q, i) => {
+    const x = 120 + i * 220;
+    out.push(normElement({ type: "shape", shape: "ellipse", x: x - 14, y: y - 14, w: 28, h: 28, fill: i % 2 ? t.accent2 : t.accent, strokeWidth: 0 }));
+    out.push(normElement({ type: "text", x: x - 90, y: y + 24, w: 180, h: 90, text: `${q}\nMilestone`, style: { size: 16, align: "center" }, spans: [{ start: 0, end: 2, bold: true }] }));
+  });
+  return out;
+}
+
+/**
+ * Designed templates: theme plus master graphics and footer. Master elements are plain elements in slide px for a
+ * 960 px wide slide (scaled by the slide height where noted).
+ */
+export const DESIGNS = {
+  pitch: { theme: "midnight", master: (W, H, t) => [{ type: "shape", shape: "rect", x: 0, y: 0, w: 14, h: H, fill: t.accent, strokeWidth: 0 }, { type: "shape", shape: "rect", x: W - 120, y: H - 6, w: 120, h: 6, fill: t.accent2, strokeWidth: 0 }], footer: { number: true } },
+  report: { theme: "slate", master: (W, H, t) => [{ type: "shape", shape: "rect", x: 0, y: H - 8, w: W, h: 8, fill: t.accent2, strokeWidth: 0 }], footer: { number: true, text: "Quarterly report" } },
+  lesson: { theme: "sunrise", master: (W, H, t) => [{ type: "shape", shape: "ellipse", x: W - 90, y: -60, w: 150, h: 150, fill: t.accent2, strokeWidth: 0 }, { type: "shape", shape: "ellipse", x: W - 150, y: -30, w: 90, h: 90, fill: t.accent, strokeWidth: 0 }], footer: { number: true } },
+  project: { theme: "aurora", master: (W, H, t) => [{ type: "shape", shape: "rect", x: 0, y: 0, w: W, h: 6, fill: t.accent, strokeWidth: 0 }, { type: "shape", shape: "rect", x: 0, y: 6, w: Math.round(W / 3), h: 3, fill: t.accent2, strokeWidth: 0 }], footer: { number: true, text: "Project update" } },
+  roadmap: { theme: "forest", master: (W, H, t) => [{ type: "shape", shape: "rect", x: 0, y: H - 40, w: W, h: 40, fill: t.accent, strokeWidth: 0 }], footer: { number: true } },
+  portfolio: { theme: "paper", master: (W, H, t) => [{ type: "shape", shape: "rect", x: 24, y: 24, w: W - 48, h: H - 48, fill: null, stroke: t.accent, strokeWidth: 1.5 }], footer: { number: true, skipTitle: true } },
+};
+export const TEMPLATES = Object.keys(TEMPLATE_SLIDES);
+
+/** Master graphics and footer of a design for a deck (keeps the deck's theme colors). */
+export function designMaster(deck, designId) {
+  const d = DESIGNS[designId];
+  if (!d) return normMaster({ footer: deck.master?.footer });
+  return normMaster({ elements: d.master(deck.size.w, deck.size.h, deck.theme), footer: { ...d.footer } });
+}
+
+/** Applies a design (theme, master graphics, footer) to a deck; slide content stays. */
+export function applyDesign(deck, designId) {
+  const d = DESIGNS[designId];
+  if (!d) throw new Error(`Unknown design "${designId}". Designs: ${Object.keys(DESIGNS).join(", ")}.`);
+  const themed = applyTheme(deck, d.theme);
+  return { ...themed, master: designMaster(themed, designId) };
+}
+
+/** A new deck from a template id (TEMPLATES: "blank", "pitch", "report", "lesson", "project"). */
 export function createDeck({ template = "blank", title = "", ratio = "16:9", themeId } = {}) {
   const size = SIZES[ratio] || SIZES["16:9"];
-  const th = themeId || (template === "pitch" ? "midnight" : template === "report" ? "office" : "office");
-  const deck = normalizeDeck({ size, theme: { id: th }, meta: { title }, slides: [] });
+  const th = themeId || DESIGNS[template]?.theme || "office";
+  let deck = normalizeDeck({ size, theme: { id: th }, meta: { title }, slides: [] });
+  if (DESIGNS[template]) deck = { ...deck, master: designMaster(deck, template) };
   const list = (TEMPLATE_SLIDES[template] || TEMPLATE_SLIDES.blank)();
   let slides = list.map(([layout, text]) => makeSlide(deck, layout, text));
-  if (template === "report") {
+  if (template === "roadmap") {
+    const i = slides.findIndex((s) => s.layout === "title-only");
+    if (i >= 0) slides[i] = { ...slides[i], elements: fixOrder([...slides[i].elements, ...timeline(deck)], "z") };
+  }
+  if (template === "report" || template === "project") {
     const i = slides.findIndex((s) => s.layout === "title-only");
     if (i >= 0) {
-      const tbl = normElement({ type: "table", x: 58, y: 150, w: 844, h: 220, rows: [["Metric", "Target", "Actual"], ["Revenue", "", ""], ["Customers", "", ""], ["Satisfaction", "", ""]], style: { size: 18 } });
-      slides[i] = { ...slides[i], elements: fixOrder([...slides[i].elements, tbl], "z") };
+      const extra = template === "report"
+        ? normElement({ type: "table", x: 58, y: 150, w: 844, h: 220, rows: [["Metric", "Target", "Actual"], ["Revenue", "", ""], ["Customers", "", ""], ["Satisfaction", "", ""]], style: { size: 18 } })
+        : normElement({ type: "chart", x: 58, y: 130, w: 844, h: 340, chart: { type: "column", title: "Planned vs. actual", data: { categories: ["Q1", "Q2", "Q3", "Q4"], series: [{ name: "Planned", values: [10, 20, 30, 40] }, { name: "Actual", values: [12, 18, 27, 0] }] } } });
+      slides[i] = { ...slides[i], elements: fixOrder([...slides[i].elements, extra], "z") };
     }
   }
   slides = fixOrder(slides, "ord");
@@ -213,7 +351,36 @@ export function createDeck({ template = "blank", title = "", ratio = "16:9", the
 // ---------------------------------------------------------------- operations (all return a new deck)
 
 export const slideIndex = (deck, id) => deck.slides.findIndex((s) => s.id === id);
-export const slideById = (deck, id) => deck.slides.find((s) => s.id === id) || null;
+export const isPseudo = (id) => typeof id === "string" && id.startsWith("@");
+export const slideById = (deck, id) => (isPseudo(id) ? pseudoSlide(deck, id) : deck.slides.find((s) => s.id === id) || null);
+
+const PSEUDO = { ord: "a0", background: null, notes: "", transition: { type: "none", duration: 0.5 } };
+/** The master ("@master") or a layout ("@layout:<id>") as an editable slide; null for anything else. */
+export function pseudoSlide(deck, id) {
+  if (id === MASTER_ID) return { ...PSEUDO, id, layout: "blank", elements: deck.master?.elements || [] };
+  const lid = id.slice(LAYOUT_PREFIX.length);
+  if (!id.startsWith(LAYOUT_PREFIX) || !LAYOUTS.some((l) => l.id === lid)) return null;
+  return { ...PSEUDO, id, layout: lid, elements: fixOrder(layoutElements(lid, deck.size, {}, deck).map((e) => ({ ...e, id: `ph-${e.ph}` })), "z") };
+}
+
+/** Writes an edited pseudo slide back: master elements, or a layout's boxes (re-applied to the slides using it). */
+function writePseudo(deck, id, elements) {
+  if (id === MASTER_ID) return { ...deck, master: normMaster({ ...deck.master, elements }) };
+  const lid = id.slice(LAYOUT_PREFIX.length);
+  const { w, h } = deck.size;
+  const ph = elements.filter((e) => e.ph).map((e) => [e.ph, e.x / w, e.y / h, e.w / w, e.h / h]);
+  let next = { ...deck, layouts: normLayouts({ ...deck.layouts, [lid]: ph }) };
+  for (const s of next.slides) if (s.layout === lid) next = applyLayout(next, s.id, lid);
+  return next;
+}
+
+/** Resets an edited layout to the built-in boxes (slides using it follow). */
+export function resetLayout(deck, layoutId) {
+  const { [layoutId]: _, ...rest } = deck.layouts || {};
+  let next = { ...deck, layouts: rest };
+  for (const s of next.slides) if (s.layout === layoutId) next = applyLayout(next, s.id, layoutId);
+  return next;
+}
 const withSlides = (deck, slides) => ({ ...deck, slides: fixOrder(slides, "ord") });
 
 export function insertSlide(deck, slide, index = deck.slides.length) {
@@ -252,6 +419,12 @@ export function moveSlides(deck, ids, to) {
 }
 
 export function updateSlide(deck, id, patch) {
+  if (isPseudo(id)) {
+    const s = pseudoSlide(deck, id);
+    if (!s) return deck;
+    const p = typeof patch === "function" ? patch(s) : patch;
+    return p.elements ? writePseudo(deck, id, fixOrder(p.elements.map(normElement), "z")) : deck;
+  }
   return { ...deck, slides: deck.slides.map((s) => (s.id === id ? normSlide({ ...s, ...(typeof patch === "function" ? patch(s) : patch) }) : s)) };
 }
 
@@ -269,7 +442,11 @@ export function updateElements(deck, slideId, ids, patch) {
     els.map((e) => {
       if (!set.has(e.id)) return e;
       const p = typeof patch === "function" ? patch(e) : patch;
-      return normElement({ ...e, ...p, style: p.style ? { ...e.style, ...p.style } : e.style });
+      let spans = p.spans !== undefined ? p.spans : e.spans;
+      // new text: formatting follows the characters; whole-box formatting replaces the same keys inside the box
+      if (p.spans === undefined && typeof p.text === "string" && e.spans) spans = remapSpans(e.spans, e.text, p.text);
+      if (p.spans === undefined && p.style && spans) spans = clearSpanKeys(spans, Object.keys(p.style));
+      return normElement({ ...e, ...p, spans, style: p.style ? { ...e.style, ...p.style } : e.style });
     }),
   );
 }
@@ -333,8 +510,9 @@ export function bounds(els) {
 /** Applies a layout: placeholders move to the new boxes (text kept by role), others stay where they are. */
 export function applyLayout(deck, slideId, layoutId) {
   const lay = layoutOf(layoutId);
+  const phOf = layoutPh(deck, lay.id);
   return updateSlide(deck, slideId, (s) => {
-    const fresh = layoutElements(lay.id, deck.size);
+    const fresh = layoutElements(lay.id, deck.size, {}, deck);
     const used = new Set();
     const elements = [];
     for (const e of s.elements) {
@@ -342,7 +520,7 @@ export function applyLayout(deck, slideId, layoutId) {
         elements.push(e);
         continue;
       }
-      const role = e.ph === "subtitle" && !lay.ph.some((p) => p[0] === "subtitle") ? "body" : e.ph === "body" && !lay.ph.some((p) => p[0] === "body") ? "subtitle" : e.ph;
+      const role = e.ph === "subtitle" && !phOf.some((p) => p[0] === "subtitle") ? "body" : e.ph === "body" && !phOf.some((p) => p[0] === "body") ? "subtitle" : e.ph;
       const target = fresh.find((f) => f.ph === role && !used.has(f));
       if (target) {
         used.add(target);
@@ -371,8 +549,192 @@ export function pruneMedia(deck) {
     if (s.background?.media) used.add(s.background.media);
     for (const e of s.elements) if (e.media) used.add(e.media);
   }
+  for (const e of deck.master?.elements || []) if (e.media) used.add(e.media);
   const media = Object.fromEntries(Object.entries(deck.media || {}).filter(([id]) => used.has(id)));
   return Object.keys(media).length === Object.keys(deck.media || {}).length ? deck : { ...deck, media };
+}
+
+// ---------------------------------------------------------------- master, footers and slide numbers
+
+/** Sets footer options ({ text, date, number, skipTitle }; missing keys stay). */
+export function setFooter(deck, patch) {
+  return { ...deck, master: normMaster({ ...deck.master, footer: { ...deck.master?.footer, ...patch } }) };
+}
+
+/**
+ * Elements the master adds to a slide when it is drawn: master graphics (unless slide.hideMaster) and the footer
+ * boxes (date left, text center, slide number right). They carry `master: true` and ids starting with "@", are
+ * not part of the slide and cannot be selected. Pseudo slides show only the footer (the master) or the master
+ * (layouts) for context.
+ */
+export function masterElements(deck, slide) {
+  const m = deck.master || normMaster();
+  const { w: W, h: H } = deck.size;
+  const out = [];
+  if (slide.id !== MASTER_ID && !slide.hideMaster) for (const e of m.elements) out.push({ ...e, id: `@m-${e.id}`, master: true });
+  const f = m.footer;
+  if (isPseudo(slide.id) && slide.id !== MASTER_ID) return out;
+  if (f.skipTitle && slide.layout === "title" && slide.id !== MASTER_ID) return out;
+  const n = slide.id === MASTER_ID ? "#" : String(slideIndex(deck, slide.id) + 1);
+  const y = Math.round(H - H * 0.075), h = Math.round(H * 0.06);
+  const box = (id, text, x, w, align) => out.push({ ...normElement({ type: "text", id, x: Math.round(x), y, w: Math.round(w), h, text, style: { size: 12, align, valign: "middle" } }), id, master: true });
+  if (f.date) box("@f-date", f.date, W * 0.04, W * 0.24, "left");
+  if (f.text) box("@f-text", f.text, W * 0.3, W * 0.4, "center");
+  if (f.number) box("@f-num", n, W * 0.76, W * 0.2, "right");
+  return out;
+}
+
+/** Everything drawn for a slide, back to front: master elements, then the slide's own elements. */
+export const renderElements = (deck, slide) => [...masterElements(deck, slide), ...slide.elements];
+
+// ---------------------------------------------------------------- mixed formatting (spans)
+
+const fmtKey = (f) => SPAN_KEYS.map((k) => (f[k] === undefined ? "" : String(f[k]))).join("|");
+const cleanFmt = (f) => {
+  const o = {};
+  for (const k of SPAN_KEYS) {
+    if (k === "color" ? color(f?.[k]) : typeof f?.[k] === "boolean") o[k] = k === "color" ? color(f[k]) : f[k];
+  }
+  return o;
+};
+
+/** Per-character formatting array of length n (later spans win where they overlap). */
+function charFormats(spans, n) {
+  const a = new Array(n).fill(null);
+  for (const s of Array.isArray(spans) ? spans : []) {
+    const f = cleanFmt(s);
+    if (!Object.keys(f).length) continue;
+    const from = clamp(Math.floor(num(s.start)), 0, n), to = clamp(Math.floor(num(s.end)), 0, n);
+    for (let i = from; i < to; i++) a[i] = a[i] ? { ...a[i], ...f } : f;
+  }
+  return a;
+}
+
+/** Per-character formats → sorted, merged spans. */
+function compressFormats(a) {
+  const out = [];
+  for (let i = 0; i < a.length; i++) {
+    const f = a[i];
+    if (!f || !Object.keys(f).length) continue;
+    const last = out[out.length - 1];
+    if (last && last.end === i && fmtKey(last) === fmtKey(f)) last.end = i + 1;
+    else out.push({ start: i, end: i + 1, ...f });
+  }
+  return out;
+}
+
+/** Valid, sorted, non-overlapping spans for a text of length n. */
+export const normSpans = (spans, n) => (Array.isArray(spans) && spans.length ? compressFormats(charFormats(spans.slice(0, 2000), n)) : []);
+
+/** Formatting at one character (span values only; the element style applies where a key is missing). */
+export const spanFormatAt = (e, i) => charFormats(e.spans, (e.text || "").length)[i] || {};
+
+/**
+ * Sets (true/false/color) or clears (null) formatting keys on the characters [start, end) of a text box.
+ * Returns the new spans.
+ */
+export function formatSpans(e, start, end, patch) {
+  const n = (e.text || "").length;
+  const a = charFormats(e.spans, n);
+  const from = clamp(Math.floor(num(start)), 0, n), to = clamp(Math.floor(num(end)), 0, n);
+  for (let i = from; i < to; i++) {
+    const f = { ...(a[i] || {}) };
+    for (const k of SPAN_KEYS) if (k in patch) {
+      if (patch[k] === null || patch[k] === undefined) delete f[k];
+      else f[k] = k === "color" ? color(patch[k]) : !!patch[k];
+      if (f[k] === null) delete f[k];
+    }
+    a[i] = f;
+  }
+  return compressFormats(a);
+}
+
+/** Formats a character range of a text element (one deck operation). */
+export function formatText(deck, slideId, elementId, start, end, patch) {
+  const s = slideById(deck, slideId);
+  const e = s?.elements.find((x) => x.id === elementId);
+  if (!e || typeof e.text !== "string") return deck;
+  return updateElements(deck, slideId, [elementId], { spans: formatSpans(e, start, end, patch) });
+}
+
+/** Moves spans along with an edit from oldText to newText (typed characters take the format before them). */
+export function remapSpans(spans, oldText, newText) {
+  const a = charFormats(spans, oldText.length);
+  let p = 0;
+  while (p < oldText.length && p < newText.length && oldText[p] === newText[p]) p++;
+  let q = 0;
+  while (q < oldText.length - p && q < newText.length - p && oldText[oldText.length - 1 - q] === newText[newText.length - 1 - q]) q++;
+  const inserted = newText.length - p - q;
+  const fill = p > 0 && newText[p] !== "\n" ? a[p - 1] : null;
+  return compressFormats([...a.slice(0, p), ...new Array(inserted).fill(fill), ...a.slice(oldText.length - q)]);
+}
+
+/** Drops keys from every span (the whole box got that formatting). */
+export function clearSpanKeys(spans, keys) {
+  const drop = keys.filter((k) => SPAN_KEYS.includes(k));
+  if (!drop.length || !spans?.length) return spans;
+  return spans.map((s) => Object.fromEntries(Object.entries(s).filter(([k]) => !drop.includes(k)))).filter((s) => SPAN_KEYS.some((k) => k in s));
+}
+
+/** Pieces of text[from, to) with their span formatting: [{ start, end, text, fmt }]. */
+export function spanSegments(text, spans, from = 0, to = text.length) {
+  if (!spans?.length) return to > from ? [{ start: from, end: to, text: text.slice(from, to), fmt: {} }] : [];
+  const out = [];
+  let i = from;
+  for (const s of spans) {
+    if (s.end <= from || s.start >= to) continue;
+    const a = Math.max(s.start, from), b = Math.min(s.end, to);
+    if (a > i) out.push({ start: i, end: a, text: text.slice(i, a), fmt: {} });
+    const { start, end, ...fmt } = s;
+    out.push({ start: a, end: b, text: text.slice(a, b), fmt });
+    i = b;
+  }
+  if (i < to) out.push({ start: i, end: to, text: text.slice(i, to), fmt: {} });
+  return out;
+}
+
+// ---------------------------------------------------------------- charts
+
+/** Chart definition as drawn on a slide: theme fonts, text color and accent colors first in the palette. */
+export function slideChart(deck, e) {
+  const t = deck.theme;
+  const dark = luma(t.bg) < 0.45;
+  return { ...e.chart, options: { ...e.chart.options, fontFamily: t.body, textColor: t.text, theme: dark ? "dark" : "light", palette: e.chart.options.palette === "default" ? [t.accent, t.accent2, "#64748b", "#10b981", "#ef4444", "#8b5cf6"] : e.chart.options.palette, background: null } };
+}
+const luma = (hex) => {
+  const v = parseInt(String(hex || "#ffffff").slice(1), 16);
+  return (0.2126 * ((v >> 16) & 255) + 0.7152 * ((v >> 8) & 255) + 0.0722 * (v & 255)) / 255;
+};
+
+/** Replaces a chart element's data snapshot (refresh from its spreadsheet). */
+export function setChartData(deck, slideId, elementId, chart) {
+  return updateElements(deck, slideId, [elementId], (e) => ({ chart: { ...e.chart, ...chart, options: { ...e.chart.options, ...(chart.options || {}) } } }));
+}
+
+/** Chart data as table rows (header row: "", series names; one row per category) for PowerPoint/OpenDocument. */
+export function chartRows(chart) {
+  const fmt = (v) => (v == null ? "" : String(Math.round(v * 1e6) / 1e6));
+  return [["", ...chart.data.series.map((s) => s.name)], ...chart.data.categories.map((c, i) => [c, ...chart.data.series.map((s) => fmt(s.values[i]))])];
+}
+
+/**
+ * The deck as the PowerPoint and OpenDocument writers see it: master graphics and footers become elements of each
+ * slide, charts become tables of their data (a native chart part is not written). Pure; the editor keeps the deck.
+ */
+export function exportDeck(deck) {
+  const slides = deck.slides.map((s) => ({
+    ...s,
+    elements: renderElements(deck, s).map((e) => {
+      const { master, ...rest } = e;
+      const out = master ? { ...rest, id: rest.id.replace(/^@/, "x") } : rest;
+      if (out.type === "chart") {
+        const { chart, source, ...base } = out;
+        return { ...base, type: "table", rows: chartRows(chart), header: true, style: normStyle({ size: 14 }), fill: null, stroke: "#9ca3af" };
+      }
+      return out;
+    }),
+  }));
+  return { ...deck, slides };
 }
 
 // ---------------------------------------------------------------- geometry (shared by the DOM, PDF and PNG renderers)
@@ -437,6 +799,9 @@ export function describeDeck(deck, { full = false, limit = 60 } = {}) {
     title: deck.meta?.title || "",
     size: `${deck.size.w}x${deck.size.h}`,
     theme: deck.theme.id,
+    footer: deck.master.footer,
+    masterElements: deck.master.elements.length,
+    ...(Object.keys(deck.layouts || {}).length ? { editedLayouts: Object.keys(deck.layouts) } : {}),
     slideCount: deck.slides.length,
     slides: deck.slides.slice(0, limit).map((s, i) => ({
       index: i + 1,
@@ -447,7 +812,7 @@ export function describeDeck(deck, { full = false, limit = 60 } = {}) {
       ...(s.transition.type !== "none" ? { transition: s.transition.type } : {}),
       ...(full
         ? {
-            elements: s.elements.map((e) => ({ id: e.id, type: e.type, ...(e.ph ? { placeholder: e.ph } : {}), ...(e.shape ? { shape: e.shape } : {}), box: [Math.round(e.x), Math.round(e.y), Math.round(e.w), Math.round(e.h)], ...(e.rot ? { rot: e.rot } : {}), ...(e.text ? { text: clip(e.text, 200) } : {}), ...(e.rows ? { rows: e.rows.length, cols: e.rows[0].length } : {}) })),
+            elements: s.elements.map((e) => ({ id: e.id, type: e.type, ...(e.ph ? { placeholder: e.ph } : {}), ...(e.shape ? { shape: e.shape } : {}), box: [Math.round(e.x), Math.round(e.y), Math.round(e.w), Math.round(e.h)], ...(e.rot ? { rot: e.rot } : {}), ...(e.text ? { text: clip(e.text, 200) } : {}), ...(e.rows ? { rows: e.rows.length, cols: e.rows[0].length } : {}), ...(e.spans ? { spans: e.spans.map((x) => ({ ...x, text: clip(e.text.slice(x.start, x.end), 40) })) } : {}), ...(e.chart ? { chart: { type: e.chart.type, title: e.chart.title, categories: e.chart.data.categories.length, series: e.chart.data.series.map((x) => x.name) }, ...(e.source ? { source: e.source } : {}) } : {}) })),
             notes: clip(s.notes, 300),
           }
         : { elements: s.elements.length, ...(s.notes ? { notes: clip(s.notes, 80) } : {}) }),
@@ -462,7 +827,7 @@ export const MEDIA_RECORD_MAX = 45 * 1024; // bytes; larger images stay local (c
 
 /** Flattens a deck into records: meta:deck, slide:<id>, obj:<slide>/<element>, media:<id>. */
 export function deckRecords(deck) {
-  const r = { "meta:deck": { size: deck.size, theme: deck.theme, title: deck.meta?.title || "" } };
+  const r = { "meta:deck": { size: deck.size, theme: deck.theme, title: deck.meta?.title || "", master: deck.master, layouts: deck.layouts } };
   for (const s of deck.slides) {
     const { elements, id, ...rest } = s;
     r[`slide:${id}`] = rest;
@@ -502,7 +867,8 @@ export function applyDeckRecords(deck, changes) {
   const cmp = (f) => (a, b) => (String(a[f]) < String(b[f]) ? -1 : String(a[f]) > String(b[f]) ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   slides.sort(cmp("ord"));
   for (const s of slides) s.elements.sort(cmp("z"));
-  const out = normalizeDeck({ size: meta.size, theme: meta.theme, meta: { title: meta.title }, slides, media: {} });
+  const out = normalizeDeck({ size: meta.size, theme: meta.theme, meta: { title: meta.title }, master: meta.master, layouts: meta.layouts, slides, media: {} });
+
   out.media = Object.fromEntries(Object.entries(media).filter(([, m]) => m));
   return out;
 }

@@ -43,6 +43,8 @@ const EXPORT_ITEMS = [
   { value: "png", label: "PNG images, one per slide (.zip)" },
   { value: "png1", label: "This slide as PNG (.png)" },
 ];
+const CHART_ITEMS = [{ value: "column", label: "Column" }, { value: "bar", label: "Bar" }, { value: "line", label: "Line" }, { value: "area", label: "Area" }, { value: "pie", label: "Pie" }, { value: "donut", label: "Donut" }, { value: "stacked-column", label: "Stacked column" }, { value: "scatter", label: "Scatter" }];
+const DESIGN_ITEMS = [{ value: "pitch", label: "Midnight bar" }, { value: "report", label: "Slate band" }, { value: "lesson", label: "Sunrise circles" }, { value: "project", label: "Aurora stripe" }, { value: "roadmap", label: "Forest band" }, { value: "portfolio", label: "Paper frame" }];
 let clipboard = null; // { elements, media } copied elements (shared between decks of this window)
 
 function menuButton({ icon, label, items, onPick }) {
@@ -117,6 +119,7 @@ export class SlidesView {
         menuButton({ icon: "square", label: "Shape", items: SHAPE_ITEMS, onPick: (shape) => this.run("slides.insertShape", { shape }) }),
         cmd("image", "Picture…", "slides.insertImage"),
         cmd("table", "Table", "slides.insertTable"),
+        cmd("bar-chart", "Chart from spreadsheet…", "slides.insertChart"),
       ] },
       { id: "text", label: "Text", items: [this.fonts.el, this.toggles.bold, this.toggles.italic, this.toggles.underline, this.textColor.el, cmd("text-left", "Align left", "slides.alignLeft"), cmd("text-center", "Center", "slides.alignCenter"), cmd("text-right", "Align right", "slides.alignRight"), this.toggles.bullets] },
       { id: "shape", label: "Shape", items: [this.fillColor.el, this.lineColor.el] },
@@ -129,8 +132,11 @@ export class SlidesView {
         cmd("arrow-clockwise", "Rotate 90°", "slides.rotate"),
       ] },
       { id: "design", label: "Design", items: [
-        menuButton({ icon: "palette", label: "Theme", items: M.THEMES.map((x) => ({ value: x.id, label: x.name })), onPick: (theme) => this.run("slides.theme", { theme }) }),
+        cmd("palette", "Themes…", "slides.themeDialog"),
+        menuButton({ icon: "stars", label: "Design", items: DESIGN_ITEMS, onPick: (design) => this.run("slides.design", { design }) }),
         this.bgColor.el,
+        cmd("layout-text-window-reverse", "Header and footer…", "slides.footer"),
+        menuButton({ icon: "layout-wtf", label: "Edit master", items: [{ value: M.MASTER_ID, label: "Slide master" }, "-", ...M.LAYOUTS.map((l) => ({ value: M.LAYOUT_PREFIX + l.id, label: l.name }))], onPick: (target) => this.run("slides.editMaster", { target }) }),
         menuButton({ icon: "collection", label: "Transition", items: [{ value: "none", label: "No transition" }, { value: "fade", label: "Fade" }, { value: "slide", label: "Slide in" }], onPick: (type) => this.run("slides.transition", { type }) }),
       ] },
       { id: "show", label: "Slide show", items: [cmd("play-btn", "Present from the beginning", "slides.present"), cmd("play-circle", "Present from this slide", "slides.presentCurrent"), cmd("display", "Presenter view", "slides.presenterView"), this.toggles.sorter] },
@@ -139,7 +145,9 @@ export class SlidesView {
     this.thumbs = h("div.of-sl-thumbs", { role: "listbox", "aria-label": t("Slides"), tabindex: "0" });
     this.stage = h("div.of-sl-stage", { tabindex: "0", role: "application", "aria-label": t("Slide canvas") });
     this.notes = h("textarea.of-sl-notes", { "aria-label": t("Speaker notes"), placeholder: t("Click to add speaker notes"), spellcheck: "true" });
-    this.main = h("div.of-sl-main", this.stage, this.notes);
+    this.bannerText = h("span");
+    this.banner = h("div.of-sl-banner", { hidden: true, role: "status" }, h("sl-icon", { name: "layout-wtf", "aria-hidden": "true" }), this.bannerText, h("sl-button", { size: "small", onclick: () => this.run("slides.closeMaster") }, t("Close master view")));
+    this.main = h("div.of-sl-main", this.banner, this.stage, this.notes);
     this.split = splitPanels({ a: this.thumbs, b: this.main, size: 200, min: 120 });
     this.sorter = h("div.of-sl-sorter", { role: "listbox", "aria-label": t("Slide sorter"), hidden: true, tabindex: "0" });
     this.live = h("div.of-sl-sr", { "aria-live": "polite" });
@@ -168,6 +176,10 @@ export class SlidesView {
     this.renderThumbs();
     this.renderStage();
     if (document.activeElement !== this.notes) this.notes.value = this.slide.notes;
+    const pseudo = M.isPseudo(this.cur);
+    this.notes.disabled = pseudo;
+    this.banner.hidden = !pseudo;
+    if (pseudo) this.bannerText.textContent = this.cur === M.MASTER_ID ? t("Editing the slide master: shapes, pictures and text here appear on every slide.") : t("Editing the layout “{name}”: move or resize its placeholders; slides with this layout follow.", { name: t(M.layoutOf(this.cur.slice(M.LAYOUT_PREFIX.length)).name) });
     this.syncControls();
     this.app.emit("officestatus");
   }
@@ -181,8 +193,8 @@ export class SlidesView {
       keep.add(s.id);
       const key = `${s.id}|${width}`;
       let c = this.thumbCache.get(key);
-      if (!c || c.slide !== s || c.theme !== deck.theme || c.size !== deck.size || c.media !== deck.media) {
-        c = { slide: s, theme: deck.theme, size: deck.size, media: deck.media, node: scaledSlide(deck, s, this.urls, width) };
+      if (!c || c.slide !== s || c.theme !== deck.theme || c.size !== deck.size || c.media !== deck.media || c.master !== deck.master || c.index !== i) {
+        c = { slide: s, theme: deck.theme, size: deck.size, media: deck.media, master: deck.master, index: i, node: scaledSlide(deck, s, this.urls, width) };
         this.thumbCache.set(key, c);
       }
       const title = M.slideTitle(s);
@@ -249,7 +261,8 @@ export class SlidesView {
   statusText() {
     const i = M.slideIndex(this.deck, this.cur) + 1;
     const n = this.sel.size;
-    return `${t("Slide {n} of {total}", { n: i, total: this.deck.slides.length })}${n ? ` · ${t("{n} selected", { n })}` : ""}`;
+    const where = M.isPseudo(this.cur) ? (this.cur === M.MASTER_ID ? t("Slide master") : t(M.layoutOf(this.cur.slice(M.LAYOUT_PREFIX.length)).name)) : t("Slide {n} of {total}", { n: i, total: this.deck.slides.length });
+    return `${where}${n ? ` · ${t("{n} selected", { n })}` : ""}`;
   }
 
   // ------------------------------------------------------------------ navigation and selection
@@ -258,6 +271,7 @@ export class SlidesView {
     if (!M.slideById(this.deck, id)) return;
     this.finishEditing();
     if (this.cur !== id) this.sel.clear();
+    if (!M.isPseudo(this.cur)) this.lastSlideIndex = M.slideIndex(this.deck, this.cur);
     this.cur = id;
     this.refresh();
     const i = M.slideIndex(this.deck, id);
@@ -269,6 +283,7 @@ export class SlidesView {
     if (i >= 0 && i < this.deck.slides.length) this.goTo(this.deck.slides[i].id);
   }
   select(ids, add = false) {
+    this.lastTextSel = null;
     if (!add) this.sel.clear();
     for (const id of ids) this.sel.add(id);
     this.drawSelection();
@@ -533,7 +548,7 @@ export class SlidesView {
 
   editText(id, cell = null) {
     const e = this.slide.elements.find((x) => x.id === id);
-    if (!e || e.type === "image" || (e.type === "shape" && e.shape === "line")) return;
+    if (!e || e.type === "image" || e.type === "chart" || (e.type === "shape" && e.shape === "line")) return;
     this.finishEditing();
     this.select([id]);
     const node = this.canvas.querySelector(`.of-sl-el[data-id="${CSS.escape(id)}"]`);
@@ -557,7 +572,12 @@ export class SlidesView {
     const sel = getSelection();
     sel.removeAllRanges();
     sel.addRange(range);
-    target.addEventListener("blur", () => this.finishEditing(), { once: true });
+    target.addEventListener("blur", () => {
+      // remember the selected characters: a ribbon click (bold, color …) formats them after the box lost focus
+      const r = this.editing?.node === target && !this.editing.cell ? SlidesView.selectionOffsets(target) : null;
+      this.finishEditing();
+      this.lastTextSel = r && r.end > r.start ? { id, slide: this.slide.id, ...r } : null;
+    }, { once: true });
     target.addEventListener("keydown", (ev) => {
       ev.stopPropagation();
       if (ev.key === "Escape") {
@@ -575,9 +595,81 @@ export class SlidesView {
         if (next) this.editText(id, next);
       } else if ((ev.ctrlKey || ev.metaKey) && ["b", "i", "u"].includes(ev.key.toLowerCase())) {
         ev.preventDefault();
-        this.run({ b: "slides.bold", i: "slides.italic", u: "slides.underline" }[ev.key.toLowerCase()]);
+        const r = this.editing?.cell ? null : SlidesView.selectionOffsets(target);
+        if (r && r.end > r.start) {
+          const key = { b: "bold", i: "italic", u: "underline" }[ev.key.toLowerCase()];
+          this.finishEditing();
+          this.formatRange(id, r, key);
+        } else this.run({ b: "slides.bold", i: "slides.italic", u: "slides.underline" }[ev.key.toLowerCase()]);
       }
     });
+  }
+
+  /** Character offsets { start, end } of the DOM selection inside an edited text block (paragraph divs + "\n"). */
+  static selectionOffsets(node) {
+    const sel = getSelection();
+    if (!sel?.rangeCount) return null;
+    const r = sel.getRangeAt(0);
+    if (!node.contains(r.startContainer) || !node.contains(r.endContainer)) return null;
+    const at = (container, offset) => {
+      let base = 0;
+      const kids = [...node.childNodes];
+      for (const p of kids) {
+        if (p === container || p.contains(container)) {
+          const pre = document.createRange();
+          pre.selectNodeContents(p);
+          pre.setEnd(container, offset);
+          return base + pre.toString().replace(/​/g, "").length;
+        }
+        base += (p.textContent || "").replace(/​/g, "").length + 1;
+      }
+      return container === node ? kids.slice(0, offset).reduce((n, p) => n + (p.textContent || "").replace(/​/g, "").length + 1, 0) : 0;
+    };
+    const a = at(r.startContainer, r.startOffset), b = at(r.endContainer, r.endOffset);
+    return { start: Math.min(a, b), end: Math.max(a, b) };
+  }
+
+  /** Selects characters [start, end) of an edited text block. */
+  static selectOffsets(node, start, end) {
+    const find = (pos) => {
+      let base = 0;
+      for (const p of node.childNodes) {
+        const len = (p.textContent || "").replace(/​/g, "").length;
+        if (pos <= base + len) {
+          const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT);
+          let left = pos - base;
+          for (let tn = walker.nextNode(); tn; tn = walker.nextNode()) {
+            if (left <= tn.length) return [tn, left];
+            left -= tn.length;
+          }
+          return [p, p.childNodes.length];
+        }
+        base += len + 1;
+      }
+      return [node, node.childNodes.length];
+    };
+    const range = document.createRange();
+    range.setStart(...find(start));
+    range.setEnd(...find(end));
+    const sel = getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  /**
+   * Formats characters of a text box: `key` toggles bold/italic/underline (from the first character's look) or
+   * `patch` sets values ({ color }). Then editing resumes with the same characters selected.
+   */
+  formatRange(id, r, key, patch = null) {
+    const e = this.slide.elements.find((x) => x.id === id);
+    if (!e || typeof e.text !== "string") return;
+    if (key) {
+      const cur = M.spanFormatAt(e, r.start)[key] ?? M.textLook(this.deck, e)[key];
+      patch = { [key]: !cur };
+    }
+    this.commit("Format Text", M.formatText(this.deck, this.slide.id, id, r.start, r.end, patch));
+    this.editText(id);
+    if (this.editing) SlidesView.selectOffsets(this.editing.node, r.start, r.end);
   }
 
   /** Text of a contenteditable block: one paragraph per child div (the browser adds divs/brs while typing). */
@@ -728,18 +820,127 @@ export class SlidesView {
 
   /** Applies a patch to the selection, or to every text element of the slide when nothing is selected. */
   format(patch, label = "Format") {
+    const ts = this.lastTextSel;
+    if (ts && ts.slide === this.slide.id && patch.style && !patch.fill && !patch.stroke && Object.keys(patch.style).every((k) => M.SPAN_KEYS.includes(k))) {
+      this.lastTextSel = null;
+      return this.formatRange(ts.id, ts, null, patch.style);
+    }
     const ids = this.sel.size ? [...this.sel] : patch.style ? this.slide.elements.filter((e) => e.style).map((e) => e.id) : [];
     if (!ids.length) return;
     if (this.editing) this.finishEditing();
     this.commit(label, M.updateElements(this.deck, this.slide.id, ids, patch));
   }
   toggleStyle(key, label) {
+    const ts = this.lastTextSel;
+    if (ts && ts.slide === this.slide.id && M.SPAN_KEYS.includes(key)) {
+      this.lastTextSel = null;
+      return this.formatRange(ts.id, ts, key);
+    }
     const first = this.selected.find((e) => e.style);
     if (!first) return;
     this.format({ style: { [key]: !first.style[key] } }, label);
   }
 
+  /** Opens the master ("@master") or a layout ("@layout:<id>") for editing, or a slide id to leave. */
+  editMaster(target = M.MASTER_ID) {
+    if (this.mode === "sorter") this.setSorter(false);
+    this.goTo(target);
+  }
+  closeMaster() {
+    if (M.isPseudo(this.cur)) this.goTo(this.deck.slides[Math.max(0, Math.min(this.deck.slides.length - 1, this.lastSlideIndex || 0))].id);
+  }
+
+  /** Theme gallery: preview cards of every theme, then colors and fonts to fine-tune; applies to the whole deck. */
+  themeDialog() {
+    const cur = this.deck.theme;
+    const state = { id: cur.id, bg: cur.bg, text: cur.text, accent: cur.accent, accent2: cur.accent2, heading: cur.heading, body: cur.body };
+    const inputs = {};
+    const card = (th) => h("button.of-sl-theme", { type: "button", "data-id": th.id, "aria-pressed": String(th.id === state.id), style: { background: th.bg, color: th.text, fontFamily: `"${th.heading}", sans-serif` }, onclick: () => pickTheme(th) },
+      h("span.of-sl-theme__title", "Aa"), h("span.of-sl-theme__bars", h("i", { style: { background: th.accent } }), h("i", { style: { background: th.accent2 } })), h("span.of-sl-theme__name", t(th.name)));
+    const gallery = h("div.of-sl-themes", { role: "group", "aria-label": t("Themes") }, ...M.THEMES.map(card));
+    const preview = h("div.of-sl-theme-preview");
+    const draw = () => {
+      const deck = { ...this.deck, theme: { ...cur, ...state } };
+      preview.replaceChildren(scaledSlide(deck, this.deck.slides.find((s) => !s.hidden) || this.deck.slides[0], this.urls, 280));
+      for (const b of gallery.children) b.setAttribute("aria-pressed", String(b.dataset.id === state.id));
+    };
+    const pickTheme = (th) => {
+      Object.assign(state, { id: th.id, bg: th.bg, text: th.text, accent: th.accent, accent2: th.accent2, heading: th.heading, body: th.body });
+      for (const [k, el] of Object.entries(inputs)) el.value = state[k];
+      draw();
+    };
+    const colorField = (k, label) => h("label.of-ofield", h("span", t(label)), (inputs[k] = h("input", { type: "color", value: state[k], oninput: (e) => ((state[k] = e.target.value), draw()) })));
+    const fontField = (k, label) => h("label.of-ofield", h("span", t(label)), (inputs[k] = h("input.of-oinput", { value: state[k], maxlength: 80, onchange: (e) => ((state[k] = e.target.value.trim() || state[k]), draw()) })));
+    const fields = h("div.of-sl-theme-fields", colorField("bg", "Background"), colorField("text", "Text"), colorField("accent", "Accent"), colorField("accent2", "Second accent"), fontField("heading", "Heading font"), fontField("body", "Body font"));
+    draw();
+    openDialog({
+      title: t("Themes"),
+      body: h("div.of-oform", gallery, h("div.of-sl-theme-row", preview, fields)),
+      width: 640,
+      buttons: [
+        { label: t("Cancel"), onClick: (c) => c() },
+        { label: t("Apply to all slides"), variant: "primary", onClick: (c) => {
+          c();
+          const { id, ...over } = state;
+          this.commit("Apply Theme", M.applyTheme(this.deck, id, over));
+        } },
+      ],
+    });
+  }
+
+  footerDialog() {
+    const f = this.deck.master.footer;
+    const text = h("sl-input", { label: t("Footer text"), value: f.text, maxlength: 300 });
+    const date = h("sl-input", { label: t("Date"), value: f.date, placeholder: t("Any text, for example 5 November 2026"), maxlength: 80 });
+    const number = h("sl-checkbox", { checked: f.number }, t("Slide number"));
+    const skip = h("sl-checkbox", { checked: f.skipTitle }, t("Don’t show on title slides"));
+    openDialog({
+      title: t("Header and footer"),
+      body: h("div.of-oform", text, date, number, skip),
+      width: 440,
+      buttons: [
+        { label: t("Cancel"), onClick: (c) => c() },
+        { label: t("Apply to all"), variant: "primary", onClick: (c) => (c(), this.commit("Header and Footer", M.setFooter(this.deck, { text: text.value, date: date.value, number: number.checked, skipTitle: skip.checked }))) },
+      ],
+    });
+  }
+
+  async chartDialog() {
+    const sheets = this.app.docs.filter((d) => d.office?.kind === "sheet");
+    if (!sheets.length) return this.app.toast(t("Open the spreadsheet with the data first, then insert the chart."), "warning", 6000);
+    const docSel = h("select.of-oinput", { "aria-label": t("Spreadsheet") }, sheets.map((d) => h("option", { value: d.name }, d.name)));
+    const range = h("input.of-oinput", { "aria-label": t("Range"), placeholder: "A1:D5" });
+    const type = h("select.of-oinput", { "aria-label": t("Chart type") }, CHART_ITEMS.map((k) => h("option", { value: k.value }, t(k.label))));
+
+    const title = h("input.of-oinput", { "aria-label": t("Chart title") });
+    const field = (label, el) => h("label.of-ofield", h("span", t(label)), el);
+    openDialog({
+      title: t("Chart from spreadsheet"),
+      body: h("div.of-oform", field("Spreadsheet", docSel), field("Range", range), field("Chart type", type), field("Chart title", title), h("p.of-hint", t("First row: series names; first column: categories. Leave the range empty for the used range. The chart keeps a copy of the data; Refresh chart data updates it."))),
+      width: 480,
+      buttons: [
+        { label: t("Cancel"), onClick: (c) => c() },
+        { label: t("Insert"), variant: "primary", onClick: (c) => (c(), this.insertChartFrom({ spreadsheet: docSel.value, range: range.value.trim(), type: type.value, title: title.value.trim() }).catch((e) => this.app.toast(e.message, "danger", 6000))) },
+      ],
+    });
+  }
+
+  async insertChartFrom(opts) {
+    const { chartFromSheet } = await import("./sheet-link.js");
+    const r = await chartFromSheet(this.app, opts);
+    const { w, h: hh } = this.deck.size;
+    this.insertElement("Insert Chart", { type: "chart", x: Math.round(w * 0.1), y: Math.round(hh * 0.22), w: Math.round(w * 0.8), h: Math.round(hh * 0.66), chart: r.chart, source: r.source });
+  }
+
+  async refreshCharts() {
+    const { refreshDeckCharts } = await import("./sheet-link.js");
+    const r = await refreshDeckCharts(this.app, this.deck);
+    if (r.updated) this.commit("Refresh Chart Data", r.deck);
+    this.app.toast(r.updated ? t("Updated {n} charts.", { n: r.updated }) : t("No chart could be updated: open the spreadsheets they come from."), r.updated ? "success" : "warning", 5000);
+  }
+
   setSorter(on = this.mode !== "sorter") {
+
     this.finishEditing();
     this.mode = on ? "sorter" : "normal";
     this.split.el.hidden = on;

@@ -246,3 +246,118 @@ test("Vibe slide tools edit the active deck as undoable steps", async () => {
   assert.equal(d.slideCount, 2);
   await assert.rejects(async () => tools.slides_set_text.run({ slide: 9, placeholder: "title", text: "x" }), /slide/i);
 });
+
+test("designed templates: theme, master graphics, footer and a chart", () => {
+  for (const id of M.TEMPLATES) assert.ok(M.createDeck({ template: id }).slides.length >= 1, id);
+  const d = M.createDeck({ template: "project" });
+  assert.equal(d.theme.id, "aurora");
+  assert.ok(d.master.elements.length >= 1);
+  assert.equal(d.master.footer.number, true);
+  assert.ok(d.slides.some((s) => s.elements.some((e) => e.type === "chart" && e.chart.data.series.length === 2)));
+  const re = M.applyDesign(M.createDeck({ template: "blank" }), "lesson");
+  assert.equal(re.theme.id, "sunrise");
+  assert.throws(() => M.applyDesign(d, "nope"), /Unknown design/);
+});
+
+test("footer and slide numbers render as master elements, not slide content", () => {
+  let d = M.createDeck({ template: "report" });
+  d = M.setFooter(d, { text: "ACME", date: "5 Nov 2026", number: true, skipTitle: true });
+  const title = M.masterElements(d, d.slides[0]);
+  assert.ok(!title.some((e) => e.id.startsWith("@f-")), "title slides skip the footer");
+  const els = M.renderElements(d, d.slides[2]);
+  assert.equal(els.find((e) => e.id === "@f-num").text, "3");
+  assert.equal(els.find((e) => e.id === "@f-text").text, "ACME");
+  assert.ok(els.filter((e) => e.master).every((e) => e.id.startsWith("@")));
+  const hidden = M.updateSlide(d, d.slides[2].id, { hideMaster: true });
+  assert.ok(!M.masterElements(hidden, hidden.slides[2]).some((e) => e.id.startsWith("@m-")), "hideMaster hides graphics");
+  assert.ok(M.masterElements(hidden, hidden.slides[2]).some((e) => e.id === "@f-num"), "but keeps the footer");
+});
+
+test("master and layouts are editable through pseudo slides and survive records", () => {
+  let d = M.createDeck({ template: "blank" });
+  d = M.addSlide(d, { layout: "title-content", text: { title: "T" } }).deck;
+  d = M.addElement(d, M.MASTER_ID, { type: "text", text: "Logo", x: 5, y: 5, w: 80, h: 20 }).deck;
+  assert.equal(d.master.elements.length, 1);
+  const lay = M.slideById(d, `${M.LAYOUT_PREFIX}title-content`);
+  assert.deepEqual(lay.elements.map((e) => e.ph), ["title", "body"]);
+  d = M.updateElements(d, lay.id, ["ph-title"], { y: 270 });
+  assert.equal(d.slides[1].elements.find((e) => e.ph === "title").y, 270, "slides with the layout follow");
+  assert.equal(d.slides[1].elements.find((e) => e.ph === "title").text, "T", "and keep their text");
+  const back = M.applyDeckRecords(d, {});
+  assert.equal(back.master.elements[0].text, "Logo");
+  assert.ok(back.layouts["title-content"]);
+  d = M.resetLayout(d, "title-content");
+  assert.equal(d.layouts["title-content"], undefined);
+  assert.equal(M.normalizeDeck({ layouts: { bogus: [], "title-only": [["evil", 0, 0, 1, 1], ["title", -1, 2, 9, 0.1]] } }).layouts["title-only"].length, 1);
+});
+
+test("mixed formatting: spans format, follow edits and clear on whole-box formatting", () => {
+  const d0 = M.createDeck({ template: "blank" });
+  const s = d0.slides[0].id;
+  const r = M.addElement(d0, s, { type: "text", text: "Hello world\nSecond" });
+  let d = M.formatText(r.deck, s, r.id, 6, 11, { bold: true, color: "#FF0000" });
+  const el = () => M.slideById(d, s).elements.find((e) => e.id === r.id);
+  assert.deepEqual(el().spans, [{ start: 6, end: 11, bold: true, color: "#ff0000" }]);
+  d = M.updateElements(d, s, [r.id], { text: "Oh, Hello world\nSecond" });
+  assert.deepEqual(el().spans, [{ start: 10, end: 15, bold: true, color: "#ff0000" }]);
+  assert.deepEqual(M.spanSegments(el().text, el().spans, 4, 16).map((x) => x.text), ["Hello ", "world", "\n"]);
+  d = M.formatText(d, s, r.id, 10, 15, { color: null });
+  assert.deepEqual(el().spans, [{ start: 10, end: 15, bold: true }]);
+  d = M.updateElements(d, s, [r.id], { style: { bold: false } });
+  assert.equal(el().spans, undefined, "whole-box bold replaces the span");
+  assert.deepEqual(M.normSpans([{ start: -5, end: 99, italic: true, evil: 1 }], 4), [{ start: 0, end: 4, italic: true }]);
+});
+
+test("PowerPoint keeps spans, layouts and master; charts export as tables", () => {
+  let d = M.createDeck({ template: "project" });
+  const s = d.slides[1];
+  const body = s.elements.find((e) => e.ph === "body");
+  d = M.formatText(d, s.id, body.id, 0, 5, { bold: true, italic: true });
+  d = M.setFooter(d, { text: "Footer" });
+  const back = readPptx(writePptx(M.exportDeck(d)), { report: new ImportReport("PowerPoint") });
+  const b2 = back.slides[1].elements.find((e) => e.ph === "body");
+  assert.deepEqual(b2.spans, [{ start: 0, end: 5, bold: true, italic: true }]);
+  assert.ok(back.slides[1].elements.some((e) => e.text === "Footer"));
+  assert.ok(back.slides[3].elements.some((e) => e.type === "table" && e.rows[0][1] === "Planned"), "chart became a table");
+  const ex = M.exportDeck(d);
+  assert.ok(ex.slides.every((x) => x.elements.every((e) => !e.master && !e.id.startsWith("@"))));
+});
+
+test("Vibe tools for footer, master, layouts, mixed formatting and design", async () => {
+  const impl = await loadOfficeApp("slides");
+  const doc = { office: new OfficeProject(await impl.create({ template: "pitch" }), "slides"), tx: (label, fn) => fn(), _do: (op) => op.redo() };
+  const app = { doc, docs: [doc], officeUI: null };
+  const tools = Object.fromEntries(slidesTools(app).map((t) => [t.name, t]));
+  await tools.slides_set_footer.run({ text: "Confidential", number: true });
+  assert.equal(doc.office.model.master.footer.text, "Confidential");
+  const added = await tools.slides_edit_master.run({ action: "add", shape: "textbox", text: "ACME", x: 10, y: 10 });
+  assert.ok(doc.office.model.master.elements.some((e) => e.id === added.element));
+  await tools.slides_edit_master.run({ action: "hide", slide: 2 });
+  assert.equal(doc.office.model.slides[1].hideMaster, true);
+  await tools.slides_edit_layout.run({ layout: "title-content", placeholder: "title", y: 100 });
+  assert.equal(doc.office.model.slides[1].elements.find((e) => e.ph === "title").y, 100);
+  const f = await tools.slides_format_text.run({ slide: 2, placeholder: "body", match: "How", bold: true });
+  assert.equal(f.text, "How");
+  await assert.rejects(async () => tools.slides_format_text.run({ slide: 2, placeholder: "body", match: "zzz", bold: true }), /does not occur/);
+  await tools.slides_apply_design.run({ design: "report" });
+  assert.equal(doc.office.model.theme.id, "slate");
+  const m = await tools.slides_describe.run({ slide: "@master" });
+  assert.ok(m.master.footer);
+  await assert.rejects(async () => tools.slides_insert_chart.run({ slide: 1, spreadsheet: "Missing" }), /No open spreadsheet/);
+});
+
+test("charts from an open spreadsheet range through sheetChartData", async () => {
+  const sheetImpl = await loadOfficeApp("sheet");
+  const SM = await import("../../app/src/office/sheet/model.js");
+  let wb = await sheetImpl.create({});
+  const sid = wb.sheets[0].id;
+  wb = SM.setCells(wb, sid, { A1: { v: "" }, B1: { v: "Sales" }, A2: { v: "Q1" }, B2: { v: 10 }, A3: { v: "Q2" }, B3: { v: 25 } });
+  const sheetDoc = { name: "Numbers", office: new OfficeProject(wb, "sheet") };
+  const { chartFromSheet } = await import("../../app/src/office/slides/sheet-link.js");
+  const r = await chartFromSheet({ docs: [sheetDoc] }, { spreadsheet: "numbers", range: "A1:B3", type: "line" });
+  assert.deepEqual(r.chart.data.categories, ["Q1", "Q2"]);
+  assert.deepEqual(r.chart.data.series[0], { name: "Sales", values: [10, 25] });
+  assert.deepEqual(r.source, { doc: "Numbers", sheet: wb.sheets[0].name, range: "A1:B3" });
+  const used = await chartFromSheet({ docs: [sheetDoc] }, { spreadsheet: "Numbers" });
+  assert.equal(used.source.range, "A1:B3");
+});

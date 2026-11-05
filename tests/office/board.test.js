@@ -215,3 +215,15 @@ test("hostile input is rejected or contained", () => {
   const n = M.normalizeBoard({ pages: "x", elements: { a: { type: "evil" }, b: { type: "pen", points: [] } } });
   assert.equal(Object.keys(n.elements).length, 0);
 });
+
+test("boardToMarkdown: frames become sections, connectors become lines", () => {
+  const flow = M.boardToMarkdown(M.templateBoard("flowchart", { title: "Flow" }));
+  assert.match(flow.markdown, /^# Flow\n/);
+  assert.ok(flow.connections >= 3);
+  assert.match(flow.markdown, /- Start → /);
+  const k = M.boardToMarkdown(M.templateBoard("kanban", { title: "K" }));
+  assert.equal(k.sections, 3);
+  assert.match(k.markdown, /## To do\n\n- First task/);
+  const esc = M.boardToMarkdown({ ...M.emptyModel({ title: "x" }), elements: { a: M.makeElement("sticky", { id: "a", text: "# not a heading", x: 0, y: 0 }) } });
+  assert.match(esc.markdown, /- \\# not a heading/);
+});

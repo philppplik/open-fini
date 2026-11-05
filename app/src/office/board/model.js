@@ -669,6 +669,75 @@ export function describeBoard(model, { page = null, limit = 80 } = {}) {
   return { kind: "board", title: model.title || "", pages: pages.map((p) => ({ id: p.id, name: p.name, paper: p.paper, elements: Object.values(model.elements).filter((e) => e.page === p.id).length })), elements: total, types: counts, items, ...(total > items.length ? { truncated: total - items.length } : {}) };
 }
 
+// ---------------------------------------------------------------------------------------------- board → document
+
+const mdEscape = (s) => String(s).replace(/\s+/g, " ").trim().replace(/^([#>*+-]|\d+\.)\s/, "\\$1 ");
+
+/**
+ * The board written up as Markdown for a text document (Vibe office_board_to_document): the title as "# ", one
+ * section per page (when there are several) and per frame, the text of stickies, text boxes and labeled shapes as
+ * bullets in reading order (top to bottom, then left to right), and connectors between labeled elements as
+ * "A → B" lines. Elements belong to a frame by their `frame` id or when their center lies inside it.
+ * @returns {{ markdown: string, sections: number, items: number, connections: number }}
+ */
+export function boardToMarkdown(model, { title = "", connections = true } = {}) {
+  const pages = sortedPages(model);
+  const out = [`# ${mdEscape(title || model.title || "Whiteboard")}`, ""];
+  let sections = 0, items = 0, links = 0;
+  const label = (e) => elementText(e).trim();
+  const reading = (a, b) => (Math.abs(a.y - b.y) > 24 ? a.y - b.y : a.x - b.x);
+  for (const p of pages) {
+    const els = pageElements(model, p.id);
+    const frames = els.filter((e) => e.type === "frame").sort(reading);
+    const inFrame = (e, f) => e.frame === f.id || (!e.frame && e.type !== "frame" && center(e)[0] >= f.x && center(e)[0] <= f.x + f.w && center(e)[1] >= f.y && center(e)[1] <= f.y + f.h);
+    const texts = els.filter((e) => ["sticky", "text", ...SHAPES].includes(e.type) && label(e));
+    const lvl = pages.length > 1 ? "###" : "##";
+    if (pages.length > 1) {
+      out.push(`## ${mdEscape(p.name || "Page")}`, "");
+      sections++;
+    }
+    const used = new Set();
+    const bullets = (list) => {
+      for (const e of list.sort(reading)) {
+        used.add(e.id);
+        items++;
+        const lines = label(e).split(/\n+/).map(mdEscape).filter(Boolean);
+        out.push(`- ${lines[0]}`, ...lines.slice(1).map((l) => `  - ${l}`));
+      }
+      out.push("");
+    };
+    for (const f of frames) {
+      const members = texts.filter((e) => !used.has(e.id) && inFrame(e, f));
+      out.push(`${lvl} ${mdEscape(f.name || "Frame")}`, "");
+      sections++;
+      if (members.length) bullets(members);
+    }
+    const rest = texts.filter((e) => !used.has(e.id));
+    if (rest.length) {
+      if (frames.length) {
+        out.push(`${lvl} Other notes`, "");
+        sections++;
+      }
+      bullets(rest);
+    }
+    if (connections) {
+      const byId = new Map(els.map((e) => [e.id, e]));
+      const arrows = els.filter((e) => LINEAR.includes(e.type) && e.start?.id && e.end?.id && label(byId.get(e.start.id) || {}) && label(byId.get(e.end.id) || {}));
+      if (arrows.length) {
+        out.push(`${lvl} Connections`, "");
+        sections++;
+        for (const a of arrows) {
+          const from = mdEscape(label(byId.get(a.start.id)).split("\n")[0]), to = mdEscape(label(byId.get(a.end.id)).split("\n")[0]);
+          out.push(`- ${from} ${a.type === "arrow" ? "→" : "—"} ${to}${label(a) ? ` (${mdEscape(label(a))})` : ""}`);
+          links++;
+        }
+        out.push("");
+      }
+    }
+  }
+  return { markdown: out.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n", sections, items, connections: links };
+}
+
 // ---------------------------------------------------------------------------------------------- templates
 
 const sticky = (page, x, y, text, fill = STICKY_COLORS[0], extra = {}) => makeElement("sticky", { page, x, y, text, fill, ...extra });
