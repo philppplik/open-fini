@@ -90,7 +90,7 @@ function designedTemplate(id, d) {
   if (id === "newsletter") {
     const t = M.createTable(4, 3, (w - 36) / 2, { header: true });
     [["Date", "Event", "Where"], ["Mon", "Kickoff", "Hall A"], ["Wed", "Workshop", "Room 2"], ["Fri", "Social", "Garden"]].forEach((row, r) => row.forEach((v, c) => (t.rows[r].cells[c].blocks = [P(v)])));
-    const box = D.textBox({ text: "In this issue\n• Feature story\n• News in brief\n• Upcoming events", width: 150, wrap: "right", fill: "#e6f4f1", border: "#0d9488" });
+    const box = D.textBox({ text: "In this issue\n• Feature story\n• News in brief\n• Upcoming events", width: 120, wrap: "right", fill: "#e6f4f1", border: "#0d9488" });
     d.blocks = [
       P("Community Newsletter", "Title", { props: { align: "center" } }),
       P(`Issue 1 · ${date}`, "Subtitle", { props: { align: "center" } }),
