@@ -414,3 +414,21 @@ export function elementAiItems(app, ws) {
     { label: "Add hover and focus states", run: run("Hover states", "Add tasteful hover and focus-visible states with transitions to this element and its interactive children.") },
   ];
 }
+
+/** Primer of "Help > Ask about OpenFini" chats: answers come from the lazy openfini-* knowledge pack. */
+export const OPENFINI_PRIMER = "This chat is about OpenFini itself. Before answering, load the matching OpenFini knowledge skill with use_skill (openfini-overview, openfini-studios, openfini-formats, openfini-ofini-format, openfini-how-to, openfini-shortcuts, openfini-settings, openfini-extensions, openfini-collaboration, openfini-security-privacy, openfini-troubleshooting, openfini-licensing; about-the-developer for who made it) and answer from it. Do not change documents unless the user asks.";
+
+/** Help > Ask about OpenFini: a new Vibe chat primed with the OpenFini knowledge pack. */
+export async function askAboutOpenFini(app) {
+  await vibeStore.load();
+  if (!ready(app)) return null;
+  const { getVibeHub } = await import("./hub.js");
+  const hub = getVibeHub(app);
+  const s = hub.create();
+  s.chat.title = "Ask about OpenFini";
+  s.chat.source = "help";
+  s.chat.primer = OPENFINI_PRIMER;
+  app.setStudio("vibe");
+  hub.activate(s.id);
+  return s;
+}

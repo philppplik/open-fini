@@ -92,7 +92,7 @@ export const MENUS = [
   },
   ...OFFICE_MENUS,
   { label: "Studio", items: [{ dynamic: "studios" }, "-", "collab.open", "collab.addComment", "collab.saveVersion", "-", "ext.manage", { label: "Extension Commands", dynamic: "extCommands" }] },
-  { label: "Help", items: ["help.palette", "help.tour", "help.studioTour", "help.whatsThis", "-", "help.shortcuts", "help.whatsNew", "help.docs", "help.issues", "help.troubleshoot", "help.security", "-", "help.about"] },
+  { label: "Help", items: ["help.palette", "help.tour", "help.studioTour", "help.whatsThis", "-", "help.shortcuts", "help.whatsNew", "help.docs", "help.askOpenFini", "help.issues", "help.troubleshoot", "help.security", "-", "help.about"] },
 ];
 
 function itemFor(app, cmdId) {

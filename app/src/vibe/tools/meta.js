@@ -32,7 +32,7 @@ export function metaTools(app, ctx) {
       description: S.str("One sentence: what it does and when to use it"),
       body: S.str("Markdown instructions (Workflow, Rules, Verify)"),
       allowedTools: { type: "array", items: { type: "string" }, description: "Tools the skill uses" },
-      tags: { type: "array", items: { type: "string" } },
+      tags: { type: "array", items: { type: "string" }, description: "Tags for filters" },
       params: { type: "array", items: { type: "string" }, description: "Parameter specs like “brand: Brand name”, “tone: Voice (default: friendly)”" },
       whenToUse: S.str("Trigger phrases for auto-suggestion"),
     }, ["name", "description", "body"], async (a) => {
@@ -49,7 +49,7 @@ export function metaTools(app, ctx) {
     }),
 
     tool("update_plan", "Shows the user a checklist of the steps you will take and their status. Update it as you progress on multi-step work.", {
-      steps: { type: "array", items: { type: "object", properties: { text: { type: "string" }, status: { type: "string", enum: ["pending", "active", "done"] } }, required: ["text", "status"] }, minItems: 1 },
+      steps: { type: "array", items: { type: "object", properties: { text: { type: "string" }, status: { type: "string", enum: ["pending", "active", "done"] } }, required: ["text", "status"] }, minItems: 1, description: "Every step with its status" },
     }, ["steps"], (a) => {
       ctx.plan?.(a.steps);
       return { ok: true };

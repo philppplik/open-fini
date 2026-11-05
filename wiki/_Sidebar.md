@@ -37,6 +37,7 @@
 - [[Collaboration Relay Setup]]
 
 **Vibe (AI)**
+- [[AI Orchestration]]
 - [[Vibe Providers and Permissions]]
 - [[Vibe Tools Reference]]
 - [[Skills Authoring]]

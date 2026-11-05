@@ -224,7 +224,7 @@ export function webTools(app) {
     }),
 
     tool("set_element_attributes", "Sets or removes attributes (href, src, alt, id, class, aria-*, …) of an element. Value null removes the attribute.", {
-      id: S.num("Element id"), attributes: { type: "object", additionalProperties: { type: ["string", "null"] } }, text: S.str("Replace the element's text content"),
+      id: S.num("Element id"), attributes: { type: "object", additionalProperties: { type: ["string", "null"] }, description: "Attribute name to value; null removes it" }, text: S.str("Replace the element's text content"),
     }, ["id"], async (a) => {
       const ws = await workspace();
       el(ws, a.id);

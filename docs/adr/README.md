@@ -26,3 +26,4 @@ in place and are marked as such.
 | [0019](0019-extension-workers-watchdog.md) | Extension background scripts in workers, a watchdog, and a worker pool for heavy jobs | Accepted |
 | [0020](0020-color-management.md) | Color management: compact ICC engine, no bundled CMYK profile, PDF/X with an honest preflight | Accepted |
 | [0021](0021-native-window-materials.md) | Native window materials (Mica, Acrylic, vibrancy) instead of Liquid glass refraction | Accepted |
+| [0022](0022-ai-orchestration-and-skill-packs.md) | AI orchestration (plan_work) and lazy skill packs | Accepted |

@@ -40,7 +40,7 @@ import { pixelEditTools } from "./pixel-edit.js";
  * @param {object} ctx session context: { images, knowledge, memory, skills, ask, plan, customTools }
  */
 export function createOpenFiniTools(app, ctx = {}) {
-  return [...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...latexTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...officeSuiteTools(app, ctx), ...officeSheetTools(app, ctx), ...slidesTools(app, ctx), ...officeBoardTools(app, ctx), ...formatTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...commentTools(app, ctx), ...vscodeTools(app, ctx), ...routingTools(app, ctx), ...webAccessTools(app, ctx), ...colorTools(app, ctx), ...pixelEditTools(app, ctx)];
+  return withVerifyHints([...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...latexTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...officeSuiteTools(app, ctx), ...officeSheetTools(app, ctx), ...slidesTools(app, ctx), ...officeBoardTools(app, ctx), ...formatTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...commentTools(app, ctx), ...vscodeTools(app, ctx), ...routingTools(app, ctx), ...webAccessTools(app, ctx), ...colorTools(app, ctx), ...pixelEditTools(app, ctx)]);
 }
 
 /** Tools grouped for the UI. */
@@ -73,8 +73,55 @@ export const TOOL_GROUPS = {
   "Text and encoding": ["encode_text", "decode_text", "transform_file_text"],
   Assistant: ["search_knowledge", "remember", "use_skill", "create_skill", "ask_user", "update_plan", "create_tool"],
   "Power tools": ["run_plan", "query_layers", "describe_page", "describe_selection", "apply_to_many", "evaluate", "screenshot_layers", "compare_screenshots", "grid_layout", "distribute_layers", "snap_layers", "make_component"],
-  Agents: ["spawn_agent", "wait_agent", "list_agents", "cancel_agent"],
+  Agents: ["spawn_agent", "wait_agent", "list_agents", "cancel_agent", "plan_work", "work_task", "blackboard"],
   Attachments: ["list_attachments", "open_attachment"],
   Comments: ["list_comments", "get_comment_context", "add_comment", "reply_comment", "resolve_comment"],
   Collaboration: ["get_collab_status", "read_chat", "post_chat_message", "list_versions", "save_version", "share_document", "get_sharing_status", "list_shared_documents"],
 };
+
+/** How to check the result of a write tool, per UI group (appended as "Verify with ..." unless the tool says it). */
+export const VERIFY_WITH = {
+  Documents: "get_document_info",
+  "Layers and vector": "describe_page or screenshot",
+  Pixel: "screenshot or get_histogram",
+  "Image editing": "screenshot",
+  "Code and websites": "check_problems and screenshot",
+  "Frameworks, libraries and documents": "list_files and check_problems",
+  "Git and publishing": "git_status",
+  "Tables and charts": "read_table or read_chart",
+  "Office documents": "office_read_document",
+  "Office suite": "office_describe",
+  Presentation: "slides_describe",
+  Spreadsheets: "sheet_read_range",
+  Whiteboard: "board_describe",
+  "Imported documents": "get_import_report",
+  "System and files": "get_platform_info",
+  Extensions: "list_extensions",
+  "VS Code extensions": "list_vscode_extensions",
+  Web: "the returned data",
+  "Model routing": "get_model_route",
+  "Appearance and help": "list_themes",
+  Color: "preflight_pdf or screenshot",
+  "File formats": "export_palette",
+  Customization: "get_settings or list_shortcuts",
+  "Diagnostics and security": "get_diagnostics",
+  "Text and encoding": "read_file",
+  Assistant: "the returned result",
+  "Power tools": "describe_page or screenshot_layers",
+  Agents: "work_task or list_agents",
+  Attachments: "list_attachments",
+  Comments: "list_comments",
+  Collaboration: "get_collab_status or list_versions",
+  LaTeX: "latex_outline and check_problems",
+};
+
+function withVerifyHints(tools) {
+  const groupOf = new Map();
+  for (const [g, names] of Object.entries(TOOL_GROUPS)) for (const n of names) groupOf.set(n, g);
+  for (const t of tools) {
+    if (t.readOnly || /\bverif/i.test(t.description)) continue;
+    const hint = VERIFY_WITH[groupOf.get(t.name)];
+    if (hint) t.description = `${t.description.trimEnd()} Verify with ${hint}.`;
+  }
+  return tools;
+}
