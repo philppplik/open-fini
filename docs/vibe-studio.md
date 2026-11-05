@@ -318,6 +318,8 @@ note: the mistakes models typically make with the tool and which describe/read t
 | `office_sheet_to_document` | A range of an open spreadsheet as a formatted table in the active document (a snapshot) |
 | `office_document_to_slides` | The outline as a new deck: Title slide, one slide per heading, bullets from lists and first sentences |
 | `sheet_add_rule` | Conditional formatting: data bars, color scale, comparisons |
+| `sheet_format_table`, `sheet_define_name`, `sheet_set_validation`, `sheet_paste_special`, `sheet_group`, `sheet_page_setup`, `sheet_pivot`, `sheet_add_sparkline` | Spreadsheet depth: table styles with a total row, defined names, drop-down and number validation, paste special, row/column groups, page setup, pivot-lite, sparklines ([office-sheet.md](office-sheet.md#tables-validation-and-data-tools)) |
+| `sheet_chart_data` | Categories and series of a range of any open spreadsheet, for charts and tables in other apps (read-only) |
 
 ## Permissions
 
@@ -383,9 +385,9 @@ instructions. The assistant sees only the catalog and loads a skill when a task 
 skills cost almost no context. 35 are built in, including workflow skills for design systems, responsive sites from a
 brief, photo compositing, icon sets, presentations, print brochures, social campaign kits, mobile UI mockups, data
 reports, code refactoring, SEO, accessibility fixes, localization, brands from a logo, CSS animation and
-`multi-agent-project-lead` (how to split work across sub-agents), plus nine Office skills (`write-report`,
+`multi-agent-project-lead` (how to split work across sub-agents), plus ten Office skills (`write-report`,
 `polish-document`, `build-budget-sheet`, `make-pitch-deck`, `clean-data`, `brainstorm-to-board`,
-`accessibility-check-document`, `translate-document-keeping-format`, `meeting-notes`), each with a *Watch out* and a
+`accessibility-check-document`, `translate-document-keeping-format`, `meeting-notes`, `analyze-sheet-data`), each with a *Watch out* and a
 *Verify* section.
 
 - `/skill-name` starts a skill; skills with parameters open a small form. A chip suggests a matching skill while you type.

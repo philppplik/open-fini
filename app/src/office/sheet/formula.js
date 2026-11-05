@@ -16,14 +16,14 @@
 // (dependencies are evaluated in an explicit post-order, so a 100 000-cell chain does not overflow the stack).
 import { colName, colIndex } from "../toolkit/selection.js";
 import { FUNCTIONS } from "./functions.js";
-import { FErr, isErr, ERR, toNum, toText, compareValues, scalar, valueOfCell } from "./values.js";
+import { FErr, isErr, ERR, toNum, toText, compareValues, scalar, valueOfCell, isArr, arr } from "./values.js";
 
-export { FErr, isErr, ERR, toNum, toText, compareValues, scalar, valueOfCell };
+export { FErr, isErr, ERR, toNum, toText, compareValues, scalar, valueOfCell, isArr };
 
 export const MAX_ROWS = 1048576;
 export const MAX_COLS = 16384;
 
-const ERROR_RE = /^#(DIV\/0!|N\/A|NAME\?|NUM!|REF!|VALUE!|NULL!|CYCLE!|ERROR!)/i;
+const ERROR_RE = /^#(DIV\/0!|N\/A|NAME\?|NUM!|REF!|VALUE!|NULL!|CYCLE!|ERROR!|SPILL!)/i;
 
 // ------------------------------------------------------------------------------------------------------ tokenizer
 
@@ -414,7 +414,7 @@ export function evaluate(node, ctx) {
     case "err":
       return ERR[node.v] || ERR["#ERROR!"];
     case "name":
-      return ERR["#NAME?"];
+      return ctx.name ? ctx.name(node.v) : ERR["#NAME?"];
     case "ref": {
       const sid = node.sheet == null ? ctx.sid : ctx.sheetId(node.sheet);
       if (sid == null) return ERR["#REF!"];
@@ -435,8 +435,12 @@ export function evaluate(node, ctx) {
       const v = toNum(scalar(evaluate(node.a, ctx), ctx));
       return isErr(v) ? v : v / 100;
     }
-    case "bin":
-      return binary(node.op, scalar(evaluate(node.a, ctx), ctx), scalar(evaluate(node.b, ctx), ctx));
+    case "bin": {
+      const a = evaluate(node.a, ctx);
+      const b = evaluate(node.b, ctx);
+      if (multi(a) || multi(b)) return elementwise(node.op, a, b, ctx);
+      return binary(node.op, scalar(a, ctx), scalar(b, ctx));
+    }
     case "fn": {
       const f = FUNCTIONS[node.name];
       if (!f) return ERR["#NAME?"];
@@ -451,6 +455,42 @@ export function evaluate(node, ctx) {
     }
     default:
       return ERR["#ERROR!"];
+  }
+}
+
+const multi = (v) => isArr(v) || (v && v.range && (v.r0 !== v.r1 || v.c0 !== v.c1));
+const MAX_ELEMENTS = 100000;
+
+/** An operator over ranges or arrays, element by element (B2:B9>5, A1:A3*2); single rows or columns broadcast. */
+function elementwise(op, a, b, ctx) {
+  const grid = (v) => {
+    if (isArr(v)) return v.rows;
+    if (v && v.range) {
+      if ((v.r1 - v.r0 + 1) * (v.c1 - v.c0 + 1) > MAX_ELEMENTS) throw ERR["#NUM!"];
+      const rows = [];
+      for (let r = v.r0; r <= v.r1; r++) {
+        const row = [];
+        for (let c = v.c0; c <= v.c1; c++) row.push(ctx.get(v.sid, r, c));
+        rows.push(row);
+      }
+      return rows;
+    }
+    return [[v]];
+  };
+  try {
+    const x = grid(a);
+    const y = grid(b);
+    const h = Math.max(x.length, y.length);
+    const w = Math.max(x[0].length, y[0].length);
+    const at = (m, i, j) => {
+      const row = m.length === 1 ? m[0] : m[i];
+      if (!row) return ERR["#N/A"];
+      const v = row.length === 1 ? row[0] : row[j];
+      return v === undefined ? ERR["#N/A"] : v;
+    };
+    return arr(Array.from({ length: h }, (_, i) => Array.from({ length: w }, (_, j) => binary(op, at(x, i, j), at(y, i, j)))));
+  } catch (e) {
+    return e instanceof FErr ? e : ERR["#VALUE!"];
   }
 }
 
@@ -494,9 +534,19 @@ function binary(op, a, b) {
 
 const VOLATILE = new Set(["TODAY", "NOW", "RAND", "RANDBETWEEN"]);
 
-/** Collects the references of an AST: [{ sheet, r0, c0, r1, c1 }] and whether it is volatile. */
-function depsOf(ast, out = { refs: [], volatile: false }) {
+/** Functions whose result can be an array that spills (and operators over ranges, see `mayArray`). */
+const ARRAY_FNS = new Set(["FILTER", "SORT", "SORTBY", "UNIQUE", "SEQUENCE", "TRANSPOSE"]);
+const mayArray = (ast) => (ast.k === "fn" && ARRAY_FNS.has(ast.name)) || (ast.k === "bin" && (ast.a.k === "range" || ast.b.k === "range" || mayArray(ast.a) || mayArray(ast.b)));
+
+/** Collects the references of an AST: [{ sheet, r0, c0, r1, c1 }] and whether it is volatile. `nameAst(name)` resolves
+ * defined names (their references count as dependencies). */
+function depsOf(ast, out = { refs: [], volatile: false }, nameAst = null, depth = 0) {
   switch (ast.k) {
+    case "name": {
+      const sub = nameAst && depth < 8 ? nameAst(ast.v) : null;
+      if (sub) depsOf(sub, out, nameAst, depth + 1);
+      break;
+    }
     case "ref":
       out.refs.push({ sheet: ast.sheet, r0: ast.r, c0: ast.c, r1: ast.r, c1: ast.c });
       break;
@@ -505,15 +555,15 @@ function depsOf(ast, out = { refs: [], volatile: false }) {
       break;
     case "un":
     case "pct":
-      depsOf(ast.a, out);
+      depsOf(ast.a, out, nameAst, depth);
       break;
     case "bin":
-      depsOf(ast.a, out);
-      depsOf(ast.b, out);
+      depsOf(ast.a, out, nameAst, depth);
+      depsOf(ast.b, out, nameAst, depth);
       break;
     case "fn":
       if (VOLATILE.has(ast.name)) out.volatile = true;
-      for (const a of ast.args) depsOf(a, out);
+      for (const a of ast.args) depsOf(a, out, nameAst, depth);
       break;
   }
   return out;
@@ -546,6 +596,34 @@ export function createCalc(model) {
   const ranges = new Map(); // sid → [{ r0, c0, r1, c1, fk }]
   const fcells = new Map(); // sid → Map(col → sorted rows[]) of formula cells (for range → formulas lookups)
   const extents = new Map();
+  let names = new Map(); // lower name → definition text ("Sheet1!$A$1:$B$9", "0.19")
+  const anchors = new Map(); // sid → Set(fk) of formulas whose result may spill
+  const spillVal = new Map(); // "sid!A1" → value of a spilled cell
+  const areas = new Map(); // anchor fk → ["sid!A1", …] it spilled into
+  const arrays = new Map(); // anchor fk → { rows, cols } of its spilled result
+  const busy = new Set(); // anchors being computed (a spill never reads itself)
+
+  /** Parsed definition of a defined name (or null). */
+  const nameAst = (n) => {
+    const text = names.get(String(n).toLowerCase());
+    if (text == null) return null;
+    try {
+      return parseFormula(String(text).replace(/^=/, ""));
+    } catch {
+      return { k: "err", v: "#NAME?" };
+    }
+  };
+  const nameDepth = { n: 0 };
+  const resolveName = (ctx) => (n) => {
+    const ast = nameAst(n);
+    if (!ast || nameDepth.n > 8) return ERR["#NAME?"];
+    nameDepth.n++;
+    try {
+      return evaluate(ast, ctx);
+    } finally {
+      nameDepth.n--;
+    }
+  };
 
   const sheetId = (name) => byName.get(String(name).toLowerCase()) ?? null;
   const extent = (sid) => {
@@ -584,8 +662,52 @@ export function createCalc(model) {
       const i = col.indexOf(r);
       if (i >= 0) col.splice(i, 1);
     }
+    anchors.get(sid)?.delete(fk);
+    clearSpill(fk);
     info.delete(fk);
     values.delete(fk);
+  }
+
+  function clearSpill(fk) {
+    for (const k of areas.get(fk) || []) spillVal.delete(k);
+    areas.delete(fk);
+    arrays.delete(fk);
+  }
+
+  /** Writes an array result from its anchor into the empty cells below and right; #SPILL! when one is not empty. */
+  function spill(fk, inf, rows) {
+    const sheet = sheets.get(inf.sid);
+    const h = rows.length;
+    const w = Math.max(...rows.map((x) => x.length));
+    if (inf.r + h > MAX_ROWS || inf.c + w > MAX_COLS) return ERR["#SPILL!"];
+    const keys = [];
+    for (let i = 0; i < h; i++)
+      for (let j = 0; j < w; j++) {
+        if (!i && !j) continue;
+        const a1 = rcKey(inf.r + i, inf.c + j);
+        const k = `${inf.sid}!${a1}`;
+        const cell = sheet?.cells?.[a1];
+        if ((cell && (cell.v !== undefined || cell.f !== undefined)) || spillVal.has(k)) return ERR["#SPILL!"];
+        keys.push(k);
+      }
+    for (let i = 0; i < h; i++)
+      for (let j = 0; j < w; j++) {
+        if (!i && !j) continue;
+        let v = rows[i][j];
+        if (v === undefined) v = ERR["#N/A"];
+        spillVal.set(`${inf.sid}!${rcKey(inf.r + i, inf.c + j)}`, v);
+      }
+    areas.set(fk, keys);
+    arrays.set(fk, { rows: h, cols: w });
+    const v = rows[0][0];
+    return v === undefined ? null : v;
+  }
+
+  /** Computes the spilling formulas of a sheet so their spilled cells are known. */
+  function settle(sid) {
+    const list = anchors.get(sid);
+    if (!list?.size) return;
+    for (const fk of [...list]) if (!values.has(fk) && !busy.has(fk)) compute(fk);
   }
 
   function index(sid, a1, f) {
@@ -596,7 +718,7 @@ export function createCalc(model) {
     } catch {
       ast = { k: "err", v: "#ERROR!" };
     }
-    const d = depsOf(ast);
+    const d = depsOf(ast, undefined, nameAst);
     const deps = [];
     for (const ref of d.refs) {
       const tsid = ref.sheet == null ? sid : sheetId(ref.sheet);
@@ -614,7 +736,11 @@ export function createCalc(model) {
       }
     }
     const { r, c } = keyRC(a1);
-    info.set(fk, { ast, deps, volatile: d.volatile, sid, r, c });
+    info.set(fk, { ast, deps, volatile: d.volatile, sid, r, c, spills: mayArray(ast) });
+    if (mayArray(ast)) {
+      if (!anchors.has(sid)) anchors.set(sid, new Set());
+      anchors.get(sid).add(fk);
+    }
     if (!fcells.has(sid)) fcells.set(sid, new Map());
     const cols = fcells.get(sid);
     if (!cols.has(c)) cols.set(c, []);
@@ -665,9 +791,17 @@ export function createCalc(model) {
       return values.get(fk);
     }
     const cell = sheets.get(sid)?.cells?.[a1];
+    if ((cell === undefined || (cell.v === undefined && cell.f === undefined)) && anchors.get(sid)?.size) {
+      settle(sid);
+      if (spillVal.has(fk)) return spillVal.get(fk);
+    }
     return valueOfCell(cell);
   };
-  const ctxFor = (sid, r = null, c = null) => ({ sid, r, c, sheetId, get, extent });
+  const ctxFor = (sid, r = null, c = null) => {
+    const ctx = { sid, r, c, sheetId, get, extent };
+    ctx.name = resolveName(ctx);
+    return ctx;
+  };
 
   /** Computes a formula cell and everything it needs first, iteratively (explicit stack, cycle detection). */
   function compute(start) {
@@ -681,8 +815,15 @@ export function createCalc(model) {
         if (values.has(fk)) continue;
         const inf = info.get(fk);
         const ctx = ctxFor(inf.sid, inf.r, inf.c);
-        const v = evaluate(inf.ast, ctx);
-        let out = v && v.range ? scalar({ ...v, r1: v.r0, c1: v.c0 }, ctx) : v;
+        if (inf.spills) busy.add(fk);
+        let v;
+        try {
+          v = evaluate(inf.ast, ctx);
+        } finally {
+          busy.delete(fk);
+        }
+        if (inf.spills) clearSpill(fk);
+        let out = isArr(v) ? (inf.spills ? spill(fk, inf, v.rows) : v.rows[0]?.[0] ?? null) : v && v.range ? scalar({ ...v, r1: v.r0, c1: v.c0 }, ctx) : v;
         if (typeof out === "number" && !Number.isFinite(out)) out = ERR["#NUM!"];
         values.set(fk, out === undefined ? null : out);
         continue;
@@ -714,6 +855,7 @@ export function createCalc(model) {
     }
   }
 
+  let spilled = false;
   function invalidate(keys) {
     const queue = [...keys];
     const seen = new Set();
@@ -724,6 +866,14 @@ export function createCalc(model) {
       values.delete(k);
       const deps = [];
       dependents(k, deps);
+      const inf = info.get(k);
+      if (inf?.spills) {
+        // the spill area may shrink or grow: everything that reads the sheet below and right of the anchor recomputes
+        spilled = true;
+        for (const a of areas.get(k) || []) dependents(a, deps);
+        clearSpill(k);
+        for (const [fk2, inf2] of info) if (fk2 !== k && inf2.deps.some((d) => d.sid === inf.sid && d.r1 >= inf.r && d.c1 >= inf.c)) deps.push(fk2);
+      }
       for (const d of deps) if (!seen.has(d)) queue.push(d);
     }
     return seen;
@@ -736,6 +886,11 @@ export function createCalc(model) {
     ranges.clear();
     fcells.clear();
     extents.clear();
+    anchors.clear();
+    spillVal.clear();
+    areas.clear();
+    arrays.clear();
+    names = new Map(Object.entries(model.names && typeof model.names === "object" ? model.names : {}).map(([k, v]) => [k.toLowerCase(), v]));
     wb = model;
     sheets = new Map(model.sheets.map((s) => [s.id, s]));
     byName = new Map(model.sheets.map((s) => [s.name.toLowerCase(), s.id]));
@@ -755,7 +910,7 @@ export function createCalc(model) {
     /** Applies a new model; returns the set of keys ("sid!A1") whose values may have changed. */
     update(model) {
       if (model === wb) return new Set();
-      if (!wb || !sameSheets(wb, model)) {
+      if (!wb || !sameSheets(wb, model) || (wb.names || null) !== (model.names || null)) {
         reset(model);
         return null; // everything
       }
@@ -780,9 +935,31 @@ export function createCalc(model) {
           if (after && typeof after.f === "string") index(sid, k, after.f);
         }
         keys.push(fk);
+        // a typed value can block a spill (or free its area): the sheet's spilling formulas recompute
+        const { r, c } = keyRC(k);
+        for (const a of anchors.get(sid) || []) {
+          const inf = info.get(a);
+          if (inf && r >= inf.r && c >= inf.c && a !== fk) keys.push(a);
+        }
       }
       for (const [fk, inf] of info) if (inf.volatile) keys.push(fk);
-      return invalidate(keys);
+      spilled = false;
+      const seen = invalidate(keys);
+      return spilled ? null : seen;
+    },
+    /** The anchor ("sid!A1") whose array result covers a cell, or null. */
+    spillAnchor(sid, r, c) {
+      settle(sid);
+      const k = `${sid}!${rcKey(r, c)}`;
+      if (!spillVal.has(k)) return null;
+      for (const [fk, list] of areas) if (list.includes(k)) return fk;
+      return null;
+    },
+    /** Size { rows, cols } of the spilled result of an anchor cell, or null. */
+    spillSize(sid, a1) {
+      const fk = `${sid}!${a1}`;
+      if (info.has(fk) && !values.has(fk)) compute(fk);
+      return arrays.get(fk) || null;
     },
     /** Re-evaluates volatile formulas (TODAY, NOW, RAND). */
     tick() {

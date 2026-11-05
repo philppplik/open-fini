@@ -67,7 +67,7 @@ Comments, tracked changes, mail merge, tables of contents, multiple sections, te
 
 ## Vibe
 
-Ten `office_` tools create, read, edit, format and export documents; the built-in skill `write-business-document` covers letters, reports, proposals, memos and resumes ([[Vibe Tools Reference]]). Semantic tools edit by heading (rewrite or move a section, check accessibility) and cross-app tools move tables to a spreadsheet, spreadsheet ranges into the document and the outline into slides; nine Office skills (report, polish, budget, pitch deck, clean data, brainstorm, accessibility, translation, meeting notes) guide the assistant. The right-click menu gains AI actions for writing.
+Ten `office_` tools create, read, edit, format and export documents; the built-in skill `write-business-document` covers letters, reports, proposals, memos and resumes ([[Vibe Tools Reference]]). Semantic tools edit by heading (rewrite or move a section, check accessibility) and cross-app tools move tables to a spreadsheet, spreadsheet ranges into the document and the outline into slides; ten Office skills (report, polish, budget, pitch deck, clean data, brainstorm, accessibility, translation, meeting notes, sheet analysis) guide the assistant. The right-click menu gains AI actions for writing.
 
 ## See also
 

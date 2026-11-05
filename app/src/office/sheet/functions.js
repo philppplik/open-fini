@@ -2,13 +2,15 @@
 // { fn(args, ctx), lazy?, allowErrors? }: plain functions get evaluated arguments (values or range objects
 // { range, sid, r0, c0, r1, c1 }); lazy ones get thunks (IF, IFERROR, CHOOSE …). Pure; errors are FErr values.
 // The list is documented in docs/office-sheet.md ▸ Functions. Tests: tests/office/sheet-formula.test.js.
-import { FErr, isErr, ERR, toNum, toText, compareValues, scalar } from "./values.js";
+import { FErr, isErr, ERR, toNum, toText, compareValues, scalar, isArr, arr } from "./values.js";
 import { formatCode, dateToSerial, serialToDate } from "./numfmt-code.js";
 
 const MAX_CELLS = 2_000_000;
 
 /** Cells of a range as a 2D array of values. */
 export function rangeValues(rg, ctx) {
+  if (isArr(rg)) return rg.rows;
+  if (!rg || !rg.range) return [[rg]];
   const rows = rg.r1 - rg.r0 + 1;
   const cols = rg.c1 - rg.c0 + 1;
   if (rows * cols > MAX_CELLS) throw ERR["#NUM!"];
@@ -24,7 +26,15 @@ export function rangeValues(rg, ctx) {
 /** Every value of the arguments, flattened. In ranges only numbers count for numeric functions (`numbersOnly`). */
 function each(args, ctx, cb, { numbersOnly = true, keepErrors = false } = {}) {
   for (const a of args) {
-    if (a && a.range) {
+    if (isArr(a)) {
+      for (const row of a.rows)
+        for (const v of row) {
+          if (isErr(v)) {
+            if (!keepErrors) throw v;
+            cb(v, true);
+          } else if (!numbersOnly || typeof v === "number") cb(v, true);
+        }
+    } else if (a && a.range) {
       for (let r = a.r0; r <= a.r1; r++)
         for (let c = a.c0; c <= a.c1; c++) {
           const v = ctx.get(a.sid, r, c);
@@ -753,6 +763,109 @@ def("PV", (a, ctx) => {
   if (r === 0) return -(fv + pmt * n);
   const f = Math.pow(1 + r, n);
   return -(fv + (pmt * (1 + r * type) * (f - 1)) / r) / f;
+});
+
+// ---- SUBTOTAL (table total rows): 1-11 and 101-111 pick the aggregate (hidden rows are not tracked by the engine)
+const SUBTOTALS = { 1: "AVERAGE", 2: "COUNT", 3: "COUNTA", 4: "MAX", 5: "MIN", 6: "PRODUCT", 7: "STDEV", 8: "STDEVP", 9: "SUM", 10: "VAR", 11: "VARP" };
+def("SUBTOTAL", (a, ctx) => {
+  const code = Math.trunc(num(a[0], ctx)) % 100;
+  const f = F[SUBTOTALS[code]];
+  if (!f) throw ERR["#VALUE!"];
+  return f.fn(a.slice(1), ctx);
+});
+
+// ---- dynamic arrays (results spill into the cells below and to the right; docs/office-sheet.md ▸ Dynamic arrays)
+const MAX_SPILL = 100000;
+const grid = (v, ctx) => {
+  const rows = rangeValues(v, ctx);
+  if (rows.length * (rows[0]?.length || 0) > MAX_SPILL) throw ERR["#NUM!"];
+  return rows;
+};
+const out = (rows, empty) => {
+  if (!rows.length || !rows[0].length) {
+    if (empty === undefined) throw ERR["#N/A"];
+    return empty;
+  }
+  return rows.length === 1 && rows[0].length === 1 ? rows[0][0] : arr(rows);
+};
+def("FILTER", (a, ctx) => {
+  const data = grid(a[0], ctx);
+  const inc = grid(a[1], ctx);
+  const truthy = (v) => {
+    if (isErr(v)) throw v;
+    return typeof v === "boolean" ? v : typeof v === "number" ? v !== 0 : false;
+  };
+  let rows;
+  if (inc.length === data.length && (inc[0]?.length === 1 || data[0].length === 1)) rows = data.filter((_, i) => truthy(inc[i][0]));
+  else if (inc.length === 1 && inc[0].length === data[0].length) {
+    const keep = inc[0].map(truthy);
+    rows = data.map((row) => row.filter((_, j) => keep[j])).filter((row) => row.length);
+  } else throw ERR["#VALUE!"];
+  return out(rows, a[2] == null ? undefined : scalar(a[2], ctx));
+});
+const sortRows = (rows, idx, asc) =>
+  rows
+    .map((row, i) => [row, i])
+    .sort(([x, i], [y, j]) => {
+      for (let k = 0; k < idx.length; k++) {
+        const c = compareValues(x[idx[k]], y[idx[k]]) * (asc[k] ? 1 : -1);
+        if (c) return c;
+      }
+      return i - j;
+    })
+    .map(([row]) => row);
+def("SORT", (a, ctx) => {
+  const data = grid(a[0], ctx);
+  const byCol = a[3] != null && bool(a[3], ctx);
+  const m = byCol ? data[0].map((_, j) => data.map((row) => row[j])) : data;
+  const i = Math.trunc(num(opt(a, 1, 1), ctx)) - 1;
+  if (i < 0 || i >= m[0].length) throw ERR["#VALUE!"];
+  const res = sortRows(m, [i], [num(opt(a, 2, 1), ctx) >= 0]);
+  return out(byCol ? res[0].map((_, j) => res.map((row) => row[j])) : res);
+});
+def("SORTBY", (a, ctx) => {
+  const data = grid(a[0], ctx);
+  const keys = [];
+  const asc = [];
+  for (let k = 1; k < a.length; k += 2) {
+    const col = grid(a[k], ctx);
+    if (col.length !== data.length) throw ERR["#VALUE!"];
+    keys.push(col.map((row) => row[0]));
+    asc.push(num(opt(a, k + 1, 1), ctx) >= 0);
+  }
+  const ext = data.map((row, i) => [...row, ...keys.map((kc) => kc[i])]);
+  const w = data[0].length;
+  return out(sortRows(ext, keys.map((_, k) => w + k), asc).map((row) => row.slice(0, w)));
+});
+def("UNIQUE", (a, ctx) => {
+  const data = grid(a[0], ctx);
+  const byCol = a[1] != null && bool(a[1], ctx);
+  const once = a[2] != null && bool(a[2], ctx);
+  const m = byCol ? data[0].map((_, j) => data.map((row) => row[j])) : data;
+  const key = (row) => row.map((v) => (typeof v === "string" ? `s${v.toLowerCase()}` : `${typeof v}${v}`)).join("\u001f");
+  const count = new Map();
+  for (const row of m) count.set(key(row), (count.get(key(row)) || 0) + 1);
+  const seen = new Set();
+  const res = [];
+  for (const row of m) {
+    const k = key(row);
+    if (seen.has(k) || (once && count.get(k) > 1)) continue;
+    seen.add(k);
+    res.push(row);
+  }
+  return out(byCol ? res[0].map((_, j) => res.map((row) => row[j])) : res);
+});
+def("SEQUENCE", (a, ctx) => {
+  const rows = Math.trunc(num(a[0], ctx));
+  const cols = Math.trunc(num(opt(a, 1, 1), ctx));
+  const start = num(opt(a, 2, 1), ctx);
+  const step = num(opt(a, 3, 1), ctx);
+  if (rows < 1 || cols < 1 || rows * cols > MAX_SPILL) throw ERR["#VALUE!"];
+  return out(Array.from({ length: rows }, (_, i) => Array.from({ length: cols }, (_, j) => start + (i * cols + j) * step)));
+});
+def("TRANSPOSE", (a, ctx) => {
+  const data = grid(a[0], ctx);
+  return out(data[0].map((_, j) => data.map((row) => row[j])));
 });
 
 export const FUNCTIONS = F;

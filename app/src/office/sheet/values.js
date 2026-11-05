@@ -10,7 +10,7 @@ export class FErr {
   }
 }
 export const isErr = (v) => v instanceof FErr;
-export const ERR = Object.freeze(Object.fromEntries(["#DIV/0!", "#N/A", "#NAME?", "#NUM!", "#REF!", "#VALUE!", "#NULL!", "#CYCLE!", "#ERROR!"].map((c) => [c, new FErr(c)])));
+export const ERR = Object.freeze(Object.fromEntries(["#DIV/0!", "#N/A", "#NAME?", "#NUM!", "#REF!", "#VALUE!", "#NULL!", "#CYCLE!", "#ERROR!", "#SPILL!"].map((c) => [c, new FErr(c)])));
 /** The literal value of a stored cell (not its formula result). */
 export const valueOfCell = (cell) => (cell == null || cell.v === undefined ? null : cell.v);
 
@@ -58,8 +58,14 @@ export function toNum(v) {
   return Number.isFinite(n) ? (pct ? n / 100 : n) : ERR["#VALUE!"];
 }
 
-/** A range used where one value is expected: a 1x1 range is its cell; larger ones give #VALUE!. */
+/** An array value (dynamic arrays: FILTER, SORT, UNIQUE, SEQUENCE and element-wise operators). Spills from its cell. */
+export const isArr = (v) => !!(v && v.array === true && Array.isArray(v.rows));
+export const arr = (rows) => ({ array: true, rows });
+
+/** A range used where one value is expected: a 1x1 range is its cell; larger ones give #VALUE!. Arrays give their
+ * top-left value. */
 export function scalar(v, ctx) {
+  if (isArr(v)) return v.rows[0]?.[0] ?? null;
   if (v && v.range) {
     if (v.r0 === v.r1 && v.c0 === v.c1) return ctx.get(v.sid, v.r0, v.c0);
     return ERR["#VALUE!"];

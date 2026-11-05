@@ -232,5 +232,31 @@ when-to-use: meeting notes, minutes, action items, recap, follow-up, transcript 
 ## Verify
 Take a screenshot of the result and look at it as the reader will. Then: office_list_sections shows Summary, Decisions, Action items; the table has a header row and every row an owner or [TBD].`;
 
+const ANALYZE_SHEET = `---
+name: analyze-sheet-data
+description: Analyze a data table in a spreadsheet - format it as a table with a total row, summarize it with a pivot table, add dynamic FILTER/SORT/UNIQUE views, drop-down inputs, trend sparklines and a print-ready page setup.
+allowed-tools: sheet_describe, sheet_read_range, sheet_set_formula, sheet_format_table, sheet_define_name, sheet_set_validation, sheet_pivot, sheet_add_sparkline, sheet_page_setup, sheet_group, sheet_add_chart, sheet_chart_data, ask_user
+tags: [office, spreadsheet, analysis, pivot]
+when-to-use: analyze data, pivot, summarize by, top 10, unique values, dropdown, sparkline, dashboard sheet, print setup
+---
+# Analyze sheet data
+
+## Workflow
+1. sheet_describe and sheet_read_range of the first 20 rows: find the header row, the category columns and the number columns.
+2. sheet_format_table on the whole table including the header (total true when the user wants sums).
+3. sheet_pivot with rows = the main category and values = the main number column (agg sum); add columns = a second category only when it has few distinct values.
+4. Dynamic views with sheet_set_formula in an empty area: =UNIQUE(B2:B200) for a list of categories, =SORT(FILTER(A2:D200,D2:D200>1000),4,-1) for the largest rows. Leave the cells below and right empty so the result can spill.
+5. Inputs: sheet_define_name for a threshold cell (Threshold = Sheet1!$H$1) and use it in the FILTER; sheet_set_validation type list on cells where users pick a category.
+6. sheet_add_sparkline next to rows of monthly numbers; sheet_add_chart on the pivot result; sheet_page_setup landscape with the print area of the summary.
+
+## Watch out
+- Spill formulas need empty cells: a value in the way shows #SPILL!. Never write into the spill area.
+- The pivot result is a snapshot; say so and run sheet_pivot again after the data changes.
+- Names are not cell references: TAX1 or AB12 are invalid names; use TaxRate.
+- Validation only checks typed input; existing values that break the rule stay.
+
+## Verify
+Take a screenshot of the result and look at it as the reader will. Then: sheet_read_range on the pivot (totals equal the sum of the source column) and on the spill anchors (no #SPILL!, #NAME? or #VALUE!); sheet_describe lists the table, names and validation.`;
+
 /** Office Suite skills (part 3 of the built-in library). */
-export const OFFICE_SKILLS = [WRITE_REPORT, POLISH, BUDGET, PITCH, CLEAN_DATA, BRAINSTORM, A11Y_DOC, TRANSLATE, MEETING];
+export const OFFICE_SKILLS = [WRITE_REPORT, POLISH, BUDGET, PITCH, CLEAN_DATA, BRAINSTORM, A11Y_DOC, TRANSLATE, MEETING, ANALYZE_SHEET];
