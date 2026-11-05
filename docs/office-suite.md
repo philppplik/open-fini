@@ -256,3 +256,20 @@ All in `app/src/office/toolkit/`; module headers document the full API.
 * Browser check: `node scripts/serve.mjs --port <n>`, `openfini.setStudio("office")`, create from the launcher, open a
   file with `(await import("/src/ui/office/open.js")).openOfficeFile(openfini, { name, bytes })`.
 * `npm run build && node scripts/check-size.mjs` must pass; the suite adds nothing to start-up.
+
+## Roadmap: Office depth
+
+Done: semantic section tools, cross-app tools (tables → sheet, sheet range → table, outline → slides), the
+accessibility check, nine Office skills and spreadsheet data bars ([vibe-studio.md](vibe-studio.md#office-semantic-and-cross-app-tools)).
+Still open, roughly by payoff:
+
+* **Document**: style gallery with update-from-selection, themes (font and color sets), visible multi-column layout and
+  section breaks, first/even-page headers, page borders and backgrounds, floating text boxes, shapes and wrapped images,
+  table styles gallery with banding, column resize by drag, table sort and formulas, multilevel numbering styles,
+  tracked changes, generated table of contents, smart typography while typing, designed templates (newsletter).
+* **Spreadsheet**: table styles with banding and a total row, quick analysis, named ranges, data validation lists,
+  paste special, group/outline rows, page setup and print areas, dynamic arrays (FILTER, SORT, UNIQUE with spilling),
+  pivot-table lite, sparklines.
+* **Presentation**: master and layout editing, slide numbers and footers, mixed formatting and bullet levels in one
+  text box, charts from sheet data, more shapes, smart guides and distribute.
+* **Vibe**: board → document summary tool, sheet → chart report tool, per-tool *Watch out* notes on the older tools.

@@ -320,6 +320,12 @@ export class SheetView {
           ctx.fillStyle = look.fill;
           ctx.fillRect(box.x + 1, box.y + 1, box.w - 1, box.h - 1);
         }
+        if (look.bar) {
+          ctx.fillStyle = look.bar.color;
+          ctx.globalAlpha = 0.75;
+          ctx.fillRect(box.x + 2 + look.bar.from * (box.w - 4), box.y + 3, Math.max(1, (look.bar.to - look.bar.from) * (box.w - 4)), box.h - 6);
+          ctx.globalAlpha = 1;
+        }
         const bd = look.style?.bd;
         if (bd) {
           const line = (col, x, y2, w, hh) => ((ctx.fillStyle = col), ctx.fillRect(x, y2, w, hh));

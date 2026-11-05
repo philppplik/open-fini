@@ -57,7 +57,7 @@ export function cellLook(sheet, calc, r, c, stats = null) {
     if (f.color) color = f.color;
   }
   const align = style?.ha || (error || typeof value === "boolean" ? "center" : typeof value === "number" ? "right" : "left");
-  return { cell, value, text, style, align, color, fill: style?.fill || null, error };
+  return { cell, value, text, style, align, color, fill: style?.fill || null, bar: style?.bar || null, error };
 }
 
 /** The chart definition with data from its range (header row = series names, first column = categories). */
@@ -176,6 +176,7 @@ export function sheetPages(model, sid, calc, { measurer, range = null, page = { 
           const y = ys[r - r0];
           const look = cellLook(sheet, calc, r, c, stats);
           if (look.fill) items.push(rect(x, y, w, hh, look.fill));
+          if (look.bar) items.push(rect(x + 2 + look.bar.from * (w - 4), y + 3, Math.max(1, (look.bar.to - look.bar.from) * (w - 4)), hh - 6, look.bar.color));
           const bd = look.style?.bd;
           if (bd) {
             if (bd.t) items.push(rect(x, y, w, 1, bd.t));

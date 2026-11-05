@@ -301,6 +301,24 @@ Sources: opencode.ai/docs/server, /docs/sdk, /docs/zen, /docs/providers.
 Inside Vibe Studio the assistant does not switch studios behind your back; the Canvas panel shows the document and
 offers buttons to open it in a studio. (Website editing builds the Code studio's editor in the background.)
 
+### Office semantic and cross-app tools
+
+Address a text document by meaning instead of block numbers, and move content between Office apps
+(`vibe/tools/office-semantic.js`, pure logic in `engine/office/sections.js`). Each description ends with a *Watch out*
+note: the mistakes models typically make with the tool and which describe/read tool verifies the result.
+
+| Tool | What it does |
+| --- | --- |
+| `office_list_sections` | Headings with level, block range and word count; tables with captions (read-only) |
+| `office_read_section` | One section by heading text (exact, case and numbering ignored, or a unique part) |
+| `office_rewrite_section` | Replaces a section's body with Markdown; the heading, the body style and paragraph formatting stay; `keepSubsections` |
+| `office_move_section` | Moves a section with its subsections before/after another; `levelChange` promotes or demotes |
+| `office_check_accessibility` | Title, heading order, empty headings, alt text, table headers, link text, contrast, long paragraphs |
+| `office_tables_to_sheet` | Document tables into a new spreadsheet (one sheet per table, typed values, bold header) |
+| `office_sheet_to_document` | A range of an open spreadsheet as a formatted table in the active document (a snapshot) |
+| `office_document_to_slides` | The outline as a new deck: Title slide, one slide per heading, bullets from lists and first sentences |
+| `sheet_add_rule` | Conditional formatting: data bars, color scale, comparisons |
+
 ## Permissions
 
 | Mode | Behavior |
@@ -344,10 +362,13 @@ tool descriptions and system instructions stay English: they are instructions to
 
 A skill is a Markdown file (`SKILL.md` style): a name, a description, optional `allowed-tools`, parameters and
 instructions. The assistant sees only the catalog and loads a skill when a task matches (the `use_skill` tool), so
-skills cost almost no context. 26 are built in, including workflow skills for design systems, responsive sites from a
+skills cost almost no context. 35 are built in, including workflow skills for design systems, responsive sites from a
 brief, photo compositing, icon sets, presentations, print brochures, social campaign kits, mobile UI mockups, data
 reports, code refactoring, SEO, accessibility fixes, localization, brands from a logo, CSS animation and
-`multi-agent-project-lead` (how to split work across sub-agents).
+`multi-agent-project-lead` (how to split work across sub-agents), plus nine Office skills (`write-report`,
+`polish-document`, `build-budget-sheet`, `make-pitch-deck`, `clean-data`, `brainstorm-to-board`,
+`accessibility-check-document`, `translate-document-keeping-format`, `meeting-notes`), each with a *Watch out* and a
+*Verify* section.
 
 - `/skill-name` starts a skill; skills with parameters open a small form. A chip suggests a matching skill while you type.
 - Skills can require other skills, load reference files on demand, be limited to studios, and (with

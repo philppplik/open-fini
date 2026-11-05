@@ -3,6 +3,7 @@
 // (No backticks or template placeholders inside the markdown, so plain template literals are safe.)
 // The workflow library added in 0.5 (power tools, sub-agents, parameters) lives in skills-library.js.
 import { LIBRARY_SKILLS } from "./skills-library.js";
+import { OFFICE_SKILLS } from "./skills-office.js";
 
 const LOGO = `---
 name: logo-design
@@ -356,4 +357,4 @@ Office documents are flowing text on pages, not canvases: structure comes from n
 Call office_read_document and check the outline (title, logical heading order), that no [placeholder] was left unexplained, that tables have header rows, and that the footer shows page numbers. Read it aloud mentally: every paragraph should make one clear point. Then summarize what you wrote in two sentences and suggest the export format.`;
 
 /** Built-in skills as SKILL.md markdown strings (logo-design, social-post, photo-retouch, landing-page, poster-layout, brand-kit, accessibility-audit, copywriting). */
-export const BUILTIN_SKILLS = [LOGO, SOCIAL, PHOTO, LANDING, POSTER, BRAND, A11Y, COPY, HELP, REPORT, BUSINESS_DOC, ...LIBRARY_SKILLS];
+export const BUILTIN_SKILLS = [LOGO, SOCIAL, PHOTO, LANDING, POSTER, BRAND, A11Y, COPY, HELP, REPORT, BUSINESS_DOC, ...LIBRARY_SKILLS, ...OFFICE_SKILLS];
