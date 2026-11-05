@@ -39,11 +39,43 @@ export function designDialog(app, ws) {
     });
     const setCards = D.STYLE_SETS.map((st) => {
       const b = h("button.of-odesign__card", { type: "button" }, h("strong", st.label), h("span", { style: "font-size:12px" }, `Line spacing ${st.normal.lineHeight}, ${st.normal.spaceAfter} pt after${st.normal.align === "justify" ? ", justified" : ""}`));
-      b.addEventListener("click", () => ed.commit(D.applyStyleSet(ws.prj.model, st.id), { label: `Style Set: ${st.label}`, sel: ed.sel }));
+      b.addEventListener("click", () => {
+        ed.commit(D.applyStyleSet(ws.prj.model, st.id), { label: `Style Set: ${st.label}`, sel: ed.sel });
+        render();
+      });
       return b;
     });
+    // live preview of the current look, straight from the resolved styles
+    const st = (id) => M.resolveStyle(m, id).run;
+    const look = (id, extra = "") => {
+      const r = st(id);
+      return `font-family:${JSON.stringify(r.font || "Calibri")};color:${r.color || "#000"};font-weight:${r.b ? 700 : 400};${extra}`;
+    };
+    const preview = h("div.of-odesign__preview", { "aria-label": "Preview" },
+      h("div", { style: look("Title", "font-size:22px;line-height:1.2") }, "Document title"),
+      h("div", { style: look("Heading1", "font-size:16px;margin-top:6px") }, "Heading 1"),
+      h("div", { style: look("Normal", "font-size:12px") }, "Body text uses the theme's body font and text color. Tables styled with Theme accent follow the accent color."),
+      h("div", { style: look("Heading3", "font-size:13px;margin-top:4px") }, "Heading 3 in the accent color"));
+    // custom theme: own fonts and colors
+    const th = m.theme || D.THEMES[0];
+    const fontIn = (v, label) => h("input.of-oinput", { type: "text", value: v, list: "of-office-fonts", "aria-label": label });
+    const hf = fontIn(th.fonts.heading, "Heading font");
+    const bf = fontIn(th.fonts.body, "Body font");
+    const color = (v, label) => h("input.of-oinput", { type: "color", value: v, "aria-label": label });
+    const hc = color(th.colors.heading, "Heading color");
+    const ac = color(th.colors.accent, "Accent color");
+    const tc = color(th.colors.text, "Text color");
+    const custom = h("button.of-btn.of-btn--default", { type: "button" }, "Apply custom theme");
+    custom.addEventListener("click", () => {
+      ed.commit(D.applyTheme(ws.prj.model, { id: "custom", fonts: { heading: hf.value.trim() || "Calibri", body: bf.value.trim() || "Calibri" }, colors: { heading: hc.value, accent: ac.value, text: tc.value } }), { label: "Custom Theme", sel: ed.sel });
+      render();
+    });
     body.replaceChildren(
+      preview,
       h("h3.of-odesign__h", "Themes (fonts and colors)"), h("div.of-odesign__grid", themeCards),
+      h("h3.of-odesign__h", "Custom theme"),
+      h("div.of-orow", field("Heading font", hf), field("Body font", bf)),
+      h("div.of-orow", field("Headings", hc), field("Accent", ac), field("Text", tc), custom),
       h("h3.of-odesign__h", "Style sets (spacing)"), h("div.of-odesign__grid", setCards),
       h("p.of-hint", "Themes and style sets change the built-in styles (Normal, Title, headings, Quote), so every paragraph that uses them follows. Direct formatting stays. Undo with Ctrl+Z."));
   };
@@ -224,7 +256,7 @@ export function reviewDialog(app, ws) {
           h("button.of-btn.of-btn--default", { type: "button", onclick: act(true) }, "Accept"), h("button.of-btn.of-btn--default", { type: "button", onclick: act(false) }, "Reject"));
       }),
     );
-    if (!revs.length) list.append(h("li.of-oside__empty", "No tracked changes. Turn on Track Changes (Review menu) and edit: insertions are underlined, deletions struck through."));
+    if (!revs.length) list.append(h("li.of-oside__empty", "No tracked changes. Turn on Track Changes (Document menu) and edit: insertions are underlined, deletions struck through."));
   };
   render();
   openDialog({
@@ -238,4 +270,27 @@ export function reviewDialog(app, ws) {
       { label: "Close", variant: "primary", onClick: (c) => c() },
     ],
   });
+}
+
+// ------------------------------------------------------------------------------------------------ table tools
+
+/** Sort, distribute, fit and total row on the table at the caret (Table menu). */
+export function tableAction(app, ws, op) {
+  const ed = ws.editor;
+  const ctx = ed.tableContext();
+  if (!ctx) return app.toast("Put the caret in a table first.", "warning");
+  const m = ws.prj.model;
+  const width = m.page.width - m.page.margins.left - m.page.margins.right;
+  const labels = { sortAsc: "Sort Ascending", sortDesc: "Sort Descending", distribute: "Distribute Columns", fit: "Fit Table to Page", total: "Add Total Row" };
+  try {
+    let next;
+    if (op === "sortAsc" || op === "sortDesc") next = D.tableSort(ctx.t, ctx.col, { desc: op === "sortDesc" }, m.theme);
+    else if (op === "distribute") next = D.tableDistribute(ctx.t);
+    else if (op === "fit") next = D.tableFit(ctx.t, width);
+    else if (op === "total") next = D.tableTotalRow(ctx.t, {}, m.theme);
+    else return;
+    ed.commit(M.replaceTop(m, ctx.ti, next), { label: labels[op], sel: { path: [ctx.ti, 0, 0, 0], offset: 0 } });
+  } catch (e) {
+    app.toast(e.message, "warning", 3500);
+  }
 }

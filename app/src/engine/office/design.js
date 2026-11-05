@@ -175,6 +175,104 @@ export function tableHeaderText(t, theme) {
   }
 }
 
+// ------------------------------------------------------------------------------------------------ table tools
+
+const cellText = (cell) => (cell?.blocks || []).map(M.paraText).join(" ").replace(/￼/g, "").trim();
+const hasSpans = (t) => t.rows.some((r) => r.cells.some((c) => (c.colspan || 1) > 1 || (c.rowspan || 1) > 1));
+
+/** A number in cell text ("1,200.50", "$3", "-4", "12 %", "(7)") or null. */
+export function parseNumber(text) {
+  let s = String(text ?? "").trim();
+  if (!s) return null;
+  const neg = /^\(.*\)$/.test(s) || /^[-−]/.test(s);
+  s = s.replace(/^\(|\)$/g, "").replace(/^[-−]/, "").replace(/^[$€£¥]\s*|\s*[$€£¥%]$|\s*(USD|EUR|GBP)$/gi, "").replace(/,/g, "");
+  if (!/^\d+(\.\d+)?$|^\.\d+$/.test(s)) return null;
+  return (neg ? -1 : 1) * Number(s);
+}
+
+/** Grid rows of a table as text (merged cells repeat their text). */
+export function tableText(t) {
+  const g = M.tableGrid(t);
+  return g.map((row) => row.map((x) => (x ? cellText(t.rows[x.r].cells[x.ci]) : "")));
+}
+
+/**
+ * Sorts the body rows by a grid column (numbers numerically when every non-empty cell is a number, text otherwise).
+ * The header row and a styled total row stay in place. Tables with merged cells cannot be sorted.
+ */
+export function tableSort(t, col, { desc = false } = {}, theme) {
+  if (hasSpans(t)) throw new Error("Tables with merged cells cannot be sorted. Split the cells first.");
+  if (!(col >= 0 && col < t.cols.length)) throw new Error(`Column ${col} does not exist; the table has ${t.cols.length} columns (0-based).`);
+  const head = t.rows[0]?.header ? 1 : 0;
+  const tail = t.design?.total && t.rows.length - head > 1 ? 1 : 0;
+  const body = t.rows.slice(head, t.rows.length - tail);
+  const keys = body.map((r) => cellText(r.cells[col]));
+  const numeric = keys.every((k) => !k || parseNumber(k) !== null) && keys.some((k) => k);
+  const coll = new Intl.Collator("en", { numeric: true, sensitivity: "base" });
+  const order = body.map((r, i) => i).sort((a, b) => {
+    const x = keys[a];
+    const y = keys[b];
+    if (!x !== !y) return x ? -1 : 1; // empty cells last
+    const c = numeric ? parseNumber(x) - parseNumber(y) : coll.compare(x, y);
+    return (desc ? -c : c) || a - b;
+  });
+  const out = { ...t, rows: [...t.rows.slice(0, head), ...order.map((i) => body[i]), ...t.rows.slice(t.rows.length - tail)] };
+  // banding follows the new order
+  return t.design ? applyTableStyle(out, t.design.style, t.design, theme) : out;
+}
+
+/** Equal column widths, keeping the table width (or `width`). */
+export function tableDistribute(t, width) {
+  const total = width || t.cols.reduce((a, c) => a + c, 0);
+  const w = Math.round((total / t.cols.length) * 100) / 100;
+  return { ...t, cols: t.cols.map(() => w) };
+}
+
+/** Scales the columns so the table is exactly `width` points wide (fit to the text area). */
+export function tableFit(t, width) {
+  const total = t.cols.reduce((a, c) => a + c, 0) || 1;
+  return { ...t, cols: t.cols.map((c) => Math.max(4, Math.round(((c * width) / total) * 100) / 100)) };
+}
+
+/**
+ * Appends a total row: `label` in the first column and the sum of every numeric column (header excluded). Decimals and
+ * thousands separators follow the column's values. Returns the new table.
+ */
+export function tableTotalRow(t, { label = "Total" } = {}, theme) {
+  if (hasSpans(t)) throw new Error("Tables with merged cells cannot get an automatic total row.");
+  const text = tableText(t);
+  const head = t.rows[0]?.header ? 1 : 0;
+  const body = text.slice(head);
+  const cells = t.cols.map((_, c) => {
+    if (c === 0) return { blocks: [M.para([{ text: label, b: true }])] };
+    const vals = body.map((r) => r[c]).filter(Boolean);
+    const nums = vals.map(parseNumber);
+    if (!vals.length || nums.some((n) => n === null)) return { blocks: [M.para("")] };
+    const dec = Math.max(0, ...vals.map((v) => (/\.(\d+)/.exec(v.replace(/[^\d.]/g, ""))?.[1].length || 0)));
+    const sum = nums.reduce((a, b) => a + b, 0);
+    const grouped = vals.some((v) => v.includes(","));
+    const s = grouped ? sum.toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec }) : sum.toFixed(dec);
+    return { blocks: [M.para([{ text: s, b: true }], "Normal", { props: { align: "right" } })] };
+  });
+  let out = { ...t, rows: [...t.rows, { cells }] };
+  if (t.design) out = applyTableStyle(out, t.design.style, { ...t.design, total: true }, theme);
+  return out;
+}
+
+/** A table block from rows of strings (first row as header when `header`), `width` points wide. */
+export function tableFromRows(rows, width, { header = true, style } = {}, theme) {
+  const n = Math.max(1, ...rows.map((r) => r.length));
+  let t = M.createTable(rows.length, n, width, { header });
+  t.rows.forEach((row, r) =>
+    row.cells.forEach((cell, c) => {
+      const v = String(rows[r]?.[c] ?? "");
+      cell.blocks = [M.para(v, "Normal", r >= (header ? 1 : 0) && parseNumber(v) !== null ? { props: { align: "right" } } : undefined)];
+    }),
+  );
+  if (style) t = applyTableStyle(t, style, { header, banded: true }, theme);
+  return t;
+}
+
 // ------------------------------------------------------------------------------------------------ sections
 
 /** Sections of the body: [{ from, to, columns, columnGap, start }] where [from, to) are block indexes. */

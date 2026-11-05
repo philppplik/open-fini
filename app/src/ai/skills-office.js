@@ -263,7 +263,7 @@ Take a screenshot of the result and look at it as the reader will. Then: sheet_r
 const DESIGN_DOC = `---
 name: design-document
 description: Give a text document a designed look - theme (fonts and colors), style set, styled tables, a table of contents, a newsletter-style two-column section with a sidebar text box - or start from the designed newsletter and proposal templates; also review tracked changes.
-allowed-tools: office_new_document, office_read_document, office_list_sections, office_set_style, office_apply_design, office_update_style, office_table_style, office_insert_section_break, office_insert_text_box, office_insert_toc, office_track_changes, office_check_accessibility, ask_user
+allowed-tools: office_new_document, office_read_document, office_list_sections, office_set_style, office_apply_design, office_update_style, office_table_style, office_insert_section_break, office_insert_text_box, office_insert_toc, office_track_changes, office_design_info, office_table_edit, office_insert_styled_table, office_check_accessibility, ask_user
 tags: [office, design, layout, word]
 when-to-use: make it look professional, design, theme, newsletter, brochure-style document, table of contents, columns, sidebar, callout, table styles, tracked changes, review edits
 ---
@@ -273,7 +273,7 @@ when-to-use: make it look professional, design, theme, newsletter, brochure-styl
 1. office_read_document. For a new newsletter or proposal start with office_new_document template newsletter or proposal instead of building the layout by hand.
 2. Structure first: real heading styles (office_set_style) so the outline and table of contents work.
 3. office_apply_design with one theme (office for neutral business, classic or elegant for formal, modern or ocean for tech, bold for marketing, minimal for reports) and a style set (airy for short reading, compact for long reference, formal for contracts).
-4. Tables: office_table_style with accent (follows the theme) or light; header true, banded true, total true when the last row sums up.
+4. Start with office_design_info. Tables: office_table_style with accent (follows the theme) or light; header true, banded true, total true when the last row sums up. office_table_edit sorts, adds a computed total row or fits the table to the page; office_insert_styled_table adds a new styled table in one call.
 5. Long documents (more than three headings): office_insert_toc after the title.
 6. Newsletter-style pages: office_insert_section_break columns 2 before the body and columns 1 after it; one office_insert_text_box per page at most, anchored to a long body paragraph.
 7. To fix one heading look everywhere: format one example, then office_update_style with its index.

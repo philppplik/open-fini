@@ -124,11 +124,11 @@ export function officeTools(app) {
   };
 
   return [
-    tool("office_new_document", "Creates a new Office Studio text document (Word-style, with pages) and switches to the Office Studio. Optional template: blank, letter, report, invoice, memo, meeting, resume, newsletter (designed: two columns, text box, styled table) or proposal (designed: table of contents, budget table).", {
+    tool("office_new_document", "Creates a new Office Studio text document (Word-style, with pages) and switches to the Office Studio. Optional template: blank, letter, report, invoice, memo, meeting, resume, newsletter (designed: two columns, text box, styled table), proposal (table of contents, budget table), paper (academic: abstract, numbered sections, references) or flyer (event: big title, details box, three columns). Every template except blank comes with a theme.", {
       title: S.str("Document name"),
       size: S.str("Paper size", { enum: ["A4", "Letter", "Legal", "A5"] }),
       orientation: S.str("portrait or landscape", { enum: ["portrait", "landscape"] }),
-      template: S.str("blank (default), letter, report, invoice, memo, meeting, resume, newsletter or proposal", { enum: ["blank", "letter", "report", "invoice", "memo", "meeting", "resume", "newsletter", "proposal"] }),
+      template: S.str("blank (default), letter, report, invoice, memo, meeting, resume, newsletter, proposal, paper or flyer", { enum: ["blank", "letter", "report", "invoice", "memo", "meeting", "resume", "newsletter", "proposal", "paper", "flyer"] }),
     }, [], async ({ title = "Untitled document", size = "A4", orientation = "portrait", template = "blank" }) => {
       const { templateModel } = await import("../../ui/office/dialogs.js");
       const { openOfficeModel } = await import("../../ui/office/open.js");

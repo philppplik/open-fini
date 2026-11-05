@@ -33,6 +33,8 @@ const TEMPLATES = [
   { id: "resume", label: "Resume", hint: "Name, contact line and sections" },
   { id: "newsletter", label: "Newsletter", hint: "Masthead, two columns, a text box and a styled table" },
   { id: "proposal", label: "Project proposal", hint: "Cover, table of contents, sections and a budget table" },
+  { id: "paper", label: "Academic paper", hint: "Abstract, table of contents, numbered sections, results table, references" },
+  { id: "flyer", label: "Event flyer", hint: "Big title, details box and three columns" },
 ];
 
 export function templateModel(id, size, orientation) {
@@ -62,8 +64,21 @@ export function templateModel(id, size, orientation) {
   } else if (id === "resume") {
     d.blocks = [P("Your Name", "Title"), P("City · email@example.com · +1 555 0100 · linkedin.com/in/you", "Subtitle"), M.heading(1, "Experience"), P([{ text: "Job Title, Company", b: true }, { text: " — 2021 to today" }]), P("Achievement with a measurable result", "List", { list: { kind: "bullet", level: 0, id: "e1" } }), P("Another achievement", "List", { list: { kind: "bullet", level: 0, id: "e1" } }), M.heading(1, "Education"), P([{ text: "Degree, School", b: true }, { text: " — 2017 to 2021" }]), M.heading(1, "Skills"), P("Skill one · Skill two · Skill three")];
   }
-  if (id === "newsletter" || id === "proposal") return designedTemplate(id, d);
-  return M.normalizeDoc(d);
+  if (["newsletter", "proposal", "paper", "flyer"].includes(id)) return designedTemplate(id, d);
+  return polishTemplate(id, M.normalizeDoc(d));
+}
+
+/** The starter templates get a theme and gallery table styles (blank stays plain). */
+function polishTemplate(id, doc) {
+  const look = { letter: ["classic"], report: ["office", "accent", { total: false }], invoice: ["office", "blue", { total: true, banded: true }], memo: ["minimal"], meeting: ["modern"], resume: ["minimal"] }[id];
+  if (!look) return doc;
+  doc = D.applyTheme(doc, look[0]);
+  if (look[1]) doc = { ...doc, blocks: doc.blocks.map((b) => (b.type === "table" ? D.applyTableStyle(b, look[1], { header: true, banded: true, ...look[2] }, doc.theme) : b)) };
+  if (id === "report") {
+    const at = doc.blocks.findIndex((b) => b.type === "paragraph" && b.style !== "Title" && b.style !== "Subtitle");
+    doc = { ...doc, blocks: [...doc.blocks.slice(0, at), D.tocBlock({ levels: 2 }), ...doc.blocks.slice(at)] };
+  }
+  return doc;
 }
 
 /** Designed templates: themes, sections with columns, a text box, a table of contents and gallery table styles. */
@@ -73,12 +88,9 @@ function designedTemplate(id, d) {
   const date = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long" });
   const pageFooter = [P([{ text: "Page " }, { type: "field", field: "page" }, { text: " of " }, { type: "field", field: "pages" }], "Normal", { props: { align: "center" } })];
   if (id === "newsletter") {
-    let t = M.createTable(4, 3, (w - 36) / 2, { header: true });
+    const t = M.createTable(4, 3, (w - 36) / 2, { header: true });
     [["Date", "Event", "Where"], ["Mon", "Kickoff", "Hall A"], ["Wed", "Workshop", "Room 2"], ["Fri", "Social", "Garden"]].forEach((row, r) => row.forEach((v, c) => (t.rows[r].cells[c].blocks = [P(v)])));
-    const box = D.textBox({ text: "In this issue
-• Feature story
-• News in brief
-• Upcoming events", width: 150, wrap: "right", fill: "#e6f4f1", border: "#0d9488" });
+    const box = D.textBox({ text: "In this issue\n• Feature story\n• News in brief\n• Upcoming events", width: 150, wrap: "right", fill: "#e6f4f1", border: "#0d9488" });
     d.blocks = [
       P("Community Newsletter", "Title", { props: { align: "center" } }),
       P(`Issue 1 · ${date}`, "Subtitle", { props: { align: "center" } }),
@@ -100,6 +112,52 @@ function designedTemplate(id, d) {
     const ti = doc.blocks.findIndex((b) => b.type === "table");
     doc = M.replaceTop(doc, ti, D.applyTableStyle(doc.blocks[ti], "accent", { header: true, banded: true }, doc.theme));
     return doc;
+  }
+  if (id === "paper") {
+    const fn = "ref1";
+    d.blocks = [
+      P("Title of the Paper", "Title", { props: { align: "center" } }),
+      P("Author Name · Institution · author@example.edu", "Subtitle", { props: { align: "center" } }),
+      P([{ text: "Abstract. ", b: true }, { text: "One paragraph of 150 to 250 words: the question, the method, the main result and why it matters." }], "Normal", { props: { indentLeft: 36, indentRight: 36, align: "justify" } }),
+      P([{ text: "Keywords: ", b: true }, { text: "first, second, third" }], "Normal", { props: { indentLeft: 36, indentRight: 36 } }),
+      D.tocBlock({ levels: 2 }),
+      M.heading(1, "1. Introduction"),
+      P([{ text: "Context, the gap in existing work and the contribution of this paper." }, { type: "footnote", id: fn }], "Normal", { props: { align: "justify" } }),
+      M.heading(1, "2. Method"),
+      P("Data, participants or materials and the procedure.", "Normal", { props: { align: "justify" } }),
+      M.heading(1, "3. Results"),
+      D.tableFromRows([["Condition", "n", "Mean", "SD"], ["A", "24", "3.42", "0.81"], ["B", "25", "2.97", "0.77"]], w, { header: true }),
+      P("Table 1. Describe what the table shows.", "Normal", { props: { align: "center" } }),
+      M.heading(1, "4. Discussion"),
+      P("What the results mean, limitations and future work.", "Normal", { props: { align: "justify" } }),
+      M.heading(1, "References"),
+      P("Author, A. (2026). Title of the work. Publisher.", "Normal", { props: { indentLeft: 18, indentFirst: -18 } }),
+    ];
+    d.footnotes = { [fn]: [P("A footnote with an additional remark.")] };
+    d.footer = pageFooter;
+    let doc = D.applyStyleSet(D.applyTheme(M.normalizeDoc(d), "classic"), "formal");
+    const ti = doc.blocks.findIndex((b) => b.type === "table");
+    doc = M.replaceTop(doc, ti, D.applyTableStyle(doc.blocks[ti], "minimal", { header: true, banded: false }, doc.theme));
+    return doc;
+  }
+  if (id === "flyer") {
+    const box = D.textBox({ text: "Saturday, June 6\n10 am to 4 pm\nCity Park, Main Gate", width: 170, wrap: "right", fill: "#fff1e6", border: "#ea580c" });
+    d.blocks = [
+      P([{ text: "SUMMER FAIR", size: 54, b: true }], "Title", { props: { align: "center", spaceAfter: 0 } }),
+      P("Music · Food · Games for all ages", "Subtitle", { props: { align: "center" } }),
+      { type: "rule" },
+      P([box, { text: "Join us for a day of live music, local food stands and activities for the whole family. Entry is free; bring friends and neighbors.", size: 14 }]),
+      D.sectionBreak({ columns: 3, start: "continuous" }),
+      M.heading(2, "Music"),
+      P("Three local bands from noon."),
+      M.heading(2, "Food"),
+      P("Twelve stands, vegetarian options."),
+      M.heading(2, "Games"),
+      P("Treasure hunt at 2 pm."),
+      D.sectionBreak({ columns: 1, start: "continuous" }),
+      P([{ text: "More information: example.org/fair", b: true }], "Normal", { props: { align: "center", spaceBefore: 18 } }),
+    ];
+    return D.applyStyleSet(D.applyTheme(M.normalizeDoc(d), "bold"), "airy");
   }
   const t = M.createTable(5, 3, w, { header: true });
   [["Item", "Description", "Cost"], ["Discovery", "Interviews and analysis", "0.00"], ["Delivery", "Design and build", "0.00"], ["Support", "Three months", "0.00"], ["Total", "", "0.00"]].forEach((row, r) => row.forEach((v, c) => (t.rows[r].cells[c].blocks = [P(v, "Normal", c === 2 ? { props: { align: "right" } } : undefined)])));

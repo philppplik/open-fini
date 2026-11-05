@@ -118,6 +118,12 @@ export function registerOfficeCommands(app) {
   t("office.headerRow", "Header Row", "header", { checked: (a) => !!a.officeUI?.editor?.tableContext()?.t.rows[0].header });
   def("office.cellShading", "Cell Shading…", () => dlg().then((m) => m.shadingDialog(app, ws())), { enabled: inTable });
   def("office.tableBorders", "Borders…", () => dlg().then((m) => m.bordersDialog(app, ws())), { enabled: inTable });
+  const tact = (op) => () => import("../ui/office/design-ui.js").then((m) => m.tableAction(app, ws(), op));
+  def("office.sortAsc", "Sort Rows Ascending by This Column", tact("sortAsc"), { enabled: inTable });
+  def("office.sortDesc", "Sort Rows Descending by This Column", tact("sortDesc"), { enabled: inTable });
+  def("office.distributeColumns", "Distribute Columns Evenly", tact("distribute"), { enabled: inTable });
+  def("office.fitTable", "Fit Table to Page Width", tact("fit"), { enabled: inTable });
+  def("office.totalRow", "Add Total Row", tact("total"), { enabled: inTable });
   def("office.tableStyles", "Table Styles…", () => import("../ui/office/design-ui.js").then((m) => m.tableStylesDialog(app, ws())), { enabled: inTable, icon: "table" });
 
   // ---- view

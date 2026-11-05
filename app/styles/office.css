@@ -203,3 +203,4 @@
 @media print {
   .of-layout[data-studio="office"] .of-otb, .of-layout[data-studio="office"] .of-oside, .of-layout[data-studio="office"] .of-ofind { display: none !important; }
 }
+.of-odesign__preview { border: 1px solid var(--of-border); border-radius: var(--of-radius); padding: 10px 14px; background: #fff; color: #000; }

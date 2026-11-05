@@ -136,5 +136,79 @@ export function officeDesignTools(app) {
       if (r.count) commit(action === "accept" ? "Accept Changes" : "Reject Changes", r.doc);
       return { [action === "accept" ? "accepted" : "rejected"]: r.count, remaining: D.revisions(r.doc).length };
     }),
+
+    tool("office_design_info", "Describes the design of the active text document and the available choices: current theme (fonts, colors), the style of every table, sections with their columns, the table of contents, floating text boxes and wrapped images, tracked changes count; plus the ids of all themes, style sets and table styles. Watch out: call it before changing the design so you keep what the user already chose.", {}, [], async () => {
+      const { m, M, D } = await textDoc();
+      return {
+        theme: m.theme || null,
+        themes: D.THEMES.map((t) => ({ id: t.id, fonts: t.fonts })),
+        styleSets: D.STYLE_SETS.map((s) => s.id),
+        tableStyles: D.TABLE_STYLES.map((s) => s.id),
+        tables: m.blocks.flatMap((b, i) => (b.type === "table" ? [{ index: i, rows: b.rows.length, columns: b.cols.length, widthPt: Math.round(b.cols.reduce((a, c) => a + c, 0)), style: b.design?.style || null, header: !!b.rows[0]?.header }] : [])),
+        sections: D.sectionsOf(m).map((s) => ({ from: s.from, to: s.to, columns: s.columns, start: s.start })),
+        toc: m.blocks.flatMap((b, i) => (b.type === "toc" ? [{ index: i, levels: b.levels, entries: D.tocEntries(m, b.levels).length }] : [])),
+        floating: D.floatingObjects(m).map((f) => ({ index: f.path.length === 1 ? f.path[0] : f.path, kind: f.kind, wrap: f.wrap, ...(f.text ? { text: f.text.slice(0, 80) } : {}) })),
+        trackChanges: !!m.trackChanges,
+        revisions: D.revisions(m).length,
+        textWidthPt: Math.round(m.page.width - m.page.margins.left - m.page.margins.right),
+        headings: M.outline(m).length,
+      };
+    }, { readOnly: true }),
+
+    tool("office_table_edit", "Edits a table of the active text document by its block index: sort (body rows by a column, numbers numerically; header and total row stay), total (append a total row summing the numeric columns), distribute (equal column widths), fit (scale to the text width), widths (set column widths in points), insert_row / delete_row (at `row`), insert_column / delete_column (at `column`), header (header row on/off with `on`). Watch out: indexes are 0-based; sorting and totals refuse tables with merged cells; after insert or delete the table's styled banding is re-applied, check with office_read_document.", {
+      index: S.num("Block index of the table"),
+      action: S.str("What to do", { enum: ["sort", "total", "distribute", "fit", "widths", "insert_row", "delete_row", "insert_column", "delete_column", "header"] }),
+      column: S.num("0-based column (sort, insert_column, delete_column)"),
+      row: S.num("0-based row (insert_row inserts after it, delete_row)"),
+      descending: S.bool("Sort descending (default false)"),
+      widths: { type: "array", items: { type: "number" }, description: "Column widths in points (widths)" },
+      label: S.str("Label of the total row (default Total)"),
+      on: S.bool("Header row on or off (header)"),
+    }, ["index", "action"], async ({ index, action, column = 0, row = 0, descending = false, widths, label = "Total", on = true }) => {
+      const { m, M, D, commit } = await textDoc();
+      const t = blockAt(m, index, "table");
+      const width = m.page.width - m.page.margins.left - m.page.margins.right;
+      const restyle = (x) => (x && t.design ? D.applyTableStyle(x, t.design.style, t.design, m.theme) : x);
+      const inRange = (v, n, what) => {
+        if (!Number.isInteger(v) || v < 0 || v >= n) throw new Error(`${what} ${v} does not exist; the table has ${n} ${what}s (0-based).`);
+      };
+      let next;
+      if (action === "sort") next = D.tableSort(t, column, { desc: descending }, m.theme);
+      else if (action === "total") next = D.tableTotalRow(t, { label }, m.theme);
+      else if (action === "distribute") next = D.tableDistribute(t);
+      else if (action === "fit") next = D.tableFit(t, width);
+      else if (action === "widths") {
+        if (!Array.isArray(widths) || widths.length !== t.cols.length) throw new Error(`Pass ${t.cols.length} widths (one per column).`);
+        next = { ...t, cols: widths.map((w) => Math.max(4, Math.min(2000, Number(w) || 72))) };
+      } else if (action === "insert_row") (inRange(row, t.rows.length, "row"), (next = restyle(M.tableInsertRow(t, row, true))));
+      else if (action === "delete_row") (inRange(row, t.rows.length, "row"), (next = restyle(M.tableDeleteRow(t, row))));
+      else if (action === "insert_column") (inRange(column, t.cols.length, "column"), (next = restyle(M.tableInsertCol(t, column, true))));
+      else if (action === "delete_column") (inRange(column, t.cols.length, "column"), (next = restyle(M.tableDeleteCol(t, column))));
+      else if (action === "header") next = restyle({ ...t, rows: t.rows.map((r, i) => (i === 0 ? (on ? { ...r, header: true } : { cells: r.cells }) : r)), ...(t.design ? { design: { ...t.design, header: !!on } } : {}) });
+      if (!next) throw new Error("That would remove the last row or column; delete the whole table with office_replace_text or ask the user.");
+      commit("Edit Table", M.replaceTop(m, index, next));
+      return { table: index, action, rows: next.rows.length, columns: next.cols.length, widthsPt: next.cols, preview: D.tableText(next).slice(0, 8) };
+    }),
+
+    tool("office_insert_styled_table", "Inserts a table from rows of text with a gallery style in one step (first row as header, numbers right-aligned), before block `index` or at the end; optional total row. Watch out: keep cells short (under 12 words); for live spreadsheet data use office_sheet_to_document instead; verify with office_read_document.", {
+      rows: { type: "array", items: { type: "array", items: { type: "string" } }, description: "Rows of cell texts; the first row is the header" },
+      style: S.str("Table style id (default accent)", { enum: ["plain", "light", "accent", "blue", "green", "orange", "dark", "minimal"] }),
+      index: S.num("Block index to insert before (default: end)"),
+      total: S.bool("Append a total row summing the numeric columns (default false)"),
+    }, ["rows"], async ({ rows, style = "accent", index, total = false }) => {
+      const { m, M, D, commit } = await textDoc();
+      if (!Array.isArray(rows) || !rows.length || rows.length > 500) throw new Error("rows must be 1 to 500 rows of strings.");
+      const width = m.page.width - m.page.margins.left - m.page.margins.right;
+      let t = D.tableFromRows(rows.map((r) => (Array.isArray(r) ? r.slice(0, 40).map((v) => String(v ?? "")) : [String(r)])), width, { header: true, style }, m.theme);
+      if (total) t = D.tableTotalRow(t, {}, m.theme);
+      const at = Number.isInteger(index) ? index : m.blocks.length;
+      const next = insertAt(M, m, at, [t]);
+      const list = next.blocks.slice();
+      const ti = list.indexOf(t);
+      if (list[ti + 1]?.type !== "paragraph") list.splice(ti + 1, 0, M.para(""));
+      if (ti > 0 && list[ti - 1]?.type === "table") list.splice(ti, 0, M.para(""));
+      commit("Insert Styled Table", { ...next, blocks: list });
+      return { inserted: true, at: list.indexOf(t), rows: t.rows.length, columns: t.cols.length, style };
+    }),
   ];
 }

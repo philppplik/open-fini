@@ -151,3 +151,50 @@ test("design Vibe tools edit the active document as undoable steps", async () =>
   assert.deepEqual((await tools.office_track_changes.run({ action: "list" })).changes, []);
   assert.ok(commits.every((l) => l.startsWith("Vibe: ")));
 });
+
+test("table tools: numbers, sort keeps header and total, total row, distribute and fit", () => {
+  assert.equal(D.parseNumber("$1,200.50"), 1200.5);
+  assert.equal(D.parseNumber("(7)"), -7);
+  assert.equal(D.parseNumber("12 %"), 12);
+  assert.equal(D.parseNumber("abc"), null);
+  let t = D.tableFromRows([["Item", "Cost"], ["Rent", "1,200"], ["Food", "300.50"], ["Car", "75"]], 400, { header: true, style: "blue" });
+  assert.equal(t.rows[1].cells[1].blocks[0].props.align, "right");
+  t = D.tableTotalRow(t);
+  assert.deepEqual(D.tableText(t)[4], ["Total", "1,575.50"]);
+  assert.equal(t.design.total, true);
+  const s = D.tableSort(t, 1, { desc: false });
+  assert.deepEqual(D.tableText(s).map((r) => r[0]), ["Item", "Car", "Food", "Rent", "Total"]);
+  assert.equal(s.rows[2].cells[0].shading, "#d9e2f3", "banding follows the new order");
+  assert.deepEqual(D.tableText(D.tableSort(t, 0, { desc: true })).map((r) => r[0]), ["Item", "Rent", "Food", "Car", "Total"]);
+  assert.deepEqual(D.tableDistribute({ ...t, cols: [100, 300] }).cols, [200, 200]);
+  assert.deepEqual(D.tableFit({ ...t, cols: [100, 300] }, 200).cols, [50, 150]);
+  assert.throws(() => D.tableSort(M.tableMerge(t, 1, 0, 1, 1), 0), /merged/);
+});
+
+test("starter templates carry themes, table styles, a TOC and designed layouts", async () => {
+  const { templateModel } = await import("../../app/src/ui/office/dialogs.js");
+  for (const id of ["letter", "report", "invoice", "memo", "meeting", "resume", "newsletter", "proposal", "paper", "flyer"]) assert.ok(templateModel(id, "A4", "portrait").theme, `${id} has a theme`);
+  assert.equal(templateModel("blank", "A4", "portrait").theme, undefined);
+  assert.ok(templateModel("report", "A4", "portrait").blocks.some((b) => b.type === "toc"));
+  assert.equal(templateModel("invoice", "A4", "portrait").blocks.find((b) => b.type === "table").design.total, true);
+  assert.ok(templateModel("flyer", "A4", "portrait").blocks.some((b) => b.type === "sectionBreak" && b.columns === 3));
+  const paper = templateModel("paper", "Letter", "portrait");
+  assert.equal(Object.keys(paper.footnotes).length, 1);
+  assert.ok(D.floatingObjects(templateModel("newsletter", "A4", "portrait")).length === 1);
+});
+
+test("design info, table edit and styled table Vibe tools", async () => {
+  const doc = { name: "Plan", office: { kind: "document", model: sample() } };
+  const app = { doc, officeUI: { doc, editor: { commit: (next) => (doc.office.model = next) } } };
+  const tools = Object.fromEntries(officeDesignTools(app).map((t) => [t.name, t]));
+  const ins = await tools.office_insert_styled_table.run({ rows: [["Name", "Score"], ["B", "2"], ["A", "10"]], style: "green", total: true });
+  const info = await tools.office_design_info.run({});
+  assert.equal(info.tables.find((x) => x.index === ins.at).style, "green");
+  assert.ok(info.themes.length >= 7 && info.tableStyles.includes("accent"));
+  const r = await tools.office_table_edit.run({ index: ins.at, action: "sort", column: 1, descending: true });
+  assert.deepEqual(r.preview.map((x) => x[0]), ["Name", "A", "B", "Total"]);
+  await tools.office_table_edit.run({ index: ins.at, action: "insert_column", column: 1 });
+  assert.equal(doc.office.model.blocks[ins.at].cols.length, 3);
+  await assert.rejects(tools.office_table_edit.run({ index: ins.at, action: "delete_row", row: 99 }), /does not exist/);
+  await assert.rejects(tools.office_table_edit.run({ index: ins.at, action: "widths", widths: [1] }), /Pass 3 widths/);
+});

@@ -43,7 +43,7 @@ export const OFFICE_MENUS = [
     label: "Table",
     studios: ["office"],
     officeKinds: ["document"],
-    items: ["office.insertTable", "-", "office.rowAbove", "office.rowBelow", "office.colLeft", "office.colRight", "-", "office.deleteRow", "office.deleteCol", "office.deleteTable", "-", "office.mergeCells", "office.splitCell", "-", "office.headerRow", "office.tableStyles", "office.cellShading", "office.tableBorders"],
+    items: ["office.insertTable", "-", "office.rowAbove", "office.rowBelow", "office.colLeft", "office.colRight", "-", "office.deleteRow", "office.deleteCol", "office.deleteTable", "-", "office.mergeCells", "office.splitCell", "-", "office.headerRow", "office.tableStyles", "office.cellShading", "office.tableBorders", "-", "office.sortAsc", "office.sortDesc", "office.totalRow", "office.distributeColumns", "office.fitTable"],
   },
   {
     label: "View",
