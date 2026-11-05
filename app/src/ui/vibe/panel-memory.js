@@ -56,7 +56,7 @@ export function createMemoryPanel(vs) {
     const text = stop(h("textarea.of-vfield__in", { rows: 2, placeholder: t("For example: I prefer metric units and a calm, friendly tone."), "aria-label": t("New memory") }));
     let kind = "preference";
     const addKind = kindSelect(kind, (v) => (kind = v), t("Kind"));
-    const add = h("button.of-btn.of-btn--primary", { type: "button" }, iconEl("plus-lg"), t("Add"));
+    const add = h("button.of-btn.of-btn--primary", { type: "button" }, iconEl("plus-lg"), t("Add memory"));
     add.addEventListener("click", async () => {
       if (!text.value.trim()) return;
       const r = await vibeStore.addMemory(text.value, { kind });

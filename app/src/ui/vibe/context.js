@@ -2,6 +2,7 @@
 import { registerContextProvider } from "../context-menu/index.js";
 import { vibeStore } from "../../vibe/store.js";
 import { uid } from "../../core/util.js";
+import { t } from "../../i18n/index.js";
 import { messageText, messageMarkdown, turnMarkdown, retryPlan, withoutTurn, branchMessages } from "../../vibe/chat-ops.js";
 
 export function registerVibeContext(vs) {
@@ -55,6 +56,14 @@ export function registerVibeContext(vs) {
           await vibeStore.saveChat(chat);
           await session.openChat(chat.id);
           app.toast("Started a new chat from this point.", "success", 2200);
+        } },
+        { label: t("Start a sub-thread here"), icon: "diagram-2", disabled: !m, run: async () => {
+          // a side conversation that starts with the context up to this turn and links back to its main thread
+          const root = session.chat.parent || null; // sub-threads of sub-threads hang under the same main thread
+          const chat = { id: uid("chat"), title: `${messageText(m).replace(/\s+/g, " ").slice(0, 40) || session.chat.title}`, messages: branchMessages(msgs(), index), created: Date.now(), model: session.chat.model, parent: root || { id: session.chat.id, title: session.chat.title.slice(0, 60), index } };
+          await vibeStore.saveChat(chat);
+          await session.openChat(chat.id);
+          app.toast(t("Started a sub-thread. Its answers do not change the main thread."), "success", 2400);
         } },
         { label: "Delete this turn", icon: "trash3", disabled: busy || !m, run: () => {
           session.chat.messages = withoutTurn(msgs(), index);
