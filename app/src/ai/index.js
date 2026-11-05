@@ -22,5 +22,5 @@ export { discoverMcpAuth, registerClient, buildAuthUrl, exchangeCode, refreshTok
 export { OPENAI_AUTH, newHostId, loopbackRedirect, buildOpenAIAuthUrl, completeSignIn, revokeOpenAI, parseAccountModels, planUsageGranted, friendlyAccountError } from "./openai-account.js";
 export { McpClient, McpError, mcpToolsToAgentTools, mcpContentToBlocks, mcpToolName } from "./mcp.js";
 export { KnowledgeIndex, chunkText, tokenize, stem } from "./rag.js";
-export { parseSkill, serializeSkill, skillsCatalog, buildSystemPrompt, slugify, BUILTIN_SKILLS, BUILTIN_SKILL_LIST, renderSkill, validateSkill, suggestSkills, parseArgString, parseParam } from "./skills.js";
+export { parseSkill, serializeSkill, skillsCatalog, buildSystemPrompt, slugify, BUILTIN_SKILLS, BUILTIN_SKILL_LIST, PACK_SKILL_LIST, hydrateSkill, studioGuide, renderSkill, validateSkill, suggestSkills, parseArgString, parseParam } from "./skills.js";
 export { encryptJson, decryptJson, maskKey, randomId, createPkce, pkceChallenge, openRouterAuthUrl, exchangeOpenRouterCode, VaultError } from "./vault.js";

@@ -31,7 +31,7 @@ test("built-in skills only allow tools that exist", () => {
 });
 
 test("the demo assistant only calls tools that exist, with arguments that fit their schemas", async () => {
-  const prompts = ["Make a poster for a jazz night", "Design a logo for a coffee shop", "Build a landing page for a bakery", "Make this photo brighter and add a blur", "make it warmer and more saturated"];
+  const prompts = ["Make a poster for a jazz night", "Design a logo for a coffee shop", "Build a landing page for a bakery", "Make this photo brighter and add a blur", "make it warmer and more saturated", "Orchestrate a multi-studio launch kit"];
   for (const prompt of prompts) {
     const seen = [];
     const byName = new Map(tools.map((t) => [t.name, t]));

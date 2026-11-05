@@ -321,7 +321,7 @@ export function layoutDataTools(app) {
       id: S.str("Chart layer id"),
       type: S.str("New chart type", { enum: CHART_TYPE_IDS }),
       title: S.str("Title"), subtitle: S.str("Subtitle"),
-      categories: { type: "array", items: { type: "string" } }, series: seriesSchema,
+      categories: { type: "array", items: { type: "string" }, description: "Category labels (x axis / pie slices)" }, series: seriesSchema,
       tableId: S.str("Link to this table (replaces inline data)"), unlink: S.bool("Stop following the linked table and keep the current values as own data"),
       range: S.str("Table range"), seriesIn: S.str("columns or rows", { enum: ["columns", "rows"] }),
       ...optionProps,

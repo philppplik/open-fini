@@ -303,6 +303,7 @@ export function registerFileCommands(app) {
   // ---- help
   def("help.shortcuts", "Keyboard Shortcuts", (a) => a.emit("dialog", { id: "shortcuts" }), { shortcut: "Mod+/" });
   def("help.about", "About OpenFini", (a) => a.emit("dialog", { id: "about" }));
+  def("help.askOpenFini", "Ask about OpenFini…", async (a) => (await import("../vibe/quick-actions.js")).askAboutOpenFini(a));
   def("help.issues", "Report an Issue…", async (a) => (await import("../ui/diagnostics-dialog.js")).reportIssueDialog(a));
   def("help.docs", "Documentation", async (a) => (await import("../ui/links.js")).openLink("https://github.com/philppplik/open-fini#readme", { app: a }));
   // troubleshooting and security (docs/troubleshooting.md, docs/security.md)

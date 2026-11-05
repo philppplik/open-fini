@@ -18,7 +18,7 @@
 export const MAX_DEPTH = 2;
 const AGENT_TOOLS = ["spawn_agent", "wait_agent", "list_agents", "cancel_agent"];
 // children work autonomously: no questions to the user, no new persistent tools or memories, no skill creation
-const CHILD_EXCLUDED = new Set(["ask_user", "create_tool", "remember", "create_skill", "install_extension_from_url", "create_extension"]);
+const CHILD_EXCLUDED = new Set(["ask_user", "create_tool", "remember", "create_skill", "install_extension_from_url", "create_extension", "plan_work", "work_task"]);
 
 /** Named tool sets a parent can grant (combined with explicit tool names). */
 export const TOOLSETS = {
@@ -27,7 +27,14 @@ export const TOOLSETS = {
   web: ["list_files", "read_file", "write_file", "edit_file", "format_file", "rename_file", "get_page_outline", "select_element", "inspect_element", "list_elements", "insert_element", "insert_html", "set_element_style", "set_element_attributes", "set_page_meta", "show_page", "check_problems", "screenshot"],
   layout: ["add_page", "add_table", "edit_table", "read_table", "list_tables", "add_chart", "edit_chart", "read_chart", "add_text", "screenshot", "list_layers", "query_layers"],
   knowledge: ["search_knowledge", "use_skill"],
+  office: ["office_read_document", "office_find", "office_insert_blocks", "office_replace_text", "office_set_style", "office_apply_format", "office_insert_table", "office_set_page_setup", "office_export", "office_describe", "office_list_documents", "office_new"],
+  sheet: ["sheet_describe", "sheet_read_range", "sheet_write_range", "sheet_set_formula", "sheet_format", "sheet_add_sheet", "sheet_add_chart", "office_describe", "office_new"],
+  slides: ["slides_describe", "slides_add_slide", "slides_delete", "slides_set_text", "slides_add_shape", "slides_add_image", "slides_apply_layout", "slides_apply_theme", "slides_reorder", "slides_set_notes", "slides_set_transition", "office_new"],
+  board: ["board_describe", "board_add_shape", "board_add_sticky", "board_add_text", "board_add_connector", "board_update", "board_delete", "board_arrange", "board_page", "office_new"],
 };
+
+/** Studio guide (built-in skill `studio-guide-<studio>`) that matches a tool-set name. */
+export const TOOLSET_STUDIO = { design: "vector", pixel: "pixel", web: "code", layout: "layout", office: "document", sheet: "sheet", slides: "slides", board: "board" };
 
 /**
  * Resolves a tool-set spec to the parent's tool definitions.
@@ -78,7 +85,7 @@ export function collectArtifacts(calls) {
   return { layers: [...layers].slice(0, 100), files: [...files].slice(0, 100) };
 }
 
-function childSystem({ role, task, constraints, depth }) {
+function childSystem({ role, task, constraints, depth, guide }) {
   return [
     `You are a Vibe sub-agent with the role “${role}”, working inside OpenFini for a parent assistant (depth ${depth}). The parent delegated ONE focused task to you.`,
     "## Rules",
@@ -142,12 +149,23 @@ export class AgentManager {
     }
   }
 
+  /** Auto-loads the studio guide for the first studio tool set a plain spawn asked for (orchestrated tasks embed theirs). */
+  async #guide(a) {
+    if (!this.o.guideFor || a.taskId) return "";
+    const set = (a.spec || []).find((x) => TOOLSET_STUDIO[x]);
+    try {
+      return set ? String((await this.o.guideFor(TOOLSET_STUDIO[set])) || "").slice(0, 6000) : "";
+    } catch {
+      return "";
+    }
+  }
+
   #public(a) {
     return { id: a.id, role: a.role, task: a.task.slice(0, 160), status: a.status, steps: a.steps, tools: a.toolNames.length, depth: a.depth, parentToolId: a.parentToolId, ...(a.result ? { summary: a.result.summary.slice(0, 400) } : {}), ...(a.error ? { error: a.error } : {}) };
   }
 
   /** Starts (or queues) a child run. */
-  spawn({ role, task, tools, constraints, maxSteps } = {}, { parentToolId } = {}) {
+  spawn({ role, task, tools, constraints, maxSteps, taskId } = {}, { parentToolId } = {}) {
     if (this.depth + 1 > MAX_DEPTH) throw new Error(`Sub-agents cannot spawn more agents (maximum depth ${MAX_DEPTH}). Do the work yourself.`);
     if (!task || !String(task).trim()) throw new Error("spawn_agent needs a task: one focused, self-contained instruction.");
     if (this.o.signal?.aborted) throw new Error("The run was stopped.");
@@ -156,7 +174,7 @@ export class AgentManager {
     if (!childTools.length) throw new Error(`No tools match ${JSON.stringify(tools)}. Use tool set names (${Object.keys(TOOLSETS).join(", ")}, read-only) or tool names you have.`);
     const id = `${this.prefix}${++this.seq}`;
     const ctl = new AbortController();
-    const a = { id, role: String(role || "helper").slice(0, 40), task: String(task), constraints: constraints ? String(constraints) : "", status: "queued", steps: 0, usage: { input: 0, output: 0 }, toolNames: childTools.map((t) => t.name), tools: childTools, ctl, depth: this.depth + 1, parentToolId, calls: [], transcript: [], maxSteps: Math.max(1, Math.min(maxSteps || this.maxSteps, this.maxSteps)), started: 0, ended: 0 };
+    const a = { id, role: String(role || "helper").slice(0, 40), task: String(task), constraints: constraints ? String(constraints) : "", status: "queued", steps: 0, usage: { input: 0, output: 0 }, toolNames: childTools.map((t) => t.name), tools: childTools, spec: Array.isArray(tools) ? tools : [], ctl, depth: this.depth + 1, parentToolId, taskId: taskId || undefined, calls: [], transcript: [], maxSteps: Math.max(1, Math.min(maxSteps || this.maxSteps, this.maxSteps)), started: 0, ended: 0 };
     let resolveDone;
     a.done = new Promise((r) => (resolveDone = r));
     a.resolveDone = resolveDone;
@@ -185,12 +203,13 @@ export class AgentManager {
     const remaining = Math.max(1, this.budget.maxSteps - this.budget.steps);
     const tools = this.o.toolsFor ? this.o.toolsFor(a, a.tools) : a.tools;
     const pid = (x) => `${a.id}:${x}`;
+    const guide = await this.#guide(a);
     let res;
     try {
       res = await this.o.runAgent({
         provider: this.o.provider,
         model: this.o.model,
-        system: childSystem({ role: a.role, task: a.task, constraints: a.constraints, depth: a.depth }),
+        system: childSystem({ role: a.role, task: a.task, constraints: a.constraints, depth: a.depth, guide }),
         messages: [{ role: "user", content: a.task }],
         tools,
         maxSteps: Math.min(a.maxSteps, remaining),

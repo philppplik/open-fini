@@ -18,6 +18,7 @@ import { customToolDefs } from "./custom-tools.js";
 import { log } from "../core/log.js";
 import { undoRun, runSteps } from "./run-undo.js";
 import { AgentManager } from "./agents.js";
+import { Orchestrator } from "./orchestrator.js";
 import { agentTools } from "./tools/agents.js";
 import { officeSummary } from "../office/ai.js";
 import { createRunLog, recordRun } from "./ai-log.js";
@@ -142,7 +143,7 @@ export class VibeSession extends Emitter {
         if (!needLock) return t.run(input, c);
         const owner = c.owner || this.id;
         const release = await hub.lock.acquire(owner, { signal: c.signal, label: `${this.chat.title.slice(0, 30)} · ${t.name}` });
-        const tag = { chat: this.id, run: this.runId, ...(c.owner && c.owner !== this.id ? { agent: c.owner } : {}) };
+        const tag = { chat: this.id, run: this.runId, ...(c.owner && c.owner !== this.id ? { agent: c.owner } : {}), ...(c.agent?.taskId ? { task: c.agent.taskId } : {}) };
         let doc = null;
         let probe = null;
         try {
@@ -178,7 +179,7 @@ export class VibeSession extends Emitter {
     const app = this.app;
     const user = vibeStore.skills.filter((x) => x.enabled !== false).map((x) => (x.params ? x : { ...ai.parseSkill(ai.serializeSkill(x)), files: x.files, source: "user" }));
     const ext = ((await app.extensions?.vibeSkills().catch(() => [])) || []).map((x) => ({ ...x, source: "extension" }));
-    const builtin = ai.BUILTIN_SKILL_LIST.map((x) => ({ ...x, source: "builtin" }));
+    const builtin = [...ai.BUILTIN_SKILL_LIST, ...ai.PACK_SKILL_LIST].map((x) => ({ ...x, source: "builtin" }));
     const all = [...user, ...ext, ...builtin.filter((b) => !user.some((u) => u.name === b.name))];
     const studio = app.studio;
     return all.filter((x) => !x.studios?.length || x.studios.includes(studio) || studio === "vibe");
@@ -187,7 +188,8 @@ export class VibeSession extends Emitter {
   async #useSkill(name, args, file) {
     const ai = await this.hub.ai();
     const all = this.ctx.skills;
-    const s = all.find((x) => x.name === name || x.id === ai.slugify(name));
+    const found = all.find((x) => x.name === name || x.id === ai.slugify(name));
+    const s = found && (await ai.hydrateSkill(found));
     if (!s) throw new Error(`Unknown skill “${name}”. Available: ${all.map((x) => x.name).join(", ")}.`);
     if (file) {
       const text = s.files?.[file];
@@ -246,6 +248,11 @@ export class VibeSession extends Emitter {
       customTools: { save: async (t) => vibeStore.saveCustomTools([...vibeStore.customTools.filter((x) => x.name !== t.name), { ...t, enabled: true }]) },
       attachments: () => this.attachments,
       agents: () => this.agentMgr,
+      // one plan_work job per request; created on first use and bound to this run's AgentManager
+      orchestrator: (opts) => {
+        if (this.orch?.runId !== this.runId && opts) this.orch = Object.assign(new Orchestrator({ manager: this.agentMgr, guideFor: (st) => this.hub.ai().then((ai) => ai.studioGuide(st)), onPlan: (steps) => ctx.plan(steps), ...opts }), { runId: this.runId });
+        return this.orch?.runId === this.runId ? this.orch : null;
+      },
       lookup: (name) => raw.find((t) => t.name === name),
       toolNames: () => raw.map((t) => t.name),
       allowed: (name) => !this.restrict || this.restrict.has(name),
@@ -345,7 +352,7 @@ export class VibeSession extends Emitter {
       skills: this.ctx.skills,
       memory: vibeStore.memory.map((m) => m.text),
       mode: s.approval,
-      extra: s.extraInstructions,
+      extra: [s.extraInstructions, this.chat.primer].filter(Boolean).join("\n\n"),
       language: app.i18n?.locale(),
     });
 
@@ -398,6 +405,7 @@ export class VibeSession extends Emitter {
         settings: { maxConcurrent: s.maxAgents ?? 3, maxSteps: s.agentSteps ?? 12, budgetSteps: s.agentBudgetSteps ?? 80, budgetTokens: s.agentBudgetTokens ?? 400000 },
         onEvent: emitEvent,
         approve,
+        guideFor: (st) => ai.studioGuide(st),
         toolsFor: (agent, childTools) => {
           // nested agents get their own manager bound to the child's tools (depth limit is enforced by resolveToolset)
           if (!childTools.some((t) => t.name === "spawn_agent")) return childTools;

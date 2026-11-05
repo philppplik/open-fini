@@ -2,6 +2,7 @@
 // Pure: no DOM, no storage.
 
 import { BUILTIN_SKILLS } from "./skills-builtin.js";
+import { PACK_SKILLS, GUIDE_FOR_STUDIO, loadPack } from "./packs/index.js";
 
 export { BUILTIN_SKILLS };
 
@@ -338,16 +339,46 @@ export function serializeSkill(skill) {
  */
 export function skillsCatalog(skills) {
   if (!skills || !skills.length) return "";
-  const lines = skills.map((s) => {
+  // lazy pack skills (studio guides, OpenFini knowledge) get one compact line per pack
+  const packs = skills.filter((s) => s.pack);
+  const packLines = [];
+  if (packs.some((s) => s.pack === "guides")) packLines.push(`- Studio guides (load the one for a studio before your first edits there): ${packs.filter((s) => s.pack === "guides").map((s) => s.name).join(", ")}`);
+  if (packs.some((s) => s.pack === "knowledge")) packLines.push(`- OpenFini knowledge (questions about the app itself: features, formats, shortcuts, settings, privacy, help): ${packs.filter((s) => s.pack === "knowledge").map((s) => s.name).join(", ")}`);
+  const lines = skills.filter((s) => !s.pack).map((s) => {
     const d = (s.description || "").replace(/\s+/g, " ").trim();
     const args = (s.params || []).length ? ` [args: ${s.params.map((p) => p.name + (p.required ? "" : "?")).join(", ")}]` : "";
     return `- ${s.id || slugify(s.name)}: ${d.length > 220 ? d.slice(0, 217) + "..." : d}${args}`;
   });
-  return `Available skills (call use_skill with the skill name, and args when listed, to load its full instructions before you start a matching task):\n${lines.join("\n")}`;
+  return `Available skills (call use_skill with the skill name, and args when listed, to load its full instructions before you start a matching task):\n${[...lines, ...packLines].join("\n")}`;
 }
 
 /** The built-in skills, parsed. @type {Skill[]} */
 export const BUILTIN_SKILL_LIST = BUILTIN_SKILLS.map(parseSkill);
+
+/** Catalog stubs of the lazy pack skills (body is empty until hydrateSkill). @type {Skill[]} */
+export const PACK_SKILL_LIST = PACK_SKILLS.map(({ name, pack, description }) => ({ ...parseSkill(`---
+name: ${name}
+description: ${description}
+tags: [${pack}]
+---
+`), pack }));
+
+const packCache = new Map();
+/** Returns the skill with its body (loads its pack on first use); other skills are returned unchanged. */
+export async function hydrateSkill(skill) {
+  if (!skill?.pack || skill.body) return skill;
+  if (!packCache.has(skill.pack)) packCache.set(skill.pack, loadPack(skill.pack).then((list) => new Map(list.map(parseSkill).map((s) => [s.name, s]))));
+  const full = (await packCache.get(skill.pack)).get(skill.name);
+  if (!full) throw new Error(`Skill “${skill.name}” is missing from its pack.`);
+  return { ...full, pack: skill.pack, source: skill.source };
+}
+
+/** Body of the studio guide for a studio id (vector, pixel, layout, code, document, sheet, slides, board, vibe), or "". */
+export async function studioGuide(studio) {
+  const name = GUIDE_FOR_STUDIO[studio];
+  const stub = name && PACK_SKILL_LIST.find((s) => s.name === name);
+  return stub ? (await hydrateSkill(stub)).body : "";
+}
 
 // ------------------------------------------------------------------ system prompt
 

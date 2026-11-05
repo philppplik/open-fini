@@ -120,6 +120,26 @@ function planForPromptBase(prompt, ctx) {
       { text: "Let me check the combined result.", calls: [{ name: "screenshot", input: {} }] },
     ];
   }
+  // orchestration: "plan the work across studios" / "orchestrate"
+  if (/\bplan[_ ]work\b|\borchestrat|\bmulti[- ]studio\b/.test(p)) {
+    return [
+      { text: "I will set up a canvas and plan the job as tasks.", calls: [{ name: "new_document", input: { name: "Launch kit", width: 1200, height: 800 } }] },
+      {
+        text: "Planning and running the tasks.",
+        calls: [{
+          name: "plan_work",
+          input: {
+            goal: "A small launch kit: a logo mark and a headline.",
+            tasks: [
+              { id: "logo", title: "Logo mark", studio: "vector", targets: ["Logo"], acceptance: ["An orange circle exists"], instructions: "Draw an orange circle as the brand mark." },
+              { id: "headline", title: "Headline", studio: "vector", targets: ["Headline"], dependsOn: ["logo"], acceptance: ["The headline text exists"], instructions: 'Add a headline text "Launch".' },
+            ],
+          },
+        }],
+      },
+      { text: "Checking the result.", calls: [{ name: "work_task", input: { action: "status" } }] },
+    ];
+  }
   // power tools: "run a batch plan" / "query the rectangles and recolor them"
   if (/\bbatch\b|\brun_plan\b|\brun a plan\b/.test(p)) {
     return [

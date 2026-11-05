@@ -45,6 +45,8 @@
     "relay": "node scripts/relay.mjs",
     "wiki:shortcuts": "node scripts/wiki-shortcuts.mjs",
     "wiki:check": "node scripts/wiki-sync.mjs --check",
+    "knowledge:packs": "node scripts/knowledge-packs.mjs",
+    "knowledge:check": "node scripts/knowledge-packs.mjs --check",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"

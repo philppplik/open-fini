@@ -46,7 +46,7 @@ export function vibeStudio(app) {
   vs.allSkills = async () => {
     const ai = await hub.ai();
     const user = vibeStore.skills.filter((x) => x.enabled !== false).map((x) => ({ ...ai.parseSkill(ai.serializeSkill(x)), files: x.files, source: "user" }));
-    return [...user, ...ai.BUILTIN_SKILL_LIST.map((x) => ({ ...x, source: "builtin" })).filter((b) => !user.some((u) => u.name === b.name))];
+    return [...user, ...[...ai.BUILTIN_SKILL_LIST, ...ai.PACK_SKILL_LIST].map((x) => ({ ...x, source: "builtin" })).filter((b) => !user.some((u) => u.name === b.name))];
   };
   vs.changes = getChangeRecorder(app, hub);
   vs.openTab = (id) => {
