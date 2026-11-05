@@ -126,7 +126,7 @@ office_insert_blocks (markdown is the cheapest way to add structured text) -> of
 ## Verify
 office_read_document (outline and styles) and office_find for placeholders such as [Name] that are still left.`,
 
-  `${fm("sheet", "How to work with spreadsheets: ranges, formulas, formats, charts and checking computed values.", "office_describe, office_new, sheet_describe, sheet_read_range, sheet_write_range, sheet_set_formula, sheet_format, sheet_add_sheet, sheet_add_chart", "spreadsheet, sheet, excel, xlsx, formula, budget, table data")}
+  `${fm("sheet", "How to work with spreadsheets: ranges, formulas, formats, charts and checking computed values.", "office_describe, office_new, sheet_describe, sheet_read_range, sheet_write_range, sheet_set_formula, sheet_format, sheet_add_sheet, sheet_add_chart, sheet_format_table, sheet_define_name, sheet_set_validation, sheet_group, sheet_page_setup, sheet_pivot, sheet_add_sparkline, sheet_chart_data", "spreadsheet, sheet, excel, xlsx, formula, budget, table data, pivot, validation, dropdown, named range, sparkline, filter, unique")}
 # Spreadsheet guide
 
 ## Start
@@ -134,16 +134,18 @@ office_read_document (outline and styles) and office_find for placeholders such 
 
 ## Tool order
 sheet_write_range (values entered like typed input; a 2D array from the start cell) -> sheet_set_formula (with fillTo for columns) -> sheet_format (number formats, widths, borders) -> sheet_add_chart (first row series names, first column categories).
+Depth: sheet_format_table (header, bands, total row) -> sheet_define_name for inputs used in many formulas -> sheet_set_validation for drop-downs -> sheet_pivot for summaries -> sheet_add_sparkline for trends -> sheet_page_setup before PDF export. sheet_chart_data hands a range to slides or documents.
 
 ## Behavior
 - A1 references; English function names with commas (=SUM(B2:B10)); dates as 2026-10-28. sheet_set_formula returns the computed value.
 - sheet_read_range returns computed values (max 5000 cells); ask for formulas when you need them.
+- FILTER, SORT, SORTBY, UNIQUE, SEQUENCE and TRANSPOSE spill into the empty cells below and right; a filled cell in the way gives #SPILL!.
 
 ## Pitfalls
 - Writing numbers as text ("1,200"), hard-coded totals instead of formulas, off-by-one ranges that skip the last row.
 
 ## Verify
-sheet_read_range on totals and a few formula cells; look for #REF!, #DIV/0! and #NAME? values.`,
+sheet_read_range on totals and a few formula cells; look for #REF!, #DIV/0!, #NAME? and #SPILL! values.`,
 
   `${fm("slides", "How to work with presentations: layouts, placeholders, themes, notes and checking each slide.", "office_describe, office_new, slides_describe, slides_add_slide, slides_set_text, slides_add_shape, slides_add_image, slides_apply_layout, slides_apply_theme, slides_set_notes, slides_reorder", "presentation, slides, deck, pptx, pitch")}
 # Presentation guide

@@ -17,6 +17,7 @@ export function registerSheetCommands(app) {
   def("sheet.copy", "Copy", (x) => x.copy(false), { icon: "files" });
   def("sheet.paste", "Paste", (x) => x.paste(false), { icon: "clipboard" });
   def("sheet.pasteValues", "Paste Values Only", (x) => x.paste(true));
+  def("sheet.pasteSpecial", "Paste Special…", (x) => x.pasteSpecialDialog());
   def("sheet.clear", "Clear Contents", (x) => x.clear(false), { icon: "eraser" });
   def("sheet.clearAll", "Clear All", (x) => x.clear(true));
   def("sheet.clearFormats", "Clear Formats", (x) => x.clearFormats());
@@ -63,6 +64,19 @@ export function registerSheetCommands(app) {
   def("sheet.freezeRow", "Freeze Top Row", (x) => x.freeze("row"));
   def("sheet.freezeCol", "Freeze First Column", (x) => x.freeze("col"));
   def("sheet.unfreeze", "Unfreeze Panes", (x) => x.freeze("none"));
+  def("sheet.formatTable", "Format as Table…", (x) => x.tableDialog(), { icon: "table" });
+  def("sheet.validation", "Data Validation…", (x) => x.validationDialog(), { icon: "ui-checks" });
+  def("sheet.names", "Named Ranges…", (x) => x.namesDialog(), { icon: "bookmark" });
+  def("sheet.pivot", "Pivot Table…", (x) => x.pivotDialog(), { icon: "diagram-3" });
+  def("sheet.sparkline", "Sparkline…", (x) => x.sparklineDialog(), { icon: "graph-up" });
+  def("sheet.groupRows", "Group Rows", (x) => x.groupSelection("row", true), { shortcut: "Alt+Shift+Right" });
+  def("sheet.ungroupRows", "Ungroup Rows", (x) => x.groupSelection("row", false), { shortcut: "Alt+Shift+Left" });
+  def("sheet.groupCols", "Group Columns", (x) => x.groupSelection("col", true));
+  def("sheet.ungroupCols", "Ungroup Columns", (x) => x.groupSelection("col", false));
+  def("sheet.collapseGroup", "Collapse Group", (x) => x.collapseGroups(true));
+  def("sheet.expandGroups", "Expand All Groups", (x) => x.collapseGroups(false, true));
+  def("sheet.pageSetup", "Page Setup…", (x) => x.pageSetupDialog(), { icon: "file-earmark-ruled" });
+  def("sheet.print", "Print…", (x) => x.printSheet(), { icon: "printer" });
   def("sheet.zoomIn", "Zoom In", (x) => x.setZoom(x.zoom * 1.25));
   def("sheet.zoomOut", "Zoom Out", (x) => x.setZoom(x.zoom / 1.25));
   def("sheet.zoom100", "Actual Size", (x) => x.setZoom(1));
@@ -81,7 +95,7 @@ export function registerSheetCommands(app) {
     items: (ctx) =>
       ctx.data?.tab
         ? ["sheet.addSheet", "sheet.renameSheet", "sheet.duplicateSheet", "sheet.deleteSheet"]
-        : ["sheet.cut", "sheet.copy", "sheet.paste", "sheet.pasteValues", "-", "sheet.insertRowAbove", "sheet.insertColLeft", "sheet.deleteRows", "sheet.deleteCols", "-", "sheet.clear", "sheet.clearFormats", "-", "sheet.sortAsc", "sheet.sortDesc", "sheet.filter", "-", "sheet.merge", "sheet.numberFormat", "sheet.conditional", "sheet.insertChart"],
+        : ["sheet.cut", "sheet.copy", "sheet.paste", "sheet.pasteValues", "sheet.pasteSpecial", "-", "sheet.insertRowAbove", "sheet.insertColLeft", "sheet.deleteRows", "sheet.deleteCols", "-", "sheet.clear", "sheet.clearFormats", "-", "sheet.sortAsc", "sheet.sortDesc", "sheet.filter", "-", "sheet.merge", "sheet.numberFormat", "sheet.conditional", "sheet.validation", "sheet.insertChart"],
   });
   app.emit("commands");
 }

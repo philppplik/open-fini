@@ -40,7 +40,8 @@ is registered when the Office suite loads, the implementation when the first spr
 
 Syntax as in Excel / LibreOffice with English function names and commas: `=SUM(B2:B10)`, `=Sheet2!A1*2`,
 `='My data'!B:B`, `=$A$1`, operators `+ - * / ^ & = <> < > <= >= %`. Errors: `#DIV/0!`, `#N/A`, `#NAME?`, `#NUM!`,
-`#REF!`, `#VALUE!`, `#NULL!`, `#ERROR!` (syntax) and `#CYCLE!` (circular reference).
+`#REF!`, `#VALUE!`, `#NULL!`, `#ERROR!` (syntax), `#CYCLE!` (circular reference) and `#SPILL!` (an array result is
+blocked). Defined names work like references: `=SUM(Sales)*TaxRate`.
 
 Functions (about 150): math and statistics (SUM, AVERAGE, MIN, MAX, COUNT, COUNTA, COUNTBLANK, PRODUCT, MEDIAN, MODE,
 STDEV(.S/.P), VAR(.S/.P), LARGE, SMALL, RANK, ROUND/ROUNDUP/ROUNDDOWN, TRUNC, INT, ABS, SIGN, SQRT, POWER, EXP, LN,
@@ -50,13 +51,61 @@ SWITCH, CHOOSE, AND, OR, XOR, NOT), information (IS* functions, NA, N), lookup (
 LOOKUP, INDEX, MATCH, ROW(S), COLUMN(S)), text (LEN, LEFT, RIGHT, MID, UPPER, LOWER, PROPER, TRIM, CLEAN, CONCAT,
 CONCATENATE, TEXTJOIN, REPT, SUBSTITUTE, REPLACE, FIND, SEARCH, EXACT, VALUE, TEXT, FIXED, CHAR, CODE, T), date and time
 (TODAY, NOW, DATE, TIME, YEAR … SECOND, WEEKDAY, EDATE, EOMONTH, DAYS, DATEDIF, NETWORKDAYS, DATEVALUE; dates are serial
-days of the 1900 system) and finance (PMT, FV, PV). The list is `FUNCTION_NAMES` in `office/sheet/functions.js`.
+days of the 1900 system), finance (PMT, FV, PV), SUBTOTAL (1–11 and 101–111) and the dynamic arrays below. The list is `FUNCTION_NAMES` in `office/sheet/functions.js`.
 
 The engine (`office/sheet/formula.js`) parses to an AST (no `eval`), keeps a dependency index (single cells and ranges,
 formula cells per column for range lookups) and recalculates only what changed and what depends on it. Dependencies
 are evaluated in an explicit post-order, so long chains do not overflow the stack; cycles become `#CYCLE!`. Volatile
 functions (TODAY, NOW, RAND) recalculate on every change. References are rewritten for fill / paste (`shiftFormula`),
 row / column insertion and deletion (`adjustFormula`) and sheet renames.
+
+### Dynamic arrays
+
+FILTER(array, include, [if_empty]), SORT(array, [index], [order], [by_col]), SORTBY(array, by1, [order1], …),
+UNIQUE(array, [by_col], [exactly_once]), SEQUENCE(rows, [cols], [start], [step]) and TRANSPOSE(array) return arrays, and
+operators over ranges work element by element (`=B2:B9*2`, `=FILTER(A2:C9,C2:C9>100)`). A formula whose result is an
+array spills it from its cell into the empty cells below and to the right; the spilled values live only in the engine
+(they are not stored in the cells), other formulas and the grid read them like normal values, and `SUM(FILTER(…))`
+works inside a single cell too. When a spill area holds a value or another spill, the anchor shows `#SPILL!` until the
+area is free again. Editing a cell below or right of an anchor recomputes the sheet's spilling formulas and everything
+that reads that area. Arrays are capped at 100 000 cells.
+
+### Defined names
+
+*Data ▸ Named Ranges…* (Vibe `sheet_define_name`) stores names in `Workbook.names` (`{ "TaxRate": "Sheet1!$B$1" }`):
+a reference with a sheet name, a range or a constant. Names are case-insensitive, start with a letter or `_`, use
+letters, digits, `_` and `.`, and must not look like a cell (`TAX1`). Inserting or deleting rows and columns rewrites
+them like formulas; an unknown name is `#NAME?`.
+
+## Tables, validation and data tools
+
+All of these live in `office/sheet/depth.js` (pure model operations, tested in `tests/office/sheet-depth.test.js`)
+with their dialogs in `depth-dialogs.js` (loaded on first use).
+
+* **Format as table** (*Format ▸ Format as Table…*, `sheet_format_table`): header style, banded rows and an optional
+  total row with `SUBTOTAL(109, …)` under numeric columns; five styles (blue, green, orange, gray, light). The table
+  style sits under the cell styles, so own fills and borders win. Running it on a table cell edits or removes the table.
+* **Data validation** (*Data ▸ Data Validation…*, `sheet_set_validation`): drop-down lists (items or a source range,
+  Alt+Down or the arrow button on the selected cell opens the list), number, whole-number and text-length limits, an
+  optional message and *Allow blank cells*. Typed input that breaks the rule is rejected with a warning and stays in the
+  editor; formulas are always accepted, and values written by paste or tools are not checked.
+* **Paste special** (*Edit ▸ Paste Special…*, `sheet_paste_special`): all, values (computed results), formulas or
+  formats; add, subtract, multiply or divide into the target numbers; skip blanks; transpose. It works with cells
+  copied in OpenFini (the system clipboard carries only text).
+* **Group rows and columns** (*Data ▸ Group Rows / Group Columns / Ungroup / Collapse Group / Expand All Groups*,
+  Alt+Shift+Right and Alt+Shift+Left, `sheet_group`): collapsed groups hide their rows or columns in the grid, in PDF
+  output and in copies. There is no outline gutter with +/- buttons yet; use the commands.
+* **Page setup and print** (*Sheet ▸ Page Setup… / Print…*, `sheet_page_setup`): portrait or landscape, A4 or Letter,
+  narrow / normal / wide margins, print area, gridlines and *Fit to one page* (one page sized to the print area). PDF
+  export uses each sheet's setup; Print renders the pages to images in a hidden frame and opens the system dialog.
+* **Pivot table** (*Insert ▸ Pivot Table…*, `sheet_pivot`): rows field, optional columns field and a values field
+  summarized by sum, count, average, min or max, with totals, written to a new sheet (or a cell). It is a snapshot:
+  run it again after the data changes.
+* **Sparklines** (*Insert ▸ Sparkline…*, `sheet_add_sparkline`): a line or column chart of a range inside one cell,
+  drawn in the grid and in PDF / PNG output.
+* **Chart data for other apps** (`sheetChartData` in `depth.js`, Vibe `sheet_chart_data`): the computed values of a
+  range as `{ source, categories, series: [{ name, values }] }` (header row = series names, first column = categories,
+  `seriesIn: "rows"` swaps them), so presentations and documents can chart or tabulate sheet numbers without retyping.
 
 ## Model
 
@@ -66,8 +115,13 @@ Plain JSON, immutable values (see the header of `office/sheet/model.js`):
 { version: 1, active: "s1", meta: { title }, media: {},
   sheets: [{ id, name, pos, cells: { "B3": { v?, f?, s? } }, cols: { "1": 140 }, rows: { "0": 30 },
              merges: ["A1:C1"], freeze: { r, c } | null, filter: { range, hide: { "<col>": [texts] } } | null,
-             cf: [{ id, range, type, a?, b?, style?, colors? }], charts: [{ id, type, range, title, r, c, w, h, seriesIn? }] }] }
+             cf: [{ id, range, type, a?, b?, style?, colors? }], charts: [{ id, type, range, title, r, c, w, h, seriesIn? }],
+             tables?, validation?, groups?, page?, sparks? }],
+  names?: { "<Name>": "Sheet1!$A$1:$A$9" } }
 ```
+
+The optional depth fields are documented in the header of `office/sheet/depth.js`; `shiftAxis` keeps their ranges in
+step with inserted and deleted rows and columns.
 
 A cell's `v` is a number, string or boolean, `f` a formula without `=`, `s` a style `{ b, i, u, st, color, fill, ha,
 va, wrap, nf, font, size, bd: { t, r, b, l } }`. Number formats are always format codes (`nf`); the toolkit presets
@@ -100,11 +154,12 @@ repeated ODS rows and columns are not expanded, at most 2,000,000 cells per rang
 | Cell look, chart data, export display lists | `render.js` |
 | Grid UI (canvas, virtual axes from `toolkit/virtual.js`, frozen panes, editor, fill handle, charts) | `view.js` |
 | Dialogs (function, chart, conditional formatting, filter, find / replace, number format) | `dialogs.js` |
+| Tables, names, validation, paste special, groups, page setup, pivot, sparklines, chart data | `depth.js`, dialogs in `depth-dialogs.js` |
 | Commands and the context menu (registered when the app loads) | `app/src/commands/office-sheet.js` |
 | Menus (`officeKinds: ["sheet"]`) | `app/src/studios/office.js` |
 | Styles (loaded on demand) | `app/styles/office-sheet.css` |
-| Vibe tools | `app/src/vibe/tools/office-sheet.js` (group *Spreadsheets*) |
-| Tests | `tests/office/sheet-formula.test.js`, `tests/office/sheet-codecs.test.js` |
+| Vibe tools | `app/src/vibe/tools/office-sheet.js`, `office-sheet-depth.js` (group *Spreadsheets*) |
+| Tests | `tests/office/sheet-formula.test.js`, `tests/office/sheet-codecs.test.js`, `tests/office/sheet-depth.test.js` |
 
 The grid draws into one canvas: four quadrants (frozen rows × frozen columns), only the visible rows and columns, so a
 sheet of a million rows costs the same as a small one. A transparent scroller on top provides native scrolling and
@@ -114,18 +169,22 @@ focus; the screen reader gets the active cell and its value through a live regio
 
 `sheet_describe`, `sheet_read_range` (computed values, optional formulas and formats, 5000 cells per call),
 `sheet_write_range` (typed input, `=` formulas), `sheet_set_formula` (with `fillTo`), `sheet_format`, `sheet_add_sheet`,
-`sheet_add_chart`, `sheet_add_rule` (data bars, color scale, comparisons). Cross-app: `office_tables_to_sheet` and
+`sheet_add_chart`, `sheet_add_rule` (data bars, color scale, comparisons), `sheet_format_table`, `sheet_define_name`,
+`sheet_set_validation`, `sheet_paste_special`, `sheet_group`, `sheet_page_setup`, `sheet_pivot`, `sheet_add_sparkline`
+and `sheet_chart_data` (read-only, works on any open spreadsheet). The skill `analyze-sheet-data` combines them. Cross-app: `office_tables_to_sheet` and
 `office_sheet_to_document` ([vibe-studio.md](vibe-studio.md#office-semantic-and-cross-app-tools)). Each edit is one undo step labelled "Vibe: …". `office_describe` uses the app's `aiAdapter.describe`;
 `office_new` creates spreadsheets from the templates; `office_export` writes every format above.
 
 ## Collaboration
 
 `collabAdapter.records` flattens the workbook into `cell:<sheet id>!A1` records (one per cell) and `sheet:<id>`
-records (name, position, sizes, merges, freeze, filter, rules, charts); `meta:title` is shared, the active sheet is
-not. Concurrent edits of different cells merge; the same cell goes to the later writer.
+records (name, position, sizes, merges, freeze, filter, rules, charts, tables, validation, groups, page setup,
+sparklines); `meta:title` and `meta:names` (defined names) are shared, the active sheet is not. Concurrent edits of different cells merge; the same cell goes to the later writer.
 
 ## Known limits
 
-Named ranges, array formulas / dynamic arrays (spilling), INDIRECT / OFFSET, data validation, pictures, cell comments
-from files, pivot tables, rich text inside a cell, more than one selection range, charts and conditional formats in
+Tables, defined names, validation, groups, page setup and sparklines are not read from or written to XLSX / ODS files
+yet, and spilling formulas are written as plain formulas (Excel may show them with an implicit `@`); spill references
+(`A1#`), LET / LAMBDA, INDIRECT / OFFSET, refreshable pivot tables, an outline gutter for groups, pictures, cell
+comments from files, rich text inside a cell, more than one selection range, charts and conditional formats in
 ODS output, legacy `.xls`. The display locale of numbers and dates is US English (formulas use English names and commas).

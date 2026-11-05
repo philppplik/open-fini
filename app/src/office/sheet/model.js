@@ -12,6 +12,8 @@
 //             code, font, size (pt), bd: { t, r, b, l } colors }
 // CfRule    { id, range, type: gt|lt|ge|le|eq|ne|between|contains|blank|notBlank|scale, a?, b?, style?, colors? }
 // Chart     { id, type: column|bar|line|pie|area|donut|…, range, title, r, c (anchor cell), w, h, seriesIn? }
+// Depth features (optional fields: Workbook.names, Sheet.tables, validation, groups, page, sparks) are described and
+// edited in depth.js; shiftAxis below keeps their ranges in step with inserted and deleted rows and columns.
 // Public API: see the exports below (each documented). Invariants: sheet names are unique (case-insensitive) and
 // 1–31 characters without []:*?/\ ; cell keys are A1 refs inside 1048576 x 16384; formulas never start with "=".
 import { colName, parseRange, formatRange, normRange } from "../toolkit/selection.js";
@@ -380,8 +382,25 @@ export function shiftAxis(m, sid, axis, at, n) {
       return { ...ch, range, [a]: ch[a] >= at ? Math.max(at, ch[a] + n) : ch[a] };
     });
     const filter = s.filter ? (adjustRange(s.filter.range, own) ? { ...s.filter, range: adjustRange(s.filter.range, own) } : null) : null;
+    const ranged = (key) => (Array.isArray(s[key]) ? { [key]: s[key].map((x) => ({ ...x, range: adjustRange(x.range, own) })).filter((x) => x.range) } : {});
+    const sparks = Array.isArray(s.sparks)
+      ? {
+          sparks: s.sparks
+            .map((x) => {
+              const cell = adjustRange(x.cell, own);
+              const src = x.range.includes("!") ? adjustFormula(x.range, own) : adjustRange(x.range, own);
+              return cell && src && !src.includes("#REF!") ? { ...x, cell, range: src } : null;
+            })
+            .filter(Boolean),
+        }
+      : {};
     return {
       ...s,
+      ...ranged("tables"),
+      ...ranged("validation"),
+      ...sparks,
+      ...(s.groups ? { groups: shiftGroups(s.groups, axis, at, n) } : {}),
+      ...(s.page?.printArea ? { page: { ...s.page, printArea: adjustRange(s.page.printArea, own) || undefined } } : {}),
       cells,
       rows: axis === "row" ? sizes(s.rows) : s.rows,
       cols: axis === "col" ? sizes(s.cols) : s.cols,
@@ -392,7 +411,25 @@ export function shiftAxis(m, sid, axis, at, n) {
       freeze: freeze && (freeze.r || freeze.c) ? freeze : null,
     };
   });
-  return { ...m, sheets };
+  const names = m.names && Object.keys(m.names).length ? { names: Object.fromEntries(Object.entries(m.names).map(([k, v]) => [k, adjustFormula(v, { ...opts, ownSheet: "" })])) } : {};
+  return { ...m, sheets, ...names };
+}
+
+/** Shifts group indexes for inserted (n > 0) or deleted (n < 0) rows/columns. */
+export function shiftGroups(groups, axis, at, n) {
+  if (!groups?.[axis]?.length) return groups;
+  const map = (i) => (i < at ? i : n < 0 && i < at - n ? null : i + n);
+  const list = groups[axis]
+    .map((x) => {
+      let a = map(x.from);
+      let b = map(x.to);
+      if (a === null && b === null) return null;
+      if (a === null) a = at;
+      if (b === null) b = at - 1;
+      return b < a ? null : { ...x, from: a, to: b };
+    })
+    .filter(Boolean);
+  return { ...groups, [axis]: list };
 }
 
 export function setSize(m, sid, axis, indexes, px) {
@@ -645,6 +682,7 @@ export function toRecords(m) {
     for (const [k, c] of Object.entries(cells)) out[`cell:${id}!${k}`] = c;
   }
   if (m.meta?.title) out["meta:title"] = m.meta.title;
+  if (m.names && Object.keys(m.names).length) out["meta:names"] = m.names;
   return out;
 }
 
@@ -652,6 +690,7 @@ export function applyRecords(m, changes) {
   const sheets = new Map(m.sheets.map((s) => [s.id, s]));
   const cellChanges = new Map();
   let meta = m.meta;
+  let names = m.names;
   for (const [key, val] of Object.entries(changes)) {
     if (key.startsWith("sheet:")) {
       const id = key.slice(6);
@@ -663,6 +702,7 @@ export function applyRecords(m, changes) {
       if (!cellChanges.has(sid)) cellChanges.set(sid, {});
       cellChanges.get(sid)[key.slice(i + 1)] = val;
     } else if (key === "meta:title") meta = { ...meta, title: val || "" };
+    else if (key === "meta:names") names = val && typeof val === "object" ? val : {};
   }
   for (const [sid, ch] of cellChanges) {
     const s = sheets.get(sid);
@@ -673,7 +713,7 @@ export function applyRecords(m, changes) {
   }
   const list = [...sheets.values()].sort((a, b) => a.pos - b.pos || (a.id < b.id ? -1 : 1));
   if (!list.length) return m;
-  return { ...m, meta, sheets: list, active: sheets.has(m.active) ? m.active : list[0].id };
+  return { ...m, meta, ...(names ? { names } : {}), sheets: list, active: sheets.has(m.active) ? m.active : list[0].id };
 }
 
 // ------------------------------------------------------------------------------------------------------ describe
@@ -704,8 +744,14 @@ export function describeWorkbook(m, valueOf = null) {
         ...(s.freeze ? { freeze: `${s.freeze.r} rows, ${s.freeze.c} cols` } : {}),
         ...(s.filter ? { filter: s.filter.range } : {}),
         ...(s.merges.length ? { merges: s.merges.length } : {}),
+        ...(s.tables?.length ? { tables: s.tables.map((t) => `${t.range} (${t.style})`) } : {}),
+        ...(s.validation?.length ? { validation: s.validation.map((v) => `${v.range} ${v.type}`) } : {}),
+        ...(s.sparks?.length ? { sparklines: s.sparks.length } : {}),
+        ...(s.groups?.row?.length || s.groups?.col?.length ? { groups: `${s.groups.row?.length || 0} row, ${s.groups.col?.length || 0} column` } : {}),
+        ...(s.page ? { page: `${s.page.orientation} ${s.page.paper}${s.page.printArea ? `, print area ${s.page.printArea}` : ""}` } : {}),
       };
     }),
+    ...(m.names && Object.keys(m.names).length ? { names: m.names } : {}),
   };
 }
 

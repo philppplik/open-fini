@@ -14,6 +14,7 @@ import { roundRectPath } from "../../engine/layout/chart-geometry.js";
 import { rcKey, isErr, toText } from "./formula.js";
 import { formatCode } from "./numfmt-code.js";
 import { cfStyle, usedRange, mergeAt, sheetByName, DEFAULT_COL, DEFAULT_ROW } from "./model.js";
+import { tableLook, sparklineAt, sparkValues, sparkPoints, collapsedIndexes } from "./depth.js";
 
 export const FONT = "Calibri, Carlito, 'Segoe UI', Arial, sans-serif";
 
@@ -41,8 +42,13 @@ export function cfStatsFor(sheet, calc) {
 /** Everything the grid and the exports need to draw one cell. */
 export function cellLook(sheet, calc, r, c, stats = null) {
   const cell = sheet.cells[rcKey(r, c)];
-  const value = cell ? (cell.f !== undefined ? calc.get(sheet.id, r, c) : (cell.v ?? null)) : null;
+  // spilled array results live in the engine, not in the cells, so empty cells ask it too
+  const value = cell && cell.f === undefined && cell.v !== undefined ? cell.v : calc.get(sheet.id, r, c);
   let style = cell?.s || null;
+  if (sheet.tables?.length) {
+    const tl = tableLook(sheet, r, c);
+    if (tl) style = { ...tl, ...(style || {}), ...(tl.bd || style?.bd ? { bd: { ...(tl.bd || {}), ...(style?.bd || {}) } } : {}) };
+  }
   if (sheet.cf.length) {
     const extra = cfStyle(sheet.cf, r, c, value, stats || cfStatsFor(sheet, calc));
     if (extra) style = { ...(style || {}), ...extra };
@@ -94,6 +100,24 @@ export function chartItems(model, sheet, chart, calc, measurer, x, y) {
 const solid = (color) => ({ type: "solid", color, alpha: 1 });
 const rect = (x, y, w, h, color) => ({ t: "path", d: roundRectPath(x, y, w, h, 0), rule: "nonzero", fill: solid(color), stroke: null, m: [1, 0, 0, 1, 0, 0] });
 
+/** Display items of a sparkline in a box (line or columns). */
+export function sparkItems(model, sheet, calc, sp, box) {
+  const vals = sparkValues(model, sheet, sp, (sid, r, c) => calc.get(sid, r, c));
+  if (!vals.length) return [];
+  const inner = { x: box.x + 3, y: box.y + 3, w: Math.max(1, box.w - 6), h: Math.max(1, box.h - 6) };
+  if (sp.type === "column") {
+    const lo = Math.min(0, ...vals);
+    const hi = Math.max(0, ...vals);
+    const span = hi - lo || 1;
+    const bw = inner.w / vals.length;
+    const zero = inner.y + (hi / span) * inner.h;
+    return vals.map((v, i) => rect(inner.x + i * bw + bw * 0.15, v >= 0 ? zero - (v / span) * inner.h : zero, bw * 0.7, Math.max(0.5, (Math.abs(v) / span) * inner.h), v < 0 ? "#c00000" : sp.color));
+  }
+  const pts = sparkPoints(vals, inner);
+  const d = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(2)} ${y.toFixed(2)}`).join(" ");
+  return [{ t: "path", d, rule: "nonzero", fill: null, stroke: { paint: solid(sp.color), width: 1.25, cap: "round", join: "round", miterLimit: 4, dash: null, dashOffset: 0 }, m: [1, 0, 0, 1, 0, 0] }];
+}
+
 /**
  * Pages of a range as display lists (A4 portrait at 96 dpi by default). Columns that do not fit move to further
  * pages (rows first, then columns, like spreadsheet print order). `single` renders the whole range on one page (PNG).
@@ -115,8 +139,10 @@ export function sheetPages(model, sid, calc, { measurer, range = null, page = { 
   }
   if (!g) return [{ width: page.w, height: page.h, items: [] }];
   g = { r0: 0, c0: 0, ...g, r0: range ? g.r0 : 0, c0: range ? g.c0 : 0 };
-  const colW = (c) => sheet.cols[c] ?? DEFAULT_COL;
-  const rowH = (r) => sheet.rows[r] ?? DEFAULT_ROW;
+  const hideR = collapsedIndexes(sheet, "row");
+  const hideC = collapsedIndexes(sheet, "col");
+  const colW = (c) => (hideC.has(c) ? 0 : sheet.cols[c] ?? DEFAULT_COL);
+  const rowH = (r) => (hideR.has(r) ? 0 : sheet.rows[r] ?? DEFAULT_ROW);
   const stats = cfStatsFor(sheet, calc);
   const availW = page.w - margin * 2;
   const availH = page.h - margin * 2;
@@ -176,6 +202,8 @@ export function sheetPages(model, sid, calc, { measurer, range = null, page = { 
           const y = ys[r - r0];
           const look = cellLook(sheet, calc, r, c, stats);
           if (look.fill) items.push(rect(x, y, w, hh, look.fill));
+          const sp = sheet.sparks?.length ? sparklineAt(sheet, r, c) : null;
+          if (sp) items.push(...sparkItems(model, sheet, calc, sp, { x, y, w, h: hh }));
           if (look.bar) items.push(rect(x + 2 + look.bar.from * (w - 4), y + 3, Math.max(1, (look.bar.to - look.bar.from) * (w - 4)), hh - 6, look.bar.color));
           const bd = look.style?.bd;
           if (bd) {

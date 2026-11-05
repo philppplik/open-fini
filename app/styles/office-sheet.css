@@ -37,4 +37,11 @@
 .of-sheet__check { display: flex; align-items: center; gap: 6px; font-size: 13px; }
 .of-sheet__rules { margin: 4px 0 8px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 2px; }
 .of-sheet__rules li { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12.5px; }
+.of-sheet__list {
+  position: absolute; z-index: 3; max-height: 240px; overflow: auto; padding: 2px 0; border: 1px solid #8b93a0; background: #ffffff;
+  color: #111827; font-size: 13px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+.of-sheet__list-item { padding: 3px 10px; cursor: pointer; white-space: nowrap; outline: none; }
+.of-sheet__list-item:hover, .of-sheet__list-item:focus { background: #dbeafe; }
+.of-sheet__list-item[aria-selected="true"] { font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .of-sheet__editor { box-shadow: none; } }

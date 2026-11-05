@@ -14,7 +14,8 @@ import { toDelimited, parseDelimited, rowsToHtml } from "../toolkit/clipboard.js
 import { fmtToCode } from "./numfmt-code.js";
 import * as M from "./model.js";
 import { rcKey, keyRC, compareValues, MAX_ROWS, MAX_COLS } from "./formula.js";
-import { cellLook, cfStatsFor, chartItems, FONT } from "./render.js";
+import { cellLook, cfStatsFor, chartItems, sparkItems, FONT } from "./render.js";
+import { validationAt, sparklineAt, collapsedIndexes, checkInput } from "./depth.js";
 import { calcFor } from "./app.js";
 
 const HH = 22; // column header height
@@ -98,8 +99,12 @@ export class SheetView {
     const sizes = { ...s.rows };
     this.hidden = M.filteredRows(s, (r, c) => cellLook(s, this.calc, r, c).text);
     for (const r of this.hidden) sizes[r] = 0;
+    // rows and columns of collapsed groups (Data ▸ Group) are hidden too
+    for (const r of collapsedIndexes(s, "row")) (sizes[r] = 0), this.hidden.add(r);
+    const colSizes = { ...s.cols };
+    for (const c of collapsedIndexes(s, "col")) colSizes[c] = 0;
     this.rows = createAxis({ count: rowCount, size: M.DEFAULT_ROW, sizes });
-    this.cols = createAxis({ count: colCount, size: M.DEFAULT_COL, sizes: s.cols });
+    this.cols = createAxis({ count: colCount, size: M.DEFAULT_COL, sizes: colSizes });
     this.HW = Math.max(40, 12 + String(rowCount).length * 8);
     this.fr = Math.min(s.freeze?.r || 0, rowCount - 1);
     this.fc = Math.min(s.freeze?.c || 0, colCount - 1);
@@ -131,7 +136,8 @@ export class SheetView {
       { id: "number", label: "Number", items: [numberFormatMenu({ onPick: (f) => this.setStyle({ nf: f.type === "general" ? null : fmtToCode(f) }) }), button({ icon: "percent", label: "Percent", onClick: fmt({ nf: "0%" }) }), button({ icon: "currency-dollar", label: "Currency", onClick: fmt({ nf: '"$"#,##0.00' }) }), button({ text: ".0", label: "More decimals", onClick: () => this.decimals(1) }), button({ text: ".00→.0", label: "Fewer decimals", onClick: () => this.decimals(-1) })] },
       { id: "cells", label: "Cells", items: [button({ icon: "plus-square", label: "Insert row above", onClick: doCmd("sheet.insertRowAbove") }), button({ icon: "trash", label: "Delete rows", onClick: doCmd("sheet.deleteRows") }), button({ icon: "plus-square-dotted", label: "Insert column left", onClick: doCmd("sheet.insertColLeft") }), button({ icon: "trash3", label: "Delete columns", onClick: doCmd("sheet.deleteCols") })] },
       { id: "data", label: "Data", items: [button({ icon: "arrow-down-up", label: "Sort ascending", onClick: doCmd("sheet.sortAsc") }), button({ icon: "filter", label: "Filter", onClick: doCmd("sheet.filter") }), button({ icon: "pin-angle", label: "Freeze panes", onClick: doCmd("sheet.freeze") }), button({ icon: "hash", label: "Insert function", onClick: () => this.insertFunction() })] },
-      { id: "insert", label: "Insert", items: [button({ icon: "bar-chart", label: "Insert chart", onClick: doCmd("sheet.insertChart") }), button({ icon: "droplet-half", label: "Conditional formatting", onClick: doCmd("sheet.conditional") })] },
+      { id: "tables", label: "Tables", items: [button({ icon: "table", label: "Format as table", onClick: doCmd("sheet.formatTable") }), button({ icon: "ui-checks", label: "Data validation", onClick: doCmd("sheet.validation") }), button({ icon: "bookmark", label: "Named ranges", onClick: doCmd("sheet.names") }), button({ icon: "diagram-3", label: "Pivot table", onClick: doCmd("sheet.pivot") }), button({ icon: "chevron-bar-contract", label: "Group", onClick: doCmd("sheet.groupRows") })] },
+      { id: "insert", label: "Insert", items: [button({ icon: "bar-chart", label: "Insert chart", onClick: doCmd("sheet.insertChart") }), button({ icon: "graph-up", label: "Sparkline", onClick: doCmd("sheet.sparkline") }), button({ icon: "droplet-half", label: "Conditional formatting", onClick: doCmd("sheet.conditional") })] },
       { id: "zoom", label: "Zoom", items: [this.zoomCtl.el] },
     ]);
     this.bar = formulaBar({ onCommit: (text, { move }) => this.commitInput(text, move), onRefCommit: (ref) => this.goTo(ref) });
@@ -335,7 +341,25 @@ export class SheetView {
           if (bd.r) line(bd.r, box.x + box.w, box.y, 1, box.h + 1);
         }
         if (look.text) this.drawText(ctx, s, look, rc.r, rc.c, box, C, cb);
+        const sp = s.sparks?.length ? sparklineAt(s, rc.r, rc.c) : null;
+        if (sp) this.drawSpark(ctx, s, calc, sp, box);
       }
+    }
+    // drop-down button of a list-validated selected cell
+    const rule = s.validation?.length ? validationAt(s, this.sel.r, this.sel.c) : null;
+    if (rule?.type === "list" && this.sel.r >= ra && this.sel.r < rb && this.sel.c >= ca && this.sel.c < cb && !this.editing) {
+      const b = this.cellRect(this.sel.r, this.sel.c);
+      const x = b.x + b.w - 15;
+      ctx.fillStyle = "#ffffff";
+      ctx.strokeStyle = "#8b93a0";
+      ctx.fillRect(x, b.y + b.h - 17, 14, 16);
+      ctx.strokeRect(x + 0.5, b.y + b.h - 16.5, 13, 15);
+      ctx.fillStyle = "#4b5563";
+      ctx.beginPath();
+      ctx.moveTo(x + 3.5, b.y + b.h - 11);
+      ctx.lineTo(x + 10.5, b.y + b.h - 11);
+      ctx.lineTo(x + 7, b.y + b.h - 6);
+      ctx.fill();
     }
     // filter buttons
     if (s.filter) {
@@ -358,6 +382,26 @@ export class SheetView {
         }
       }
     }
+  }
+
+  /** A sparkline from the shared display items (render.js ▸ sparkItems), drawn with the canvas API. */
+  drawSpark(ctx, s, calc, sp, box) {
+    const items = sparkItems(this.model, s, calc, sp, box);
+    ctx.save();
+    for (const it of items) {
+      const p = new Path2D(it.d);
+      if (it.fill) {
+        ctx.fillStyle = it.fill.color;
+        ctx.fill(p);
+      }
+      if (it.stroke) {
+        ctx.strokeStyle = it.stroke.paint.color;
+        ctx.lineWidth = it.stroke.width;
+        ctx.lineJoin = "round";
+        ctx.stroke(p);
+      }
+    }
+    ctx.restore();
   }
 
   drawText(ctx, s, look, r, c, box, C, cb) {
@@ -674,13 +718,28 @@ export class SheetView {
     if (commit && ed.sid === this.sid) {
       const text = this.editor.value;
       const a1 = rcKey(ed.r, ed.c);
-      if (text !== M.editText(this.sheet.cells[a1])) this.commit("Edit Cell", M.inputCell(this.model, this.sid, a1, text));
+      if (text !== M.editText(this.sheet.cells[a1])) {
+        if (!this.validInput(ed.r, ed.c, text)) {
+          this.select(ed.r, ed.c);
+          return this.startEdit(text);
+        }
+        this.commit("Edit Cell", M.inputCell(this.model, this.sid, a1, text));
+      }
     }
     this.focus();
     if (move) this.move(move);
   }
 
+  /** Data validation of typed input: a warning toast and false when the cell's rule rejects it. */
+  validInput(r, c, text) {
+    if (!this.sheet.validation?.length) return true;
+    const res = checkInput(this.model, this.sheet, r, c, text, (sid, rr, cc) => this.calc.get(sid, rr, cc));
+    if (!res.ok) this.app.toast(`${t("Invalid entry")}: ${res.message}`, "warning", 5000);
+    return res.ok;
+  }
+
   commitInput(text, move) {
+    if (text !== M.editText(this.sheet.cells[this.a1]) && !this.validInput(this.sel.r, this.sel.c, text)) return;
     if (text !== M.editText(this.sheet.cells[this.a1])) this.commit("Edit Cell", M.inputCell(this.model, this.sid, this.a1, text));
     this.focus();
     this.move(move);
@@ -828,6 +887,10 @@ export class SheetView {
     if (this.editing) this.stopEdit(true);
     this.focus();
     e.preventDefault();
+    if (hit.kind === "cell" && hit.r === this.sel.r && hit.c === this.sel.c && validationAt(this.sheet, hit.r, hit.c)?.type === "list") {
+      const b = this.cellRect(hit.r, hit.c);
+      if (p.x >= b.x + b.w - 16) return this.listPicker();
+    }
     this.scroller.setPointerCapture?.(e.pointerId);
     this.drag = { hit, start: p, moved: false };
     switch (hit.kind) {
@@ -976,6 +1039,17 @@ export class SheetView {
       e.preventDefault();
       return this.deleteChart(this.chartSel);
     }
+    if (key === "ArrowDown" && e.altKey && validationAt(this.sheet, this.sel.r, this.sel.c)?.type === "list") {
+      e.preventDefault();
+      return this.listPicker();
+    }
+    if (arrows[key] && e.altKey && e.shiftKey) {
+      // Alt+Shift+Right groups the selected rows (or columns when whole columns are selected), Alt+Shift+Left ungroups
+      if (key === "ArrowRight" || key === "ArrowLeft") {
+        e.preventDefault();
+        return this.groupSelection(this.range.r0 === 0 && this.range.r1 >= MAX_ROWS - 1 ? "col" : "row", key === "ArrowRight");
+      }
+    }
     if (arrows[key]) {
       e.preventDefault();
       return this.move(arrows[key], e.shiftKey, mod);
@@ -1044,20 +1118,25 @@ export class SheetView {
   selectionBlock() {
     const g = this.clampRange(this.range);
     const block = [];
+    const vals = [];
     const text = [];
     const s = this.sheet;
     for (let r = g.r0; r <= g.r1; r++) {
       if (this.hidden.has(r)) continue;
       const row = [];
+      const vrow = [];
       const trow = [];
       for (let c = g.c0; c <= g.c1; c++) {
         row.push(s.cells[rcKey(r, c)] || null);
-        trow.push(cellLook(s, this.calc, r, c).text);
+        const look = cellLook(s, this.calc, r, c);
+        vrow.push(look.error ? null : look.value);
+        trow.push(look.text);
       }
       block.push(row);
+      vals.push(vrow);
       text.push(trow);
     }
-    return { block, text: toDelimited(text, "\t"), html: rowsToHtml(text), g };
+    return { block, vals, text: toDelimited(text, "\t"), html: rowsToHtml(text), g };
   }
 
   clampRange(g) {
@@ -1066,17 +1145,17 @@ export class SheetView {
   }
 
   onCopy(e, cut) {
-    const { block, text, html, g } = this.selectionBlock();
+    const { block, vals, text, html, g } = this.selectionBlock();
     e.preventDefault();
     e.clipboardData?.setData("text/plain", text);
     e.clipboardData?.setData("text/html", html);
-    clipboard = { text, block, from: { r: g.r0, c: g.c0 }, sid: this.sid, doc: this.doc, cut, range: g };
+    clipboard = { text, block, vals, from: { r: g.r0, c: g.c0 }, sid: this.sid, doc: this.doc, cut, range: g };
     this.paint();
   }
 
   async copy(cut = false) {
-    const { block, text, html, g } = this.selectionBlock();
-    clipboard = { text, block, from: { r: g.r0, c: g.c0 }, sid: this.sid, doc: this.doc, cut, range: g };
+    const { block, vals, text, html, g } = this.selectionBlock();
+    clipboard = { text, block, vals, from: { r: g.r0, c: g.c0 }, sid: this.sid, doc: this.doc, cut, range: g };
     const { writeClipboard } = await import("../toolkit/clipboard.js");
     await writeClipboard({ text, html });
     this.paint();
@@ -1353,6 +1432,49 @@ export class SheetView {
   }
   numberFormatDialog() {
     return import("./dialogs.js").then((m) => m.numberFormatDialog(this));
+  }
+
+  // ---------------------------------------------------------------------------------------------------- depth (sheet/depth-dialogs.js)
+
+  /** The internal clipboard (copied cells with their computed values) for Paste Special, or null. */
+  get clip() {
+    return clipboard ? { block: clipboard.block, values: clipboard.vals, from: clipboard.from } : null;
+  }
+  depth(name, ...args) {
+    return import("./depth-dialogs.js").then((m) => m[name](this, ...args)).catch((err) => this.app.toast(err.message, "danger", 6000));
+  }
+  pasteSpecialDialog() {
+    return this.depth("pasteSpecialDialog");
+  }
+  tableDialog() {
+    return this.depth("tableDialog");
+  }
+  validationDialog() {
+    return this.depth("validationDialog");
+  }
+  namesDialog() {
+    return this.depth("namesDialog");
+  }
+  pageSetupDialog() {
+    return this.depth("pageSetupDialog");
+  }
+  pivotDialog() {
+    return this.depth("pivotDialog");
+  }
+  sparklineDialog() {
+    return this.depth("sparklineDialog");
+  }
+  listPicker() {
+    return this.depth("listPicker");
+  }
+  printSheet() {
+    return this.depth("printSheet");
+  }
+  groupSelection(axis, on) {
+    return this.depth("groupSelection", axis, on);
+  }
+  collapseGroups(collapsed, all = false) {
+    return this.depth("collapseGroups", collapsed, all);
   }
 
   deleteChart(id) {

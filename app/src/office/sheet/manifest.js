@@ -21,6 +21,6 @@ export const SHEET_APP = {
     { id: "budget", label: "Budget", description: "Planned and actual amounts, totals and a chart", icon: "currency-dollar", category: "Personal" },
     { id: "invoice-table", label: "Invoice table", description: "Items, quantities, prices, tax and total", icon: "list-check", category: "Business" },
   ],
-  aiNote: "The active Office document is a spreadsheet (workbook with sheets, cells, formulas, charts). Read it with sheet_describe and sheet_read_range before editing; edit with sheet_write_range, sheet_set_formula, sheet_format, sheet_add_sheet and sheet_add_chart. Formulas use English function names and commas (=SUM(A1:A3)). Every call is one undoable step.",
+  aiNote: "The active Office document is a spreadsheet (workbook with sheets, cells, formulas, charts). Read it with sheet_describe and sheet_read_range before editing; edit with sheet_write_range, sheet_set_formula, sheet_format, sheet_add_sheet and sheet_add_chart; tables, names, validation, groups, page setup, pivots and sparklines with sheet_format_table, sheet_define_name, sheet_set_validation, sheet_group, sheet_page_setup, sheet_pivot and sheet_add_sparkline. Dynamic arrays (FILTER, SORT, UNIQUE, SEQUENCE) spill into the cells below. Formulas use English function names and commas (=SUM(A1:A3)). Every call is one undoable step.",
   load: () => import("./app.js"),
 };

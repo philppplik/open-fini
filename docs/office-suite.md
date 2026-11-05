@@ -267,9 +267,10 @@ Still open, roughly by payoff:
   section breaks, first/even-page headers, page borders and backgrounds, floating text boxes, shapes and wrapped images,
   table styles gallery with banding, column resize by drag, table sort and formulas, multilevel numbering styles,
   tracked changes, generated table of contents, smart typography while typing, designed templates (newsletter).
-* **Spreadsheet**: table styles with banding and a total row, quick analysis, named ranges, data validation lists,
-  paste special, group/outline rows, page setup and print areas, dynamic arrays (FILTER, SORT, UNIQUE with spilling),
-  pivot-table lite, sparklines.
+* **Spreadsheet**: quick analysis; table styles, named ranges, data validation, paste special, row/column groups, page
+  setup and print, dynamic arrays with spilling, pivot-lite, sparklines and sheet chart data for other apps are done
+  ([office-sheet.md](office-sheet.md#tables-validation-and-data-tools)); still open there: XLSX/ODS round trip of these
+  features, an outline gutter, refreshable pivots.
 * **Presentation**: master and layout editing, slide numbers and footers, mixed formatting and bullet levels in one
-  text box, charts from sheet data, more shapes, smart guides and distribute.
+  text box, charts from sheet data (the data side is ready: `sheetChartData` / `sheet_chart_data`), more shapes, smart guides and distribute.
 * **Vibe**: board → document summary tool, sheet → chart report tool, per-tool *Watch out* notes on the older tools.

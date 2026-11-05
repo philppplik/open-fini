@@ -73,10 +73,11 @@ export default {
       return { bytes, mime: format === "tsv" ? "text/tab-separated-values" : "text/csv", ext: format, notes: m.sheets.length > 1 || m.sheets.some((s) => s.charts.length) ? [NOTES.csv] : [] };
     }
     if (format === "pdf" || format === "png") {
-      const [{ sheetPages }, { measurer }, tk] = await Promise.all([import("./render.js"), import("../../core/fonts.js"), import("../toolkit/export.js")]);
+      const [{ sheetPages }, { measurer }, tk, { printOptions }] = await Promise.all([import("./render.js"), import("../../core/fonts.js"), import("../toolkit/export.js"), import("./depth.js")]);
       const sid = m.active;
       if (format === "pdf") {
-        const pages = m.sheets.flatMap((s) => sheetPages(m, s.id, calc, { measurer }));
+        // each sheet prints with its page setup (paper, orientation, margins, print area, gridlines, fit to page)
+        const pages = m.sheets.flatMap((s) => sheetPages(m, s.id, calc, { measurer, ...printOptions(s) }));
         return { bytes: await tk.displayListsToPdf(pages, { title: title || m.meta?.title || "" }), mime: "application/pdf", ext: "pdf" };
       }
       const [pg] = sheetPages(m, sid, calc, { measurer, single: true });
