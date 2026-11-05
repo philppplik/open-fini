@@ -64,7 +64,7 @@ test("crawl: same origin, robots, delay, caps and progress (mocked fetch)", asyn
   const fetchImpl = async (u) => (fetched.push(u), site[u]?.clone?.() || res("nope", { status: 404 }));
   const r = await crawl("https://s.example/", { enabled: true }, { fetchImpl, sleep: async (ms) => sleeps.push(ms), maxPages: 3, maxDepth: 1, onProgress: (p) => progress.push(p.done) });
   assert.deepEqual(r.pages.map((p) => p.title), ["Home", "P1", "P2"]);
-  assert.ok(!fetched.some((u) => u.includes("evil.org") || u.includes("/secret")), "never leaves the origin or enters disallowed paths");
+  assert.ok(!fetched.some((u) => new URL(u).hostname !== "s.example" || new URL(u).pathname.startsWith("/secret")), "never leaves the origin or enters disallowed paths");
   assert.deepEqual(r.skipped.map((s) => s.reason), ["robots.txt"]);
   assert.ok(sleeps.every((ms) => ms === 3000), "Crawl-delay is honored");
   assert.deepEqual(progress, [1, 2, 3]);

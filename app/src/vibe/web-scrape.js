@@ -34,16 +34,17 @@ const decode = (s) => s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => {
 
 /** Parses HTML into { tag, attrs, children, parent } nodes (text nodes are { text }). Scripts and styles are dropped. */
 export function parseHtml(html) {
-  const src = String(html).replace(/<!--[\s\S]*?-->/g, "").replace(/<(script|style|noscript|template)\b[\s\S]*?<\/\1\s*>/gi, "");
+  const src = String(html);
   const root = { tag: "#root", attrs: {}, children: [], parent: null };
   let cur = root;
-  const re = /<\/?([a-zA-Z][\w:-]*)((?:\s+[^\s"'>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'>]+))?)*)\s*\/?>|<!doctype[^>]*>/gi;
+  // comments and raw-text elements (script, style, noscript, template) are tokens of their own and skipped whole
+  const re = /<!--[\s\S]*?(?:-->|$)|<(script|style|noscript|template)\b[\s\S]*?(?:<\/\1\s*>|$)|<\/?([a-zA-Z][\w:-]*)((?:\s+[^\s"'>/=]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'>]+))?)*)\s*\/?>|<!doctype[^>]*>/gi;
   let last = 0;
   for (let m; (m = re.exec(src)); ) {
     if (m.index > last) cur.children.push({ text: decode(src.slice(last, m.index)), parent: cur });
     last = re.lastIndex;
-    if (!m[1]) continue;
-    const tag = m[1].toLowerCase();
+    if (!m[2]) continue;
+    const tag = m[2].toLowerCase();
     if (m[0][1] === "/") {
       for (let n = cur; n && n !== root; n = n.parent) if (n.tag === tag) {
         cur = n.parent;
@@ -52,7 +53,7 @@ export function parseHtml(html) {
       continue;
     }
     const attrs = {};
-    for (const a of (m[2] || "").matchAll(/([^\s"'>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g)) attrs[a[1].toLowerCase()] = decode(a[2] ?? a[3] ?? a[4] ?? "");
+    for (const a of (m[3] || "").matchAll(/([^\s"'>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g)) attrs[a[1].toLowerCase()] = decode(a[2] ?? a[3] ?? a[4] ?? "");
     // implicit closes that matter for tables, lists and paragraphs
     if (/^(tr|td|th|li|p|option)$/.test(tag)) {
       const stop = tag === "tr" ? /^(table|tbody|thead|tfoot)$/ : tag === "li" ? /^(ul|ol)$/ : /^(tr|table|body)$/;
@@ -171,7 +172,7 @@ export function tablesToMarkdown(tables) {
   return tables.map((t, i) => {
     const w = Math.max(0, ...t.rows.map((r) => r.length));
     if (!w) return "";
-    const pad = (r) => `| ${[...r, ...Array(w - r.length).fill("")].map((c) => c.replace(/\|/g, "\\|")).join(" | ")} |`;
+    const pad = (r) => `| ${[...r, ...Array(w - r.length).fill("")].map((c) => c.replace(/\\/g, "\\\\").replace(/\|/g, "\\|")).join(" | ")} |`;
     return `Table ${i + 1}${t.caption ? `: ${t.caption}` : ""}\n${pad(t.rows[0])}\n|${" --- |".repeat(w)}\n${t.rows.slice(1).map(pad).join("\n")}`.trim();
   }).filter(Boolean).join("\n\n");
 }
