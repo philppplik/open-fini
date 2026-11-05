@@ -4,7 +4,7 @@
 import { markContext } from "../context-menu/index.js";
 import { h } from "../../core/util.js";
 import { iconEl } from "../toolbox.js";
-import { hostsOf, WEB_TOOL_NAMES } from "../../vibe/web-hosts.js";
+import { hostsOf, WEB_TOOL_NAMES, ONCE_ONLY_TOOLS } from "../../vibe/web-hosts.js";
 import { toolTitle, summarizeArgs, formatDuration, formatJson, resultParts, endStatus, groupLabel, STATUS_LABEL } from "./tool-format.js";
 
 const TOOL_ICONS = { spawn_agent: "people", wait_agent: "three-dots", list_agents: "people", cancel_agent: "x-circle", run_plan: "collection", query_layers: "filter", describe_page: "card-text", describe_selection: "card-text", apply_to_many: "layers", evaluate: "123", screenshot_layers: "camera", compare_screenshots: "images", grid_layout: "grid-3x3", distribute_layers: "distribute-horizontal", snap_layers: "magnet", make_component: "box", open_attachment: "file-earmark-plus", list_attachments: "paperclip", create_skill: "mortarboard", add_shape: "bounding-box", add_text: "fonts", add_path: "bezier2", import_svg: "filetype-svg", set_style: "palette", screenshot: "camera", generate_image: "image", edit_image: "magic", write_file: "file-earmark-code", edit_file: "pencil-square", read_file: "file-earmark-text", create_website: "globe2", ask_user: "question-circle", update_plan: "list-check", search_knowledge: "search", remember: "bookmark-star", apply_adjustment: "sliders", new_document: "file-earmark-plus", insert_element: "plus-square", set_element_style: "palette2", use_skill: "mortarboard" };
@@ -281,7 +281,8 @@ export function createToolCards({ settings, saveSettings, onGrow, cancelAgent })
       req.resolve(ok);
     };
     const allow = h("button.of-btn.of-btn--primary", { type: "button", onclick: () => finish(true) }, "Allow");
-    const row = h("div.of-approval__actions", allow, h("button.of-btn", { type: "button", onclick: () => finish(true, true) }, WEB_TOOL_NAMES.has(req.name) ? "Always allow this domain" : "Always allow"), h("button.of-btn", { type: "button", onclick: () => finish(false) }, "Decline"));
+    const always = ONCE_ONLY_TOOLS.has(req.name) ? null : h("button.of-btn", { type: "button", onclick: () => finish(true, true) }, WEB_TOOL_NAMES.has(req.name) ? "Always allow this domain" : "Always allow");
+    const row = h("div.of-approval__actions", allow, always, h("button.of-btn", { type: "button", onclick: () => finish(false) }, "Decline"));
     const box = h("div.of-approval", { role: "group", "aria-label": `Approval needed for ${r.titleText}` }, h("div.of-approval__title", iconEl("shield-lock"), h("strong", "Approval needed")), h("div.of-approval__reason", req.reason || `Allow “${r.titleText}”?`), jsonView(req.input ?? {}), row);
     r.el.insertBefore(box, r.detail);
     r.approval = box;

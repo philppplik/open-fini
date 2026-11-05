@@ -466,6 +466,52 @@ proxy's address, not the members' (configure the proxy's own logs accordingly). 
 allows `ws:` and `wss:` connections for this (see [ADR 0010](adr/0010-collaboration-e2e-relay.md)); offline mode blocks
 every relay except one on this computer.
 
+## Relays across networks
+
+The relay only forwards ciphertext, so where it runs changes who sees metadata (IP addresses, room ids, timing and sizes),
+never who can read content. Options, from simplest:
+
+- **Same network, browsers and phones (local server mode):** `node scripts/relay.mjs --lan` serves the app and the relay
+  on one port over https/wss with a self-signed certificate (see above). To avoid the certificate warning, use
+  [mkcert](https://github.com/FiloSottile/mkcert): `mkcert -install && mkcert 192.168.1.20 localhost`, then
+  `node scripts/relay.mjs --lan --serve-app --tls-cert 192.168.1.20+1.pem --tls-key 192.168.1.20+1-key.pem` and install
+  mkcert's root CA on the phones (`mkcert -CAROOT` shows it). The desktop app's built-in relay is plain `ws://` and does
+  not serve the app; browsers on other devices need the Node relay.
+- **Tunnel from the desktop app:** when `cloudflared`, `ngrok` or `tailscale` is installed, the Collaboration window offers
+  *Also reach it from other networks through a tunnel* for the built-in relay. It asks first, starts the CLI with a fixed
+  argument list (`cloudflared tunnel --url http://127.0.0.1:<port>`, `ngrok http …`, `tailscale funnel <port>`), puts the
+  public `wss://` address into the invite and shows a warning. The tunnel provider then sees what a relay sees. Without a
+  CLI the option only explains how to install one; OpenFini never downloads it.
+- **Docker / Compose:** `docker compose -f deploy/relay/compose.yaml up -d` (binds 127.0.0.1:8787; put TLS in front).
+- **Node standalone:** copy `scripts/relay.mjs` to any server with Node 20+, run
+  `OPENFINI_RELAY_TOKEN=<random> node relay.mjs --host 127.0.0.1` behind Caddy or nginx (see *Running a relay*).
+- **fly.io:** `fly launch --dockerfile deploy/relay/Dockerfile --internal-port 8787 --no-deploy`, then
+  `fly secrets set OPENFINI_RELAY_TOKEN=<random>` and `fly deploy`; members use `wss://<app>.fly.dev/?key=<token>`.
+- **Render:** new Web Service from the repository, Docker, Dockerfile path `deploy/relay/Dockerfile`, environment
+  variable `OPENFINI_RELAY_TOKEN` as a secret; members use `wss://<service>.onrender.com/?key=<token>`.
+- **Cloudflare Tunnel for a relay you run:** `npm run relay` then `cloudflared tunnel --url http://127.0.0.1:8787`.
+
+### Relay key
+
+An internet relay should not be open to everyone. Start it with `--auth-token <t>` or `OPENFINI_RELAY_TOKEN=<t>`; it then
+refuses WebSocket upgrades without `?key=<t>` in the address (401, compared in constant time). The key is part of the relay
+address and therefore of invites: it decides who may *use the relay*, not who may read a room (that is still the room
+secret in the invite's fragment, which never reaches the relay). `GET /info` reports `auth: true` so *Test connection*
+can say a key is missing. Generate keys with `openssl rand -base64 24 | tr '+/' '-_'` (8 to 200 characters of
+`A-Z a-z 0-9 . _ ~ -`). Never commit keys; the Compose file reads them from `.env`.
+
+### Diagnostics
+
+*Test connection* in the Collaboration window checks the secure context, offline mode, mixed content, the relay's
+`/info`, origin acceptance, a missing relay key, a real WebSocket handshake with the time to connect, and reminds you to
+compare the six fingerprint words (the end-to-end check: the relay or a tunnel in between cannot fake them).
+
+### Threat model changes
+
+A tunnel or public relay exposes the same metadata as before to one more party (the tunnel or hosting provider) and makes
+the relay reachable from the internet. Content stays end-to-end encrypted and signed; the relay key adds admission
+control; the fingerprint words detect a relay that tries to impersonate members. Nothing in the protocol changed.
+
 ## How to extend
 
 * **A new message type**: add it to `PERMISSION` and `SHAPES` in `protocol.js` (with limits), handle it in

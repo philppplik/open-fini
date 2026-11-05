@@ -48,6 +48,13 @@ relay.example.org {
 
 Members then use `wss://relay.example.org/` (Caddy) or `wss://example.org/openfini-relay/` (nginx). The relay sees the proxy's address, not the members', so configure the proxy's own logs accordingly.
 
+## Across networks: relay key, Docker, tunnels
+
+- Require a relay key: `--auth-token <t>` or `OPENFINI_RELAY_TOKEN=<t>`; members add `?key=<t>` to the relay address.
+- Docker: `docker compose -f deploy/relay/compose.yaml up -d` (key from `.env`, binds 127.0.0.1:8787, put TLS in front).
+- fly.io, Render, Cloudflare Tunnel and mkcert recipes: [docs/collaboration.md ▸ Relays across networks](https://github.com/philppplik/open-fini/blob/main/docs/collaboration.md#relays-across-networks).
+- Desktop app: with cloudflared, ngrok or tailscale installed, *Create room* can open a tunnel for the built-in relay (asks first, shows the public address and a warning).
+
 ## Limits (all configurable)
 
 Per connection: 150 messages per second (burst 300), 4 MiB per second, frames up to 257 KiB. Per IP: 32 connections. Per room: 16 members. Total: 200 rooms. The room protocol itself allows 32 members, 256 KiB per frame, 4000 characters per message or comment and 25 MB per file.

@@ -26,7 +26,7 @@ export const TOOLSETS = {
   pixel: ["list_effects", "add_pixel_layer", "apply_adjustment", "select_area", "generate_image", "edit_image", "get_histogram", "auto_correct_suggestion", "screenshot", "list_layers"],
   web: ["list_files", "read_file", "write_file", "edit_file", "format_file", "rename_file", "get_page_outline", "select_element", "inspect_element", "list_elements", "insert_element", "insert_html", "set_element_style", "set_element_attributes", "set_page_meta", "show_page", "check_problems", "screenshot"],
   layout: ["add_page", "add_table", "edit_table", "read_table", "list_tables", "add_chart", "edit_chart", "read_chart", "add_text", "screenshot", "list_layers", "query_layers"],
-  knowledge: ["search_knowledge", "use_skill"],
+  knowledge: ["search_knowledge", "rag_search", "rag_list", "use_skill"],
   office: ["office_read_document", "office_find", "office_insert_blocks", "office_replace_text", "office_set_style", "office_apply_format", "office_insert_table", "office_set_page_setup", "office_export", "office_describe", "office_list_documents", "office_new"],
   sheet: ["sheet_describe", "sheet_read_range", "sheet_write_range", "sheet_set_formula", "sheet_format", "sheet_add_sheet", "sheet_add_chart", "office_describe", "office_new"],
   slides: ["slides_describe", "slides_add_slide", "slides_delete", "slides_set_text", "slides_add_shape", "slides_add_image", "slides_apply_layout", "slides_apply_theme", "slides_reorder", "slides_set_notes", "slides_set_transition", "office_new"],

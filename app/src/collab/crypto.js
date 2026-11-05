@@ -77,7 +77,7 @@ const ROOM_RE = B64U_RE(22);
 const SECRET_RE = B64U_RE(43);
 const MEMBER_RE = B64U_RE(22);
 
-/** Checks a relay address: `local` (same device) or a ws:// / wss:// URL without credentials, query or fragment. */
+/** Checks a relay address: `local` (same device) or a ws:// / wss:// URL without credentials or fragment (query only ?key=). */
 export function normalizeRelay(relay) {
   const r = String(relay || "").trim();
   if (r === "local") return "local";
@@ -89,8 +89,11 @@ export function normalizeRelay(relay) {
   }
   if (u.protocol !== "ws:" && u.protocol !== "wss:") throw new CollabCryptoError("The relay address must start with ws:// or wss://.", "bad_invite");
   if (u.username || u.password) throw new CollabCryptoError("The relay address must not contain a user name or password.", "bad_invite");
-  if (u.search || u.hash) throw new CollabCryptoError("The relay address must not contain a query or fragment.", "bad_invite");
-  return `${u.protocol}//${u.host}${u.pathname === "/" ? "/" : u.pathname}`;
+  // the only query allowed is the relay key of a relay started with --auth-token (docs/collaboration.md ▸ Relay key)
+  const keys = [...u.searchParams.keys()];
+  const key = u.searchParams.get("key") || "";
+  if (u.hash || (u.search && (keys.length !== 1 || keys[0] !== "key" || !/^[A-Za-z0-9._~-]{8,200}$/.test(key)))) throw new CollabCryptoError("The relay address must not contain a fragment or a query other than ?key=<relay key> (8 to 200 letters, digits, . _ ~ -).", "bad_invite");
+  return `${u.protocol}//${u.host}${u.pathname === "/" ? "/" : u.pathname}${key ? `?key=${key}` : ""}`;
 }
 
 /** Builds the invite code. The secret part sits in the URL fragment so it never reaches a server. */

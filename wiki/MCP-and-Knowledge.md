@@ -20,6 +20,12 @@ Then add `http://127.0.0.1:3939/mcp`. The gateway listens on localhost only, acc
 
 Add brand guides, copy decks, specs or notes under *Knowledge*. Files are chunked and indexed on this device with BM25; if you select an embedding model, dense vectors are added and results are blended. Your open website project is indexed automatically. The assistant searches with `search_knowledge`; you can test a query yourself in the panel. *Settings ▸ Artificial intelligence ▸ Delete all AI data* removes the index.
 
+### Knowledge tools
+
+The assistant manages the knowledge base itself with `rag_add_source` (URL, project files, an opened folder, text),
+`rag_search` (passages cited as `[n] source:line`), `rag_list` and `rag_remove`. Without an embedding model, search is
+BM25 on your device with no network. `crawl_site` with `addToKnowledge` indexes a small site (robots.txt respected).
+
 ## Memory
 
 The assistant can remember notes (`remember`). They are stored locally and sent to your provider as part of requests. Delete them with the AI data tools.

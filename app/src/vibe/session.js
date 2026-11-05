@@ -220,6 +220,14 @@ export class VibeSession extends Emitter {
     const ctx = {
       images: await this.hub.imageCtx().catch(() => null),
       knowledge: { search: async (q, k) => index.search(q, { k }) },
+      knowledgeIndex: index,
+      saveKnowledge: () => vibeStore.saveKnowledge(index.toJSON()),
+      embedder: async () => {
+        const st = vibeStore.settings;
+        if (!st.embedProvider || !st.embedModel) return null;
+        const prov = await this.providerFor(st.embedProvider);
+        return prov.embed ? (texts) => prov.embed(texts, { model: st.embedModel }) : null;
+      },
       memory: { add: (t) => vibeStore.addMemory(t) },
       skills,
       useSkill: (name, args, file) => this.#useSkill(name, args, file),

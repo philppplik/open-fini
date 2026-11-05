@@ -127,13 +127,15 @@ export async function diagnose(relayUrl, { app } = {}) {
       resolve(r);
     };
     const timer = setTimeout(() => done({ ok: false, timeout: true }), 5000);
-    sock.onopen = () => done({ ok: true });
+    sock.onopen = () => done({ ok: true, ms: Date.now() - t0 });
     sock.onerror = () => done({ ok: false, ms: Date.now() - t0 });
   });
-  if (ws.ok) add(true, t("A WebSocket connection to the relay works."));
+  if (ws.ok) add(true, t("A WebSocket connection to the relay works ({ms} ms to connect).", { ms: ws.ms }));
   else if (ws.blocked) add(false, t("The browser refused to open the connection ({error}).", { error: ws.error }), t("Mixed content or an invalid address: use wss:// from https pages."));
   else if (ws.timeout) add(false, t("The connection timed out."), t("A firewall drops the traffic, or the address is wrong. Check that both devices are on the same network (guest Wi-Fi often isolates devices)."));
+  else if (info && !/[?&]key=/.test(relayUrl) && info.auth) add(false, t("The relay needs a relay key."), t("Add ?key=<relay key> to the relay address; the relay's operator has the key."));
   else add(false, t("The relay refused or closed the connection."), info ? t("The relay is reachable, so it most likely refused this page's origin: start it with --origin {origin}, or open the app it serves.", { origin: location.origin }) : t("The port is closed or nothing listens there. Start the relay and check the port."));
+  if (ws.ok) add(true, t("End-to-end check: after joining, compare the six fingerprint words in the People tab with the other members (by phone or in person). If they differ, someone is in between: leave the room."));
   return { ok: steps.every((s) => s.ok), steps, info };
 }
 
@@ -186,4 +188,55 @@ export function relayHelpDialog(app) {
     h("p.of-collab-hint", t("Browsers cannot search the network for relays. Share the address the relay prints, a join link or its QR code instead.")),
   );
   return openDialog({ title: "How to start a relay", body, width: 600, buttons: [{ label: "Close", variant: "primary", onClick: (close) => close() }] });
+}
+
+/**
+ * Optional internet tunnel for the built-in relay (desktop app): offered only when cloudflared, ngrok or tailscale is
+ * installed, started only after an explicit confirmation, and shows the public URL with a warning. The CLI's argv is
+ * fixed on the Rust side (src-tauri/src/cmd.rs ▸ tunnel_args); content stays end-to-end encrypted, the tunnel provider
+ * sees what the relay sees (IP addresses, room ids, timing and sizes). Returns { url, stop } or null.
+ */
+export async function startTunnel(app, port) {
+  const tauri = globalThis.window?.__TAURI__;
+  if (!tauri?.core?.invoke) return null;
+  const found = await tauri.core.invoke("tunnel_detect");
+  if (!found.length) {
+    app.toast(t("No tunnel program found. Install cloudflared, ngrok or tailscale, or deploy a relay (docs/collaboration.md ▸ Relays across networks)."), "warning", 8000);
+    return null;
+  }
+  const [kind] = found[0];
+  const { confirmDialog } = await import("../dialogs.js");
+  const ok = await confirmDialog({ title: t("Share the relay over the internet?"), message: t("This starts {kind} and makes the relay on port {port} reachable from the internet through {kind}'s servers. Anyone with an invite code can then join; room content stays end-to-end encrypted, but {kind} and the relay see IP addresses, room ids, timing and sizes. Stop it when you are done.", { kind, port }), ok: t("Start tunnel"), danger: true });
+  if (!ok) return null;
+  const { tunnelUrl } = await import("../../vibe/terminal-policy.js");
+  let id = null;
+  let text = "";
+  return new Promise((resolve) => {
+    let unlisten = () => {};
+    const timer = setTimeout(() => finish(null, t("The tunnel did not report a public address within 30 seconds.")), 30000);
+    const stop = () => {
+      unlisten();
+      if (id != null) tauri.core.invoke("cmd_kill", { id });
+    };
+    function finish(url, error) {
+      clearTimeout(timer);
+      if (!url) {
+        stop();
+        if (error) app.toast(error, "danger", 8000);
+        return resolve(null);
+      }
+      resolve({ url: url.replace(/^https:/, "wss:").replace(/\/?$/, "/"), stop });
+    }
+    tauri.event.listen("openfini://cmd", (e) => {
+      const p = e.payload || {};
+      if (p.id !== id) return;
+      if (p.kind === "exit") return finish(null, t("The tunnel stopped."));
+      text += p.data;
+      const url = tunnelUrl(kind, text);
+      if (url) finish(url);
+    }).then((u) => {
+      unlisten = u;
+      return tauri.core.invoke("tunnel_start", { kind, port });
+    }).then((x) => (id = x)).catch((err) => finish(null, String(err?.message || err)));
+  });
 }
