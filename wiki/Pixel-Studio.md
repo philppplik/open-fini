@@ -11,6 +11,7 @@ The Pixel studio is for photo editing and painting: layers and masks, selections
 | Magic wand, Color range | `W` | Tolerance, contiguous, sample the layer or all layers; Color range adds softness, sample size and invert |
 | Crop | `C` | Eight handles; ratios (free, original, 1:1, 4:3, 3:2, 16:9, 5:4, custom); `X` swaps portrait and landscape; drag outside the box, use the angle field or the *Straighten* level line to straighten; `O` cycles guides (thirds, grid, golden ratio, diagonals, triangle); flip; fill for empty corners; optionally delete cropped pixels; `Enter` applies |
 | Perspective crop | `C` (flyout) | Drag four corners onto a tilted rectangle and press `Enter` to straighten it |
+| 3D Transform | crop flyout | Tilt, rotate and skew a layer or selection in perspective, or drag corner and grid handles; `Enter` applies |
 | Magic eraser | `E` (flyout) | Click to erase similar colors |
 | Brush, Pencil | `B` | `[` and `]` change the size; pressure sensitive; on a mask light colors reveal and dark colors hide |
 | Eraser | `E` | |

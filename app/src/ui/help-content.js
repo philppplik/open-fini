@@ -19,6 +19,7 @@ export const TOOL_HELP = {
   fill: "Click to fill a shape or, in Pixel, a region of similar color.",
   eyedropper: "Click anywhere to pick a color. Alt-click picks the background color.",
   crop: "Crop the image. Drag the handles, drag outside the box to straighten, press O to cycle composition guides and Enter to apply.",
+  "transform-3d": "Tilt the layer or the selected pixels in 3D, skew it, or drag the corner and grid handles; press Enter to apply.",
   "perspective-crop": "Drag the four corners onto the corners of a tilted rectangle, then press Enter to straighten it.",
   "magic-eraser": "Click to erase every pixel of a similar color from the layer. Tolerance and contiguous are in the context bar.",
   slice: "Draw export slices around parts of the page to export them as separate files.",

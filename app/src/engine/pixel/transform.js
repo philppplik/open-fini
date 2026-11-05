@@ -566,3 +566,12 @@ export function rotateImage(img, degrees, opts = {}) {
   const mat = [cs, sn, -sn, cs, dcx - cs * cx + sn * cy, dcy - sn * cx - cs * cy];
   return affineWarp(img, mat, ow, oh, { filter: opts.filter || "bicubic", background: opts.background });
 }
+
+/** Samples the source at (sx, sy) (pixel-center convention already applied) into the shared sample buffer. */
+export function sampleInto(filter, d, W, H, sx, sy) {
+  sampleWith(pickSampler(filter), d, W, H, sx, sy);
+}
+/** Stores the last sample at byte offset `o` of `out` (clamped). */
+export function storeSampleAt(out, o) {
+  storeSample(out, o, null);
+}

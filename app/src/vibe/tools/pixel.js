@@ -129,6 +129,23 @@ export function pixelTools(app, ctx) {
       return r === true ? { ok: true, page: { w: app.page.w, h: app.page.h } } : { ok: false, error: r };
     }),
 
+    tool("transform_layer_3d", "3D / free transform of the active pixel layer (or only the selected pixels when there is a pixel selection): perspective tilt around X/Y/Z with a perspective distance, skew, or explicit corner-pin / warp-grid points. One undo step, bicubic resampling.", {
+      id: S.str("Pixel layer id (default: the active layer)"), rotateX: S.num("Tilt around the horizontal axis, degrees"), rotateY: S.num("Tilt around the vertical axis, degrees"), rotateZ: S.num("Rotation in the plane, degrees"),
+      distance: S.num("Perspective distance as a multiple of the diagonal (default 2; larger is flatter)"), skewX: S.num("Horizontal skew, degrees"), skewY: S.num("Vertical skew, degrees"),
+      grid: S.num("Warp grid cells per side for points (default 1 = corner pin)"), points: { type: "array", description: "Optional (grid+1)^2 destination points [x, y] in the layer's pixel space, row-major from the top-left; overrides the angles", items: { type: "array", items: { type: "number" } } },
+      filter: S.str("Resampling", { enum: ["bicubic", "bilinear", "nearest"] }),
+    }, [], async (a) => {
+      requireDoc(app);
+      if (a.id) {
+        const n = nodesById(app, [a.id])[0];
+        if (!n || n.type !== "pixel") return { ok: false, error: "That layer is not a pixel layer." };
+        app.select([n]);
+      }
+      const { transformLayer3d } = await import("../../studios/tools/transform3d-ops.js");
+      const r = await transformLayer3d(app, { points: a.points, n: a.grid || 1, params: a, filter: a.filter || "bicubic" });
+      return r === true ? { ok: true, id: app.activeNode?.id } : { ok: false, error: r };
+    }),
+
     tool("rotate_image", "Rotates the whole document clockwise by an angle (90, 180, -90 or any angle; the canvas grows to fit unless expand is false).", {
       degrees: S.num("Clockwise degrees"), expand: S.bool("Grow the canvas to hold the rotated content (default true)"),
     }, ["degrees"], async (a) => {
