@@ -26,7 +26,9 @@ export const DOCUMENT_APP = {
     { id: "memo", label: "Memo", description: "To, from, date, subject and body", icon: "sticky", category: "Business" },
     { id: "meeting", label: "Meeting notes", description: "Attendees, agenda, decisions and action items", icon: "people", category: "Business" },
     { id: "resume", label: "Resume", description: "Name, contact line and sections", icon: "person", category: "Personal" },
+    { id: "newsletter", label: "Newsletter", description: "Masthead, two columns, a text box and a styled table", icon: "layout-text-window", category: "Designed" },
+    { id: "proposal", label: "Project proposal", description: "Cover, table of contents, sections and a budget table", icon: "card-text", category: "Designed" },
   ],
-  aiNote: "The active Office document is a word-processing document (pages, styles, lists, tables). Read it with office_read_document before editing; use the office_ tools (office_insert_blocks, office_replace_text, office_set_style, office_apply_format, office_insert_table, office_set_page_setup). Every call is one undoable step.",
+  aiNote: "The active Office document is a word-processing document (pages, styles, lists, tables). Read it with office_read_document before editing; use the office_ tools (office_insert_blocks, office_replace_text, office_set_style, office_apply_format, office_insert_table, office_set_page_setup) and the design tools (office_apply_design, office_table_style, office_insert_section_break, office_insert_text_box, office_insert_toc, office_track_changes). Every call is one undoable step.",
   load: () => import("./app.js"),
 };

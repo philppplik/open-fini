@@ -10,6 +10,7 @@ import { normalizeDoc, effectivePara, effectiveRun, tableGrid, isText, headingLe
 
 export { listLabel };
 import { imageSize } from "./media.js";
+import { prepareForExport } from "./design.js";
 
 const BLACK = (c) => ({ type: "solid", color: c || "#000000", alpha: 1 });
 const IDENT = [1, 0, 0, 1, 0, 0];
@@ -290,6 +291,7 @@ function effRunAttrs(doc, p) {
  * @returns {Uint8Array}
  */
 export function exportPdf(doc, o = {}) {
+  doc = prepareForExport(normalizeDoc(doc), "pdf").doc;
   const pages = layoutPages(doc, o);
   const meta = doc.meta || {};
   return createPDF(pages, { pxPerInch: 72, title: o.title || meta.title || undefined, author: meta.author || undefined, subject: meta.subject || undefined, keywords: meta.keywords || undefined, creationDate: o.creationDate });

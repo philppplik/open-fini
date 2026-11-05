@@ -117,16 +117,18 @@ export function officeTools(app) {
       const kind = lvl ? `heading ${lvl}` : b.list ? `${b.list.kind} level ${b.list.level}` : b.style === "Normal" ? "paragraph" : `paragraph (${m.styles[b.style]?.name || b.style})`;
       return { index: i, kind, style: b.style, text: M.paraText(b).replace(/\uFFFC/g, "[object]").slice(0, 600) };
     }
-    if (b.type === "table") return { index: i, kind: "table", rows: b.rows.length, columns: b.cols.length, cells: b.rows.slice(0, 6).map((r) => r.cells.map((c) => c.blocks.map(M.paraText).join(" ").slice(0, 80))) };
+    if (b.type === "sectionBreak") return { index: i, kind: "section break", columns: b.columns, start: b.start };
+    if (b.type === "toc") return { index: i, kind: "table of contents", levels: b.levels };
+    if (b.type === "table") return { index: i, kind: "table", rows: b.rows.length, columns: b.cols.length, ...(b.design ? { tableStyle: b.design.style } : {}), cells: b.rows.slice(0, 6).map((r) => r.cells.map((c) => c.blocks.map(M.paraText).join(" ").slice(0, 80))) };
     return { index: i, kind: b.type };
   };
 
   return [
-    tool("office_new_document", "Creates a new Office Studio text document (Word-style, with pages) and switches to the Office Studio. Optional template: blank, letter, report or resume.", {
+    tool("office_new_document", "Creates a new Office Studio text document (Word-style, with pages) and switches to the Office Studio. Optional template: blank, letter, report, invoice, memo, meeting, resume, newsletter (designed: two columns, text box, styled table) or proposal (designed: table of contents, budget table).", {
       title: S.str("Document name"),
       size: S.str("Paper size", { enum: ["A4", "Letter", "Legal", "A5"] }),
       orientation: S.str("portrait or landscape", { enum: ["portrait", "landscape"] }),
-      template: S.str("blank (default), letter, report or resume", { enum: ["blank", "letter", "report", "resume"] }),
+      template: S.str("blank (default), letter, report, invoice, memo, meeting, resume, newsletter or proposal", { enum: ["blank", "letter", "report", "invoice", "memo", "meeting", "resume", "newsletter", "proposal"] }),
     }, [], async ({ title = "Untitled document", size = "A4", orientation = "portrait", template = "blank" }) => {
       const { templateModel } = await import("../../ui/office/dialogs.js");
       const { openOfficeModel } = await import("../../ui/office/open.js");
@@ -152,6 +154,8 @@ export function officeTools(app) {
         styles: Object.entries(m.styles).filter(([, s]) => s.type !== "character").map(([id, s]) => ({ id, name: s.name })),
         outline: M.outline(m).map((o) => ({ index: o.path[0], level: o.level, text: o.text })),
         stats: st,
+        ...(m.theme ? { theme: m.theme.id } : {}),
+        ...(m.trackChanges ? { trackChanges: true } : {}),
         totalBlocks: m.blocks.length,
         blocks,
       };

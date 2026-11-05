@@ -88,6 +88,7 @@ function textRunsXml(text, m, style) {
  */
 export function writeDocx(input, o = {}) {
   const doc = normalizeDoc(input);
+  const headingLevelOf = (p) => resolveStyle(doc, p.style || "Normal").outline || 0;
   const rels = [];
   const addRel = (type, target, external = false) => {
     const id = `rId${rels.length + 10}`;
@@ -153,7 +154,8 @@ export function writeDocx(input, o = {}) {
     };
     for (const r of runs) {
       let piece;
-      if (isText(r)) piece = textRunsXml(r.text, r, r.link ? "Hyperlink" : undefined);
+      if (isText(r) && (r.ins || r.del)) piece = revisionXml(r);
+      else if (isText(r)) piece = textRunsXml(r.text, r, r.link ? "Hyperlink" : undefined);
       else if (r.type === "break") piece = "<w:r><w:br/></w:r>";
       else if (r.type === "image") piece = imageXml(r);
       else if (r.type === "field") piece = fieldXml(r.field);
@@ -170,6 +172,16 @@ export function writeDocx(input, o = {}) {
     }
     flush();
     return x;
+  };
+  // tracked changes (engine/office/design.js): w:ins / w:del around the run, deleted text as w:delText
+  let revId = 1;
+  const revDate = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+  const revisionXml = (r) => {
+    let run = textRunsXml(r.text, r, r.link ? "Hyperlink" : undefined);
+    if (r.del) run = run.replace(/<w:t xml:space="preserve">/g, '<w:delText xml:space="preserve">').replace(/<\/w:t>/g, "</w:delText>");
+    if (r.del) run = `<w:del w:id="${revId++}" w:author="${escAttr(r.del)}" w:date="${revDate}">${run}</w:del>`;
+    if (r.ins) run = `<w:ins w:id="${revId++}" w:author="${escAttr(r.ins)}" w:date="${revDate}">${run}</w:ins>`;
+    return run;
   };
   const paraXml = (p, extraInner = "") => {
     const numId = p.list ? numFor(p.list) : 0;
@@ -206,9 +218,31 @@ export function writeDocx(input, o = {}) {
     return `${x}</w:tbl>`;
   };
 
+  // sections: a sectionBreak block starts a new section, so the section it ends is written into an empty paragraph
+  // (Word keeps a section's properties at its end); the body's final sectPr describes the last section.
+  const pg = doc.page;
+  const colsXml = (n, gap) => `<w:cols w:space="${tw(gap)}"${n > 1 ? ` w:num="${n}"` : ""}/>`;
+  let sec = { columns: pg.columns, columnGap: pg.columnGap, start: "page" };
+  const sectInner = (s) => `${s.start === "continuous" ? '<w:type w:val="continuous"/>' : ""}<w:pgSz w:w="${tw(pg.width)}" w:h="${tw(pg.height)}"${pg.orientation === "landscape" ? ' w:orient="landscape"' : ""}/><w:pgMar w:top="${tw(pg.margins.top)}" w:right="${tw(pg.margins.right)}" w:bottom="${tw(pg.margins.bottom)}" w:left="${tw(pg.margins.left)}" w:header="${tw(pg.margins.header)}" w:footer="${tw(pg.margins.footer)}" w:gutter="0"/>${colsXml(s.columns, s.columnGap)}`;
+  const tocXml = (b) => {
+    // a real TOC field (Word refreshes the page numbers) with the current headings as its cached result
+    const entries = doc.blocks.flatMap((x, i) => (x.type === "paragraph" && headingLevelOf(x) && headingLevelOf(x) <= b.levels ? [{ i, level: headingLevelOf(x), text: x.runs.filter(isText).map((r) => r.text).join("") }] : []));
+    let x = b.title ? `<w:p><w:pPr><w:keepNext/><w:spacing w:after="120"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t xml:space="preserve">${esc(b.title)}</w:t></w:r></w:p>` : "";
+    const begin = `<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> TOC \\o "1-${b.levels}" \\h \\z \\u</w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r>`;
+    const end = '<w:r><w:fldChar w:fldCharType="end"/></w:r>';
+    if (!entries.length) return `${x}<w:p>${begin}<w:r><w:t>No headings yet.</w:t></w:r>${end}</w:p>`;
+    entries.forEach((e, k) => {
+      x += `<w:p><w:pPr><w:ind w:left="${tw((e.level - 1) * 18)}"/><w:spacing w:after="40"/></w:pPr>${k === 0 ? begin : ""}<w:r><w:t xml:space="preserve">${esc(e.text)}</w:t></w:r>${k === entries.length - 1 ? end : ""}</w:p>`;
+    });
+    return x;
+  };
   let body = "";
   for (const b of doc.blocks) {
-    if (b.type === "paragraph") body += paraXml(b);
+    if (b.type === "sectionBreak") {
+      body += `<w:p><w:pPr><w:sectPr>${sectInner(sec)}</w:sectPr></w:pPr></w:p>`;
+      sec = { columns: b.columns, columnGap: b.columnGap, start: b.start };
+    } else if (b.type === "toc") body += tocXml(b);
+    else if (b.type === "paragraph") body += paraXml(b);
     else if (b.type === "table") body += tableXml(b);
     else if (b.type === "pageBreak") body += '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
     else if (b.type === "rule") body += '<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="808080"/></w:pBdr></w:pPr></w:p>';
@@ -222,8 +256,7 @@ export function writeDocx(input, o = {}) {
     files.push([`word/${kind}1.xml`, xml]);
     return `<w:${kind}Reference w:type="default" r:id="${addRel(kind, `${kind}1.xml`)}"/>`;
   };
-  const pg = doc.page;
-  const sect = `<w:sectPr>${hdr("header", doc.header)}${hdr("footer", doc.footer)}<w:pgSz w:w="${tw(pg.width)}" w:h="${tw(pg.height)}"${pg.orientation === "landscape" ? ' w:orient="landscape"' : ""}/><w:pgMar w:top="${tw(pg.margins.top)}" w:right="${tw(pg.margins.right)}" w:bottom="${tw(pg.margins.bottom)}" w:left="${tw(pg.margins.left)}" w:header="${tw(pg.margins.header)}" w:footer="${tw(pg.margins.footer)}" w:gutter="0"/><w:cols w:space="${tw(pg.columnGap)}"${pg.columns > 1 ? ` w:num="${pg.columns}"` : ""}/><w:docGrid w:linePitch="360"/></w:sectPr>`;
+  const sect = `<w:sectPr>${hdr("header", doc.header)}${hdr("footer", doc.footer)}${sectInner(sec)}<w:docGrid w:linePitch="360"/></w:sectPr>`;
 
   const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document ${nsDecl()}><w:body>${body}${sect}</w:body></w:document>`;
 
@@ -593,9 +626,21 @@ export function readDocx(bytes, o = {}) {
   model.footnotes = ctx.footnotes;
   model.media = ctx.media;
 
-  // page setup from the last section
+  // sections: paragraph-level sectPr end a section; each becomes a sectionBreak that starts the NEXT section with
+  // that section's columns and start type (design.js ▸ sectionsOf). Page size and margins come from the last section.
   const sects = findAll(body, "sectPr");
-  if (sects.length > 1) report.flattened(`The document has ${sects.length} sections; one page setup is used for all of them.`);
+  const breaks = model.blocks.filter((b) => b.type === "sectionBreak");
+  const seq = [...breaks.map((b) => b._sect), child(body, "sectPr")].filter(Boolean);
+  const colsOf = (sp) => {
+    const c = child(sp, "cols");
+    return { columns: Math.max(1, Math.min(4, Number(attr(c, "num")) || 1)), columnGap: fromTw(attr(c, "space")) ?? 36 };
+  };
+  breaks.forEach((b, i) => {
+    const next = seq[i + 1];
+    Object.assign(b, next ? colsOf(next) : { columns: 1 }, { start: attr(child(next, "type"), "val") === "continuous" ? "continuous" : "page" });
+    delete b._sect;
+  });
+  if (breaks.length) report.kept(`${plural(breaks.length + 1, "section")} with their columns; one page size and margins are used for all of them.`);
   const sect = child(body, "sectPr") || sects[sects.length - 1];
   if (sect) {
     const pgSz = child(sect, "pgSz");
@@ -615,10 +660,10 @@ export function readDocx(bytes, o = {}) {
       const v = fromTw(attr(pgMar, k));
       if (v !== undefined) page.margins[k] = Math.abs(v);
     }
-    const cols = child(sect, "cols");
-    if (cols && Number(attr(cols, "num")) > 1) {
-      page.columns = Math.min(4, Number(attr(cols, "num")));
-      page.columnGap = fromTw(attr(cols, "space")) ?? 36;
+    const first = colsOf(seq[0] || sect);
+    if (first.columns > 1) {
+      page.columns = first.columns;
+      page.columnGap = first.columnGap;
     }
     model.page = page;
     for (const kind of ["header", "footer"]) {
@@ -726,7 +771,7 @@ function readParagraph(p, ctx) {
 
   const blocks = [];
   const state = { field: null, instr: "", link: null, skip: false };
-  const push = (r) => para.runs.push(r);
+  const push = (r) => para.runs.push(state.rev && isText(r) ? { ...r, ...state.rev } : r);
   const pageBreak = () => {
     blocks.push({ ...para, runs: mergeRuns(para.runs) }, { type: "pageBreak" });
     para.runs = [];
@@ -758,6 +803,14 @@ function readParagraph(p, ctx) {
           break;
         }
         case "ins":
+        case "del": {
+          // tracked changes: kept as ins / del marks with the author (accept or reject them in the Review panel)
+          const prev = state.rev;
+          state.rev = { [c.local]: String(attr(c, "author") || "Unknown").slice(0, 100) };
+          walk(c, link);
+          state.rev = prev;
+          break;
+        }
         case "smartTag":
         case "customXml":
         case "sdtContent":
@@ -765,9 +818,6 @@ function readParagraph(p, ctx) {
           break;
         case "sdt":
           walk(child(c, "sdtContent") || c, link);
-          break;
-        case "del":
-          ctx.report.dropped("Tracked deletions (the text that was deleted is not shown).");
           break;
         case "oMath":
         case "oMathPara":
@@ -780,6 +830,13 @@ function readParagraph(p, ctx) {
   walk(p, null);
   para.runs = mergeRuns(para.runs);
   blocks.push(para);
+  // a section ends after this paragraph (resolved in readDocx); the usual empty carrier paragraph is dropped
+  const sp = child(pPr, "sectPr");
+  if (sp) {
+    if (!para.runs.length) blocks.pop();
+    blocks.push({ type: "sectionBreak", _sect: sp });
+    return blocks;
+  }
   // a paragraph that only holds a page break becomes just the break
   if (blocks.length > 1) return blocks.filter((b) => b.type !== "paragraph" || b.runs.length);
   return blocks;
@@ -804,6 +861,7 @@ function readRun(r, ctx, link, state, push, pageBreak) {
     if (typeof c === "string") continue;
     switch (c.local) {
       case "t":
+      case "delText":
         add(textOf(c));
         break;
       case "tab":

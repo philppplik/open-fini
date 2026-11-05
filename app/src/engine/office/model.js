@@ -5,13 +5,20 @@
 // Lengths are points (1 pt = 1/72 in). Every update function is immutable: it returns a new document that shares
 // unchanged blocks with the old one, so undo can keep cheap snapshots and the editor re-renders only what changed.
 //
-//   OfficeDoc  = { type: "office-document", version, meta, page, header, footer, styles, blocks, footnotes, media }
+//   OfficeDoc  = { type: "office-document", version, meta, page, header, footer, styles, blocks, footnotes, media,
+//                  theme?: { id, fonts: { heading, body }, colors: { heading, accent, text } }, trackChanges?: true }
 //   Block      = Paragraph | Table | { type: "pageBreak" } | { type: "rule" }
+//              | { type: "sectionBreak", columns: 1-4, columnGap, start: "page"|"continuous" }  (starts a new section;
+//                the first section uses page.columns)
+//              | { type: "toc", levels: 1-6, title }                                           (generated table of contents)
 //   Paragraph  = { type: "paragraph", style, props?, list?: { kind: "bullet"|"number", level, id? }, runs: Inline[] }
-//   Table      = { type: "table", cols: number[], rows: [{ header?, cells: [{ blocks: Paragraph[], colspan?, rowspan?, shading?, vAlign? }] }], borders }
-//   Inline     = { text, b?, i?, u?, s?, va?: "sub"|"super", color?, highlight?, font?, size?, link? }
-//              | { type: "break" } | { type: "image", media, width, height, alt? } | { type: "footnote", id }
+//   Table      = { type: "table", cols: number[], rows: [{ header?, cells: [{ blocks: Paragraph[], colspan?, rowspan?, shading?, vAlign? }] }], borders,
+//                  design?: { style, header, banded, firstCol, total } }   (table style gallery, engine/office/design.js)
+//   Inline     = { text, b?, i?, u?, s?, va?: "sub"|"super", color?, highlight?, font?, size?, link?, ins?: author, del?: author }
+//              | { type: "break" } | { type: "image", media, width, height, alt?, wrap?: "left"|"right" } | { type: "footnote", id }
 //              | { type: "field", field: "page"|"pages"|"date" }
+//              | { type: "textbox", text, width, wrap: "left"|"right"|"none", fill?, border? }  (floating text box)
+// `ins` / `del` mark tracked changes (the author's name); accepting and rejecting them lives in engine/office/design.js.
 // Inline objects count as one character in offsets (a line break as "\n", the others as U+FFFC).
 
 export const OFFICE_VERSION = 1;
@@ -26,7 +33,9 @@ export const PAGE_SIZES = {
   A3: { label: "A3", width: 841.89, height: 1190.55 },
 };
 
-export const MARK_KEYS = ["b", "i", "u", "s", "va", "color", "highlight", "font", "size", "link"];
+export const MARK_KEYS = ["b", "i", "u", "s", "va", "color", "highlight", "font", "size", "link", "ins", "del"];
+/** Block types that are one non-editable unit (Backspace / Delete next to them removes them). */
+export const ATOM_BLOCKS = ["pageBreak", "rule", "sectionBreak", "toc"];
 export const PARA_KEYS = ["align", "spaceBefore", "spaceAfter", "lineHeight", "indentLeft", "indentRight", "indentFirst", "keepWithNext", "pageBreakBefore"];
 export const ALIGNS = ["left", "center", "right", "justify"];
 export const BUILTIN_STYLE_IDS = ["Normal", "Title", "Subtitle", "Heading1", "Heading2", "Heading3", "Heading4", "Heading5", "Heading6", "Quote", "Code", "List"];
@@ -140,6 +149,7 @@ export function normMarks(r) {
   if (size) m.size = Math.round(size * 2) / 2;
   const link = safeHref(r.link);
   if (link) m.link = link;
+  for (const k of ["ins", "del"]) if (typeof r[k] === "string" && r[k].trim()) m[k] = r[k].trim().slice(0, 100);
   return m;
 }
 
@@ -169,7 +179,12 @@ function normInline(r, media, footnotes) {
   if (r.type === "break") return { type: "break" };
   if (r.type === "image") {
     if (!r.media || !media[r.media]) return null;
-    return { type: "image", media: str(r.media, 64), width: clampNum(r.width, 1, 5000, 100), height: clampNum(r.height, 1, 5000, 100), ...(r.alt ? { alt: str(r.alt, 2000) } : {}) };
+    return { type: "image", media: str(r.media, 64), width: clampNum(r.width, 1, 5000, 100), height: clampNum(r.height, 1, 5000, 100), ...(r.alt ? { alt: str(r.alt, 2000) } : {}), ...(r.wrap === "left" || r.wrap === "right" ? { wrap: r.wrap } : {}) };
+  }
+  if (r.type === "textbox") {
+    const fill = normColor(r.fill);
+    const border = normColor(r.border);
+    return { type: "textbox", text: str(r.text, 5000).replace(/\r\n?/g, "\n"), width: clampNum(r.width, 36, 1000, 180), wrap: ["left", "right", "none"].includes(r.wrap) ? r.wrap : "right", ...(fill ? { fill } : {}), ...(border ? { border } : {}) };
   }
   if (r.type === "footnote") return footnotes[r.id] ? { type: "footnote", id: str(r.id, 64) } : null;
   if (r.type === "field") return ["page", "pages", "date"].includes(r.field) ? { type: "field", field: r.field } : null;
@@ -212,7 +227,10 @@ function normTable(t, ctx) {
   const ncols = Math.max(1, ...rows.map((r) => r.cells.reduce((n, c) => n + (c.colspan || 1), 0)));
   const cols = Array.from({ length: ncols }, (_, i) => clampNum(Array.isArray(t.cols) ? t.cols[i] : undefined, 4, 2000, 72));
   const b = t.borders || {};
-  return { type: "table", cols, rows, borders: { style: b.style === "none" ? "none" : "single", width: clampNum(b.width, 0.25, 6, 0.5), color: normColor(b.color) || "#808080" } };
+  const out = { type: "table", cols, rows, borders: { style: b.style === "none" ? "none" : "single", width: clampNum(b.width, 0.25, 6, 0.5), color: normColor(b.color) || "#808080" } };
+  const d = t.design;
+  if (d && typeof d === "object" && /^[\w-]{1,32}$/.test(d.style || "")) out.design = { style: d.style, header: !!d.header, banded: !!d.banded, firstCol: !!d.firstCol, total: !!d.total };
+  return out;
 }
 
 /**
@@ -261,6 +279,8 @@ export function normalizeDoc(input) {
       if (t && blocks[blocks.length - 1]?.type === "table") blocks.push(para(""));
       if (t) blocks.push(t);
     } else if (b.type === "pageBreak" || b.type === "rule") blocks.push({ type: b.type });
+    else if (b.type === "sectionBreak") blocks.push({ type: "sectionBreak", columns: clampInt(b.columns, 1, 4, 1), columnGap: clampNum(b.columnGap, 0, 288, 36), start: b.start === "page" ? "page" : "continuous" });
+    else if (b.type === "toc") blocks.push({ type: "toc", levels: clampInt(b.levels, 1, 6, 3), title: str(b.title ?? "Contents", 200) });
   }
   if (!blocks.length || blocks[blocks.length - 1].type !== "paragraph") blocks.push(para(""));
   const p = d.page && typeof d.page === "object" ? d.page : {};
@@ -279,7 +299,16 @@ export function normalizeDoc(input) {
   const meta = { ...base.meta };
   for (const k of Object.keys(meta)) if (d.meta && typeof d.meta[k] === "string") meta[k] = str(d.meta[k], 2000);
   const hf = (list) => (Array.isArray(list) ? list.filter((b) => b?.type === "paragraph").slice(0, 20).map((b) => normParagraph(b, { ...ctx, footnotes: {} })) : []);
-  return { type: "office-document", version: OFFICE_VERSION, meta, page, header: hf(d.header), footer: hf(d.footer), styles, blocks, footnotes, media };
+  const out = { type: "office-document", version: OFFICE_VERSION, meta, page, header: hf(d.header), footer: hf(d.footer), styles, blocks, footnotes, media };
+  const th = d.theme;
+  if (th && typeof th === "object" && /^[\w-]{1,32}$/.test(th.id || "")) {
+    const font = (f) => (typeof f === "string" && f.trim() ? f.trim().replace(/["<>;{}]/g, "").slice(0, 64) : DEFAULT_FONT);
+    const colors = {};
+    for (const k of ["heading", "accent", "text"]) colors[k] = normColor(th.colors?.[k]) || "#000000";
+    out.theme = { id: th.id, fonts: { heading: font(th.fonts?.heading), body: font(th.fonts?.body) }, colors };
+  }
+  if (d.trackChanges) out.trackChanges = true;
+  return out;
 }
 
 // ------------------------------------------------------------------------------------------------ styles
@@ -629,7 +658,7 @@ export function joinBackward(doc, path) {
     return { doc, pos: { path, offset: 0 } };
   }
   const prev = list[i - 1];
-  if (prev.type === "pageBreak" || prev.type === "rule") {
+  if (ATOM_BLOCKS.includes(prev.type)) {
     doc = updateContainer(doc, path, (l) => [...l.slice(0, i - 1), ...l.slice(i)]);
     return { doc, pos: { path: path.slice(0, -1).concat(i - 1), offset: 0 } };
   }
@@ -655,7 +684,7 @@ export function joinForward(doc, path) {
   const next = list[i + 1];
   if (!next) return { doc, pos: { path, offset: paraLength(getBlock(doc, path)) } };
   if (next.type === "paragraph") return joinBackward(doc, path.slice(0, -1).concat(i + 1));
-  if (next.type === "pageBreak" || next.type === "rule") {
+  if (ATOM_BLOCKS.includes(next.type)) {
     doc = updateContainer(doc, path, (l) => [...l.slice(0, i + 1), ...l.slice(i + 2)]);
   }
   return { doc, pos: { path, offset: paraLength(getBlock(doc, path)) } };

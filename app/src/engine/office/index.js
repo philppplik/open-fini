@@ -10,6 +10,8 @@ import { readHtml, writeHtml } from "./html.js";
 import { readMarkdown, writeMarkdown, readText, writeText } from "./markdown.js";
 import { isZip, readZip } from "./zip.js";
 import { createReport } from "./report.js";
+import { prepareForExport } from "./design.js";
+import { normalizeDoc } from "./model.js";
 
 /**
  * @typedef {{ id: string, kind: "document"|"spreadsheet"|"presentation"|"whiteboard"|"cloud"|"legacy", label: string, ext: string[],
@@ -177,11 +179,15 @@ export function importOffice(name, bytes, o = {}) {
 
 /**
  * Exports to a format other than PDF (PDF needs the layout engine: see pdf.js).
- * @returns {{ bytes: Uint8Array, mime: string, ext: string }}
+ * Design features the format cannot store (tracked changes, TOC, sections, text boxes) are converted first and
+ * explained in `notes` (design.js ▸ prepareForExport).
+ * @returns {{ bytes: Uint8Array, mime: string, ext: string, notes: string[] }}
  */
 export function exportOffice(doc, id, o = {}) {
   const f = FORMATS.find((x) => x.id === id && x.write);
   if (!f || id === "pdf") throw new Error(`Cannot export to ${id} here.`);
+  const prep = prepareForExport(doc.version && Array.isArray(doc.blocks) && doc.page ? doc : normalizeDoc(doc), id);
+  doc = prep.doc;
   const enc = (s) => new TextEncoder().encode(s);
   let bytes;
   switch (id) {
@@ -203,7 +209,7 @@ export function exportOffice(doc, id, o = {}) {
     default:
       bytes = enc(writeText(doc, o));
   }
-  return { bytes, mime: f.mime, ext: f.ext[0] };
+  return { bytes, mime: f.mime, ext: f.ext[0], notes: prep.notes };
 }
 
 export { readDocx, writeDocx, readOdt, writeOdt, readRtf, writeRtf, readHtml, writeHtml, readMarkdown, writeMarkdown, readText, writeText };

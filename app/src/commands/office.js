@@ -90,6 +90,19 @@ export function registerOfficeCommands(app) {
   def("office.insertDate", "Date", then(() => ed().insertText(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), "Insert Date")));
   def("office.imageProperties", "Image Properties…", () => dlg().then((m) => m.imagePropertiesDialog(app, ws())));
 
+  // ---- design and review (ui/office/design-ui.js, engine/office/design.js)
+  const des = () => import("../ui/office/design-ui.js");
+  def("office.design", "Design (Themes and Style Sets)…", () => des().then((m) => m.designDialog(app, ws())), { icon: "palette" });
+  def("office.updateStyle", "Update Style to Match Selection", () => des().then((m) => m.updateStyleFromSelection(app, ws())));
+  def("office.insertTextBox", "Text Box…", () => des().then((m) => m.textBoxDialog(app, ws())), { icon: "textarea-t" });
+  def("office.editTextBox", "Edit Text Box…", () => des().then((m) => m.textBoxDialog(app, ws(), { edit: true })));
+  def("office.insertSectionBreak", "Section Break (Columns)…", () => des().then((m) => m.sectionBreakDialog(app, ws())), { icon: "layout-three-columns" });
+  def("office.insertToc", "Table of Contents", () => des().then((m) => m.insertToc(app, ws())), { icon: "list-ol" });
+  def("office.trackChanges", "Track Changes", () => des().then((m) => m.toggleTrackChanges(app, ws())), { checked: (a) => !!a.officeUI?.prj?.model?.trackChanges });
+  def("office.review", "Review Changes…", () => des().then((m) => m.reviewDialog(app, ws())), { icon: "check-square" });
+  def("office.acceptAll", "Accept All Changes", () => des().then((m) => m.resolveAll(app, ws(), true)));
+  def("office.rejectAll", "Reject All Changes", () => des().then((m) => m.resolveAll(app, ws(), false)));
+
   // ---- tables
   const inTable = (a) => live(a) && !!a.officeUI.editor.tableContext();
   const t = (id, label, op, extra = {}) => def(id, label, then(() => ed().tableOp(op)), { enabled: inTable, ...extra });
@@ -105,6 +118,7 @@ export function registerOfficeCommands(app) {
   t("office.headerRow", "Header Row", "header", { checked: (a) => !!a.officeUI?.editor?.tableContext()?.t.rows[0].header });
   def("office.cellShading", "Cell Shading…", () => dlg().then((m) => m.shadingDialog(app, ws())), { enabled: inTable });
   def("office.tableBorders", "Borders…", () => dlg().then((m) => m.bordersDialog(app, ws())), { enabled: inTable });
+  def("office.tableStyles", "Table Styles…", () => import("../ui/office/design-ui.js").then((m) => m.tableStylesDialog(app, ws())), { enabled: inTable, icon: "table" });
 
   // ---- view
   def("office.printLayout", "Print Layout", () => (ed().setLayout("print"), ws().refreshToolbar()), { checked: (a) => a.officeUI?.prj.view.layout !== "web" });
