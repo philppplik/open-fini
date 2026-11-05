@@ -137,9 +137,9 @@ characterization tests or browser checks first.
 | 4 | Fix the toolbox editor listener leak | memory per settings visit | low | S | browser check | **Do now** |
 | 5 | Delete dead functions and Vibe UI v1 CSS | lines, ~0.5 KiB CSS | low | S | full suite | **Do now** |
 | 6 | Guardrails (cycles, layering, engine purity, start-up closure) + lower budgets | prevents regressions | low | M | new tests | **Do now** |
-| 7 | Lazy hyphenation patterns | −17 KiB start-up | medium (first layout, exports) | M | layout tests | Later: needs an "ensure ready" step before layout/export |
-| 8 | Async pixel effect registry | −41 KiB start-up | high (renderer) | L | partial | Later |
-| 9 | Lazy boolean engine | −10.7 KiB start-up | medium (sync API used by Vibe tools) | M | core tests | Later |
+| 7 | Lazy hyphenation patterns | −17 KiB start-up | medium (first layout, exports) | M | layout tests | **Done** (budget diet): `ensureHyphenation()` loads the patterns after start-up (idle) and before raster/PDF export; text laid out before they arrive keeps words whole and reflows once |
+| 8 | Async pixel effect registry | −41 KiB start-up | high (renderer) | L | partial | Later: the canvas backend calls `getEffect` synchronously while painting |
+| 9 | Lazy boolean engine | −10.7 KiB start-up | medium (sync API used by Vibe tools) | M | core tests | **Done** (budget diet): `booleanOp`/`expandStrokeOp` are async and import the engine |
 | 10 | Shared `esc`/`clamp`/`crc32` helpers | ~0 KiB | low | S | yes | Rejected: no bytes saved, couples pure engines to `core/` |
 | 11 | Split `core/app.js`, `ui/shell.js`, `commands/file.js` | none measurable | medium | M | partial | Rejected: < 500 lines each, no clear seam that removes code |
 | 12 | Replace `console.*` with `core/log.js` everywhere | consistency | low | M | — | Later: most calls are in places without the logger |
@@ -158,6 +158,7 @@ Numbers from `check-size.mjs`, KiB gzip; PR rows are changes, each measured agai
 | #45 | Toolbox editor listener leak | 0 | 0 | 0 |
 | #47 | Dead functions and Vibe UI v1 CSS (CSS 73.2 → 72.9) | 0 | −0.2 | −0.4 |
 | guardrails | Architecture tests, `remapLinks` moved (cycle removed), start-up budget 380 → 365 | 0 | 0 | 0 |
+| diet | Lazy hyphenation patterns and boolean engine (`main` @ `a55a1e7`: 371.0 / 1621.1 / 2547.8) | −26.7 | +2.5 | +2.5 |
 | final | `main` after all of the above, including other teams' merges (collaboration UX) | **357.2** | 1290.6 | 2175.6 |
 
 Start-up JavaScript went down by 16.3 KiB (−4.4 %). Shell JS and total grew in the same period because of features

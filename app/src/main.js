@@ -75,6 +75,8 @@ ensureFont("Inter", 700);
 // feature modules that need the shell to exist
 const { boot } = await import("./boot.js");
 await boot(app);
+// hyphenation patterns load after start-up (idle), so hyphenated text reflows at most once, right after opening
+(window.requestIdleCallback || ((cb) => setTimeout(cb, 200)))(() => import("./engine/dl.js").then((m) => m.ensureHyphenation()).then(() => window.dispatchEvent(new CustomEvent("openfini:fonts"))));
 try {
   markBootOk(localStorage);
 } catch {

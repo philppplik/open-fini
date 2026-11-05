@@ -315,9 +315,9 @@ export function designTools(app, ctx) {
       ops.align(app, a.mode, { toPage: !!a.toPage });
       return { ok: true };
     }),
-    tool("boolean_layers", "Combines two or more shapes into one with a boolean operation.", { ids: S.ids(), op: S.str("Operation", { enum: ["union", "subtract", "intersect", "xor"] }) }, ["ids", "op"], (a) => {
+    tool("boolean_layers", "Combines two or more shapes into one with a boolean operation.", { ids: S.ids(), op: S.str("Operation", { enum: ["union", "subtract", "intersect", "xor"] }) }, ["ids", "op"], async (a) => {
       app.select(nodesById(app, a.ids));
-      ops.booleanOp(app, a.op);
+      await ops.booleanOp(app, a.op);
       return { ok: true, selection: app.selection.map((n) => n.id) };
     }),
     tool("add_page", "Adds a page after the active page (multi-page documents, layouts, slide decks).", { width: S.num("Width px"), height: S.num("Height px"), name: S.str("Page name") }, [], (a) => {

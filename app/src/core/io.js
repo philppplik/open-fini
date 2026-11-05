@@ -3,7 +3,7 @@ import { createNode } from "./nodes.js";
 import { Doc, createCanvas, ctx2d } from "./doc.js";
 import { translate, scale as scaleM, mul } from "./math.js";
 import { uid } from "./util.js";
-import { dlState, buildPageDL } from "../engine/dl.js";
+import { dlState, buildPageDL, ensureHyphenation } from "../engine/dl.js";
 import { renderToCanvas, itemBounds, dlHasAdjust, CanvasPool } from "../engine/backends/canvas.js";
 import { displayListToSVGResult } from "../engine/backends/svg.js";
 import { importSVG } from "../engine/vector/svg-import.js";
@@ -209,6 +209,7 @@ const MAX_PIXELS = 140e6;
  * @param {{page?:object, format?:string, scale?:number, quality?:number, background?:string|null, area?:{x,y,w,h}, width?:number, height?:number}} o
  */
 export async function exportRaster(app, o = {}) {
+  await ensureHyphenation(); // hyphenated text must be laid out with the patterns
   const doc = app.doc;
   const page = o.page || app.page;
   const fmt = RASTER_FORMATS[o.format || "png"];
@@ -332,6 +333,7 @@ export async function writePdf(app, lists, { bleed = 0, cropMarks = false, ...ex
 }
 
 export async function exportPdf(app, pages = app.doc.pages, { bleed = false, cropMarks = false, rasterDpi = 200 } = {}) {
+  await ensureHyphenation();
   const lists = pdfPageLists(app, pages, { rasterDpi });
   return writePdf(app, lists, { bleed: bleed ? Math.max(...pages.map((p) => p.bleed || 0)) : 0, cropMarks });
 }

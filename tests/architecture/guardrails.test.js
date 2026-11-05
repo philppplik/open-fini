@@ -32,6 +32,8 @@ export const LAZY_AREAS = [
   "src/i18n/locales/",
   "src/ui/export-dialog.js",
   "src/engine/web/charcodec.js", "src/engine/web/texttools.js", // the palette loads texttools-catalog.js instead
+  "src/engine/layout/hyphenation.js", "src/engine/layout/hyphenation-en-us.js", // ensureHyphenation() in engine/dl.js
+  "src/engine/vector/boolean.js", "vendor/polygon-clipping/", // Shape > Boolean and Expand Stroke import it
   "vendor/pdfjs/", "vendor/codemirror/", "vendor/katex/",
 ];
 

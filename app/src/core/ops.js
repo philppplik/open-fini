@@ -4,7 +4,6 @@ import { clone, uid } from "./util.js";
 import { createNode, shapeGeometry, isShape, localBounds, worldMatrix, solid, defaultStroke, walk, remapLinks } from "./nodes.js";
 import { mul, invert, translate, scaleAbout, apply, ident, rectUnion, rectTransform, isIdentity } from "./math.js";
 import { pageBounds, pageBoundsOf, nudge } from "./transform.js";
-import { booleanPaths, expandStroke } from "../engine/vector/boolean.js";
 import { transformPath, pathToData } from "../engine/vector/path.js";
 
 export const LABELS = { rect: "Rectangle", ellipse: "Ellipse", polygon: "Polygon", star: "Star", path: "Curve", text: "Text", image: "Image", pixel: "Pixel Layer", group: "Group", adjust: "Adjustment" };
@@ -289,7 +288,10 @@ export function convertToCurves(app, nodes = topLevelSelection(app)) {
 }
 
 /** Applies a boolean operation to the selected shapes. */
-export function booleanOp(app, op) {
+/** Loads the boolean engine (polygon clipping) on demand; it is only needed by Shape > Boolean and Expand Stroke. */
+const loadBoolean = () => import("../engine/vector/boolean.js");
+
+export async function booleanOp(app, op) {
   const doc = app.doc;
   const nodes = topLevelSelection(app).filter(isShape);
   if (nodes.length < 2) {
@@ -304,6 +306,7 @@ export function booleanOp(app, op) {
     const M = mul(Pinv, worldMatrix(n));
     return { path: transformPath(shapeGeometry(n), M), rule: n.rule || "nonzero" };
   });
+  const { booleanPaths } = await loadBoolean();
   const results = booleanPaths(op, items);
   if (!results.length) {
     app.toast("The result is empty.", "warning");
@@ -341,13 +344,14 @@ export function compareOrder(a, b) {
   return ca.length - cb.length;
 }
 
-export function expandStrokeOp(app) {
+export async function expandStrokeOp(app) {
   const doc = app.doc;
   const nodes = topLevelSelection(app).filter((n) => isShape(n) && n.stroke && n.stroke.width > 0);
   if (!nodes.length) {
     app.toast("Select a shape with a stroke.", "warning");
     return false;
   }
+  const { expandStroke } = await loadBoolean();
   const created = [];
   doc.tx("Expand Stroke", () => {
     for (const n of nodes) {
