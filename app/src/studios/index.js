@@ -36,7 +36,7 @@ const BUILTIN = {
     tools: [
       "move",
       ["marquee", "marquee-ellipse", "lasso", "poly-lasso", "wand", "color-range"],
-      ["crop", "perspective-crop"],
+      ["crop", "perspective-crop", "transform-3d"],
       ["brush", "pixel-pencil"],
       ["eraser", "magic-eraser"],
       ["clone", "heal", "spot-heal", "redeye"],

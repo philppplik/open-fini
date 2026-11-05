@@ -2501,5 +2501,14 @@
   "TeX engine": "TeX-Engine",
   "Unknown paths without a file extension show the entry page, as client-side routers expect.": "Unbekannte Pfade ohne Dateiendung zeigen die Startseite, wie es clientseitige Router erwarten.",
   "Used by Open in Browser in the desktop app. 0 picks 5520 or any free port.": "Wird von „Im Browser öffnen“ in der Desktop-App verwendet. 0 wählt 5520 oder einen freien Port.",
-  "Warning: anyone in the same network who knows the address can open the preview. Off keeps it on this computer only.": "Warnung: Jeder im selben Netzwerk, der die Adresse kennt, kann die Vorschau öffnen. Aus beschränkt sie auf diesen Computer."
+  "Warning: anyone in the same network who knows the address can open the preview. Off keeps it on this computer only.": "Warnung: Jeder im selben Netzwerk, der die Adresse kennt, kann die Vorschau öffnen. Aus beschränkt sie auf diesen Computer.",
+  "3D Transform": "3D-Transformation",
+  "Corner pin": "Eckpunkte",
+  "Perspective distance": "Perspektivabstand",
+  "Rotate Z": "Drehung Z",
+  "Skew X": "Neigen X",
+  "Skew Y": "Neigen Y",
+  "Tilt X": "Kippen X",
+  "Tilt Y": "Kippen Y",
+  "Warp grid": "Verzerrungsgitter"
 }

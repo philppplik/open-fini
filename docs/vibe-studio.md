@@ -242,7 +242,7 @@ Sources: opencode.ai/docs/server, /docs/sdk, /docs/zen, /docs/providers.
   grouping, ordering, alignment, boolean operations, duplicate, delete.
 - **Image editing** (no image generation): `edit_pixels` (remove background, auto white balance / levels / contrast, color replace, sharpen, denoise, vignette, tilt-shift, upscale), `remove_background`, `select_subject`.
 - **Pixel**: effect catalog, pixel layers, adjustment and live filter layers, selections, image generation and image
-  editing with the image model you configure, the image operations `crop_image` (rectangle or ratio, optional straighten angle), `resize_image` (with resampling), `rotate_image` and `trim_edges` (transparent or solid margins, crop to selection, reveal all), plus the read-only `get_histogram` (statistics, 64-bin data and a
+  editing with the image model you configure, the image operations `crop_image` (rectangle or ratio, optional straighten angle), `resize_image` (with resampling), `rotate_image`, `transform_layer_3d` (3D tilt X/Y/Z with perspective distance, skew, corner pin or warp-grid points; the layer or only the selected pixels, one undo step) and `trim_edges` (transparent or solid margins, crop to selection, reveal all), plus the read-only `get_histogram` (statistics, 64-bin data and a
   plain-language assessment) and `auto_correct_suggestion` (ready-made Levels / Curves / Exposure parameters); see the
   [Histogram guide](pixel-histogram.md).
 - **Git and publishing**: `git_init`, `git_status`, `git_diff`, `git_log`, `git_commit`, `git_branch`, `git_checkout`, `git_restore`,

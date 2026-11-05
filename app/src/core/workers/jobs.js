@@ -27,6 +27,12 @@ const JOBS = {
     const r = applyEdit(name, { width: img.width, height: img.height, data: new Uint8ClampedArray(img.data.buffer, img.data.byteOffset, img.data.length) }, params, { resizeImage });
     return { r, transfer: [r.data.buffer] };
   },
+  /** args: { img, n, points, filter } → { img, x, y }: the mesh warp of engine/pixel/transform3d.js (3D Transform) */
+  async "pixel.warpMesh"({ img, n, points, filter }) {
+    const { warpMesh } = await import("../../engine/pixel/transform3d.js");
+    const r = warpMesh(img, n, points, { filter });
+    return { r, transfer: [r.img.data.buffer] };
+  },
   /** args: { files: fflate zip input, level } → zip bytes */
   async "zip.compress"({ files, level = 6 }) {
     const { zipSync } = await import("../../../vendor/fflate/fflate.js");
