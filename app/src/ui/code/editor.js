@@ -79,6 +79,9 @@ export class CodeEditors extends Emitter {
     this.view = null;
     this.wrap = new CM.Compartment();
     this.contrib = new CM.Compartment(); // app.editorContributions (VS Code extensions, see vscode/editor-bridge.js)
+    this.suggest = new CM.Compartment(); // autocompletion switch and timing (assist.js)
+    this.assistC = new CM.Compartment(); // suggestions, hover popovers and color swatches (assist.js, loaded below)
+    this.assist = null;
     this.tabsEl = h("div.of-etabs", { role: "tablist", "aria-label": "Open files" });
     this.placeholder = h("div.of-editor__empty", h("sl-icon", { name: "code-slash" }), h("p", "Open a file from the Explorer"), h("p.of-hint", "Quick open  Ctrl+P · Commands  Ctrl+Shift+P"));
     this.host = h("div.of-editor__host");
@@ -89,10 +92,18 @@ export class CodeEditors extends Emitter {
     // editor preferences (Settings ▸ Code studio) are global; the project keeps the effective values
     web.settings.tabSize = app.prefs.codeTabSize || web.settings.tabSize || 2;
     web.settings.wordWrap = !!app.prefs.codeWordWrap;
-    this.offPrefs = app.on("prefs", () => {
+    this.offPrefs = app.on("prefs", (key) => {
       web.settings.tabSize = app.prefs.codeTabSize || 2;
       if (!!app.prefs.codeWordWrap !== !!web.settings.wordWrap) this.setWordWrap(!!app.prefs.codeWordWrap);
+      if (!this.assist) return;
+      if (key === "*" || /^codeSyntax/.test(key)) this.assist.applySyntaxTheme(this.el, app.prefs);
+      if (key === "*" || this.assist.ASSIST_PREFS.has(key)) this.refreshAssist();
     });
+    import("./assist.js").then((m) => {
+      this.assist = m;
+      m.applySyntaxTheme(this.el, app.prefs);
+      this.refreshAssist();
+    }, (err) => console.error("[editor] assist failed to load", err));
     web.on("text", ({ path, origin }) => {
       if (origin !== "editor" && origin !== "visual") this.#syncFromProject(path, origin);
     });
@@ -110,6 +121,7 @@ export class CodeEditors extends Emitter {
   #extensions(path) {
     const web = this.web;
     const self = this;
+    const completions = [{ autocomplete: this.#completions(path) }];
     const keymapExtra = [
       { key: "Tab", run: (v) => self.#emmet(v) },
       ...this.keys,
@@ -135,7 +147,8 @@ export class CodeEditors extends Emitter {
       CM.syntaxHighlighting(CM.classHighlighter),
       CM.bracketMatching(),
       CM.closeBrackets(),
-      CM.autocompletion({ activateOnTyping: true, closeOnBlur: true, icons: true }),
+      this.suggest.of(this.assist ? this.assist.suggestConfig(this.app.prefs) : CM.autocompletion({ activateOnTyping: true, closeOnBlur: true, icons: true })),
+      this.assistC.of(this.assist ? this.assist.assistExtensions(this, path) : []),
       CM.rectangularSelection(),
       CM.crosshairCursor(),
       CM.highlightActiveLine(),
@@ -149,7 +162,7 @@ export class CodeEditors extends Emitter {
       CM.EditorState.tabSize.of(web.settings.tabSize || 2),
       this.wrap.of(web.settings.wordWrap ? CM.EditorView.lineWrapping : []),
       languageExtension(path),
-      CM.EditorState.languageData.of(() => [{ autocomplete: self.#completions(path) }]),
+      CM.EditorState.languageData.of(() => completions), // one source per file: CodeMirror tracks sources by identity
       CM.linter(() => self.diagnosticsFor(path).map((d) => toCmDiagnostic(d, self.states.get(path) || self.view?.state)), { delay: 500 }),
       CM.EditorView.updateListener.of((u) => {
         if (u.docChanged && self.app.prefs.codeFormatOnPaste && u.transactions.some((t) => t.isUserEvent("input.paste"))) {
@@ -242,6 +255,19 @@ export class CodeEditors extends Emitter {
       }
     }
     return out;
+  }
+
+  /** Rebuilds the suggestion and hover extensions of every open file state after a preference change (keeps undo history). */
+  refreshAssist() {
+    if (!this.assist) return;
+    this.assist.hideCodePopover();
+    for (const [p, st] of this.states) {
+      const effects = [this.suggest.reconfigure(this.assist.suggestConfig(this.app.prefs)), this.assistC.reconfigure(this.assist.assistExtensions(this, p))];
+      if (p === this.active && this.view) {
+        this.view.dispatch({ effects });
+        this.states.set(p, this.view.state);
+      } else this.states.set(p, st.update({ effects }).state);
+    }
   }
 
   /** Re-reads `app.editorContributions` for every open file state (keeps undo history). */
@@ -782,6 +808,7 @@ export class CodeEditors extends Emitter {
 
   destroy() {
     this.offPrefs?.();
+    this.assist?.hideCodePopover();
     this.offContrib?.();
     this.#hideMedia();
     this.view?.destroy();

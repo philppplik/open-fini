@@ -170,6 +170,35 @@ single; a value is never rewritten if it contains the chosen quote). Guarantees,
 idempotent and does not change the rendered structure (tags, attributes, collapsed text) of every starter template. Limit: CSS
 `white-space: pre` on an ordinary element is not known to the formatter. The Vibe tool `format_file` runs the same code.
 
+### Syntax colors, suggestions and hover popovers
+
+Settings ▸ Code studio, loaded with the editor (`ui/code/assist.js`, `ui/code/editor-settings.js`, stylesheet `styles/code-assist.css`):
+
+* **Syntax color theme** (also *View ▸ Syntax Color Theme…*, command `code.syntaxTheme`): *Follow the interface theme* (default)
+  or one of 17 editor themes (Dark Plus, Light Plus, Monokai, One Dark, Dracula, GitHub Dark and Light, Solarized Dark and Light,
+  Nord, Night Owl, Gruvbox Dark, Tomorrow Night, Catppuccin Mocha, Quiet Light, High Contrast Dark and Light; original palettes in
+  `engine/web/syntax-themes.js`). Every one of the 19 colors (background, text, line numbers, current line, selection, cursor and
+  the token kinds) can be overridden on top of the theme. The theme sets `--of-editor-*` and `--of-syn-*` on the editor element
+  only; the rest of the interface keeps its own theme. Preferences `codeSyntaxTheme`, `codeSyntaxCustom`.
+* **Suggestions**: on or off (`codeSuggest`; off also turns off `Ctrl+Space`), while typing or only on `Ctrl+Space`
+  (`codeSuggestOnType`), delay (`codeSuggestDelay`, default 100 ms). Besides the language's own completions and Emmet:
+  *words of the file* (`codeSuggestWords`, ranked last) and *names from the project* (`codeSuggestProject`): classes and ids of
+  your pages in CSS selectors, `querySelector()`, `closest()`, `matches()`, `getElementById()` and `classList.*()`, ids in
+  `href="#…"`, `for` and `aria-*` references, and the hex colors your stylesheets already use (with a swatch).
+* **Your snippets** (`codeSnippets`, `engine/web/snippets.js`): language (or every language), prefix, description and body in
+  the CodeMirror snippet syntax (`${1:name}`, `${}`; `Tab` moves between fields). At most 200, a body up to 4000 characters.
+* **Color popover** (`codeHoverColors`): hovering a hex, `rgb()`, `hsl()` or (in CSS and style attributes) named color shows a
+  swatch and a color picker with opacity; picking rewrites the value in its own notation (short hex stays short when possible,
+  comma or space syntax is kept), *Write as* HEX / RGB / HSL converts it. **Inline swatches** (`codeColorSwatches`) sit in front of
+  every color value; clicking one opens the picker.
+* **Path popover** (`codeHoverPaths`): hovering a local path in a quoted string or `url()` (`src`, `href`, `import`, …) previews
+  the file (image with its size, or the first lines of text) with **Open**, or offers **Create file** when it does not exist.
+  `Ctrl+click` (`Cmd+click`) on a path that exists opens it; elsewhere it still adds a cursor. External URLs, `data:` URIs,
+  fragments and package names (`"react"`) are ignored.
+
+Pure parts are tested in `tests/web/code-assist.test.js`. Limits: color detection is per line (no colors across line breaks, lines
+over 4000 characters get no swatches); `lab()`, `lch()`, `oklch()` and `color()` are not recognized.
+
 ### Split layouts
 
 In Split view choose the arrangement with the four buttons in the toolbar, *View ▸ Split Layout* or the commands

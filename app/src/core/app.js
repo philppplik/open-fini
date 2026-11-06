@@ -66,6 +66,17 @@ const defaultPrefs = () => ({
   codeUseTabs: false, // indent with tabs when formatting
   codeLineWidth: 100, // wrap width of the HTML formatter
   codeQuoteStyle: "keep", // attribute quotes: keep | double | single
+  codeSyntaxTheme: "app", // syntax colors of the code editor: "app" (follow the interface theme) or a theme id (engine/web/syntax-themes.js)
+  codeSyntaxCustom: {}, // custom colors on top of the syntax theme: { slot: "#rrggbb" }
+  codeSuggest: true, // code suggestions (autocompletion); off also turns off Ctrl+Space
+  codeSuggestOnType: true, // open suggestions while typing (off: only with Ctrl+Space)
+  codeSuggestDelay: 100, // ms before suggestions open while typing
+  codeSuggestWords: true, // suggest words of the current file
+  codeSuggestProject: true, // suggest classes, ids and colors of the project where code refers to them
+  codeSnippets: [], // your own snippets [{ lang, prefix, description, body }] (engine/web/snippets.js)
+  codeHoverColors: true, // swatch and color picker when hovering a color value
+  codeHoverPaths: true, // preview and Open when hovering a local file path; Ctrl/Cmd+click opens it
+  codeColorSwatches: true, // small color swatches in front of color values
   codeSyncHighlight: true, // highlight the code of the hovered/selected element and the matches of the CSS rule at the caret
   codeLayout: "auto", // split arrangement: auto | codeLeft | codeRight | codeTop | codeBottom
   codeMeasureUnit: "px", // unit of the measure tool
