@@ -1,6 +1,7 @@
 // Start screen of the Code studio (a document without a website project yet) and the "New website" dialog.
 import { h } from "../../core/util.js";
-import { TEMPLATES, isTextPath } from "../../engine/web/index.js";
+import { TEMPLATES, STARTERS, STARTER_CATEGORIES, loadStarter, isTextPath } from "../../engine/web/index.js";
+import { t as tr, N_ } from "../../i18n/index.js"; // `t` names templates in this file
 import { Doc } from "../../core/doc.js";
 import { ensureWeb } from "../../core/web.js";
 import { openDialog } from "../dialogs.js";
@@ -18,6 +19,17 @@ function thumb(t) {
   );
 }
 
+/** Files of a template or starter (starters load their files on demand). */
+export async function templateFiles(t) {
+  if (t.files) return { ...t.files };
+  const full = await loadStarter(t.id);
+  if (!full) throw new Error(tr(N_("That template is not available.")));
+  return full.files;
+}
+
+const GROUPS = { "Basic websites": N_("Basic websites"), "Frameworks, Markdown and PWA": N_("Frameworks, Markdown and PWA"), "Static sites": N_("Static sites"), "Apps and PWAs": N_("Apps and PWAs"), Games: N_("Games"), Libraries: N_("Libraries") };
+const groupLabel = (g) => (GROUPS[g] ? tr(GROUPS[g]) : g);
+
 /** Template gallery; calls onPick(template) on selection and onCreate(template) on double click. */
 export function templateGallery({ onPick, onCreate, selected = "landing-page" } = {}) {
   const grid = h("div.of-tpls");
@@ -27,14 +39,15 @@ export function templateGallery({ onPick, onCreate, selected = "landing-page" } 
     onPick?.(t);
   };
   let lastGroup = "";
-  for (const t of TEMPLATES) {
-    // plain HTML templates first, then framework, Markdown and PWA starters
-    const group = t.framework ? "Frameworks, Markdown and PWA" : "Basic websites";
+  // plain HTML templates first, then framework, Markdown and PWA starters, then the starters loaded on demand
+  const order = (c) => STARTER_CATEGORIES.indexOf(c);
+  const all = [...TEMPLATES.map((t) => ({ t, group: t.framework ? "Frameworks, Markdown and PWA" : "Basic websites" })), ...[...STARTERS].sort((a, b) => order(a.category) - order(b.category)).map((t) => ({ t, group: t.category }))];
+  for (const { t, group } of all) {
     if (group !== lastGroup) {
-      grid.append(h("h3.of-tpls__group", group));
+      grid.append(h("h3.of-tpls__group", groupLabel(group)));
       lastGroup = group;
     }
-    const c = h("button.of-tpl", { type: "button", "aria-pressed": "false" }, thumb(t), h("strong", t.name), h("span", t.description), t.libs?.length ? h("em.of-tpl__libs", `Uses ${t.libs.join(", ")}`) : null);
+    const c = h("button.of-tpl", { type: "button", "aria-pressed": "false" }, thumb(t), h("strong", t.name), h("span", t.description), t.libs?.length ? h("em.of-tpl__libs", tr(N_("Uses {libs}"), { libs: t.libs.join(", ") })) : null);
     c.addEventListener("click", () => select(t));
     c.addEventListener("dblclick", () => onCreate?.(t));
     cards.set(t.id, c);
@@ -60,7 +73,13 @@ async function filesFromPicked(files, directory) {
 /** Start screen shown in the Code studio for a document that has no website project. */
 export function createStart(ws) {
   let chosen = TEMPLATES[1] || TEMPLATES[0];
-  const create = (t = chosen) => ws.createProject(Object.fromEntries(Object.entries(t.files)), { name: t.name });
+  const create = async (t = chosen) => {
+    try {
+      ws.createProject(await templateFiles(t), { name: t.name });
+    } catch (err) {
+      ws.app.toast(err.message, "danger", 6000);
+    }
+  };
   const importFolder = async () => {
     const picked = await pickFiles({ directory: true });
     if (!picked.length) return;
@@ -123,9 +142,15 @@ export function newWebsiteDialog(app) {
       { label: "Create", variant: "primary", onClick: () => doCreate() },
     ],
   });
-  function doCreate() {
+  async function doCreate() {
+    let files;
+    try {
+      files = await templateFiles(chosen);
+    } catch (err) {
+      return app.toast(err.message, "danger", 6000);
+    }
     const doc = new Doc({ name: name.value.trim() || chosen.name, width: 1280, height: 800, studio: "code" });
-    ensureWeb(doc, Object.fromEntries(Object.entries(chosen.files)));
+    ensureWeb(doc, files);
     doc.history.clear();
     doc.saved = false;
     close();

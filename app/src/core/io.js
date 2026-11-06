@@ -22,7 +22,7 @@ export const OFFICE_DOC_EXTS = ["docx", "odt", "rtf", "dotx", "ott", "fodt", "do
 /** Spreadsheets, presentations, whiteboards and their cloud shortcuts (opened by the Office Suite registry). */
 export const OFFICE_SUITE_EXTS = ["xlsx", "xlsm", "xltx", "ods", "ots", "csv", "tsv", "pptx", "potx", "odp", "otp", "excalidraw", "tldraw", "gsheet", "gslides"];
 export const OPEN_FILTERS = [
-  { name: "All supported files", extensions: ["ofini", "pdf", "ai", "psd", "psb", "idml", "sketch", "svg", ...IMAGE_EXTS, ...MORE_IMAGE_EXTS, ...PALETTE_EXTS, ...TEXT_DOC_EXTS, ...OFFICE_DOC_EXTS, ...OFFICE_SUITE_EXTS] },
+  { name: "All supported files", extensions: ["ofini", "pdf", "ai", "psd", "psb", "idml", "sketch", "svg", ...IMAGE_EXTS, ...MORE_IMAGE_EXTS, ...PALETTE_EXTS, ...TEXT_DOC_EXTS, ...OFFICE_DOC_EXTS, ...OFFICE_SUITE_EXTS, "zip"] },
   { name: "Word and text documents (DOCX, ODT, RTF)", extensions: OFFICE_DOC_EXTS },
   { name: "Spreadsheets, presentations, whiteboards", extensions: OFFICE_SUITE_EXTS },
   { name: "Text and code (Markdown, LaTeX, JSON, YAML, …)", extensions: TEXT_DOC_EXTS },

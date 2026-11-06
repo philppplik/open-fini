@@ -65,6 +65,8 @@ export function registerFileCommands(app) {
       const r = await (await import("../core/open-foreign.js")).openForeign(app, file);
       if (r !== undefined) return r;
     }
+    // a .zip opens like a dropped folder (unpacked with zip-slip and size protection, ui/open-drop.js)
+    if (/\.zip$/i.test(file.name)) return void (await (await import("../ui/open-drop.js")).openZip(app, file));
     const foreign = foreignFormatInfo(file.name);
     if (foreign) {
       openDialog({ title: foreign.title, body: h("p.of-dialog__text", foreign.message), width: 480, buttons: [{ label: "OK", variant: "primary", onClick: (c) => c() }] });
@@ -204,7 +206,7 @@ export function registerFileCommands(app) {
         const bytes = new Uint8Array(await f.arrayBuffer());
         const named = { name: f.name, bytes, mime: f.type };
         if (!a.doc) await openFile(named);
-        else if (/\.(ofini|pdf|ai|psd|psb|idml|sketch|afdesign|afphoto|afpub|indd|fig|xd|docx|odt|rtf|doc|pages|gdoc)$/i.test(f.name)) await openFile(named); // documents of other apps open as documents; they are not placed
+        else if (/\.(ofini|pdf|ai|psd|psb|idml|sketch|afdesign|afphoto|afpub|indd|fig|xd|docx|odt|rtf|doc|pages|gdoc|zip)$/i.test(f.name)) await openFile(named); // documents of other apps open as documents; they are not placed
         else {
           // dropping onto an image frame fills that frame
           const hit = x != null ? pick(a.context, x, y, 4 / a.view.zoom, { deep: true }) : null;

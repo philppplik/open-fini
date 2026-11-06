@@ -8,6 +8,7 @@ export * from "./css-props.js";
 export * from "./preview.js";
 export * from "./site.js";
 export * from "./templates.js";
+export * from "./starters.js";
 export * from "./elements.js";
 export * from "./highlight.js";
 export * from "./markdown.js";

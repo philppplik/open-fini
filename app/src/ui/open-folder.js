@@ -174,7 +174,7 @@ export async function openFolderDialog(app) {
 /** Window-wide drop: files open as documents, folders open as projects. */
 export function installDropToOpen(app) {
   let depth = 0;
-  const veil = h("div.of-dropveil.hidden", h("div", h("strong", "Drop to open"), h("span", "Files open as documents. A folder opens as a project.")));
+  const veil = h("div.of-dropveil.hidden", h("div", h("strong", "Drop to open"), h("span", "Files open as documents. A folder or a .zip opens as a project.")));
   document.body.append(veil);
   const hasFiles = (e) => [...(e.dataTransfer?.types || [])].includes("Files");
   const hide = () => {
@@ -204,6 +204,8 @@ export function installDropToOpen(app) {
     entries.then(async (list) => {
       try {
         if (isFolder) return await openFolderEntries(app, list);
+        // .zip archives, and HTML pages with the files they load, get a smarter treatment (ui/open-drop.js)
+        if (list.some((e) => /\.(zip|html?)$/i.test(e.path))) return await (await import("./open-drop.js")).openDroppedFiles(app, list);
         for (const { file } of list) {
           const bytes = new Uint8Array(await file.arrayBuffer());
           await app.openFile({ name: file.name, bytes, mime: file.type });
