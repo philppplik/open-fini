@@ -41,7 +41,26 @@ export function createChat(vs) {
     targetBar.replaceChildren(iconEl("cursor"), h("span.of-vtarget__text", t("Context: {what} in “{doc}”", { what: tg.label || tg.kind, doc: tg.docName || t("no document") })), go);
   };
   paintTarget();
-  const main = h("div.of-vchat__main", targetBar, scroller, jump);
+  // sub-threads (chat.parent, ui/vibe/context.js): a bar with the way back and "Use in main thread"
+  const threadBar = h("div.of-vthreadbar.hidden", { role: "note" });
+  const paintThread = () => {
+    const p = session.chat?.parent;
+    threadBar.classList.toggle("hidden", !p);
+    if (!p) return threadBar.replaceChildren();
+    const back = h("button.of-btn.of-btn--sm", { type: "button" }, iconEl("arrow-return-right"), t("Back to main thread"));
+    back.addEventListener("click", () => session.openChat(p.id).then((s) => !s && app.toast(t("The main thread was deleted."), "warning", 2400)));
+    const use = h("button.of-btn.of-btn--sm", { type: "button", title: t("Opens the main thread with the last answer of this sub-thread in the composer; you decide whether to send it.") }, t("Use in main thread"));
+    use.addEventListener("click", async () => {
+      const last = [...session.chat.messages].reverse().find((m) => m.role === "assistant" && messageMarkdown(m).trim());
+      const title = session.chat.title;
+      const s = await session.openChat(p.id);
+      if (!s) return app.toast(t("The main thread was deleted."), "warning", 2400);
+      if (last) vs.chat?.setInput(t("Result from the sub-thread “{title}”:", { title }) + `\n\n${messageMarkdown(last)}`);
+    });
+    threadBar.replaceChildren(iconEl("diagram-2"), h("span", t("Sub-thread of “{title}”", { title: p.title || t("a chat") })), back, use);
+  };
+  paintThread();
+  const main = h("div.of-vchat__main", threadBar, targetBar, scroller, jump);
 
   // ---- follow the bottom while the assistant streams; stop when the user scrolls up
   let stick = true;
@@ -355,6 +374,8 @@ export function createChat(vs) {
   const mic = tip("mic", "Dictate (speech input)", () => dictate());
   if (!(window.SpeechRecognition || window.webkitSpeechRecognition)) mic.hidden = true; // no speech input here: do not show a dead button
   const toolsBtn = tip("tools", "Tools for this chat", () => openToolsPopover(toolsBtn), { "aria-haspopup": "dialog" });
+  // what the next request sends (context-panel.js, lazy): tokens per item, drop items, memory for this chat
+  const ctxBtn = tip("stack", "Context window", () => import("./context-panel.js").then((m) => m.openContextPanel(vs, ctxBtn, { draft: input.value })), { "aria-haspopup": "dialog" });
   const sendBtn = h("button.of-composer__send", { type: "button", ...ta({ "aria-label": "Send" }) }, iconEl("arrow-up"));
   const paintSend = () => {
     const running = session.running;
@@ -403,7 +424,7 @@ export function createChat(vs) {
     ...(skillCache.length ? skillCache : vs.skills() || []).map((s) => ({ skill: true, name: s.name, hint: `${s.argumentHint ? `[${s.argumentHint}] ` : s.params?.length ? `[${s.params.map((p) => p.name).join(", ")}] ` : ""}${s.description}`, run: (rest) => useSkill(s, rest) })),
   ];
   const mentions = createMentions({ vs, input, commands: COMMANDS, onChange: () => paintSend() });
-  const box = h("div.of-composer", suggestEl, mentions.chipsEl, chips, input, h("div.of-composer__bar", { role: "toolbar", "aria-label": t("Composer") }, attach, mic, toolsBtn, h("span.of-composer__sep"), modelPill, modePill, thinkPill, h("span.of-composer__spacer"), sendBtn), mentions.popover, mentions.live);
+  const box = h("div.of-composer", suggestEl, mentions.chipsEl, chips, input, h("div.of-composer__bar", { role: "toolbar", "aria-label": t("Composer") }, attach, mic, toolsBtn, ctxBtn, h("span.of-composer__sep"), modelPill, modePill, thinkPill, h("span.of-composer__spacer"), sendBtn), mentions.popover, mentions.live);
   const root = h("div.of-vchat", main, h("div.of-vchat__dock", box, h("p.of-composer__hint", t("Vibe can make mistakes. Changes can be undone in the Activity tab or with Ctrl+Z. Keys and chats stay on this device."))));
 
   // grows with the text up to 40% of the panel height (max 220 px), then scrolls inside
@@ -693,6 +714,7 @@ export function createChat(vs) {
   };
   session.on("chat", () => {
     paintTarget();
+    paintThread();
     renderHistory();
     // switching to a chat that is still working: its live events are replayed next (hub SessionView)
     if (session.running) showPending(true);
@@ -768,7 +790,11 @@ export function createChat(vs) {
     showPending(false);
     askCard(q);
   });
-  session.on("notice", (n) => note(n.text, n.kind === "mcp" ? "error" : "info"));
+  session.on("notice", (n) => {
+    // auto-saved memories come with Undo (restores the previous text of an updated memory, else deletes it)
+    if (n.kind === "memory" && n.memory) return note(n.text, "info", { label: t("Undo"), run: () => (n.memory.previous ? vibeStore.updateMemory(n.memory.id, n.memory.previous) : vibeStore.deleteMemory(n.memory.id)).catch(() => {}) });
+    note(n.text, n.kind === "mcp" ? "error" : "info");
+  });
   const settleRun = () => {
     showPending(false);
     tools.settle();

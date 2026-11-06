@@ -49,7 +49,7 @@ Off by default. Under *Settings ▸ Artificial intelligence ▸ Web access* you 
 
 ## Privacy
 
-Nothing is sent unless AI is on and you chose a non-Demo model. Your prompt, attachments, screenshots of your pages (switchable in Tools settings), memory notes and tool results go to the provider you chose. Chats, memory, skills, knowledge and keys are stored locally; *Settings ▸ Artificial intelligence ▸ Delete all AI data* removes them. Text from outside (web pages, MCP replies, attached files, text on a canvas) is treated as data, not instructions, but no model is immune to prompt injection: keep Balanced or Careful mode with untrusted content ([[Security and Privacy]]).
+Nothing is sent unless AI is on and you chose a non-Demo model. Your prompt, attachments, screenshots of your pages (switchable in Tools settings), the memories picked for the request (*Settings ▸ Artificial intelligence ▸ Memory*) and tool results go to the provider you chose. Chats, memory, skills, knowledge and keys are stored locally; *Settings ▸ Artificial intelligence ▸ Delete all AI data* removes them. Text from outside (web pages, MCP replies, attached files, text on a canvas) is treated as data, not instructions, but no model is immune to prompt injection: keep Balanced or Careful mode with untrusted content ([[Security and Privacy]]).
 
 ## Honest limits
 

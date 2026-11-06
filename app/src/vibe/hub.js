@@ -67,6 +67,9 @@ export class SessionView extends Emitter {
   knowledgeIndex() { return this.hub.knowledgeIndex(); }
   mcpStatus(srv) { return this.hub.mcpStatus(srv); }
   toolList() { return this.session.toolList(); }
+  get lastContext() { return this.session.lastContext; }
+  memoryOn() { return this.session.memoryOn(); }
+  previewContext(draft) { return this.session.previewContext(draft); }
 }
 
 export class VibeHub extends Emitter {

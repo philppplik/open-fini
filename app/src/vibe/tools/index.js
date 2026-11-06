@@ -79,7 +79,7 @@ export const TOOL_GROUPS = {
   Customization: ["get_settings", "set_setting", "list_shortcuts", "set_shortcut", "export_profile"],
   "Diagnostics and security": ["get_app_logs", "get_diagnostics", "get_security_status"],
   "Text and encoding": ["encode_text", "decode_text", "transform_file_text"],
-  Assistant: ["search_knowledge", "remember", "use_skill", "create_skill", "ask_user", "update_plan", "create_tool"],
+  Assistant: ["search_knowledge", "remember", "recall_memory", "forget_memory", "use_skill", "create_skill", "ask_user", "update_plan", "create_tool"],
   "Power tools": ["run_plan", "query_layers", "describe_page", "describe_selection", "apply_to_many", "evaluate", "screenshot_layers", "compare_screenshots", "grid_layout", "distribute_layers", "snap_layers", "make_component"],
   Agents: ["spawn_agent", "wait_agent", "list_agents", "cancel_agent", "plan_work", "work_task", "blackboard"],
   Attachments: ["list_attachments", "open_attachment"],

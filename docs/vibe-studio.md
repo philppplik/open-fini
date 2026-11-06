@@ -28,9 +28,9 @@ the thinking effort. The assistant always knows which layers you have selected, 
 
 * **Left**: chats. **Center**: the conversation and the composer. **Right**: only two panels, **Canvas** and
   **Activity**.
-* **Models and connections, Tools and MCP, Skills, Knowledge and memory** moved to **Settings ▸ Artificial intelligence**
+* **Models and connections, Tools and MCP, Skills, Knowledge, Memory** moved to **Settings ▸ Artificial intelligence**
   (sub-tabs under *Vibe Studio*). Deep link for scripts and extensions:
-  `app.run("settings.open", { section: "ai", tab: "models" })` (`tab`: `models`, `tools`, `skills`, `knowledge`). The
+  `app.run("settings.open", { section: "ai", tab: "models" })` (`tab`: `models`, `tools`, `web`, `terminal`, `skills`, `knowledge`, `memory`, `logging`). The
   old commands *Show Models and Connections* etc. open the same place.
 
 ## Mentions: `@`, `/` and `!`
@@ -405,6 +405,15 @@ Add brand guides, copy decks, specs or notes under *Knowledge*. Files are chunke
 BM25; if you select an embedding model, dense vectors are added and results are blended. Your open website project is
 indexed automatically. The assistant searches with `search_knowledge`; you can test a query yourself in the panel.
 
+## Memory, context window and sub-threads
+
+Vibe remembers preferences, facts and project context across chats (`remember`, `recall_memory`, `forget_memory`)
+and sends only the memories relevant to each request. Manage them under *Settings ▸ Artificial intelligence ▸
+Memory* (global off switch, switch per memory, pin, edit, delete, export and import). The composer's **Context
+window** button shows what a request sends, with estimated tokens, and lets you drop tool results, attachments, turns
+or memories for this chat. Right-click a message ▸ **Start a sub-thread here** opens a side conversation linked to its
+main thread. Details: [vibe-memory.md](vibe-memory.md).
+
 ## MCP servers and your own tools
 
 - **MCP**: add the URL of an MCP server that speaks *Streamable HTTP* (*Tools ▸ MCP servers*). Its tools appear with an
@@ -469,7 +478,7 @@ developer** (also in the Troubleshooting dialog). Format: [ai-logging.md](ai-log
 ## Privacy and safety
 
 - Nothing is sent anywhere unless AI features are on **and** you chose a non-Demo model. Your prompt, attached files,
-  screenshots of your pages (switch off *Send screenshots* in Tools settings), memory notes and tool results go to
+  screenshots of your pages (switch off *Send screenshots* in Tools settings), the memories picked for the request and tool results go to
   the provider you chose, under that provider's terms.
 - Chats, memory, skills, knowledge and keys are stored locally (IndexedDB / the app's storage). *Settings ▸ Artificial
   intelligence ▸ Delete all AI data* removes them.

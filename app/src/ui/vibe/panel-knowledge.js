@@ -1,5 +1,6 @@
-// Settings ▸ Artificial intelligence ▸ Knowledge (documents the assistant can search, memory notes). Skills live in panel-skills.js.
+// Settings ▸ Artificial intelligence ▸ Knowledge (documents the assistant can search; memory has its own tab, panel-memory.js). Skills live in panel-skills.js.
 import { h, empty } from "../../core/util.js";
+import { t } from "../../i18n/index.js";
 import { vibeStore } from "../../vibe/store.js";
 import { pickFiles } from "../code/import.js";
 import { iconEl } from "../toolbox.js";
@@ -42,10 +43,7 @@ export function createKnowledgePanel(vs) {
     });
     el.append(h("div.of-vcard", h("strong", "Test search"), q, out));
 
-    const mem = h("div.of-vcard", h("div.of-vcard__head", h("strong", `Memory (${vibeStore.memory.length})`)), h("p.of-hint", "Durable notes Vibe saved with your approval, such as brand colors or tone. They are added to every chat."));
-    for (const m of vibeStore.memory) mem.append(h("div.of-vtool", h("div", h("small", m.text)), h("button.of-btn", { type: "button", "aria-label": "Forget", onclick: () => vibeStore.saveMemory(vibeStore.memory.filter((x) => x.id !== m.id)).then(render) }, "Forget")));
-    if (!vibeStore.memory.length) mem.append(h("div.of-empty", "No memories yet."));
-    el.append(mem);
+    el.append(h("p.of-hint", t("What Vibe remembers about you across chats is under Memory."), " ", h("button.of-btn.of-btn--sm", { type: "button", onclick: () => vs.openTab("memory") }, t("Open Memory"))));
   }
 
   async function add() {
@@ -71,7 +69,6 @@ export function createKnowledgePanel(vs) {
     }
   }
 
-  vibeStore.on("change", (g) => g === "memory" && el.isConnected && render());
   render();
   return { el, show: render };
 }

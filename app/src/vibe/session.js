@@ -26,6 +26,8 @@ import { createRunLog, recordRun } from "./ai-log.js";
 const MAX_TEXT_ATTACHMENT = 60_000;
 // tools a skill restriction never blocks: the assistant must still be able to talk, plan and load skills
 const ALWAYS_ALLOWED = new Set(["use_skill", "update_plan", "ask_user", "get_document_info", "screenshot"]);
+// removed from the tool list when memory is off (globally or for this chat)
+const MEMORY_TOOLS = new Set(["remember", "recall_memory", "forget_memory"]);
 const LIVE_TYPES = new Set(["text", "thinking", "tool_start", "tool_end", "tool_progress", "agent_status", "agent_event", "retry", "route_fallback", "route_retry"]);
 
 export class VibeSession extends Emitter {
@@ -113,6 +115,51 @@ export class VibeSession extends Emitter {
   }
   async toolList() {
     return this.#buildTools();
+  }
+
+  // ------------------------------------------------------------ memory (vibe/memory.js, docs/vibe-memory.md)
+
+  /** Memory is used in this chat: the global switch is on and the chat did not switch it off (context panel). */
+  memoryOn() {
+    return vibeStore.settings.memoryEnabled !== false && !this.chat.memoryOff;
+  }
+
+  /**
+   * The memories relevant to `query` (retrieval over all saved memories). `all` ignores this chat's exclusions
+   * (recall_memory searches everything the user did not switch off).
+   */
+  async #memoryFor(query, { k, all = false } = {}) {
+    if (!this.memoryOn() || !vibeStore.memory.length) return { selected: [], considered: 0 };
+    const M = await import("./memory.js");
+    const list = vibeStore.memory.map((m) => M.normalizeMemory(m));
+    const recent = this.chat.messages.filter((m) => m.role === "user" && typeof m.content === "string").slice(-2).map((m) => m.content).join(" ");
+    return M.selectMemories(list, `${query} ${recent}`, { k: k || vibeStore.settings.memoryPerRequest || 8, project: this.app.doc?.name || "", exclude: all ? [] : this.chat.memoryExclude || [] });
+  }
+
+  /**
+   * What the next request would send besides the transcript: the system prompt (with the memories it picks for
+   * `draft`), the tool definitions and the memories. Used by the context panel (ui/vibe/context-panel.js).
+   */
+  async previewContext(draft = "") {
+    const ai = await this.hub.ai();
+    const tools = await this.#buildTools();
+    const mem = await this.#memoryFor(draft);
+    const system = this.#systemPrompt(ai, this.settings(), mem.selected);
+    return { system, tools: tools.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema })), memory: mem.selected, considered: mem.considered, skills: (this.ctx?.skills || []).map((x) => x.name), last: this.lastContext || null };
+  }
+
+  #systemPrompt(ai, s, memory) {
+    const app = this.app;
+    const target = app.doc;
+    return ai.buildSystemPrompt({
+      studio: app.studio,
+      doc: target ? { name: target.name, pages: target.pages.length, page: app.page && { width: Math.round(app.page.w), height: Math.round(app.page.h) }, website: !!target.web, office: officeSummary(target), selection: app.selection?.length ? app.selection.slice(0, 20).map((n) => ({ id: n.id, type: n.type, name: n.name || undefined })) : undefined, attachments: this.attachments.length ? this.attachments.map((a, i) => `${i + 1}. ${a.name}`).join(", ") : undefined } : this.attachments.length ? { attachments: this.attachments.map((a, i) => `${i + 1}. ${a.name}`).join(", ") } : null,
+      skills: this.ctx?.skills,
+      memory: memory.map((m) => (m.kind === "note" ? m.text : `${m.kind}: ${m.text}`)),
+      mode: s.approval,
+      extra: [s.extraInstructions, this.chat.primer].filter(Boolean).join("\n\n"),
+      language: app.i18n?.locale(),
+    });
   }
 
   // ------------------------------------------------------------ tools
@@ -217,6 +264,7 @@ export class VibeSession extends Emitter {
     const index = await this.hub.knowledgeIndex();
     await this.hub.syncProject(index);
     let raw = [];
+    const memoryOn = this.memoryOn();
     const ctx = {
       images: await this.hub.imageCtx().catch(() => null),
       knowledge: { search: async (q, k) => index.search(q, { k }) },
@@ -228,7 +276,24 @@ export class VibeSession extends Emitter {
         const prov = await this.providerFor(st.embedProvider);
         return prov.embed ? (texts) => prov.embed(texts, { model: st.embedModel }) : null;
       },
-      memory: { add: (t) => vibeStore.addMemory(t) },
+      memory: memoryOn
+        ? {
+            add: async (t, o = {}) => {
+              const r = await vibeStore.addMemory(t, { ...o, source: { chat: this.id, title: this.chat.title } });
+              // saved without asking (auto-save): tell the user and offer Undo right away
+              if (vibeStore.settings.memoryAutoSave) this.emit("notice", { kind: "memory", text: r.updated ? `Memory updated: “${String(t).slice(0, 120)}”` : `Remembered: “${String(t).slice(0, 120)}”`, memory: r });
+              return r;
+            },
+            autoSave: () => !!vibeStore.settings.memoryAutoSave,
+            search: async (q, k) => (await this.#memoryFor(q, { k, all: true })).selected,
+            forget: async (id) => {
+              const m = vibeStore.memory.find((x) => x.id === id);
+              if (!m) throw new Error(`No memory with id ${id}.`);
+              await vibeStore.deleteMemory(id);
+              return m;
+            },
+          }
+        : null,
       skills,
       useSkill: (name, args, file) => this.#useSkill(name, args, file),
       saveSkillDraft: async (a) => {
@@ -282,7 +347,7 @@ export class VibeSession extends Emitter {
     const custom = customToolDefs(vibeStore.customTools, callTool, (text) => this.emit("notice", { kind: "log", text }));
     const mcp = await this.hub.mcpTools(this);
     const ext = (await app.extensions?.vibeToolDefs().catch(() => [])) || [];
-    raw = [...base, ...custom, ...mcp, ...ext].filter((t) => !s.disabledTools.includes(t.name) && !(t.name === "screenshot" && s.sendScreenshots === false));
+    raw = [...base, ...custom, ...mcp, ...ext].filter((t) => !s.disabledTools.includes(t.name) && !(t.name === "screenshot" && s.sendScreenshots === false) && (memoryOn || !MEMORY_TOOLS.has(t.name)));
     return raw.map((t) => this.#wrap(t, s));
   }
 
@@ -353,16 +418,10 @@ export class VibeSession extends Emitter {
     if (!this.hidden) vibeStore.saveChat(this.chat).catch(() => {});
     this.emit("message", userMsg);
 
-    const target = app.doc;
-    const system = ai.buildSystemPrompt({
-      studio: app.studio,
-      doc: target ? { name: target.name, pages: target.pages.length, page: app.page && { width: Math.round(app.page.w), height: Math.round(app.page.h) }, website: !!target.web, office: officeSummary(target), selection: app.selection?.length ? app.selection.slice(0, 20).map((n) => ({ id: n.id, type: n.type, name: n.name || undefined })) : undefined, attachments: this.attachments.length ? this.attachments.map((a, i) => `${i + 1}. ${a.name}`).join(", ") : undefined } : this.attachments.length ? { attachments: this.attachments.map((a, i) => `${i + 1}. ${a.name}`).join(", ") } : null,
-      skills: this.ctx.skills,
-      memory: vibeStore.memory.map((m) => m.text),
-      mode: s.approval,
-      extra: [s.extraInstructions, this.chat.primer].filter(Boolean).join("\n\n"),
-      language: app.i18n?.locale(),
-    });
+    const mem = await this.#memoryFor(text).catch(() => ({ selected: [], considered: 0 }));
+    const system = this.#systemPrompt(ai, s, mem.selected);
+    this.lastContext = { memory: mem.selected.map((m) => m.id), systemChars: system.length, tools: tools.length, time: Date.now() };
+    vibeStore.noteMemoryUse(this.lastContext.memory).catch(() => {});
 
     // AI log (vibe/ai-log.js, docs/ai-logging.md): metadata by default, content only when verbose logging is on
     const runLog = vibeStore.settings.aiLog !== false ? createRunLog({ verbose: !!vibeStore.settings.aiLogVerbose }) : null;

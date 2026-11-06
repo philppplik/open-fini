@@ -65,3 +65,25 @@ export function branchMessages(messages, i) {
   const { end } = turnBounds(messages, i);
   return JSON.parse(JSON.stringify(messages.slice(0, end)));
 }
+
+/**
+ * Chat list order with sub-threads under their main thread: [{ chat, sub }]. A sub-thread whose main thread is not in
+ * the list (deleted) is shown as a normal chat. Order within each level is kept.
+ */
+export function nestChats(chats) {
+  const ids = new Set(chats.map((c) => c.id));
+  const kids = new Map();
+  const top = [];
+  for (const c of chats) {
+    if (c.parent && c.parent !== c.id && ids.has(c.parent)) {
+      if (!kids.has(c.parent)) kids.set(c.parent, []);
+      kids.get(c.parent).push(c);
+    } else top.push(c);
+  }
+  const out = [];
+  for (const c of top) {
+    out.push({ chat: c, sub: false });
+    for (const k of kids.get(c.id) || []) out.push({ chat: k, sub: true });
+  }
+  return out;
+}

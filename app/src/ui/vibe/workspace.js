@@ -10,6 +10,7 @@ import { confirmDialog } from "../dialogs.js";
 import { vibeStore } from "../../vibe/store.js";
 import { getVibeHub } from "../../vibe/hub.js";
 import { chatRowExtras, chatListHead } from "./chat-list.js";
+import { nestChats } from "../../vibe/chat-ops.js";
 import { createChat } from "./chat.js";
 import { createCanvasPanel } from "./panel-canvas.js";
 import { createActivityPanel } from "./panel-activity.js";
@@ -73,9 +74,9 @@ export function vibeStudio(app) {
     const chats = [...live, ...vibeStore.chats];
     list.append(
       chatListHead(vs, iconButton({ icon: "pencil-square", label: "New chat", onClick: () => session.newChat() })),
-      h("div.of-vlist__items", chats.length ? chats.map((c) => {
+      h("div.of-vlist__items", chats.length ? nestChats(chats).map(({ chat: c, sub }) => {
         const st = hub.statusOf(c.id);
-        const row = h("button.of-vlist__row", { type: "button", class: c.id === session.chat.id ? "active" : "", "data-chat": c.id, "aria-current": c.id === session.chat.id ? "true" : null }, h("span", c.title), ...chatRowExtras(vs, c, st), h("small", new Date(c.updated).toLocaleDateString("en-US", { month: "short", day: "numeric" })));
+        const row = h("button.of-vlist__row", { type: "button", class: `${c.id === session.chat.id ? "active" : ""}${sub ? " sub" : ""}`, title: sub ? t("Sub-thread") : null, "data-chat": c.id, "aria-current": c.id === session.chat.id ? "true" : null }, h("span", c.title), ...chatRowExtras(vs, c, st), h("small", new Date(c.updated).toLocaleDateString("en-US", { month: "short", day: "numeric" })));
         row.addEventListener("click", () => session.openChat(c.id));
         row.addEventListener("contextmenu", (e) => {
           e.preventDefault();
