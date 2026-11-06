@@ -1,7 +1,7 @@
 # ADR 0023: Computer use for the assistant (design only, not built)
 
-- Status: Proposed (nothing implemented)
-- Date: 2026-11-05
+- Status: Proposed (nothing implemented; stage 1 designed in detail, see "Stage 1 design")
+- Date: 2026-11-05, extended 2026-11-06
 
 ## Context
 
@@ -58,7 +58,42 @@ Do not build computer use in 1.x. If it is built later, follow the staged plan a
 4. **Review** with a security audit and a threat-model update before any broader scope (multiple windows, scroll
    sequences). Full-desktop autonomous control is out of scope.
 
-## Consequences
+## Stage 1 design (read-only window screenshot)
 
+Re-evaluated on 2026-11-06 together with local file access ([vibe-files.md](../vibe-files.md)): stage 1 is still
+**not built**. Each OS needs its own capture code (Windows Graphics Capture through WinRT, ScreenCaptureKit through
+Objective-C, the xdg-desktop-portal over D-Bus), which means new native dependencies and signing/notarization work
+(macOS TCC records are tied to the signature) that cannot be verified in this repository's CI. The design below is
+what an implementation must follow.
+
+**Switch and kill switch.** *Settings ▸ Artificial intelligence ▸ Computer use*, off by default, desktop only,
+separate from terminal and local file access. While a capture session exists, a red "Screen sharing with Vibe" bar
+stays on top of OpenFini with **Stop**; `Ctrl+Alt+Shift+Esc` (a global shortcut registered only while active) and the
+existing *Stop all* (`hub.stopAll()`) end it. Stopping drops the picked window handle; a new pick is needed afterwards.
+
+**Native module** `src-tauri/src/screen.rs`, commands only:
+
+| Command | Effect |
+| --- | --- |
+| `screen_pick_window()` | Opens the OS picker (GraphicsCapturePicker, SCContentSharingPicker, portal ScreenCast with `types = WINDOW`); returns an opaque session id and the window title. The page never sees window handles. |
+| `screen_capture(session, max_px)` | One frame of that window, downscaled to at most `max_px` on the long side, PNG bytes. Refused when the window is gone or minimized. |
+| `screen_end(session)` | Releases the session. |
+
+No command enumerates windows, captures the full desktop or injects input in stage 1. The module keeps its own
+rate limit (one capture per 2 seconds) and refuses while the app is locked (app lock) or in offline mode.
+
+**Tool** `screen_look` (group *Computer use*): calls `screen_capture`, shows the image to the user in the approval
+card ("Send this screenshot of <title> to <model>?"), and only after *Allow* attaches it to the model input wrapped
+with the untrusted-content notice. *Always allow* does not exist for it. Metadata (time, window title, byte size) goes
+to the AI log; the image itself is never stored.
+
+**Redaction.** Windows and macOS do not expose password-field rectangles to capture APIs. Stage 1 therefore offers
+no automatic redaction; the approval card with the visible image is the control, and the docs say so.
+
+**Tests.** Pure parts (rate limiter, session table, downscale arithmetic) get unit tests; capture itself needs a
+manual test plan per OS (window closed between pick and capture, HiDPI, multiple monitors, minimized window,
+protected content such as DRM video which capture APIs return black).
+
+## Consequences
 The assistant can build, test and inspect projects through `run_command` and the existing tools, but cannot operate
 other applications. Users who need that today use an external agent of their choice; OpenFini does not integrate one.
