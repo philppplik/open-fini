@@ -40,13 +40,14 @@ import { pixelEditTools } from "./pixel-edit.js";
 import { knowledgeTools } from "./knowledge.js";
 import { utilityTools } from "./utility.js";
 import { terminalTools } from "./terminal.js";
+import { localFileTools } from "./local-files.js";
 
 /**
  * @param {import("../../core/app.js").App} app
  * @param {object} ctx session context: { images, knowledge, memory, skills, ask, plan, customTools }
  */
 export function createOpenFiniTools(app, ctx = {}) {
-  return withVerifyHints([...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...latexTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...officeSuiteTools(app, ctx), ...officeSheetTools(app, ctx), ...officeSheetDepthTools(app, ctx), ...slidesTools(app, ctx), ...officeBoardTools(app, ctx), ...officeSemanticTools(app, ctx), ...formatTools(app, ctx), ...exportTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...commentTools(app, ctx), ...vscodeTools(app, ctx), ...routingTools(app, ctx), ...webAccessTools(app, ctx), ...colorTools(app, ctx), ...pixelEditTools(app, ctx), ...knowledgeTools(app, ctx), ...utilityTools(app, ctx), ...terminalTools(app, ctx)]);
+  return withVerifyHints([...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...latexTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...officeSuiteTools(app, ctx), ...officeSheetTools(app, ctx), ...officeSheetDepthTools(app, ctx), ...slidesTools(app, ctx), ...officeBoardTools(app, ctx), ...officeSemanticTools(app, ctx), ...formatTools(app, ctx), ...exportTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...commentTools(app, ctx), ...vscodeTools(app, ctx), ...routingTools(app, ctx), ...webAccessTools(app, ctx), ...colorTools(app, ctx), ...pixelEditTools(app, ctx), ...knowledgeTools(app, ctx), ...utilityTools(app, ctx), ...terminalTools(app, ctx), ...localFileTools(app, ctx)]);
 }
 
 /** Tools grouped for the UI. */
@@ -73,6 +74,7 @@ export const TOOL_GROUPS = {
   "Knowledge base": ["rag_add_source", "rag_search", "rag_list", "rag_remove"],
   Utilities: ["calculate", "convert_units", "date_calc", "run_code", "clipboard_read"],
   Terminal: ["run_command"],
+  "Local files": ["local_list_folders", "local_list_files", "local_read_file", "local_write_file"],
   "Model routing": ["get_model_route", "set_model_route"],
   "Appearance and help": ["list_themes", "set_theme", "start_tour", "list_commands"],
   Color: ["set_color_mode", "convert_colors", "preflight_pdf"],
@@ -127,6 +129,7 @@ export const VERIFY_WITH = {
   "Knowledge base": "rag_list or rag_search",
   Utilities: "the returned result",
   Terminal: "the exit code and output",
+  "Local files": "local_read_file",
 };
 
 function withVerifyHints(tools) {

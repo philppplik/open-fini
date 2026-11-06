@@ -89,6 +89,16 @@
     "allow-preview-server-stop",
     "allow-preview-dir-stamps",
     "allow-latex-engines",
-    "allow-latex-compile"
+    "allow-latex-compile",
+    "allow-web-get",
+    "allow-files-grants",
+    "allow-files-grant-pick",
+    "allow-files-grant-set-write",
+    "allow-files-grant-revoke",
+    "allow-files-list",
+    "allow-files-read",
+    "allow-files-write",
+    "allow-files-audit",
+    "allow-files-audit-clear"
   ]
 }

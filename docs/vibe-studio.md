@@ -364,16 +364,19 @@ PNG, JPEG, GIF or WebP as a layer, or shows it in the chat). The `find-images` s
 - **Approval per domain.** Each call shows the domain and the exact arguments: *Allow*, *Always allow this domain*
   (adds it to the allowlist in settings) or *Decline*. These tools ask in every permission mode, also in Auto, and the
   per-tool *Always allow* does not apply to them. Domains on the blocklist are refused even when approved.
-- **Search backends.** Web search: Wikipedia (default, no key, articles only), SearXNG (your own instance, no key; it
+- **Search backends.** Web search: Wikipedia (default, no key, articles only), DuckDuckGo (no key, desktop app;
+  falls back to Wikipedia in the browser), SearXNG (your own instance, no key; it
   must enable the `json` format), Brave Search (API key), Tavily (API key). Image search always uses Openverse
   (no key needed, rate limited) with Wikimedia Commons as fallback; results include license, creator and source page.
   Keys are stored on this device and sent only to the search service.
 - **Licenses.** `download_image` records source URL, license, creator and title in the asset (`doc.assets[id].source`)
   and on the layer (`source`) when known, and tells you the credit line. Without a license the result says so.
 - **Limits.** Page size (default 2 MiB), image size (10 MiB), image pixels (40 MP) and timeout (15 s) are adjustable.
-- **Browser versus desktop.** There is no HTTP command in the desktop app, so requests use the web view's `fetch`
-  in both. Sites without CORS headers cannot be read (the error says so); Wikipedia, Openverse and Commons allow it.
-  A SearXNG instance or a page must send `Access-Control-Allow-Origin`.
+- **Browser versus desktop.** In the desktop app plain GETs go through a native command (`web_get`) that reads pages
+  without CORS headers, resolves host names itself and refuses private addresses there too, and returns redirects
+  for the app to check; see [vibe-files.md](vibe-files.md#native-web-reading-and-keyless-search). In the browser
+  requests use `fetch`: sites without CORS headers cannot be read (the error says so); Wikipedia, Openverse and
+  Commons allow it. A SearXNG instance must send `Access-Control-Allow-Origin` there.
 - **Untrusted content.** Results are wrapped in `<untrusted_web_content>` with a reminder that they are data, not
   instructions.
 
@@ -408,6 +411,13 @@ Format reference and authoring guide with examples: [vibe-skills.md](vibe-skills
 Add brand guides, copy decks, specs or notes under *Knowledge*. Files are chunked and indexed on this device with
 BM25; if you select an embedding model, dense vectors are added and results are blended. Your open website project is
 indexed automatically. The assistant searches with `search_knowledge`; you can test a query yourself in the panel.
+
+## Local files
+
+Off by default, desktop app only. *Settings ▸ Artificial intelligence ▸ Local files* grants single folders (read only
+or read and write) through the native folder picker; `local_list_folders`, `local_list_files`, `local_read_file` and
+`local_write_file` work only inside them, ask on every call and are recorded in an audit log. Paths are checked by the
+desktop app itself (no `..` or symbolic-link escape). Details: [vibe-files.md](vibe-files.md).
 
 ## Memory, context window and sub-threads
 

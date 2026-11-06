@@ -82,7 +82,10 @@ reaches the internet itself (apart from the AI provider and MCP servers you add)
 Known limits: a browser cannot read the target of a redirect (opaque redirect), so there the final address is checked
 after the request and the body is dropped when it is private; the request to the first redirect hop may already have
 been sent, though without cookies. The browser also cannot resolve DNS, so a public name that points to a private
-address (DNS rebinding) is not detected; the web view's own cross-origin and private-network rules still apply.
+address (DNS rebinding) is not detected; the web view's own cross-origin and private-network rules still apply. In
+the desktop app plain GETs use the native `web_get` command instead, which resolves the name itself, refuses the
+request when any resolved address is not public, connects to the checked address and returns redirects unfollowed,
+so both gaps are closed there ([vibe-files.md](vibe-files.md#native-web-reading-and-keyless-search)).
 Wrapping reduces but cannot remove prompt-injection risk.
 
 **For developers:** `app/src/vibe/web-access.js` (guard, fetch, extraction, backends; pure and injectable) and
@@ -127,8 +130,16 @@ read files through the file system plugin.
 
 Computer use (screen and input control of the OS) is not built; see [ADR 0023](adr/0023-computer-use.md).
 
-## App lock
+## Local file access for the assistant
 
+Off by default and desktop only. The assistant can only touch folders the person picked in the native folder dialog,
+which the desktop process opens itself (the page cannot grant a path). `src-tauri/src/fileaccess.rs` canonicalizes
+every path and refuses anything outside a grant, including `..` and symbolic-link escapes, refuses writes in read-only
+grants, through symbolic links, to multiply hard-linked files (Unix) and to the granted folder itself, and appends
+every access to an audit log without file contents. Every listing, read and write is approved in the chat; file text
+is wrapped as untrusted data. Details and limits: [vibe-files.md](vibe-files.md).
+
+## App lock
 An optional passphrase lock screen, on start, after a chosen idle time, when the window is hidden, or on demand
 (*Lock OpenFini*, `Ctrl+Alt+L`, also in the OpenFini menu).
 

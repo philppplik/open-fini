@@ -10,11 +10,13 @@
 //! loopback (`oauth.rs`), the built-in collaboration relay (`relay.rs`) and the FTP/FTPS and SMTP
 //! clients (`ftp.rs`, `smtp.rs`; shared plumbing in `netio.rs` and `wire.rs`), native window materials
 //! (`effects.rs`), the Code studio's local preview server (`preview_server.rs`) and LaTeX compiling with an
-//! installed TeX engine (`latex.rs`).
+//! installed TeX engine (`latex.rs`), the assistant's native web GET (`webfetch.rs`) and its per-folder local file
+//! access with an audit log (`fileaccess.rs`).
 
 mod cli;
 mod cmd;
 mod effects;
+mod fileaccess;
 mod ftp;
 mod latex;
 mod netio;
@@ -22,6 +24,7 @@ mod oauth;
 mod preview_server;
 mod relay;
 mod smtp;
+mod webfetch;
 mod wire;
 
 use std::path::PathBuf;
@@ -167,6 +170,7 @@ pub fn run() {
         .manage(relay::Relay::default())
         .manage(preview_server::PreviewServer::default())
         .manage(cmd::Procs::default())
+        .manage(fileaccess::FileGrants::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
@@ -196,6 +200,16 @@ pub fn run() {
             preview_server::preview_dir_stamps,
             latex::latex_engines,
             latex::latex_compile,
+            webfetch::web_get,
+            fileaccess::files_grants,
+            fileaccess::files_grant_pick,
+            fileaccess::files_grant_set_write,
+            fileaccess::files_grant_revoke,
+            fileaccess::files_list,
+            fileaccess::files_read,
+            fileaccess::files_write,
+            fileaccess::files_audit,
+            fileaccess::files_audit_clear,
         ])
         .setup(|app| {
             let args = std::env::args_os()
