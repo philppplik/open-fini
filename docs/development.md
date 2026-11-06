@@ -85,6 +85,7 @@ Rules that explain most of the code:
   is exposed as `window.openfini` for scripting (`setStudio`, `run(commandId)`, `prefs`, `doc`, `toast`, `emit/on`).
 * `npm run build && npm run check:size` must pass; CI runs tests on Linux, macOS and Windows plus the Rust build.
 * The Demo (mock) Vibe provider makes AI features testable without keys; extend `app/src/ai/providers/mock.js` when you add tools.
+* `npm run ofini -- info|validate <file.ofini> [--json]` inspects documents without the app (read-only, offline; exit code 1 on errors), for CI and bug reports. Design of the full CLI and TUI: [ADR 0024](adr/0024-ofini-cli-and-tui.md).
 
 ## 5. Working together: Git, branches, PRs
 
