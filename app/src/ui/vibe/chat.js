@@ -372,7 +372,6 @@ export function createChat(vs) {
   // one attach button: a click opens a small menu (file or a screenshot of the current page); the prompt library lives in the "/" menu
   const attach = tip("paperclip", "Attach files or images", () => openAttachMenu(attach), { "aria-haspopup": "menu" });
   const mic = tip("mic", "Dictate (speech input)", () => dictate());
-  if (!(window.SpeechRecognition || window.webkitSpeechRecognition)) mic.hidden = true; // no speech input here: do not show a dead button
   const toolsBtn = tip("tools", "Tools for this chat", () => openToolsPopover(toolsBtn), { "aria-haspopup": "dialog" });
   // what the next request sends (context-panel.js, lazy): tokens per item, drop items, memory for this chat
   const ctxBtn = tip("stack", "Context window", () => import("./context-panel.js").then((m) => m.openContextPanel(vs, ctxBtn, { draft: input.value })), { "aria-haspopup": "dialog" });
@@ -436,6 +435,7 @@ export function createChat(vs) {
     paintSend();
   };
   input.addEventListener("input", () => {
+    if (!rec) speech?.stopSpeaking(); // typing interrupts a reading (dictation fills the field itself)
     autosize();
     mentions.update();
     suggest();
@@ -609,6 +609,7 @@ export function createChat(vs) {
     let text = own ? input.value.trim() : override.trim();
     if (!text && !files.length && !(own && mentions.chips.length)) return;
     if (session.running) return;
+    speech?.stopSpeaking();
     // typed "@selection" without a chip still works (older habit): it becomes a selection chip
     if (own && /(^|\s)@selection\b/.test(text) && app.selection.length && !mentions.chips.some((c) => c.kind === "selection")) {
       text = text.replace(/(^|\s)@selection\b/g, "$1the selected layers").trim();
@@ -653,33 +654,89 @@ export function createChat(vs) {
     }
   }
 
-  // speech input (where the platform supports it)
+  // speech input, spoken replies and voice chat (vibe/speech-runtime.js, loaded on first use; docs/vibe-voice.md)
+  const voiceCfg = () => vibeStore.settings.voice || {};
+  const sttEngine = () => voiceCfg().stt || "system";
+  const speechLang = () => {
+    const l = app.i18n?.locale?.() || "en";
+    return l.includes("-") ? l : { de: "de-DE", en: "en-US" }[l] || l;
+  };
+  let speech = null; // the runtime module once loaded
   let rec = null;
-  function dictate() {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return app.toast("Speech input is not available in this browser.", "warning", 2400);
-    if (rec) {
-      rec.stop();
-      return;
+  let voiceOn = false;
+  const loadSpeech = async () => (speech ||= await import("../../vibe/speech-runtime.js"));
+  function stopVoice() {
+    voiceOn = false;
+    voiceBtn.classList.remove("active");
+    voiceBtn.setAttribute("aria-pressed", "false");
+    rec?.stop();
+    speech?.stopSpeaking();
+  }
+  async function dictate({ auto = false } = {}) {
+    if (rec) return rec.stop();
+    const R = await loadSpeech();
+    R.stopSpeaking();
+    if (sttEngine() === "local") {
+      await R.transcribeLocal().catch((e) => app.toast(e.message, "warning", 6000));
+      return stopVoice();
     }
-    rec = new SR();
-    rec.lang = "en-US";
-    rec.interimResults = true;
-    rec.continuous = true;
+    if (sttEngine() === "off" || !R.systemSttAvailable()) {
+      app.toast(t("Speech input is off or not available here (Settings ▸ Artificial intelligence ▸ Voice)."), "warning", 3000);
+      return stopVoice();
+    }
     const base = input.value;
+    let heard = "";
     mic.classList.add("active");
-    rec.onresult = (e) => {
-      input.value = `${base} ${[...e.results].map((r) => r[0].transcript).join("")}`.trim();
-      autosize();
-    };
-    rec.onend = () => {
+    try {
+      rec = R.listen({
+        lang: speechLang(),
+        continuous: !auto, // voice chat: one utterance, then send
+        onText: (text) => {
+          heard = text;
+          input.value = `${base} ${text}`.trim();
+          autosize();
+        },
+        onEnd: () => {
+          mic.classList.remove("active");
+          rec = null;
+          if (auto && voiceOn) heard.trim() ? send() : stopVoice();
+        },
+        onError: (e) => app.toast(e.message, "warning", 3000),
+      });
+    } catch (e) {
       mic.classList.remove("active");
       rec = null;
-    };
-    rec.onerror = () => rec?.stop();
-    rec.start();
+      app.toast(e.message, "warning", 3000);
+    }
   }
-
+  /** Reads the newest answer aloud (spoken replies or voice chat), then listens again in voice chat. */
+  async function speakReply() {
+    if (!voiceOn && !voiceCfg().tts) return;
+    const last = [...session.chat.messages].reverse().find((m) => m.role === "assistant" && messageMarkdown(m).trim());
+    if (!last) return;
+    const R = await loadSpeech();
+    try {
+      await R.speak(messageMarkdown(last), voiceCfg(), app.i18n?.locale?.() || "en");
+    } catch (e) {
+      app.toast(e.message, "warning", 4000);
+      return stopVoice();
+    }
+    if (voiceOn && !session.running && !R.isSpeaking()) dictate({ auto: true });
+  }
+  const voiceBtn = tip("volume-up", "Voice chat", () => {
+    if (voiceOn) return stopVoice();
+    voiceOn = true;
+    voiceBtn.classList.add("active");
+    voiceBtn.setAttribute("aria-pressed", "true");
+    dictate({ auto: true });
+  }, { "aria-pressed": "false" });
+  const paintVoice = () => {
+    voiceBtn.hidden = !voiceCfg().voiceMode;
+    mic.hidden = sttEngine() === "off" || (sttEngine() === "system" && !(window.SpeechRecognition || window.webkitSpeechRecognition));
+    if (voiceBtn.hidden && voiceOn) stopVoice();
+  };
+  mic.after(voiceBtn);
+  paintVoice();
   // ------------------------------------------------------------ pills
   const MODES = { careful: "Ask for every change", balanced: "Ask for risky steps", auto: "Auto-apply" };
   function paintPills() {
@@ -688,6 +745,7 @@ export function createChat(vs) {
     const p = s.activeProvider ? vibeStore.provider(s.activeProvider) : null;
     modelPill.replaceChildren(iconEl("cpu"), h("span", `${s.activeProvider && s.model ? `${p?.label || "Provider"} · ${s.model.split("/").pop()}` : "Demo (offline)"}${ov.model ? " (this chat)" : ""}${(s.routes || []).some((r) => r.id === s.activeRoute && r.targets.some((x) => x.enabled !== false)) && ov.fallback !== false ? " ↪" : ""}`), iconEl("chevron-down"));
     modePill.replaceChildren(iconEl(s.approval === "auto" ? "lightning-charge" : s.approval === "careful" ? "shield-check" : "shield"), h("span", `${MODES[s.approval]}${ov.approval ? " (this chat)" : ""}`));
+    paintVoice();
     thinkPill.replaceChildren(iconEl("lightbulb"), h("span", s.reasoning === "off" ? "Thinking off" : `Thinking ${s.reasoning}`));
     paintSend();
   }
@@ -815,6 +873,7 @@ export function createChat(vs) {
     const u = res.usage;
     if (u?.input || u?.output) thread.append(h("div.of-vusage", `${u.input?.toLocaleString("en-US") || 0} tokens in · ${u.output?.toLocaleString("en-US") || 0} out · ${res.steps || 1} step${res.steps === 1 ? "" : "s"}`));
     runSummary(vs.hub.active?.runId);
+    if (res.stopReason !== "aborted") speakReply();
     follow();
     if (!document.activeElement || document.activeElement === document.body) input.focus({ preventScroll: true });
   });
