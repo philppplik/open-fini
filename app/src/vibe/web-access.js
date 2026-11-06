@@ -7,11 +7,12 @@
 // untrusted data before it reaches the model.
 
 import { hostMatches } from "./web-hosts.js";
+import { webFetch, nativeWebAvailable } from "./native-web.js";
 export { parseDomainList, hostMatches, hostsOf, allAllowed } from "./web-hosts.js";
 
 export const DEFAULT_WEB = () => ({
   enabled: false,
-  searchBackend: "wikipedia", // wikipedia (no key) | searxng (your instance) | brave (key) | tavily (key)
+  searchBackend: "wikipedia", // wikipedia (no key) | duckduckgo (no key, desktop app) | searxng (your instance) | brave (key) | tavily (key)
   searxngUrl: "",
   apiKey: "", // Brave / Tavily
   allowDomains: [], // approved with "always for this domain"; a leading "*." matches subdomains
@@ -87,14 +88,14 @@ export function checkUrl(url, web = {}) {
  * the fact and the body is dropped when it is not allowed (see docs/security.md).
  * @returns {Promise<{url:string, status:number, type:string, bytes:Uint8Array, truncated:boolean}>}
  */
-export async function guardedFetch(url, web, { fetchImpl = globalThis.fetch, signal, maxBytes, accept } = {}) {
+export async function guardedFetch(url, web, { fetchImpl = webFetch, signal, maxBytes, accept } = {}) {
   const w = normalizeWeb(web);
   const limit = maxBytes ?? w.maxPageBytes;
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(new Error(`The request timed out after ${Math.round(w.timeoutMs / 1000)} seconds.`)), w.timeoutMs);
   const onAbort = () => ctl.abort(signal.reason);
   signal?.addEventListener("abort", onAbort, { once: true });
-  const init = { method: "GET", credentials: "omit", referrerPolicy: "no-referrer", cache: "no-store", signal: ctl.signal, headers: accept ? { Accept: accept } : {} };
+  const init = { method: "GET", credentials: "omit", referrerPolicy: "no-referrer", cache: "no-store", signal: ctl.signal, headers: accept ? { Accept: accept } : {}, maxBytes: limit, timeoutMs: w.timeoutMs };
   try {
     let cur = checkUrl(url, w).href;
     let res;
@@ -260,9 +261,10 @@ export function validateImage(bytes, web) {
 const q = (o) => Object.entries(o).filter(([, v]) => v != null && v !== "").map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join("&");
 
 /** The URL a search would contact (used for the approval card). */
-export function searchEndpoint(w, images) {
+export function searchEndpoint(w, images, native = nativeWebAvailable()) {
   if (images) return "https://api.openverse.org/v1/images/";
   if (w.searchBackend === "searxng") return new URL("search", `${(w.searxngUrl || "https://searx.invalid").replace(/\/+$/, "")}/`).href;
+  if (w.searchBackend === "duckduckgo" && native) return "https://html.duckduckgo.com/html/"; // browser: falls back to Wikipedia
   if (w.searchBackend === "brave") return "https://api.search.brave.com/res/v1/web/search";
   if (w.searchBackend === "tavily") return "https://api.tavily.com/search";
   return "https://en.wikipedia.org/w/api.php";
@@ -271,7 +273,7 @@ export function searchEndpoint(w, images) {
 const strip = (s) => decode(String(s || "").replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim();
 
 /** Web search. Returns [{ title, url, snippet }]. */
-export async function webSearch(query, web, { fetchImpl = globalThis.fetch, signal, limit = 8 } = {}) {
+export async function webSearch(query, web, { fetchImpl = webFetch, signal, limit = 8, native = nativeWebAvailable() } = {}) {
   const w = normalizeWeb(web);
   const run = async (url, init) => {
     const u = checkUrl(url, w);
@@ -280,6 +282,19 @@ export async function webSearch(query, web, { fetchImpl = globalThis.fetch, sign
     return res.json();
   };
   const b = w.searchBackend;
+  if (b === "duckduckgo") {
+    // keyless HTML results page; it sends no CORS headers, so it works only through the desktop app's native GET
+    if (native) {
+      const r = await guardedFetch(`${searchEndpoint(w, false, true)}?${q({ q: query })}`, w, { fetchImpl, signal, accept: "text/html" });
+      const results = parseDuckDuckGo(new TextDecoder().decode(r.bytes), limit);
+      if (results.length) return results;
+      if (/anomaly|captcha|challenge/i.test(new TextDecoder().decode(r.bytes.slice(0, 20000)))) throw new Error("DuckDuckGo asked for a human check (too many automated searches). Wait a while or choose another search backend; OpenFini never solves such checks.");
+      return results;
+    }
+    const results = await webSearch(query, { ...w, searchBackend: "wikipedia" }, { fetchImpl, signal, limit, native });
+    results.note = "Keyless web search needs the OpenFini desktop app (the browser blocks reading the results page). Searched Wikipedia instead.";
+    return results;
+  }
   if (b === "brave") {
     if (!w.apiKey) throw new Error("Brave Search needs an API key (Settings ▸ Artificial intelligence ▸ Web access).");
     const j = await run(`${searchEndpoint(w)}?${q({ q: query, count: limit })}`, { headers: { Accept: "application/json", "X-Subscription-Token": w.apiKey } });
@@ -299,8 +314,28 @@ export async function webSearch(query, web, { fetchImpl = globalThis.fetch, sign
   return (j.query?.search || []).map((r) => ({ title: strip(r.title), url: `https://en.wikipedia.org/wiki/${encodeURIComponent(String(r.title).replace(/ /g, "_"))}`, snippet: strip(r.snippet) }));
 }
 
+/** Results of DuckDuckGo's HTML page: [{ title, url, snippet }]. Ads and DuckDuckGo's own links are skipped. */
+export function parseDuckDuckGo(html, limit = 8) {
+  const out = [];
+  const blocks = String(html).split(/<div[^>]+class="[^"]*\bresult\b/).slice(1);
+  for (const b of blocks) {
+    if (/result--ad\b/.test(b.slice(0, 200))) continue;
+    const a = /<a[^>]+class="[^"]*\bresult__a\b[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/.exec(b);
+    if (!a) continue;
+    let url = decode(a[1]);
+    const redirect = /[?&]uddg=([^&]+)/.exec(url);
+    if (redirect) url = decodeURIComponent(redirect[1]);
+    else if (url.startsWith("//")) url = `https:${url}`;
+    if (!/^https?:\/\//i.test(url) || /^https?:\/\/([^/]+\.)?duckduckgo\.com\//i.test(url)) continue;
+    const snip = /class="[^"]*\bresult__snippet\b[^"]*"[^>]*>([\s\S]*?)<\/(a|div|td)>/.exec(b);
+    out.push({ title: strip(a[2]), url, snippet: snip ? strip(snip[1]) : "" });
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 /** Openly licensed image search: Openverse first, then Wikimedia Commons. Returns [{ title, url, pageUrl, license, licenseUrl, creator, source, width, height }]. */
-export async function imageSearch(query, web, { fetchImpl = globalThis.fetch, signal, limit = 8 } = {}) {
+export async function imageSearch(query, web, { fetchImpl = webFetch, signal, limit = 8 } = {}) {
   const w = normalizeWeb(web);
   const get = async (url) => {
     const u = checkUrl(url, w);
