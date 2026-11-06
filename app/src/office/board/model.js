@@ -18,12 +18,14 @@
 // Invariants: (x, y, w, h) is the unrotated box; points stay inside it after normalizePoints(); connectors are
 // re-routed by layoutConnectors() after every change that moves or resizes elements (the ops below call it).
 import { initialKey, keyBetween, isKey } from "../../collab/fractional.js";
+import { OBJECT_TYPES, normalizeObject, objectText } from "./objects.js";
 
 export const BOARD_VERSION = 1;
 export const SHAPES = ["rect", "ellipse", "diamond"];
 export const LINEAR = ["line", "arrow"];
 export const INK = ["pen", "highlighter"];
-export const TYPES = [...SHAPES, ...LINEAR, ...INK, "text", "sticky", "image", "frame"];
+export const TYPES = [...SHAPES, ...LINEAR, ...INK, "text", "sticky", "image", "frame", ...OBJECT_TYPES];
+export { OBJECT_TYPES };
 export const PAPERS = ["plain", "dots", "grid", "lines"];
 export const FONTS = ["hand", "sans", "serif", "mono"];
 export const HEADS = ["none", "arrow", "triangle", "dot", "bar"];
@@ -69,6 +71,7 @@ export function makeElement(type, props = {}) {
   if (type === "highlighter") Object.assign(el, { stroke: props.stroke || "#ffd43b", width: props.width || 18, opacity: props.opacity ?? 0.45, rough: 0 });
   if (type === "pen") el.rough = 0;
   if (type === "frame") Object.assign(el, { name: props.name || "Frame", stroke: props.stroke || "#868e96", width: 1, rough: 0 });
+  if (OBJECT_TYPES.includes(type)) return normalizeObject({ ...el, rough: 0, stroke: props.stroke ?? (type === "portal" ? "#495057" : "#1e1e1e") });
   if (LINEAR.includes(type) || INK.includes(type)) return normalizePoints(el);
   return el;
 }
@@ -289,6 +292,7 @@ export function updateElements(model, patches) {
     if (!el || !p) continue;
     let next = { ...el, ...p, id, type: el.type };
     if (p.points && (LINEAR.includes(el.type) || INK.includes(el.type))) next = normalizePoints(next);
+    if (OBJECT_TYPES.includes(el.type)) next = normalizeObject(next);
     elements[id] = next;
     hit = true;
   }
@@ -621,7 +625,7 @@ export function normalizeBoard(raw) {
     if (el.points) el.points = Array.isArray(el.points) ? el.points.filter((p) => Array.isArray(p) && Number.isFinite(+p[0]) && Number.isFinite(+p[1])).map((p) => p.slice(0, 3).map(Number)) : [[0, 0]];
     if ((LINEAR.includes(el.type) || INK.includes(el.type)) && !el.points?.length) continue;
     if (typeof el.text === "string") el.text = el.text.slice(0, 20000);
-    elements[id] = el;
+    elements[id] = OBJECT_TYPES.includes(el.type) ? normalizeObject(el) : el;
   }
   // keys for elements without one, in their stored order
   const missing = Object.values(elements).filter((e) => !e.z);
@@ -641,7 +645,7 @@ export function textBox(text, fontSize, measure = approxWidth) {
 }
 
 /** Plain text of an element (labels, notes, frame names) for describe, find and comments. */
-export const elementText = (el) => (el.type === "frame" ? el.name || "" : el.text || "");
+export const elementText = (el) => (el.type === "frame" ? el.name || "" : OBJECT_TYPES.includes(el.type) ? objectText(el) : el.text || "");
 
 // ---------------------------------------------------------------------------------------------- describe
 
@@ -690,7 +694,10 @@ export function boardToMarkdown(model, { title = "", connections = true } = {}) 
     const els = pageElements(model, p.id);
     const frames = els.filter((e) => e.type === "frame").sort(reading);
     const inFrame = (e, f) => e.frame === f.id || (!e.frame && e.type !== "frame" && center(e)[0] >= f.x && center(e)[0] <= f.x + f.w && center(e)[1] >= f.y && center(e)[1] <= f.y + f.h);
-    const texts = els.filter((e) => ["sticky", "text", ...SHAPES].includes(e.type) && label(e));
+    const texts = els.filter((e) => ["sticky", "text", "math", "portal", ...SHAPES].includes(e.type) && label(e));
+    const tables = els.filter((e) => e.type === "table");
+    const charts = els.filter((e) => e.type === "chart" || e.type === "plot");
+
     const lvl = pages.length > 1 ? "###" : "##";
     if (pages.length > 1) {
       out.push(`## ${mdEscape(p.name || "Page")}`, "");
@@ -719,6 +726,18 @@ export function boardToMarkdown(model, { title = "", connections = true } = {}) 
         sections++;
       }
       bullets(rest);
+    }
+    for (const tb of tables) {
+      const cell = (c) => String(c).replace(/\|/g, "\\|").replace(/\s+/g, " ").trim();
+      const [head, ...body] = tb.header ? tb.rows : [tb.rows[0].map(() => ""), ...tb.rows];
+      out.push(`| ${head.map(cell).join(" | ")} |`, `| ${head.map(() => "---").join(" | ")} |`, ...body.map((r) => `| ${r.map(cell).join(" | ")} |`), "");
+      items++;
+    }
+    for (const c of charts) {
+      const title = c.type === "chart" ? c.chart.title || "Chart" : "Graph";
+      out.push(`${lvl} ${mdEscape(title)}`, "", ...elementText(c).split("\n").filter(Boolean).map((l) => `- ${mdEscape(l)}`), "");
+      sections++;
+      items++;
     }
     if (connections) {
       const byId = new Map(els.map((e) => [e.id, e]));

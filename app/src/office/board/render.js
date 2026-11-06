@@ -12,6 +12,7 @@
 // ctx: { measure(text, size, font) → px, image(mediaId) → ImageRef | null }
 import { roughRect, roughEllipse, roughPolygon, roughPolyline, roughLine, hachure } from "../toolkit/rough.js";
 import { pageElements, unionBounds, absPoints, INK, LINEAR, approxWidth } from "./model.js";
+import { objectItems } from "./objects.js";
 
 export const FONT_FAMILY = { hand: "Comic Sans MS", sans: "Helvetica", serif: "Georgia", mono: "Courier New" };
 const IDENT = [1, 0, 0, 1, 0, 0];
@@ -262,7 +263,15 @@ function build(el, ctx) {
       if (el.stroke && el.width && el.frameImage) items.push(path(polyD([[0, 0], [w, 0], [w, h], [0, h]], true), null, stroke(el.stroke, sw), m));
       break;
     }
+    case "table":
+    case "chart":
+    case "plot":
+    case "math":
+    case "portal":
+      items.push(...objectItems(el, ctx.measure, m));
+      break;
     case "frame": {
+
       items.push(path(polyD([[0, 0], [w, 0], [w, h], [0, h]], true), el.fill ? solid(el.fill) : null, stroke(el.stroke || "#868e96", 1), m));
       const it = textItem([el.name || "Frame"], { x: 0, y: -20, w, h: 18, size: 14, font: "sans", color: "#868e96", align: "left", measure: (t, sz) => ctx.measure(t, sz, "sans") });
       if (it) items.push({ ...it, m });

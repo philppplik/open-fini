@@ -30,7 +30,7 @@ export const TOOLSETS = {
   office: ["office_read_document", "office_find", "office_insert_blocks", "office_replace_text", "office_set_style", "office_apply_format", "office_insert_table", "office_set_page_setup", "office_export", "office_describe", "office_list_documents", "office_new"],
   sheet: ["sheet_describe", "sheet_read_range", "sheet_write_range", "sheet_set_formula", "sheet_format", "sheet_add_sheet", "sheet_add_chart", "sheet_add_rule", "sheet_format_table", "sheet_define_name", "sheet_set_validation", "sheet_pivot", "sheet_add_sparkline", "sheet_chart_data", "office_describe", "office_new"],
   slides: ["slides_describe", "slides_add_slide", "slides_delete", "slides_set_text", "slides_add_shape", "slides_add_image", "slides_apply_layout", "slides_apply_theme", "slides_reorder", "slides_set_notes", "slides_set_transition", "slides_format_text", "slides_set_footer", "slides_edit_master", "slides_edit_layout", "slides_apply_design", "slides_insert_chart", "slides_refresh_charts", "office_new"],
-  board: ["board_describe", "board_add_shape", "board_add_sticky", "board_add_text", "board_add_connector", "board_update", "board_delete", "board_arrange", "board_page", "office_new"],
+  board: ["board_describe", "board_add_shape", "board_add_sticky", "board_add_text", "board_add_connector", "board_update", "board_delete", "board_arrange", "board_page", "board_add_table", "board_edit_table", "board_add_chart", "board_add_plot", "board_add_math", "board_add_subboard", "board_add_diagram", "board_draw", "office_new"],
 };
 
 /** Studio guide (built-in skill `studio-guide-<studio>`) that matches a tool-set name. */

@@ -136,7 +136,7 @@ Take a screenshot of the result and look at it as the reader will. Then: sheet_r
 const BRAINSTORM = `---
 name: brainstorm-to-board
 description: Run a brainstorm on the Whiteboard - collect ideas as sticky notes, cluster them into themed groups with headings, connect related ideas and summarize the result as a document.
-allowed-tools: office_new, board_describe, board_add_sticky, board_add_text, board_add_shape, board_add_connector, board_arrange, board_update, office_new_document, office_insert_blocks, ask_user
+allowed-tools: office_new, board_describe, board_add_sticky, board_add_text, board_add_shape, board_add_connector, board_arrange, board_update, board_add_diagram, office_board_to_document, office_rewrite_section, ask_user
 tags: [office, whiteboard, brainstorm, workshop]
 when-to-use: brainstorm, ideas, mind map, workshop, retrospective, affinity map
 ---
@@ -148,7 +148,7 @@ when-to-use: brainstorm, ideas, mind map, workshop, retrospective, affinity map
 3. Generate 12 to 24 distinct ideas (short, 3 to 8 words each) and add them as stickies (board_add_sticky).
 4. Cluster into 3 to 6 themes: a labeled frame or text heading per theme, stickies arranged in a grid below it (board_arrange), one sticky color per theme.
 5. board_add_connector between ideas that depend on each other (sparingly).
-6. Summarize: office_new_document with one Heading2 per theme and the ideas as bullets, plus top 3 next steps.
+6. Summarize: office_board_to_document (one heading per frame, stickies as bullets), then office_rewrite_section to add the top 3 next steps.
 
 ## Watch out
 - Coordinates: keep 24 px gaps; overlapping stickies are unreadable. Use board_arrange instead of computing positions one by one.
@@ -261,4 +261,117 @@ when-to-use: analyze data, pivot, summarize by, top 10, unique values, dropdown,
 Take a screenshot of the result and look at it as the reader will. Then: sheet_read_range on the pivot (totals equal the sum of the source column) and on the spill anchors (no #SPILL!, #NAME? or #VALUE!); sheet_describe lists the table, names and validation.`;
 
 /** Office Suite skills (part 3 of the built-in library). */
-export const OFFICE_SKILLS = [WRITE_REPORT, POLISH, BUDGET, PITCH, CLEAN_DATA, BRAINSTORM, A11Y_DOC, TRANSLATE, MEETING, ANALYZE_SHEET];
+const BOARD_MATH = `---
+name: whiteboard-math-lesson
+description: Explain a math topic on the Whiteboard like a teacher at the board - formulas typeset, graphs in a real coordinate system, worked steps and marked points.
+allowed-tools: office_new, board_describe, board_add_text, board_add_math, board_add_plot, board_add_table, board_add_shape, board_add_connector, board_add_subboard, board_arrange, board_update, calculate, ask_user
+tags: [office, whiteboard, math, teaching, graph]
+when-to-use: explain a function, plot a graph, solve an equation step by step, math lesson, show a formula, curve sketching
+---
+# Whiteboard math lesson
+
+## Workflow
+1. office_new kind board (paper grid) unless a board is open; board_add_text with the topic as a heading at the top left.
+2. The key formula with board_add_math (TeX: \\frac, \\sqrt, ^{ }, _{ }, Greek letters), large (fontSize 36) under the heading.
+3. Graph with board_add_plot: the functions, the special points (roots, vertex, intersections, extrema) as labeled points, x/y ranges that show all of them with a margin.
+4. Worked steps: one board_add_math per step in a column left of the graph, each with a short board_add_text explanation; a value table with board_add_table when it helps.
+5. Extensions or exercises go on a sub-board (board_add_subboard "Exercises") so the main page stays clean.
+
+## Watch out
+- Compute every number you mark or write (roots, vertex, values) with calculate first; never guess coordinates.
+- Expressions for board_add_plot use x as the variable, ^ for powers, sqrt(), ln() or log(); one function per entry.
+- Keep formulas to one line each; split long derivations into steps.
+- Leave 40 px between blocks; place the graph at the right so steps read left to right.
+
+## Verify
+Take a screenshot of the result and look at it as the reader will. Then: board_describe: the plot lists the functions and points you meant, every step formula is present, nothing overlaps.`;
+
+const BOARD_DATA = `---
+name: whiteboard-data-story
+description: Turn numbers into a visual story on the Whiteboard - a data table, the right chart, the key takeaway and annotations.
+allowed-tools: office_new, office_list_documents, sheet_describe, board_describe, board_add_text, board_add_table, board_edit_table, board_add_chart, board_add_sticky, board_add_connector, board_arrange, ask_user
+tags: [office, whiteboard, data, chart, dashboard]
+when-to-use: visualize data on a board, chart on whiteboard, data story, KPI board, compare numbers
+---
+# Whiteboard data story
+
+## Workflow
+1. Find the data: an open spreadsheet (office_list_documents, sheet_describe) or numbers the user gives.
+2. board_add_text with the takeaway as the heading ("Sales doubled in Q3"), not a neutral label.
+3. board_add_chart: column/bar to compare, line for change over time, pie/donut only for parts of one whole (at most 6 slices); from the spreadsheet range when there is one.
+4. board_add_table next to it with the exact figures (header row, at most 8 rows).
+5. One or two stickies with the insight or the caveat, connected to the part of the chart they explain (board_add_connector).
+6. Several questions in the data: one frame per question (board_add_shape frame) with its own heading, chart and table, side by side in reading order; put the source and the date of the data in a small text under each chart.
+7. When the user changes numbers, update the table with board_edit_table and rebuild only that chart; never leave the table and the chart disagreeing.
+
+## Watch out
+- Categories and every series must have the same length; check units and totals before charting.
+- Do not invent missing values; leave them empty and say so on a sticky.
+- One message per chart; a second message gets a second chart.
+- Axes start at zero for column and bar charts; percentages of a whole add up to 100 before you draw a pie.
+- Round displayed numbers sensibly (two significant digits in headings, exact values in the table).
+
+
+## Verify
+Take a screenshot of the result and look at it as the reader will. Then: board_describe: the chart lists the series you intended, table numbers match the chart, the heading states the takeaway.`;
+
+const BOARD_DIAGRAM = `---
+name: whiteboard-diagram
+description: Draw a clear diagram on the Whiteboard from a description - mind map, hierarchy, timeline, cycle or 2x2 matrix - with sub-boards for the details.
+allowed-tools: office_new, board_describe, board_add_diagram, board_add_subboard, board_add_text, board_add_sticky, board_add_connector, board_draw, board_arrange, board_update, ask_user
+tags: [office, whiteboard, diagram, mind map, org chart, timeline]
+when-to-use: mind map, org chart, hierarchy, timeline, roadmap, process cycle, 2x2 matrix, SWOT, concept map, visualize structure
+---
+# Whiteboard diagram
+
+## Workflow
+1. Pick the form: mindmap (ideas around a topic), tree (hierarchy, org chart, decisions), timeline (dated steps), cycle (repeating process), matrix (two criteria, SWOT, Eisenhower).
+2. board_add_diagram with short item texts and children; one call per diagram.
+3. Details that do not fit go to sub-boards (board_add_subboard per branch) whose page gets its own diagram or notes.
+4. Annotate sparingly: board_add_text for a title, board_draw for a highlight outline or a custom arrow.
+5. board_arrange (align, distribute) only for elements you added by hand.
+6. Colors carry meaning: one color per branch or category, explained once in a small legend text if it is not obvious; keep the hand-drawn style for workshops and clean style for documentation.
+7. For a process with decisions, use the existing flowchart tools instead (board_add_shape diamonds plus board_add_connector, then board_arrange flow).
+
+## Watch out
+- Item texts under 6 words; more than 8 branches per level becomes unreadable - group them first.
+- Do not rebuild a diagram to change one item; use board_update on its id.
+- The matrix takes the first four items as quadrants and their children as notes.
+- Timelines read left to right; sort items by date first and put the date at the start of each text.
+- Leave room: place a second diagram at least 200 px away from the first (x and y parameters).
+
+
+## Verify
+Take a screenshot of the result and look at it as the reader will. Then: board_describe: every item appears once, connectors link the right parents and children, no overlaps.`;
+
+const BOARD_EXPLAINER = `---
+name: whiteboard-visual-explainer
+description: Explain a concept visually on the Whiteboard - an overview page with labeled shapes and arrows, a sub-board per part, tables and formulas where they belong, and a write-up as a document.
+allowed-tools: office_new, board_describe, board_add_shape, board_add_text, board_add_sticky, board_add_connector, board_add_subboard, board_add_table, board_add_math, board_add_chart, board_add_diagram, board_draw, board_page, board_arrange, office_board_to_document, ask_user
+tags: [office, whiteboard, explain, teaching, overview]
+when-to-use: explain how something works, visual explanation, teach a concept, system overview, architecture sketch, study notes
+---
+# Whiteboard visual explainer
+
+## Workflow
+1. Ask who it is for and how deep it should go.
+2. Overview page: the concept as 3 to 7 labeled shapes connected by labeled arrows (board_add_shape, board_add_connector), a title (board_add_text).
+3. One sub-board per part (board_add_subboard next to its shape); on each sub-board page: a short explanation, a table, formula or chart where they carry facts, and an example.
+4. Simple custom graphics with board_draw (outlines, icons from a few points) when shapes are not enough.
+5. Offer office_board_to_document for written study notes.
+6. Close the overview with a one-sentence summary text at the bottom and, for learners, a small "Check yourself" frame with two or three questions on stickies.
+7. Name sub-boards after the part they explain ("How the cache works"), not "Details 1"; use board_page goto to show the user a sub-board you just filled.
+
+## Watch out
+- One idea per shape; arrows say what flows ("sends", "depends on").
+- Facts, numbers and formulas must be correct - compute or ask, do not invent.
+- Pass the sub-board's page id to the board_ tools to place content there.
+- Keep the overview readable at one zoom level: at most about 12 elements, everything else goes to sub-boards.
+- Prefer native objects (tables, charts, formulas, graphs) over drawing them by hand with board_draw.
+
+
+## Verify
+Take a screenshot of the result and look at it as the reader will. Then: board_describe for each page: every shape on the overview has a sub-board card or is self-explanatory, nothing overlaps.`;
+
+export const OFFICE_SKILLS = [WRITE_REPORT, POLISH, BUDGET, PITCH, CLEAN_DATA, BRAINSTORM, A11Y_DOC, TRANSLATE, MEETING, ANALYZE_SHEET, BOARD_MATH, BOARD_DATA, BOARD_DIAGRAM, BOARD_EXPLAINER];
+
