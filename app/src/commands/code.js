@@ -79,6 +79,9 @@ export function registerCodeCommands(app) {
   def("code.syntaxTheme", "Syntax Color Theme…",(a) => import("../ui/code/editor-settings.js").then((m) => m.openSyntaxThemeDialog(a)), { enabled: () => true, icon: "palette" });
   def("code.format", "Format Document", () => ws().editors.format(), { shortcut: "Shift+Alt+F", icon: "text-indent-left" });
   def("code.formatSelection", "Format Selection", () => ws().editors.formatSelection(), { icon: "text-indent-left" });
+  def("code.formatOptions", "Formatting Options…", (a) => import("../ui/code/format-options.js").then((m) => m.openFormatOptions(a)), { enabled: () => true, icon: "sliders" });
+  def("code.minify", "Minify File", () => ws().editors.minify(), { enabled: (a) => live(a) && !!a.codeUI.editors.active, icon: "file-zip" });
+  def("code.minifyCopy", "Minify into a .min File", () => ws().editors.minify(undefined, { copy: true }), { enabled: (a) => live(a) && !!a.codeUI.editors.active, icon: "file-zip" });
   def("code.syncHighlight", "Sync Highlighting between Preview and Code", (a) => a.setPref("codeSyncHighlight", !a.prefs.codeSyncHighlight), { checked: (a) => a.prefs.codeSyncHighlight !== false });
   def("code.toggleComment", "Toggle Line Comment", () => ws().editors.toggleComment(), { shortcut: "Mod+/" });
   def("code.foldAll", "Fold All", () => ws().editors.foldAll());

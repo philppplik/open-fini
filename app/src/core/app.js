@@ -77,6 +77,7 @@ const defaultPrefs = () => ({
   codeHoverColors: true, // swatch and color picker when hovering a color value
   codeHoverPaths: true, // preview and Open when hovering a local file path; Ctrl/Cmd+click opens it
   codeColorSwatches: true, // small color swatches in front of color values
+  codeFormat: {}, // Code > Formatting Options: { preset, ...own values } (engine/web/format.js DEFAULT_FORMAT_OPTIONS)
   codeSyncHighlight: true, // highlight the code of the hovered/selected element and the matches of the CSS rule at the caret
   codeLayout: "auto", // split arrangement: auto | codeLeft | codeRight | codeTop | codeBottom
   codeMeasureUnit: "px", // unit of the measure tool

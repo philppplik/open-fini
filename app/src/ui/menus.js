@@ -63,7 +63,7 @@ export const MENUS = [
   {
     label: "Edit",
     studios: ["code"],
-    items: ["code.undo", "code.redo", "-", "code.cut", "code.copy", "code.paste", "code.duplicateElement", "code.deleteElement", "-", "code.find", "code.findInFiles", "code.gotoLine", "-", "code.format", "code.formatSelection", "code.toggleComment", "code.syncHighlight", "-", "collab.addCommentHere", "collab.commentMode", "comments.panel", "-", "edit.preferences"],
+    items: ["code.undo", "code.redo", "-", "code.cut", "code.copy", "code.paste", "code.duplicateElement", "code.deleteElement", "-", "code.find", "code.findInFiles", "code.gotoLine", "-", "code.format", "code.formatSelection", "code.formatOptions", "code.minify", "code.minifyCopy", "code.toggleComment", "code.syncHighlight", "-", "collab.addCommentHere", "collab.commentMode", "comments.panel", "-", "edit.preferences"],
   },
   {
     label: "Insert",

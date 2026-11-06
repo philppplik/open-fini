@@ -899,11 +899,13 @@ function formatDeclText(text) {
 
 /**
  * Pretty prints CSS: one declaration per line, a blank line between rules, comments kept.
+ * Options: `selectorsPerLine` (default true: one selector of a list per line), `blankLines` (default true: a blank line
+ * between rules), `hexCase` ("keep" | "lower" | "upper" for hex colors in values).
  * @param {string} source
- * @param {{ indent?: string }} [options]
+ * @param {{ indent?: string, selectorsPerLine?: boolean, blankLines?: boolean, hexCase?: string }} [options]
  * @returns {string}
  */
-export function formatCss(source, { indent = "  " } = {}) {
+export function formatCss(source, { indent = "  ", selectorsPerLine = true, blankLines = true, hexCase = "keep" } = {}) {
   const s = String(source ?? "");
   const { type, ts, te, count } = lex(s);
   const lines = [];
@@ -915,12 +917,13 @@ export function formatCss(source, { indent = "  " } = {}) {
   const gap = (kind) => {
     if (last === "start" || last === "open") return;
     if (last === "comment" && nl <= 1) return;
-    if (kind === "rule" || last === "rule-end") lines.push("");
+    if ((kind === "rule" || last === "rule-end") && blankLines) lines.push("");
     else if (nl >= 2) lines.push("");
   };
   const emitStatement = (text, withSemi) => {
-    const stmt = formatDeclText(text);
+    let stmt = formatDeclText(text);
     if (!stmt) return;
+    if (hexCase !== "keep" && !stmt.startsWith("--") && !/url\(/i.test(stmt)) stmt = outside(stmt, (x) => x.replace(/#[0-9a-fA-F]{3,8}\b/g, (h) => (hexCase === "upper" ? h.toUpperCase() : h.toLowerCase())));
     const kind = stmt.startsWith("@") ? "stmt" : "decl";
     gap(kind);
     lines.push(pad() + stmt + (withSemi ? ";" : ""));
@@ -966,7 +969,7 @@ export function formatCss(source, { indent = "  " } = {}) {
         const raw = splitSelectorListRaw(prelude);
         // an empty member invalidates the selector in browsers: keep the text as written instead of repairing it
         const sels = raw.some((x) => x === "") ? [prelude] : raw.map(normalizeComplex);
-        const joined = sels.length ? sels.join(",\n" + pad()) : "";
+        const joined = sels.length ? sels.join(selectorsPerLine ? ",\n" + pad() : ", ") : "";
         lines.push(pad() + (joined ? joined + " {" : "{"));
       }
       depth++;
