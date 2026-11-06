@@ -31,6 +31,9 @@ for `locales/de.json`.
 | Group / Ungroup | Gruppieren / Gruppierung aufheben |
 | Guides / Rulers / Grid | Hilfslinien / Lineale / Raster |
 | Bleed / Crop marks | Beschnitt / Schnittmarken |
+| Registration marks / Color bars / Slug | Passermarken / Farbkontrollstreifen / Infobereich |
+| Preset (export) | Vorgabe |
+| Spread | Druckbogen |
 | Slice | Ausschnitt |
 | Export | Exportieren |
 | Extension | Erweiterung |

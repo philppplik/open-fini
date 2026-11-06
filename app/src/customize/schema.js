@@ -58,6 +58,9 @@ export function customizationDefaults() {
     workspaces: {},
     newDocDefaults: {},
     exportDefaults: {},
+    exportPresets: [], // user export presets [{ name, settings }] (engine/export/options.js)
+    exportLast: {}, // last export settings per studio (only the values that differ from the defaults)
+    exportAdvancedOpen: false, // the Advanced section of the Export dialog
     textDefaults: {},
     chatBubbles: null, // Vibe chat bubbles (shape, colors, width ...): null = defaults, see customize/bubbles.js
     profileActive: "",
@@ -98,7 +101,11 @@ function validNewDoc(v) {
   }));
 }
 function validExport(v) {
-  return isObj(v) && Object.entries(v).every(([k, x]) => (k === "format" && ["png", "jpg", "webp", "svg", "pdf", "psd"].includes(x)) || (k === "scale" && [0.5, 1, 2, 3, 4].includes(x)) || (k === "quality" && Number.isFinite(x) && x >= 0.01 && x <= 1) || (k === "transparent" && bool(x)));
+  return isObj(v) && Object.entries(v).every(([k, x]) => (k === "format" && ["png", "jpg", "jpeg", "webp", "avif", "tiff", "svg", "pdf", "psd"].includes(x)) || (k === "scale" && [0.5, 1, 2, 3, 4].includes(x)) || (k === "quality" && Number.isFinite(x) && x >= 0.01 && x <= 1) || (k === "transparent" && bool(x)));
+}
+function validExportPresets(v) {
+  // same shape check as engine/export/options.js validPresetList (kept here so the schema stays dependency-free)
+  return Array.isArray(v) && v.length <= 100 && v.every((p) => isObj(p) && typeof p.name === "string" && p.name.length >= 1 && p.name.length <= 80 && isObj(p.settings));
 }
 function validText(v) {
   return isObj(v) && Object.entries(v).every(([k, x]) => (k === "fontFamily" && typeof x === "string" && /^[\w .'-]{1,60}$/.test(x)) || (k === "fontSize" && Number.isFinite(x) && x >= 4 && x <= 999) || (k === "fontWeight" && [100, 200, 300, 400, 500, 600, 700, 800, 900].includes(x)) || (k === "lineHeight" && Number.isFinite(x) && x >= 0.5 && x <= 4) || (k === "align" && ["left", "center", "right", "justify"].includes(x)));
@@ -181,6 +188,7 @@ export const SETTINGS = [
   { key: "workspaces", section: "layout", type: "json", label: "Saved workspaces per studio", check: validWorkspaces },
   { key: "newDocDefaults", section: "defaults", type: "json", label: "Default new-document settings per studio", check: validNewDoc },
   { key: "exportDefaults", section: "defaults", type: "json", label: "Default export settings", check: validExport },
+  { key: "exportPresets", section: "defaults", type: "json", label: "Export presets", check: validExportPresets },
   { key: "chatBubbles", section: "appearance", type: "json", label: "Chat bubbles in Vibe (shape, colors, density, width, font size)", check: isValidBubbles },
   { key: "textDefaults", section: "defaults", type: "json", label: "Default text style", check: validText },
 ];

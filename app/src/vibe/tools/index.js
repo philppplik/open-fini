@@ -25,6 +25,7 @@ import { officeSemanticTools } from "./office-semantic.js";
 import { textcodecTools } from "./textcodec.js";
 import { customizationTools } from "./customization.js";
 import { formatTools } from "./formats.js";
+import { exportTools } from "./export.js";
 import { powerTools } from "./power.js";
 import { agentTools } from "./agents.js";
 import { attachmentTools } from "./attachments.js";
@@ -45,7 +46,7 @@ import { terminalTools } from "./terminal.js";
  * @param {object} ctx session context: { images, knowledge, memory, skills, ask, plan, customTools }
  */
 export function createOpenFiniTools(app, ctx = {}) {
-  return withVerifyHints([...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...latexTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...officeSuiteTools(app, ctx), ...officeSheetTools(app, ctx), ...officeSheetDepthTools(app, ctx), ...slidesTools(app, ctx), ...officeBoardTools(app, ctx), ...officeSemanticTools(app, ctx), ...formatTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...commentTools(app, ctx), ...vscodeTools(app, ctx), ...routingTools(app, ctx), ...webAccessTools(app, ctx), ...colorTools(app, ctx), ...pixelEditTools(app, ctx), ...knowledgeTools(app, ctx), ...utilityTools(app, ctx), ...terminalTools(app, ctx)]);
+  return withVerifyHints([...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...latexTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...officeSuiteTools(app, ctx), ...officeSheetTools(app, ctx), ...officeSheetDepthTools(app, ctx), ...slidesTools(app, ctx), ...officeBoardTools(app, ctx), ...officeSemanticTools(app, ctx), ...formatTools(app, ctx), ...exportTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...commentTools(app, ctx), ...vscodeTools(app, ctx), ...routingTools(app, ctx), ...webAccessTools(app, ctx), ...colorTools(app, ctx), ...pixelEditTools(app, ctx), ...knowledgeTools(app, ctx), ...utilityTools(app, ctx), ...terminalTools(app, ctx)]);
 }
 
 /** Tools grouped for the UI. */
@@ -76,6 +77,7 @@ export const TOOL_GROUPS = {
   "Appearance and help": ["list_themes", "set_theme", "start_tour", "list_commands"],
   Color: ["set_color_mode", "convert_colors", "preflight_pdf"],
   "File formats": ["list_supported_formats", "import_palette_from_text", "export_palette"],
+  Export: ["list_export_options", "export_document"],
   Customization: ["get_settings", "set_setting", "list_shortcuts", "set_shortcut", "export_profile"],
   "Diagnostics and security": ["get_app_logs", "get_diagnostics", "get_security_status"],
   "Text and encoding": ["encode_text", "decode_text", "transform_file_text"],
@@ -111,6 +113,7 @@ export const VERIFY_WITH = {
   "Appearance and help": "list_themes",
   Color: "preflight_pdf or screenshot",
   "File formats": "export_palette",
+  Export: "list_export_options",
   Customization: "get_settings or list_shortcuts",
   "Diagnostics and security": "get_diagnostics",
   "Text and encoding": "read_file",

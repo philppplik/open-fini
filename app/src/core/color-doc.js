@@ -96,12 +96,15 @@ export function refreshCmykPreviews(doc) {
 /**
  * Print PDF: converts to DeviceCMYK for PDF/X and CMYK documents, flattens transparent pages for PDF/X-1a, writes the
  * OutputIntent and returns the preflight of exactly what was written.
- * @param {{standard?:'x1a'|'x4'|null, bleed?:boolean, cropMarks?:boolean, rasterDpi?:number, dryRun?:boolean}} o
+ * The Export dialog passes prepared `lists` (spreads, downsampled images; one entry of `pages` per list gives its page
+ * color and bleed), `bleedPx` (custom bleed) and further createPDF options in `pdf` (marks, metadata, viewer layout).
+ * @param {{standard?:'x1a'|'x4'|null, bleed?:boolean, bleedPx?:number, cropMarks?:boolean, rasterDpi?:number, dryRun?:boolean, lists?:object[], pdf?:object}} o
  */
-export async function printPdf(app, pages, { standard = null, bleed = false, cropMarks = false, rasterDpi = 300, dryRun = false } = {}) {
+export async function printPdf(app, pages, { standard = null, bleed = false, bleedPx, cropMarks = false, rasterDpi = 300, dryRun = false, lists: prepared, pdf = {} } = {}) {
   const doc = app.doc;
   const ctx = getColorContext(doc);
-  const lists = pdfPageLists(app, pages, { rasterDpi });
+  const lists = prepared || pdfPageLists(app, pages, { rasterDpi });
+  const bleedOf = (p) => (bleedPx !== undefined ? bleedPx : bleed ? p.bleed || 0 : 0);
   const flattened = [];
   if (standard === "x1a") {
     lists.forEach((dl, i) => {
@@ -114,13 +117,14 @@ export async function printPdf(app, pages, { standard = null, bleed = false, cro
   const report = {};
   const name = ctx.approximate ? "Custom" : doc.settings.color?.cmykName || ctx.profileName;
   const bytes = await writePdf(app, lists, {
-    bleed: bleed ? Math.max(...pages.map((p) => p.bleed || 0)) : 0,
+    ...pdf,
+    bleed: Math.max(...pages.map(bleedOf)),
     cropMarks,
     color: convert ? { toCmyk: ctx.toCmyk, imageToCmyk: ctx.imageToCmyk } : null,
     pdfx: standard ? { version: standard, profile: ctx.cmykIcc, identifier: name, condition: ctx.profileName, info: ctx.approximate ? "OpenFini approximate CMYK, not a characterized printing condition" : ctx.profileName } : null,
     report,
   });
-  const pf = preflight(lists, { standard, pages: pages.map((p) => ({ bleed: bleed ? p.bleed : 0 })), dpi: doc.dpi, fonts: report.fonts, approximate: ctx.approximate, flattened });
+  const pf = preflight(lists, { standard, pages: pages.map((p) => ({ bleed: bleedOf(p) })), dpi: doc.dpi, fonts: report.fonts, approximate: ctx.approximate, flattened });
   return { bytes: dryRun ? null : bytes, preflight: pf, approximate: ctx.approximate };
 }
 

@@ -4,8 +4,11 @@
 import { dataToSvgD } from "../vector/path.js";
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+// decimal places of numbers and path data; set per call by displayListToSVGResult (synchronous, so a module variable is safe)
+let PREC = 4;
+let PATH_PREC = 3;
 const num = (v) => {
-  const s = (+v.toFixed(4)).toString();
+  const s = (+v.toFixed(PREC)).toString();
   return s === "-0" ? "0" : s;
 };
 const mat = (m) => `matrix(${m.map(num).join(" ")})`;
@@ -17,6 +20,7 @@ class Ctx {
     this.n = 0;
     this.o = o;
     this.warnings = new Set();
+    this.fonts = new Map();
   }
   id(p) {
     return `${p}${++this.n}`;
@@ -63,7 +67,7 @@ function emitItem(ctx, it, out) {
       const t = isIdent(it.m) ? "" : ` transform="${mat(it.m)}"`;
       const fill = paint(ctx, it.fill, "fill").attr;
       const rule = it.rule === "evenodd" ? ' fill-rule="evenodd"' : "";
-      out.push(`<path d="${dataToSvgD(it.d)}" ${fill}${rule}${strokeAttrs(ctx, it.stroke)}${t}/>`);
+      out.push(`<path d="${dataToSvgD(it.d, PATH_PREC)}" ${fill}${rule}${strokeAttrs(ctx, it.stroke)}${t}/>`);
       break;
     }
     case "image": {
@@ -80,6 +84,7 @@ function emitItem(ctx, it, out) {
     case "text": {
       const t = isIdent(it.m) ? "" : ` transform="${mat(it.m)}"`;
       const parts = it.runs.map((r) => {
+        ctx.fonts.set(`${r.font.family}\u0000${r.font.weight}\u0000${r.font.style}`, r.font);
         const deco = [r.underline ? "underline" : "", r.strike ? "line-through" : ""].filter(Boolean).join(" ");
         const attrs = [
           `x="${num(r.x)}"`, `y="${num(r.y)}"`,
@@ -169,7 +174,7 @@ function emitGroup(ctx, g, out) {
   if (g.clip) {
     const id = ctx.id("cp");
     const t = isIdent(g.clip.m) ? "" : ` transform="${mat(g.clip.m)}"`;
-    ctx.defs.push(`<clipPath id="${id}"><path d="${dataToSvgD(g.clip.d)}" clip-rule="${g.clip.rule}"${t}/></clipPath>`);
+    ctx.defs.push(`<clipPath id="${id}"><path d="${dataToSvgD(g.clip.d, PATH_PREC)}" clip-rule="${g.clip.rule}"${t}/></clipPath>`);
     // clip lives in the group's interior space: apply it on an inner wrapper that shares the group transform
     const outerAttrs = attrs.filter((a) => !a.startsWith("transform="));
     const tr = !isIdent(g.m) ? ` transform="${mat(g.m)}"` : "";
@@ -180,20 +185,56 @@ function emitGroup(ctx, g, out) {
 
 /**
  * @param {{width:number,height:number,items:any[]}} dl
- * @param {{background?:string|null, encodeImage?:(img:any)=>string|null, title?:string, pxPerUnit?:number}} [options]
- * @returns {{svg:string, warnings:string[]}}
+ * @param {object} [options]
+ * @param {string|null} [options.background]   page color painted behind the artwork
+ * @param {(img:any)=>string|null} [options.encodeImage]  data URL of an image reference
+ * @param {string} [options.title]              <title> of the document
+ * @param {string} [options.description]        <desc> of the document
+ * @param {string} [options.metadata]           XML placed in <metadata> (for example an XMP packet)
+ * @param {number} [options.pxPerUnit=1]        width/height = display list size x pxPerUnit
+ * @param {string} [options.unit=""]            unit suffix of width/height ("", "pt", "mm", "cm", "in")
+ * @param {boolean} [options.responsive=false]  omit width/height (the SVG scales to its container; viewBox stays)
+ * @param {{x:number,y:number,w:number,h:number}} [options.viewBox]  crop to this area (width/height follow it)
+ * @param {number} [options.precision=4]        decimal places of numbers (path data: one less, at least 0)
+ * @param {(font:{family:string,weight:number,style:string})=>string|null} [options.fontFace]
+ *   src of an @font-face rule (for example a data URL) for every font used by text; null leaves the font referenced by name
+ * @param {boolean} [options.xmlDeclaration=true]
+ * @returns {{svg:string, warnings:string[], fonts:{family:string,weight:number,style:string,embedded:boolean}[]}}
  */
 export function displayListToSVGResult(dl, options = {}) {
   const ctx = new Ctx(options);
-  const body = [];
-  if (options.background) body.push(`<rect width="${num(dl.width)}" height="${num(dl.height)}" fill="${options.background}"/>`);
-  for (const it of dl.items) emitItem(ctx, it, body);
-  const w = num(dl.width * (options.pxPerUnit || 1));
-  const h = num(dl.height * (options.pxPerUnit || 1));
-  const title = options.title ? `<title>${esc(options.title)}</title>` : "";
-  const defs = ctx.defs.length ? `<defs>${ctx.defs.join("")}</defs>` : "";
-  const svg = `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${num(dl.width)} ${num(dl.height)}">${title}${defs}${body.join("")}</svg>\n`;
-  return { svg, warnings: [...ctx.warnings] };
+  const prec = Number.isInteger(options.precision) ? Math.max(0, Math.min(8, options.precision)) : null;
+  PREC = prec ?? 4;
+  PATH_PREC = prec === null ? 3 : Math.max(0, prec - 1);
+  try {
+    const body = [];
+    const vb = options.viewBox && options.viewBox.w > 0 && options.viewBox.h > 0 ? options.viewBox : { x: 0, y: 0, w: dl.width, h: dl.height };
+    if (options.background) body.push(`<rect width="${num(dl.width)}" height="${num(dl.height)}" fill="${options.background}"/>`);
+    for (const it of dl.items) emitItem(ctx, it, body);
+    const k = options.pxPerUnit || 1;
+    const unit = /^(pt|mm|cm|in|px)$/.test(options.unit || "") ? options.unit : "";
+    const size = options.responsive ? "" : ` width="${num(vb.w * k)}${unit}" height="${num(vb.h * k)}${unit}"`;
+    const head = [
+      options.title ? `<title>${esc(options.title)}</title>` : "",
+      options.description ? `<desc>${esc(options.description)}</desc>` : "",
+      options.metadata ? `<metadata>${options.metadata}</metadata>` : "",
+    ].join("");
+    const fonts = [];
+    const faces = [];
+    for (const f of ctx.fonts.values()) {
+      const src = options.fontFace ? options.fontFace(f) : null;
+      fonts.push({ family: f.family, weight: f.weight, style: f.style, embedded: !!src });
+      if (src) faces.push(`@font-face{font-family:"${esc(f.family)}";font-weight:${f.weight};font-style:${f.style === "italic" ? "italic" : "normal"};src:url(${src})}`);
+    }
+    if (faces.length) ctx.defs.unshift(`<style>${faces.join("")}</style>`);
+    const defs = ctx.defs.length ? `<defs>${ctx.defs.join("")}</defs>` : "";
+    const decl = options.xmlDeclaration === false ? "" : '<?xml version="1.0" encoding="UTF-8"?>\n';
+    const svg = `${decl}<svg xmlns="http://www.w3.org/2000/svg"${size} viewBox="${num(vb.x)} ${num(vb.y)} ${num(vb.w)} ${num(vb.h)}">${head}${defs}${body.join("")}</svg>\n`;
+    return { svg, warnings: [...ctx.warnings], fonts };
+  } finally {
+    PREC = 4;
+    PATH_PREC = 3;
+  }
 }
 
 export const displayListToSVG = (dl, options) => displayListToSVGResult(dl, options).svg;
