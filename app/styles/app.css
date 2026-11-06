@@ -206,6 +206,10 @@ sl-dropdown[open] > .of-menubtn {
 .of-exportdialog sl-tab-group { --indicator-color: var(--of-accent); }
 .of-exportdialog sl-tab-panel::part(base) { padding: 14px 2px 2px; }
 .of-exportdialog .of-slices { max-height: 260px; overflow: auto; }
+.of-exportdialog .of-exportpresets { align-items: flex-end; gap: 4px; } .of-exportdialog .of-exportpresets .of-select { flex: 1; min-width: 0; }
+.of-exportdialog .of-exportgroup { margin: 10px 0 2px; font-size: 0.85em; font-weight: 600; color: var(--of-text-dim, inherit); }
+.of-exportdialog .of-exportadvanced::part(content) { padding-top: 4px; }
+.of-exportdialog .of-hint--warn { color: var(--sl-color-warning-700); }
 
 /* ------------------------------------------------------------------ buttons & inputs */
 

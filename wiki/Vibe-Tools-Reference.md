@@ -24,6 +24,7 @@ The Vibe assistant acts through tools: named functions with schemas that call in
 | Appearance and help | `list_themes`, `set_theme`, `start_tour`, `list_commands` | No tool runs arbitrary commands |
 | Diagnostics and security | `get_app_logs`, `get_diagnostics`, `get_security_status` | Read-only and redacted; used when you ask about errors or setup |
 | File formats | `list_supported_formats`, `import_palette_from_text`, `export_palette` | |
+| Export | `list_export_options`, `export_document` | Same options and presets as File ▸ Export…; the user approves and picks the file |
 | Imported documents | `get_import_report`, `list_pdf_pages`, `describe_document_pages`, `extract_pdf_text` | |
 | Tables and charts | `add_table`, `edit_table`, `read_table`, `list_tables`, `import_csv_to_table`, `add_chart`, `edit_chart`, `read_chart` | |
 | Spreadsheets | `sheet_describe`, `sheet_read_range`, `sheet_write_range`, `sheet_set_formula`, `sheet_format`, `sheet_add_sheet`, `sheet_add_chart`, `sheet_add_rule`, `sheet_format_table`, `sheet_define_name`, `sheet_set_validation`, `sheet_paste_special`, `sheet_group`, `sheet_page_setup`, `sheet_pivot`, `sheet_add_sparkline`, `sheet_chart_data` | Each edit is one undo step; `sheet_chart_data` only reads |

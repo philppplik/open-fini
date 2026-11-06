@@ -1,81 +1,184 @@
-// Export popup (File → Export…, header button): image and PDF output, slices, and — for website
-// projects — the published site. Export is a popup, not a studio, so it is reachable from every studio.
-import { h, formatBytes, downloadName } from "../core/util.js";
-import { zipSync } from "../../vendor/fflate/fflate.js";
-import { openDialog, isDialogOpen } from "./dialogs.js";
-import { numField, selectField, segmented, switchField } from "./controls.js";
-import { exportRaster, exportSvg, exportPdf, RASTER_FORMATS } from "../core/io.js";
+// Export popup (File → Export…, header button): image, vector and PDF output, slices, and — for website projects — the
+// published site. Export is a popup, not a studio, so it is reachable from every studio.
+//
+// The Image & PDF tab is generated from the options schema (engine/export/options.js): the basic options of the
+// chosen format first, the rest under "Advanced", and only options that change the output of the current settings.
+// Presets (built-in and the user's, stored in the exportPresets preference) fill every option at once; the last
+// settings are remembered per studio (exportLast). Rendering and saving live in core/export-run.js. See docs/export.md.
+import { h, empty } from "../core/util.js";
+import { t } from "../i18n/index.js";
+import { openDialog, isDialogOpen, promptDialog, confirmDialog } from "./dialogs.js";
+import { numField, selectField, switchField, colorField, iconButton } from "./controls.js";
 import { platform } from "../platform/index.js";
-import { pageBoundsOf } from "../core/transform.js";
 import { createSlicesTab } from "./export-slices.js";
 import { createWebsiteTab } from "./export-website.js";
 import { createPublishTab } from "./export-publish.js";
-import { singleFlight } from "../core/single-flight.js";
+import { EXPORT_GROUPS, BUILTIN_PRESETS, availableFormats, visibleOptions, choicesOf, normalizeExportSettings, changedSettings, planExport, presetFile, readPresetFile, validPresetList } from "../engine/export/options.js";
+import { detectEncoders, exportEnv, exportInfo, runExport } from "../core/export-run.js";
 
-const FORMATS = [
-  { value: "png", label: "PNG — lossless, transparency" },
-  { value: "jpeg", label: "JPEG — photos, small files" },
-  { value: "webp", label: "WebP — modern, small files" },
-  { value: "svg", label: "SVG — scalable vector" },
-  { value: "pdf", label: "PDF — print and share" },
-  { value: "psd", label: "PSD — Photoshop, one file layer per layer" },
-];
+export { runExport };
 
-export function exportDialog(app, preset = {}) {
+/** Start settings: explicit preset > last used in this studio > Settings ▸ Defaults > the studio's natural format. */
+function startSettings(app, preset, env) {
+  const last = (app.prefs.exportLast || {})[app.studio];
+  const base = last || { ...(app.prefs.exportDefaults || {}), ...(app.studio === "layout" && !app.prefs.exportDefaults?.format ? { format: "pdf" } : {}) };
+  const st = normalizeExportSettings({ ...base, ...(preset.format ? { format: preset.format } : {}) }, env);
+  if (st.scope === "selection" && !env.hasSelection) st.scope = "page";
+  return st;
+}
+
+function textField(def, value, onChange) {
+  const input = h("sl-input", { size: "small", value, placeholder: def.placeholder ? t(def.placeholder) : "", "aria-label": t(def.label), clearable: true });
+  input.addEventListener("keydown", (e) => e.stopPropagation()); // typing must not trigger tool shortcuts
+  input.addEventListener("sl-input", () => onChange(input.value, false));
+  input.addEventListener("sl-change", () => onChange(input.value, true));
+  return { el: h("div.of-select", h("span.of-num__label", t(def.label)), input) };
+}
+
+/** One control for one schema option. */
+function control(def, st, env, set) {
+  if (def.type === "enum") return selectField({ label: def.label, value: st[def.key], options: choicesOf(def, st, env), onChange: (v) => set(def.key, v, true) });
+  if (def.type === "bool") return switchField({ label: def.label, value: st[def.key], onChange: (v) => set(def.key, v, true) });
+  if (def.type === "number") return numField({ label: def.label, value: st[def.key], min: def.min, max: def.max, step: def.step || 1, unit: def.unit || "", precision: def.precision ?? 0, wide: true, onChange: (v) => set(def.key, v, true) });
+  if (def.type === "color") return colorField({ label: def.label, value: st[def.key], alpha: false, onChange: (v) => set(def.key, String(v).slice(0, 7), true) });
+  return textField(def, st[def.key], (v, structural) => set(def.key, v, structural));
+}
+
+export async function exportDialog(app, preset = {}) {
   if (isDialogOpen("export")) return; // already showing: never stack a second popup
+  await detectEncoders(); // WebP / AVIF availability decides the format list
+  if (isDialogOpen("export")) return;
   const doc = app.doc;
-  const st = { format: preset.format || "png", scope: "page", scale: 1, quality: 0.9, transparent: false, bleed: false, marks: false, rasterDpi: 200, ...(app.prefs.exportDefaults || {}) }; // Settings > Defaults for new things
-  st.format = preset.format || st.format;
-  const info = h("div.of-hint");
-  const rasterBox = h("div.of-form");
-  const pdfBox = h("div.of-form");
+  const env = exportEnv(app);
+  let st = startSettings(app, preset, env);
+  let presetId = "";
 
-  const fmt = selectField({ label: "Format", value: st.format, options: FORMATS, onChange: (v) => { st.format = v; render(); } });
-  const hasSel = app.selection.length > 0;
-  const scopeOpts = [
-    { value: "page", label: "Current page" },
-    { value: "all", label: `All pages (${doc.pages.length})`, disabled: doc.pages.length < 2 },
-    ...(hasSel ? [{ value: "selection", label: "Selection only" }] : []),
-  ];
-  const scope = selectField({ label: "Area", value: st.scope, options: scopeOpts, onChange: (v) => { st.scope = v; render(); } });
-  const scale = segmented([0.5, 1, 2, 3, 4].map((v) => ({ value: v, label: `${v}×`, text: `${v}×` })), st.scale, (v) => { st.scale = v; render(); });
-  const quality = numField({ label: "Quality", value: Math.round(st.quality * 100), min: 1, max: 100, unit: "%", precision: 0, wide: true, onChange: (v) => (st.quality = v / 100) });
-  const transparent = switchField({ label: "Transparent background", value: st.transparent, onChange: (v) => { st.transparent = v; } });
-  const bleed = switchField({ label: "Include bleed", value: false, onChange: (v) => (st.bleed = v) });
-  const marks = switchField({ label: "Crop marks", value: false, onChange: (v) => (st.marks = v) });
-  const standard = selectField({ label: "PDF standard", value: st.standard || "none", options: [{ value: "none", label: "Plain PDF" }, { value: "x1a", label: "PDF/X-1a:2003 (CMYK, no transparency)" }, { value: "x4", label: "PDF/X-4 (CMYK, live transparency)" }], onChange: (v) => (st.standard = v) });
-  const rdpi = numField({ label: "Effects resolution", value: 200, min: 72, max: 600, unit: "dpi", precision: 0, wide: true, onChange: (v) => (st.rasterDpi = v) });
+  const presetRow = h("div.of-row.of-exportpresets");
+  const formBox = h("div.of-form");
+  const info = h("div.of-hint", { role: "status" });
 
-  rasterBox.append(h("div.of-row", h("span.of-slider__label", "Scale"), scale.el), quality.el, transparent.el);
-  pdfBox.append(standard.el, bleed.el, marks.el, rdpi.el, h("p.of-hint", "Live effects, masks and adjustments are flattened to images at this resolution; everything else stays vector."), h("p.of-hint", "PDF/X output converts colors with the document's Color Settings and is checked by OpenFini's preflight, not by a certified validator."));
+  const userPresets = () => (validPresetList(app.prefs.exportPresets) ? app.prefs.exportPresets : []);
 
-  function sizeOf() {
-    const p = app.page;
-    let w = p.w;
-    let hh = p.h;
-    if (st.scope === "selection") {
-      const b = pageBoundsOf(app.selection);
-      if (b) [w, hh] = [b.w, b.h];
-    }
-    return [Math.round(w * st.scale), Math.round(hh * st.scale)];
+  function set(key, value, structural) {
+    st = normalizeExportSettings({ ...st, [key]: value }, env);
+    presetId = "";
+    if (structural) render();
+    else updateInfo();
+  }
+
+  function renderPresets() {
+    empty(presetRow);
+    const opts = [
+      { value: "", label: t("Custom settings") },
+      ...BUILTIN_PRESETS.map((p) => ({ value: `b:${p.id}`, label: t(p.name) })),
+      ...userPresets().map((p, i) => ({ value: `u:${i}`, label: p.name })),
+    ];
+    const sel = selectField({
+      label: "Preset",
+      value: presetId,
+      options: opts,
+      onChange: (v) => {
+        const p = v.startsWith("b:") ? BUILTIN_PRESETS.find((x) => `b:${x.id}` === v) : userPresets()[Number(v.slice(2))];
+        if (!p) return;
+        st = normalizeExportSettings(p.settings, env);
+        presetId = v;
+        render();
+      },
+    });
+    const save = iconButton({ icon: "save2", label: "Save settings as preset", onClick: async () => {
+      const name = (await promptDialog({ title: t("Save export preset"), label: t("Preset name"), value: "" }))?.trim();
+      if (!name) return;
+      const list = userPresets().filter((p) => p.name !== name).concat({ name: name.slice(0, 80), settings: changedSettings(st, env) });
+      app.setPref("exportPresets", list.slice(-100));
+      presetId = `u:${list.length - 1}`;
+      renderPresets();
+      app.toast(t("Preset “{name}” saved.", { name }), "success", 2000);
+    } });
+    const del = iconButton({ icon: "trash3", label: "Delete preset", disabled: !presetId.startsWith("u:"), onClick: async () => {
+      const i = Number(presetId.slice(2));
+      const p = userPresets()[i];
+      if (!p || !(await confirmDialog({ title: t("Delete preset"), message: t("Delete the preset “{name}”?", { name: p.name }), ok: t("Delete"), danger: true }))) return;
+      app.setPref("exportPresets", userPresets().filter((_, k) => k !== i));
+      presetId = "";
+      renderPresets();
+    } });
+    const imp = iconButton({ icon: "box-arrow-in-right", label: "Import presets…", onClick: async () => {
+      const [file] = await platform.openFiles({ accept: [{ name: t("Export presets"), extensions: ["json"] }], multiple: false });
+      if (!file) return;
+      try {
+        const text = new TextDecoder().decode(file.bytes);
+        const list = readPresetFile(text);
+        const names = new Set(list.map((p) => p.name));
+        app.setPref("exportPresets", userPresets().filter((p) => !names.has(p.name)).concat(list).slice(-100));
+        renderPresets();
+        app.toast(t("Imported {n, plural, one {# preset} other {# presets}}.", { n: list.length }), "success", 2000);
+      } catch (err) {
+        app.toast(err.i18n ? t(...err.i18n) : err.message, "danger", 5000);
+      }
+    } });
+    const exp = iconButton({ icon: "box-arrow-up", label: "Export presets…", disabled: !userPresets().length, onClick: async () => {
+      const bytes = new TextEncoder().encode(presetFile(userPresets()));
+      await platform.saveFile({ suggestedName: "openfini-export-presets.json", bytes, mime: "application/json", filters: [{ name: t("Export presets"), extensions: ["json"] }] });
+    } });
+    presetRow.append(sel.el, save, del, imp, exp);
   }
 
   function render() {
-    const raster = RASTER_FORMATS[st.format];
-    rasterBox.classList.toggle("hidden", !raster);
-    pdfBox.classList.toggle("hidden", st.format !== "pdf");
-    quality.el.classList.toggle("hidden", st.format === "png" || !raster);
-    transparent.el.classList.toggle("hidden", !raster?.alpha);
-    const [w, hh] = sizeOf();
-    info.textContent = raster ? `Output: ${w} × ${hh} px` : st.format === "psd" ? "Every top-level layer becomes a Photoshop layer (groups are merged into one). Live effects are baked in." : st.format === "svg" ? "Vector output; effects and adjustments are flattened where SVG cannot express them." : `${st.scope === "all" ? doc.pages.length : 1} page(s)`;
+    empty(formBox);
+    const fmt = selectField({ label: "Format", value: st.format, options: availableFormats(env).map((f) => ({ value: f.id, label: f.label })), onChange: (v) => set("format", v, true) });
+    formBox.append(fmt.el);
+    const visible = visibleOptions(st, env);
+    const basic = visible.filter((d) => !d.advanced);
+    const advanced = visible.filter((d) => d.advanced);
+    const withHint = (def, el) => (def.hint ? h("div", el, h("p.of-hint", t(def.hint))) : el);
+    for (const def of basic) formBox.append(withHint(def, control(def, st, env, set).el));
+    if (advanced.length) {
+      const body = h("div.of-form");
+      for (const g of EXPORT_GROUPS) {
+        const defs = advanced.filter((d) => d.group === g.id);
+        if (!defs.length) continue;
+        body.append(h("h4.of-exportgroup", t(g.label)));
+        for (const def of defs) body.append(withHint(def, control(def, st, env, set).el));
+      }
+      const det = h("sl-details", { summary: t("Advanced"), class: "of-exportadvanced" }, body);
+      det.open = !!app.prefs.exportAdvancedOpen;
+      det.addEventListener("sl-show", (e) => e.target === det && app.setPref("exportAdvancedOpen", true));
+      det.addEventListener("sl-hide", (e) => e.target === det && app.setPref("exportAdvancedOpen", false));
+      formBox.append(det);
+    }
+    if (st.format === "pdf") formBox.append(h("p.of-hint", t("PDF/X output converts colors with the document's Color Settings and is checked by OpenFini's preflight, not by a certified validator.")));
+    if (st.format === "psd") formBox.append(h("p.of-hint", t("Every top-level layer becomes a Photoshop layer (groups are merged into one). Live effects are baked in.")));
+    updateInfo();
   }
+
+  /** Live summary: files, pixel size and the first file name, or the reason the export cannot run. */
+  function updateInfo() {
+    try {
+      const plan = planExport(st, exportInfo(app));
+      const j = plan.jobs[0];
+      const ext = availableFormats(env).find((f) => f.id === st.format)?.ext || st.format;
+      const parts = [];
+      if (plan.files > 1) parts.push(t("{n} files in a ZIP archive", { n: plan.files }));
+      if (j.size) parts.push(plan.files > 1 ? t("first: {w} × {h} px", { w: j.size.width, h: j.size.height }) : t("{w} × {h} px at {ppi} ppi", { w: j.size.width, h: j.size.height, ppi: Math.round(j.size.ppi) }));
+      if (st.format === "pdf") parts.push(t("{n, plural, one {# page} other {# pages}}", { n: j.pages.length }));
+      parts.push(`${j.name}.${ext}`);
+      info.textContent = parts.join(" · ") + (plan.warningKeys.length ? ` — ${plan.warningKeys.map(([k, p]) => t(k, p)).join(" ")}` : "");
+      info.classList.toggle("of-hint--warn", plan.warnings.length > 0);
+    } catch (err) {
+      info.textContent = err.i18n ? t(...err.i18n) : err.message;
+      info.classList.add("of-hint--warn");
+    }
+  }
+
+  renderPresets();
   render();
 
-  const imageTab = h("div.of-form", fmt.el, scope.el, rasterBox, pdfBox, info);
+  const remember = () => app.setPref("exportLast", { ...(app.prefs.exportLast || {}), [app.studio]: changedSettings(st, env) });
+  const imageTab = h("div.of-form", presetRow, formBox, info);
   const slicesTab = createSlicesTab(app);
   // each tab: label of the primary button and what it does
   const tabs = [
-    { id: "image", label: "Image & PDF", action: "Export", el: imageTab, run: () => runExport(app, st) },
+    { id: "image", label: "Image & PDF", action: "Export", el: imageTab, run: () => (remember(), runExport(app, st)) },
     { id: "slices", label: "Slices", action: "Export slices", el: slicesTab.el, run: () => slicesTab.run() },
   ];
   if (doc.web) tabs.push(createWebsiteTab(app, doc.web), createPublishTab(app, doc.web)); // website projects of the Code studio
@@ -92,7 +195,7 @@ export function exportDialog(app, preset = {}) {
     key: "export",
     title: "Export",
     body: group,
-    width: 540,
+    width: 560,
     cls: "of-exportdialog",
     buttons: [
       {
@@ -104,11 +207,12 @@ export function exportDialog(app, preset = {}) {
           if (submitted) return;
           submitted = true;
           close();
+          remember();
           try {
             const { sendByEmailDialog } = await import("./send-email.js");
             await runExport(app, { ...st, deliver: (files) => sendByEmailDialog(app, files, { fallbackSave: () => runExport(app, st) }) });
           } catch (err) {
-            app.toast(err.message || "Export failed.", "danger", 6000);
+            app.toast(err.i18n ? t(...err.i18n) : err.message || "Export failed.", "danger", 6000);
           }
         },
       },
@@ -125,7 +229,7 @@ export function exportDialog(app, preset = {}) {
             await active.run();
           } catch (err) {
             console.error(err);
-            app.toast(err.message || "Export failed.", "danger", 6000);
+            app.toast(err.i18n ? t(...err.i18n) : err.message || "Export failed.", "danger", 6000);
           }
         },
       },
@@ -143,86 +247,6 @@ export function exportDialog(app, preset = {}) {
   group.addEventListener("sl-tab-show", (e) => {
     if (e.target !== group) return;
     active = tabs.find((t) => t.id === e.detail.name) || active;
-    if (primary) primary.textContent = active.action;
+    if (primary) primary.textContent = t(active.action);
   });
-}
-
-/**
- * Runs an export with the given settings and hands the file(s) to the platform bridge. One run per document at a
- * time: a double click on the Export button or a repeated shortcut joins the running export instead of opening
- * a second file dialog.
- */
-export const runExport = singleFlight((app, st) => runExportNow(app, st), (app) => app.doc);
-
-async function runExportNow(app, st) {
-  const doc = app.doc;
-  const pages = st.scope === "all" ? doc.pages : [app.page];
-  const base = doc.name || "Untitled";
-  app.status("Exporting…");
-  try {
-    if (st.format === "pdf") {
-      const std = st.standard && st.standard !== "none" ? st.standard : null;
-      let bytes;
-      let pf = null;
-      if (std || doc.settings.color?.mode === "cmyk") {
-        // print path: DeviceCMYK, PDF/X identification and preflight (core/color-doc.js, lazy)
-        const r = await (await import("../core/color-doc.js")).printPdf(app, pages, { standard: std, bleed: st.bleed, cropMarks: st.marks, rasterDpi: st.rasterDpi });
-        bytes = r.bytes;
-        pf = r.preflight;
-      } else bytes = await exportPdf(app, pages, { bleed: st.bleed, cropMarks: st.marks, rasterDpi: st.rasterDpi });
-      if (st.deliver) return await st.deliver([{ name: downloadName(base, "pdf"), bytes, mime: "application/pdf" }]);
-      const r = await platform.saveFile({ suggestedName: downloadName(base, "pdf"), bytes, mime: "application/pdf", filters: [{ name: "PDF", extensions: ["pdf"] }] });
-      if (r) app.toast(`Exported ${r.name} (${formatBytes(bytes.length)})`, "success");
-      if (r && pf?.issues.some((i) => i.severity !== "info")) (await import("./color-settings.js")).showPreflightReport(pf);
-      return;
-    }
-    if (st.format === "psd") {
-      const { exportPsd } = await import("../core/export-psd.js");
-      const out = [];
-      for (const [i, p] of pages.entries()) {
-        const r = await exportPsd(app, p);
-        if (r.warnings.length) app.toast(r.warnings.join(" "), "warning", 6000);
-        out.push({ name: pages.length > 1 ? `${base}-${i + 1}.psd` : downloadName(base, "psd"), bytes: r.bytes });
-      }
-      return await saveFiles(app, st, base, out, "image/vnd.adobe.photoshop", [{ name: "Photoshop", extensions: ["psd"] }]);
-    }
-    if (st.format === "svg") {
-      const files = pages.map((p, i) => {
-        const { svg, warnings } = exportSvg(app, p);
-        if (warnings.length) app.toast(warnings.join(" "), "warning", 5000);
-        return { name: pages.length > 1 ? `${base}-${i + 1}.svg` : downloadName(base, "svg"), bytes: new TextEncoder().encode(svg) };
-      });
-      return await saveFiles(app, st, base, files, "image/svg+xml", [{ name: "SVG", extensions: ["svg"] }]);
-    }
-    const fmt = RASTER_FORMATS[st.format];
-    const files = [];
-    for (const [i, p] of pages.entries()) {
-      let area;
-      if (st.scope === "selection") {
-        const b = pageBoundsOf(app.selection);
-        if (b) area = b;
-      }
-      const r = await exportRaster(app, { page: p, format: st.format, scale: st.scale, quality: st.quality, background: st.transparent && fmt.alpha ? null : undefined, area });
-      // documents in a wide-gamut working space are tagged with its ICC profile (sRGB files stay untagged)
-      const bytes = doc.settings.color?.rgb && doc.settings.color.rgb !== "srgb" ? await (await import("../core/color-doc.js")).tagRaster(doc, r.bytes, st.format) : r.bytes;
-      files.push({ name: pages.length > 1 ? `${base}-${i + 1}.${fmt.ext}` : downloadName(base, fmt.ext), bytes });
-    }
-    return await saveFiles(app, st, base, files, fmt.mime, [{ name: fmt.label, extensions: [fmt.ext] }]);
-  } finally {
-    app.status("");
-  }
-}
-
-async function saveFiles(app, st, base, files, mime, filters) {
-  if (st.deliver) return st.deliver(files.map((f) => ({ ...f, mime }))); // "Send by email…" instead of saving
-  if (files.length === 1) {
-    const r = await platform.saveFile({ suggestedName: files[0].name, bytes: files[0].bytes, mime, filters });
-    if (r) app.toast(`Exported ${r.name} (${formatBytes(files[0].bytes.length)})`, "success");
-    return;
-  }
-  const zip = {};
-  for (const f of files) zip[f.name] = [f.bytes, { level: 0 }];
-  const bytes = zipSync(zip);
-  const r = await platform.saveFile({ suggestedName: `${base}.zip`, bytes, mime: "application/zip", filters: [{ name: "ZIP archive", extensions: ["zip"] }] });
-  if (r) app.toast(`Exported ${files.length} files to ${r.name}`, "success");
 }

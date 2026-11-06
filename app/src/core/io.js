@@ -206,7 +206,7 @@ const MAX_PIXELS = 140e6;
 
 /**
  * Renders a page (or part of it) to a raster image.
- * @param {{page?:object, format?:string, scale?:number, quality?:number, background?:string|null, area?:{x,y,w,h}, width?:number, height?:number}} o
+ * @param {{page?:object, format?:string, scale?:number, quality?:number, background?:string|null, area?:{x,y,w,h}, width?:number, height?:number, encode?:boolean}} o
  */
 export async function exportRaster(app, o = {}) {
   await ensureHyphenation(); // hyphenated text must be laid out with the patterns
@@ -222,7 +222,8 @@ export async function exportRaster(app, o = {}) {
   if (!fmt.alpha && !bg) bg = "#ffffff";
   const dl = buildPageDL(doc, page);
   const canvas = renderToCanvas(dl, { crop: area, width: w, height: h, bg, pool: new CanvasPool({ cpu: true }) });
-  const bytes = await canvasToBytes(canvas, fmt.mime, o.quality ?? 0.92);
+  // encode: false returns only the canvas (the Export dialog encodes PNG, TIFF and grayscale output itself)
+  const bytes = o.encode === false ? null : await canvasToBytes(canvas, fmt.mime, o.quality ?? 0.92);
   return { bytes, mime: fmt.mime, ext: fmt.ext, width: w, height: h, canvas };
 }
 

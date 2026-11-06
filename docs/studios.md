@@ -199,8 +199,10 @@ color names in the Color panel; *File ▸ Convert Colors* converts to CMYK or RG
 Export is **not a studio** — it is a popup that is available from every studio: press the **Export** button in
 the header, or `Mod+Shift+E` (*File ▸ Export…*). Its tabs:
 
-* **Image & PDF** — PNG, JPEG, WebP, SVG or PDF of the current page, all pages or the selection, with scale,
-  quality, transparency, bleed and crop marks; PDF can be plain, PDF/X-1a:2003 or PDF/X-4 ([color management](color-management.md)).
+* **Image & PDF** — PNG, JPEG, WebP, AVIF, TIFF, SVG, PDF or PSD of the current page, all pages, a page range, the
+  selection or each top-level layer, with presets, basic options and an **Advanced** section (sizes and resolution,
+  several sizes at once, color mode, compression, profiles, printer marks, PDF/X, image downsampling, fonts, naming,
+  metadata). Every option is listed in [export.md](export.md); PDF/X is described in [color management](color-management.md).
 * **Slices** — draw slices with the Slice tool (`S`, in the Vector and Layout toolboxes), or create them from the
   selection / from layers, set format and scale per slice, then export them (a ZIP when there is more than one).
 * **Website** — appears when the document has a Code studio project: ZIP, single-file pages or a folder, with

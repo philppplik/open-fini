@@ -45,6 +45,12 @@ import { jpegInfo } from './jpeg-info.js';
  *   returns the TrueType / OpenType / WOFF file for a font, or null to use a base-14 font
  * @property {number} [bleed=0]              bleed in px: sets BleedBox / TrimBox and enlarges the MediaBox
  * @property {boolean} [cropMarks=false]     draw crop marks outside the bleed area (adds a slug to the MediaBox)
+ * @property {boolean} [registrationMarks=false] registration targets centered on each side, in the slug
+ * @property {boolean} [colorBars=false]     CMYK and gray patches along the top slug
+ * @property {string[]} [pageInfo]           one line of text per page printed in the bottom slug (Helvetica, not
+ *   embedded: leave it out for PDF/X)
+ * @property {'single'|'continuous'|'facing'|'facingCover'} [pageLayout]  how a viewer arranges the pages on opening
+ * @property {string} [rights]               copyright notice (XMP dc:rights)
  * @property {Date} [creationDate]           defaults to now (pass a fixed date for reproducible output)
  * @property {{toCmyk:(r:number,g:number,b:number)=>number[], imageToCmyk:(rgb:Uint8Array)=>Uint8Array}} [color]
  *   convert all RGB colors and images to DeviceCMYK with these functions (0..1 values / bytes)
@@ -74,6 +80,7 @@ const BLEND = {
 const CONIC_WEDGES = 120;
 const MARK_GAP = 2.835; // 1 mm beyond the bleed
 const MARK_LEN = 14.173; // 5 mm
+const PAGE_LAYOUT = { single: 'SinglePage', continuous: 'OneColumn', facing: 'TwoPageLeft', facingCover: 'TwoPageRight' };
 
 // ---------------------------------------------------------------------------------------------------------------
 // matrices and colors
@@ -1040,6 +1047,11 @@ function normalizeOptions(o) {
     fontProvider: typeof opts.fontProvider === 'function' ? opts.fontProvider : undefined,
     bleed: Number(opts.bleed) > 0 ? Number(opts.bleed) : 0,
     cropMarks: !!opts.cropMarks,
+    registrationMarks: !!opts.registrationMarks,
+    colorBars: !!opts.colorBars,
+    pageInfo: Array.isArray(opts.pageInfo) ? opts.pageInfo.map((x) => String(x ?? '')) : null,
+    pageLayout: PAGE_LAYOUT[opts.pageLayout] || null,
+    rights: opts.rights ? String(opts.rights) : '',
     creationDate: opts.creationDate instanceof Date && !isNaN(+opts.creationDate) ? opts.creationDate : new Date(),
     color: opts.color && typeof opts.color.toCmyk === 'function' ? opts.color : null,
     pdfx: opts.pdfx && (opts.pdfx.version === 'x1a' || opts.pdfx.version === 'x4') ? opts.pdfx : null,
@@ -1063,6 +1075,7 @@ function buildXMP(o) {
   if (o.title) desc += `<dc:title>${alt(o.title)}</dc:title>`;
   if (o.author) desc += `<dc:creator><rdf:Seq><rdf:li>${xmlEscape(o.author)}</rdf:li></rdf:Seq></dc:creator>`;
   if (o.subject) desc += `<dc:description>${alt(o.subject)}</dc:description>`;
+  if (o.rights) desc += `<dc:rights>${alt(o.rights)}</dc:rights><xmpRights:Marked>True</xmpRights:Marked>`;
   if (o.keywords) desc += `<pdf:Keywords>${xmlEscape(o.keywords)}</pdf:Keywords>`;
   if (o.producer) desc += `<pdf:Producer>${xmlEscape(o.producer)}</pdf:Producer>`;
   if (o.creator) desc += `<xmp:CreatorTool>${xmlEscape(o.creator)}</xmp:CreatorTool>`;
@@ -1077,6 +1090,7 @@ function buildXMP(o) {
     `<?xpacket begin="${bom}" id="W5M0MpCehiHzreSzNTczkc9d"?>\n` +
     '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">' +
     '<rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:pdf="http://ns.adobe.com/pdf/1.3/" xmlns:xmp="http://ns.adobe.com/xap/1.0/"' +
+    (o.rights ? ' xmlns:xmpRights="http://ns.adobe.com/xap/1.0/rights/"' : '') +
     (o.pdfx ? ' xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/" xmlns:pdfxid="http://www.npes.org/pdfx/ns/id/" xmlns:pdfx="http://ns.adobe.com/pdfx/1.3/"' : '') +
     '>' +
     desc +
@@ -1102,6 +1116,59 @@ function pdfxId(o) {
     hex += (h >>> 0).toString(16).padStart(8, '0');
   }
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+}
+
+/**
+ * Printer marks in the slug around the bleed box (PDF user space, y up). Marks use registration color (all inks) in
+ * CMYK output and black in RGB output; color bars are always DeviceCMYK patches.
+ * @param {Doc} doc
+ * @param {Content} c
+ * @param {{slug:number, trimW:number, trimH:number, bleedPt:number, info:string}} g
+ */
+function drawPrinterMarks(doc, c, { slug, trimW, trimH, bleedPt, info }) {
+  const o = doc.opts;
+  const gap = bleedPt + MARK_GAP;
+  c.ops.push(`q 0.25 w ${o.color ? '1 1 1 1 K 1 1 1 1 k' : '0 G 0 g'}`);
+  if (o.cropMarks) {
+    for (const cx of [slug, slug + trimW]) {
+      for (const cy of [slug, slug + trimH]) {
+        const sx = cx === slug ? -1 : 1;
+        const sy = cy === slug ? -1 : 1;
+        c.ops.push(`${num(cx + sx * gap)} ${num(cy)} m ${num(cx + sx * (gap + MARK_LEN))} ${num(cy)} l S`);
+        c.ops.push(`${num(cx)} ${num(cy + sy * gap)} m ${num(cx)} ${num(cy + sy * (gap + MARK_LEN))} l S`);
+      }
+    }
+  }
+  const mid = gap + MARK_LEN / 2; // distance of the slug's center line from the trim edge
+  const r = MARK_LEN * 0.3;
+  if (o.registrationMarks) {
+    const K = 0.5523 * r;
+    for (const [x, y] of [[slug + trimW / 2, slug + trimH + mid], [slug + trimW / 2, slug - mid], [slug - mid, slug + trimH / 2], [slug + trimW + mid, slug + trimH / 2]]) {
+      c.ops.push(
+        `${num(x + r)} ${num(y)} m ${num(x + r)} ${num(y + K)} ${num(x + K)} ${num(y + r)} ${num(x)} ${num(y + r)} c ` +
+          `${num(x - K)} ${num(y + r)} ${num(x - r)} ${num(y + K)} ${num(x - r)} ${num(y)} c ` +
+          `${num(x - r)} ${num(y - K)} ${num(x - K)} ${num(y - r)} ${num(x)} ${num(y - r)} c ` +
+          `${num(x + K)} ${num(y - r)} ${num(x + r)} ${num(y - K)} ${num(x + r)} ${num(y)} c S`,
+      );
+      c.ops.push(`${num(x - r * 1.6)} ${num(y)} m ${num(x + r * 1.6)} ${num(y)} l S ${num(x)} ${num(y - r * 1.6)} m ${num(x)} ${num(y + r * 1.6)} l S`);
+    }
+  }
+  if (o.colorBars) {
+    const PATCHES = [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1], [1, 1, 0, 0], [1, 0, 1, 0], [0, 1, 1, 0], [0, 0, 0, 0.75], [0, 0, 0, 0.5], [0, 0, 0, 0.25]];
+    const size = MARK_LEN * 0.8;
+    const x0 = slug + MARK_LEN;
+    const room = trimW / 2 - (o.registrationMarks ? r * 2 : 0) - MARK_LEN; // stay left of the top registration mark
+    const n = Math.max(0, Math.min(PATCHES.length, Math.floor(room / size)));
+    const y = slug + trimH + gap + (MARK_LEN - size) / 2;
+    for (let i = 0; i < n; i++) c.ops.push(`${PATCHES[i].join(' ')} k ${num(x0 + i * size)} ${num(y)} ${num(size)} ${num(size)} re f`);
+  }
+  if (info) {
+    if (!doc.infoFont) doc.infoFont = doc.w.add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+    // WinAnsi covers Latin-1 here; anything else prints as "?"
+    const text = [...info].map((ch) => (ch.charCodeAt(0) < 256 ? ch : '?')).join('').replace(/[\\()]/g, '\\$&');
+    c.ops.push(`BT /${c.font(doc.infoFont)} 6 Tf ${num(slug + MARK_LEN)} ${num(slug - mid - 2)} Td (${text}) Tj ET`);
+  }
+  c.ops.push('Q');
 }
 
 /**
@@ -1133,11 +1200,12 @@ export function createPDF(pages, options) {
     const trimW = Math.max(1, Number(dl && dl.width) || 1) * s;
     const trimH = Math.max(1, Number(dl && dl.height) || 1) * s;
     const bleedPt = opts.bleed * s;
-    const slug = opts.cropMarks ? bleedPt + MARK_GAP + MARK_LEN : bleedPt;
+    const marks = opts.cropMarks || opts.registrationMarks || opts.colorBars || !!opts.pageInfo;
+    const slug = marks ? bleedPt + MARK_GAP + MARK_LEN : bleedPt;
     const mediaW = trimW + 2 * slug;
     const mediaH = trimH + 2 * slug;
     const c = new Content(doc);
-    if (opts.cropMarks) {
+    if (marks) {
       // keep artwork inside the bleed box, away from the marks
       c.q();
       c.ops.push(`${num(slug - bleedPt)} ${num(slug - bleedPt)} ${num(trimW + 2 * bleedPt)} ${num(trimH + 2 * bleedPt)} re W n`);
@@ -1146,19 +1214,9 @@ export function createPDF(pages, options) {
     c.cm([s, 0, 0, -s, slug, slug + trimH]);
     drawItems(c, dl && dl.items);
     c.Q();
-    if (opts.cropMarks) {
+    if (marks) {
       c.Q();
-      const gap = bleedPt + MARK_GAP;
-      c.ops.push(opts.color ? 'q 0.25 w 1 1 1 1 K' : 'q 0.25 w 0 G');
-      for (const cx of [slug, slug + trimW]) {
-        for (const cy of [slug, slug + trimH]) {
-          const sx = cx === slug ? -1 : 1;
-          const sy = cy === slug ? -1 : 1;
-          c.ops.push(`${num(cx + sx * gap)} ${num(cy)} m ${num(cx + sx * (gap + MARK_LEN))} ${num(cy)} l S`);
-          c.ops.push(`${num(cx)} ${num(cy + sy * gap)} m ${num(cx)} ${num(cy + sy * (gap + MARK_LEN))} l S`);
-        }
-      }
-      c.ops.push('Q');
+      drawPrinterMarks(doc, c, { slug, trimW, trimH, bleedPt, info: opts.pageInfo ? opts.pageInfo[pageRefs.length] : '' });
     }
     const content = doc.stream('', c.bytes());
     const box = (a, b, cc, d) => `[${num(a)} ${num(b)} ${num(cc)} ${num(d)}]`;
@@ -1201,7 +1259,8 @@ export function createPDF(pages, options) {
   }
   w.set(infoRef, info + ' >>');
   w.set(metaRef, w.streamBody('/Type /Metadata /Subtype /XML', buildXMP(opts), { compress: false }));
-  w.set(catalogRef, `<< /Type /Catalog /Pages ${pagesRef} 0 R /Metadata ${metaRef} 0 R${intents} >>`);
+  const layout = opts.pageLayout ? ` /PageLayout /${opts.pageLayout}` : '';
+  w.set(catalogRef, `<< /Type /Catalog /Pages ${pagesRef} 0 R /Metadata ${metaRef} 0 R${intents}${layout} >>`);
   return w.finish(`/Root ${catalogRef} 0 R /Info ${infoRef} 0 R`);
 }
 

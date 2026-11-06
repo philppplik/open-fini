@@ -54,7 +54,7 @@ export const IMPLICIT = [
   // color management: button() labels (translated by ui/controls.js) and the preflight message templates of the pure
   // engine, which marks them with a local N_ (it cannot import the i18n runtime)
   { test: (p) => p === "ui/color-settings.js", re: new RegExp(String.raw`\bbutton\(\s*${STR}`, "g") },
-  { test: (p) => p === "engine/color/preflight.js", re: new RegExp(String.raw`\bN_\(\s*${STR}`, "g") },
+  { test: (p) => p === "engine/color/preflight.js" || p === "engine/export/options.js", re: new RegExp(String.raw`\bN_\(\s*${STR}`, "g") },
   // Office Suite apps: toolkit control and dialog texts, manifests, undo labels and model errors (translated by the
   // toolkit, openDialog, commitOffice callers and the apps' toasts)
   { test: (p) => p.startsWith("office/sheet/") || p.startsWith("office/toolkit/"), re: new RegExp(String.raw`\b(?:label|title|description|blurb):\s*${STR}`, "g") },
