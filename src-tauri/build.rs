@@ -9,6 +9,10 @@ const COMMANDS: &[&str] = &[
     "relay_start",
     "relay_stop",
     "relay_status",
+    "cmd_run",
+    "cmd_kill",
+    "tunnel_detect",
+    "tunnel_start",
     "ftp_test",
     "ftp_upload",
     "smtp_test",
@@ -22,6 +26,16 @@ const COMMANDS: &[&str] = &[
     "preview_dir_stamps",
     "latex_engines",
     "latex_compile",
+    "web_get",
+    "files_grants",
+    "files_grant_pick",
+    "files_grant_set_write",
+    "files_grant_revoke",
+    "files_list",
+    "files_read",
+    "files_write",
+    "files_audit",
+    "files_audit_clear",
 ];
 
 fn main() {

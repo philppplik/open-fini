@@ -7,6 +7,7 @@ import { parseDomainList } from "../../vibe/web-hosts.js";
 
 const BACKENDS = [
   ["wikipedia", N_("Wikipedia (no key, articles only)")],
+  ["duckduckgo", N_("DuckDuckGo (no key, desktop app; Wikipedia in the browser)")],
   ["searxng", N_("SearXNG (your own instance, no key)")],
   ["brave", N_("Brave Search (API key)")],
   ["tavily", N_("Tavily (API key)")],
@@ -49,6 +50,7 @@ export function createWebPanel() {
       render();
     });
     const search = h("div.of-vcard", h("strong", t("Search")), field(t("Web search backend"), backend, t("Image search always uses Openverse and Wikimedia Commons (openly licensed, no key).")));
+    if (w.searchBackend === "duckduckgo") search.append(h("small.of-hint", t("Reads DuckDuckGo's plain HTML results page like a browser would, without a key. Automated searches may be rate limited or answered with a human check, which OpenFini never solves; then wait or switch the backend. In the browser this falls back to Wikipedia.")));
     if (w.searchBackend === "searxng") search.append(field(t("SearXNG address"), text(w.searxngUrl, (v) => save({ searxngUrl: v }), { placeholder: "https://searx.example.org" }), t("The instance must allow the json format and, in a browser, cross-origin requests.")));
     if (w.searchBackend === "brave" || w.searchBackend === "tavily") search.append(field(t("API key"), text(w.apiKey, (v) => save({ apiKey: v }), { type: "password", autocomplete: "off" }), t("Stored on this device and sent only to the search service.")));
     el.append(search);

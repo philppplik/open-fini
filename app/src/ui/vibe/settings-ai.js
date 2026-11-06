@@ -3,7 +3,7 @@
 // `vs`-like object that works even before Vibe Studio was opened (the hub is created on demand).
 //
 // Public API
-//   aiSettingsPanels(app, tab?) → HTMLElement   (tab: "models" | "tools" | "web" | "terminal" | "skills" | "knowledge" | "memory" | "logging")
+//   aiSettingsPanels(app, tab?) → HTMLElement   (tab: "models" | "tools" | "web" | "terminal" | "files" | "skills" | "knowledge" | "memory" | "logging")
 //   AI_TABS                                     the sub-tabs (id, icon, label)
 //   openAiSettings(app, tab)                    opens Settings at Artificial intelligence ▸ tab
 // Invariants: one panel instance per tab and app (they subscribe to vibeStore once); remounting just moves the element.
@@ -18,6 +18,7 @@ export const AI_TABS = [
   { id: "tools", icon: "tools", label: "Tools and MCP" },
   { id: "web", icon: "globe2", label: "Web access" },
   { id: "terminal", icon: "terminal", label: "Terminal" },
+  { id: "files", icon: "folder2-open", label: "Local files" },
   { id: "skills", icon: "mortarboard", label: "Skills" },
   { id: "knowledge", icon: "journal-text", label: "Knowledge" },
   { id: "memory", icon: "lightbulb", label: "Memory" },
@@ -29,6 +30,7 @@ const LOADERS = {
   tools: () => import("./panel-tools.js").then((m) => m.createToolsPanel),
   web: () => import("./panel-web.js").then((m) => m.createWebPanel),
   terminal: () => import("./panel-terminal.js").then((m) => m.createTerminalPanel),
+  files: () => import("./panel-files.js").then((m) => m.createFilesPanel),
   skills: () => import("./panel-skills.js").then((m) => m.createSkillsPanel),
   knowledge: () => import("./panel-knowledge.js").then((m) => m.createKnowledgePanel),
   memory: () => import("./panel-memory.js").then((m) => m.createMemoryPanel),

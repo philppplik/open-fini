@@ -16,6 +16,7 @@
 
 import { guardedFetch, checkUrl, normalizeWeb, extractReadable } from "./web-access.js";
 import { hostMatches } from "./web-hosts.js";
+import { webFetch } from "./native-web.js";
 
 export const CRAWL_CAPS = Object.freeze({ maxPages: 25, maxDepth: 3, maxCharsPerPage: 8000, maxTotalChars: 120000, maxDelayMs: 10000 });
 export const UA = "OpenFini";
@@ -282,7 +283,7 @@ const defaultSleep = (ms, signal) => new Promise((resolve, reject) => {
  */
 export async function crawl(startUrl, web, o = {}) {
   const w = normalizeWeb(web);
-  const { fetchImpl = globalThis.fetch, sleep = defaultSleep, signal, onProgress } = o;
+  const { fetchImpl = webFetch, sleep = defaultSleep, signal, onProgress } = o;
   const maxPages = Math.min(Math.max(1, o.maxPages || 10), CRAWL_CAPS.maxPages);
   const maxDepth = Math.min(Math.max(0, o.maxDepth ?? 1), CRAWL_CAPS.maxDepth);
   const start = checkUrl(startUrl, w);
