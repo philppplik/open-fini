@@ -50,6 +50,22 @@ site without console errors.
 | Markdown docs site | none | Sidebar from page titles, "On this page" table of contents. |
 | PWA starter | none | Manifest, service worker (app shell cache, offline page), install button, notes in `localStorage`. SVG icons only: some browsers want PNG icons before they offer installation. |
 
+**More starters** (`engine/web/starters.js`): only their names are part of the Code studio; the files of a group load when one of
+them is created (`tpl/starters-sites.js`, `starters-apps.js`, `starters-games.js`, `starters-libs.js`). The first three groups make
+no external requests.
+
+| Group | Starters | Libraries (CDN, pinned) |
+| --- | --- | --- |
+| Static sites | Resume (print stylesheet), Restaurant (menu, hours, reservation form), Event (schedule, speakers, tickets), Product page (features, pricing, FAQ), Coming soon (countdown, sign-up), Photo gallery (`<dialog>` lightbox with arrow keys) | none |
+| Apps and PWAs | To-do app (installable PWA: manifest, cache-first service worker, `localStorage`), Notes app (search, escaped Markdown-lite preview), Calculator (own parser, no `eval`, keyboard, history) | none |
+| Games | Snake (fixed-step loop, keyboard and swipe, high score), Breakout (`requestAnimationFrame` with a time step, levels), Memory (DOM cards, moves, timer) | none |
+| Libraries | Phaser game (arcade physics platformer), p5.js sketch, Chart dashboard, Map (OpenStreetMap tiles, keep the attribution), Data visualization (D3 as an ES module), Pico CSS site, Bulma site, Mithril app (components and routing), jQuery page | Phaser 3.87, p5 1.11, Chart.js 4.4, Leaflet 1.9, D3 7.9, Pico 2.0, Bulma 1.0, Mithril 2.2, jQuery 3.7 |
+
+All of them work under the desktop CSP (no `eval`, which is why there is no petite-vue or Alpine non-CSP starter). Tested in
+`tests/web/starters-open.test.js`: every starter loads, its pages parse without errors, every local reference resolves to a file of
+the starter, scripts compile, and only the library starters reference other hosts. The Vibe tools `list_templates` and
+`create_website` know them too.
+
 ## Libraries
 
 Open **Libraries** from the activity bar, the command palette (*Libraries…*) or Vibe (`add_library`).
