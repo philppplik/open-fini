@@ -57,7 +57,7 @@ export default {
     const { exportOffice } = await import("../../engine/office/index.js");
     const { officeFidelityNotes } = await import("../../core/source-format.js");
     const out = exportOffice(model, format, { svgFallbacks, title: model.meta?.title || title });
-    return { ...out, notes: officeFidelityNotes(model, format) };
+    return { ...out, notes: [...officeFidelityNotes(model, format), ...(out.notes || [])] };
   },
 
   /** Mounts the word processor. Returns the instance that becomes `app.officeUI`. */

@@ -15,8 +15,8 @@ recognized and you get an honest explanation instead of a broken import (see [No
 
 * **Open the studio**: the header's **More** menu (the header shows five studios; add Office there in *Settings ▸
   Studios* to get an `Alt+<n>` shortcut), *Studio ▸ Office Studio*, or the command palette.
-* **New document**: *Home* in the suite bar or *File ▸ New…* in the Office studio (the launcher: *Blank document* opens the page-size dialog, templates create directly: letter, report, invoice, memo, meeting notes, resume), the *Office Studio* card on the welcome screen, or *Document*
-  in the *Start in* row of the New Document dialog. Pick a template (blank, letter, report, resume), a page size (A4,
+* **New document**: *Home* in the suite bar or *File ▸ New…* in the Office studio (the launcher: *Blank document* opens the page-size dialog, templates create directly: letter, report, invoice, memo, meeting notes, resume, and the designed newsletter, project proposal, academic paper and event flyer; every template except the blank one comes with a theme, styled tables and, for report, proposal and paper, a table of contents), the *Office Studio* card on the welcome screen, or *Document*
+  in the *Start in* row of the New Document dialog. Pick a template, a page size (A4,
   US Letter, US Legal, A5) and the orientation.
 * **Open**: *File ▸ Open…*, drag and drop, *Open Folder*, or the operating system's *Open with* menu (`.docx`, `.odt`
   and `.rtf` are registered as "Open with" candidates, never as the default app). In the Office studio, HTML,
@@ -29,25 +29,30 @@ recognized and you get an honest explanation instead of a broken import (see [No
 
 * **Toolbar**: paragraph style, font, size, bold / italic / underline / strikethrough, superscript / subscript, text
   and highlight color, alignment, bulleted and numbered lists, indent, line spacing, clear formatting, link, image,
-  table (grid picker or custom size), page break, footnote, find, *Print* / *Web* layout and zoom. Arrow keys move
-  between toolbar buttons.
+  table (grid picker or custom size), page break, footnote, *Design*, the theme picker, *Track changes*, find,
+  *Print* / *Web* layout and zoom. Arrow keys move between toolbar buttons.
 * **Styles**: Normal, Title, Subtitle, Heading 1-6, Quote, Code and List Paragraph are built in. The *Styles* tab of
   the sidebar applies a style, *Modify* changes it for every paragraph that uses it (font, size, color, weight,
   spacing, alignment, *Based on*, *Next paragraph*, outline level), *New style…* creates one from the caret paragraph.
-  Styles inherit through *Based on* and are saved in DOCX, ODT and RTF.
+  Styles inherit through *Based on* and are saved in DOCX, ODT and RTF. **Update from selection** (sidebar, or
+  *Format ▸ Update Style to Match Selection*) makes the caret paragraph's direct formatting part of its style.
 * **Outline**: the *Outline* tab lists the headings; click one to jump there.
 * **Lists**: bullets and numbers with nine levels (`Tab` / `Shift+Tab`); `Enter` in an empty item ends the list.
 * **Tables**: insert with the grid picker; `Tab` moves to the next cell (and adds a row at the end). *Table* menu or
   right-click: insert / delete rows and columns, merge (select across cells) and split cells, header row, cell
-  shading, borders.
+  shading, borders, **Table Styles…** (see below), *Sort Rows Ascending / Descending by This Column* (numbers sort
+  numerically; the header and a total row stay put), *Add Total Row* (sums every numeric column, keeping decimals
+  and thousands separators), *Distribute Columns Evenly* and *Fit Table to Page Width*. Sorting and totals refuse
+  tables with merged cells.
 * **Images**: *Insert ▸ Image…*, paste, or drag and drop PNG, JPEG, GIF, WebP or SVG. Images are inline (they flow
-  with the text). Double-click an image for its size and alternative text.
+  with the text). Double-click an image for its size, alternative text and **text wrapping** (in line, float left or
+  float right with the text flowing around it).
 * **Footnotes**: *Insert ▸ Footnote…*; the notes are listed at the end of the document in the editor, double-click a
   number to edit it. DOCX and ODT exports write real footnotes.
 * **Header and footer**: *Document ▸ Header & Footer…* (or double-click the header area). `{PAGE}`, `{PAGES}` and
   `{DATE}` become fields, for example `Page {PAGE} of {PAGES}`.
 * **Page setup**: size (A3, A4, A5, Letter, Legal or custom), orientation, margins, header and footer distance and
-  columns (columns are kept in DOCX/ODT; the editor and the PDF export show one column).
+  columns of the first section (see *Sections and columns*).
 * **Find and replace**: `Mod+F` / `Mod+H`, with match case, whole words and regular expressions (`$1` groups in the
   replacement).
 * **Undo**: every edit is a step of the document history (`Mod+Z`, `Mod+Shift+Z`, the History of the app), typing is
@@ -55,6 +60,43 @@ recognized and you get an honest explanation instead of a broken import (see [No
 * **Spelling**: the browser's / system's spell checker underlines words (*View ▸ Check Spelling as You Type*).
 * **Status bar**: pages, words, characters and the selection's word count; *Document ▸ Word Count…* has details.
 * **Dark mode**: the page stays white like paper. *View ▸ Dark Page in Dark Mode* shows a dark page instead.
+
+### Design and review
+
+All of this lives in `engine/office/design.js` (pure, shared by the editor, the codecs and the Vibe tools) and the
+dialogs in `ui/office/design-ui.js`; every action is one undo step.
+
+* **Design** (*Format ▸ Design…* or the palette button): a live preview, seven **themes** (Office, Classic, Modern,
+  Elegant, Bold, Minimal, Ocean: heading and body fonts, heading, accent and text colors), a **custom theme** (your
+  own fonts and colors) and four **style sets** (Default, Compact, Airy, Formal: spacing, line height, title size and
+  alignment). The toolbar's theme picker applies a theme in one click. Themes rewrite the built-in styles, so direct
+  formatting on runs still wins.
+* **Table Styles…** (*Table* menu): a gallery of eight styles (Plain grid, Light, Theme accent, Blue, Green, Orange,
+  Dark, Minimal) with *Header row*, *Banded rows*, *First column* and *Total row* options. The colors are written into
+  the cells (shading, header text color, bold), so every export keeps them; *Theme accent* follows the theme.
+* **Sections and columns**: *Insert ▸ Section Break (Columns)…* starts a new section with one to four columns, on the
+  same page (continuous) or a new page. Insert another break with one column to return to full width. In the editor a
+  multi-column section is one box that does not split across pages, so keep it shorter than a page.
+* **Text boxes**: *Insert ▸ Text Box…* adds a floating box (plain text, one paragraph per line, width, wrap left /
+  right / in line, fill and border) at the caret; text wraps around it. Double-click a box to edit or delete it.
+* **Table of contents**: *Insert ▸ Table of Contents* lists the headings (three levels) with page numbers in print
+  layout; it updates itself, and a click on an entry jumps there.
+* **Track changes** (*Document ▸ Track Changes* or the toolbar button): your typing is marked as an insertion
+  (underlined, green) and deleted text stays struck through (red) with your name (*Settings ▸ Collaboration*
+  nickname, else the document author). *Document ▸ Review Changes…* lists every change with *Accept* / *Reject*, plus
+  *Accept all* / *Reject all*. Splitting and joining paragraphs is not tracked; text you inserted yourself is removed
+  when you delete it.
+
+| Feature | DOCX | ODT, RTF, HTML, Markdown, text, PDF |
+| --- | --- | --- |
+| Themes, style sets, table styles | kept (as styles and cell formatting) | kept (as styles and cell formatting) |
+| Sections with columns | kept (section properties per section, continuous or next page) | one column; a *next page* section becomes a page break |
+| Table of contents | a real TOC field (Word refreshes page numbers) with the current entries | plain paragraphs |
+| Text boxes | indented paragraphs after their anchor paragraph | indented paragraphs after their anchor paragraph |
+| Wrapped images | inline | inline |
+| Tracked changes | kept (`w:ins` / `w:del` with author; read back from Word files too) | accepted on export |
+
+The export dialog lists what was converted.
 
 ### Keyboard shortcuts
 
@@ -78,7 +120,7 @@ recognized and you get an honest explanation instead of a broken import (see [No
 
 | Format | Open | Save / export | What is kept | Simplified or not supported |
 | --- | --- | --- | --- | --- |
-| Word `.docx` (`.docm`; templates `.dotx`, `.dotm` open as a new untitled document) | yes | yes | text formatting, named paragraph styles with inheritance, theme fonts, lists (numbering definitions, levels, list styles), tables (grid widths, `gridSpan`, `vMerge`, shading, borders, header rows), inline and floating images (PNG, JPEG, GIF, SVG with PNG fallback), hyperlinks (also as fields), footnotes and endnotes (as footnotes), page breaks, header and footer (default) with page fields, page size, margins, columns, document properties | character styles become direct formatting; text boxes and equations become plain text; floating images become inline; tracked insertions are accepted, tracked deletions and comments are dropped; charts, SmartArt, shapes, EMF/WMF images and OLE objects are dropped; several sections share one page setup; first/even page headers are replaced by the default one; macros are never run (`.docm` content is read as a document only) |
+| Word `.docx` (`.docm`; templates `.dotx`, `.dotm` open as a new untitled document) | yes | yes | text formatting, named paragraph styles with inheritance, theme fonts, lists (numbering definitions, levels, list styles), tables (grid widths, `gridSpan`, `vMerge`, shading, borders, header rows), inline and floating images (PNG, JPEG, GIF, SVG with PNG fallback), hyperlinks (also as fields), footnotes and endnotes (as footnotes), page breaks, header and footer (default) with page fields, page size, margins, columns, document properties | character styles become direct formatting; text boxes and equations become plain text; floating images become inline; comments are dropped; charts, SmartArt, shapes, EMF/WMF images and OLE objects are dropped; sections keep their columns but share one page size and margins; first/even page headers are replaced by the default one; macros are never run (`.docm` content is read as a document only) |
 | OpenDocument `.odt` (`.fodt`; template `.ott` opens as a new untitled document) | yes | yes | the same set as DOCX: styles and automatic styles, nested lists with list styles, tables with spans and cell properties, frames with images, notes, links, page layout of the default master page, header and footer, metadata | sections and indexes become plain paragraphs; text frames become text; drawing shapes and embedded objects are dropped |
 | Rich Text `.rtf` | yes | yes | fonts, colors, sizes, bold / italic / underline / strike, sub / superscript, highlight, paragraph alignment, spacing, indents, styles (stylesheet), lists (`\pn` and `\ls`), tables with merged cells and shading, PNG/JPEG pictures, footnotes, hyperlinks and page fields, headers and footers, page size and margins, Unicode (`\uN`) | non-Windows-1252 code pages are read as Windows-1252; WMF/EMF pictures and nested tables are simplified; SVG images are written as PNG |
 | HTML `.html` | yes (sanitized) | yes | headings, paragraphs, inline formatting and colors, lists, tables with spans, `data:` images, links, footnote sections; exports clean semantic HTML with embedded CSS (`@page` size and margins) and data-URI images | scripts, styles, frames, forms, event handlers and `javascript:` links are removed; remote images are not downloaded |
@@ -111,8 +153,8 @@ shown as a toast with *Details*).
 | PowerPoint, Impress, Keynote (`.pptx`, `.ppt`, `.odp`, `.key`) | Opened by the Presentation app when this version includes it; otherwise export the slides as PDF and open the PDF (every slide becomes an editable page in the Layout studio). |
 | Excalidraw, tldraw (`.excalidraw`, `.tldraw`) | Opened by the Whiteboard app when this version includes it; otherwise export SVG/PNG from the tool. |
 
-Comments, tracked changes, mail merge, tables of contents, multiple sections, text boxes and floating objects are out
-of scope for this phase.
+Comments in Word files, mail merge, drawing shapes, different first/even page headers and page borders are not
+supported yet.
 
 ## How pages are drawn
 
@@ -129,8 +171,10 @@ page setup, headers and footers, and export (after your approval). The built-in 
 covers letters, reports, proposals, memos and resumes. Semantic tools work by heading (`office_list_sections`,
 `office_read_section`, `office_rewrite_section`, `office_move_section`), `office_check_accessibility` checks the
 document, and cross-app tools turn tables into a spreadsheet, a spreadsheet range into a table and the outline into
-slides ([vibe-studio.md](vibe-studio.md#office-semantic-and-cross-app-tools)); skills: `write-report`,
-`polish-document`, `accessibility-check-document`, `translate-document-keeping-format`, `meeting-notes`. With AI enabled, the editor's right-click menu has *AI ▸
+slides ([vibe-studio.md](vibe-studio.md#office-semantic-and-cross-app-tools)). Design and review tools apply themes and
+style sets, table styles, sections, text boxes, a table of contents, sort and total tables and handle tracked changes
+([vibe-studio.md](vibe-studio.md#office-design-and-review-tools)); skills: `write-report`, `polish-document`,
+`accessibility-check-document`, `translate-document-keeping-format`, `meeting-notes`, `design-document`. With AI enabled, the editor's right-click menu has *AI ▸
 Improve writing, Fix spelling and grammar, Summarize, Translate…, Change tone…* for the selection (or the whole
 document).
 

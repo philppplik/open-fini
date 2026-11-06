@@ -4,6 +4,7 @@ import { h } from "../../core/util.js";
 import * as M from "../../engine/office/model.js";
 import { iconButton } from "../controls.js";
 import { OfficeEditor } from "./editor.js";
+import { THEMES, applyTheme } from "../../engine/office/design.js";
 
 const FONTS = ["Calibri", "Arial", "Helvetica", "Verdana", "Segoe UI", "Inter", "Georgia", "Times New Roman", "Cambria", "Garamond", "Palatino Linotype", "Courier New", "Consolas"];
 const SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72];
@@ -128,6 +129,12 @@ export class OfficeWorkspace {
     const table = keep(iconButton({ icon: "table", label: "Insert table", onClick: (e, b) => import("./dialogs.js").then((m) => m.tablePicker(this.app, b, (r, c) => ed.insertTable(r, c))) }));
     const pb = glyph("⤓", "Page break", () => ed.insertPageBreak(), "Mod+Enter");
     const fn = glyph("¹", "Footnote…", () => this.app.run("office.insertFootnote"));
+    const design = btn("palette", "Design: themes and style sets", () => this.app.run("office.design"));
+    this.themeSel = select("Theme", [["", "Theme…"], ...THEMES.map((t) => [t.id, t.label]), ["custom", "Custom"]], (v) => {
+      if (v && v !== "custom") ed.commit(applyTheme(this.prj.model, v), { label: "Theme", sel: ed.sel });
+      else if (v === "custom") this.app.run("office.design");
+    });
+    this.trackBtn = btn("pencil-square", "Track changes", () => this.app.run("office.trackChanges"));
     this.layoutBtn = h("div.of-otb__seg", { role: "group", "aria-label": "Layout" },
       (this.printBtn = keep(h("button.of-otb__segbtn", { type: "button", "aria-pressed": "true", onclick: () => this.app.run("office.printLayout") }, "Print"))),
       (this.webBtn = keep(h("button.of-otb__segbtn", { type: "button", "aria-pressed": "false", onclick: () => this.app.run("office.webLayout") }, "Web"))));
@@ -140,7 +147,7 @@ export class OfficeWorkspace {
       this.b, this.i, this.u, this.s, this.sup, this.sub, color, hl, sep(),
       this.align.left, this.align.center, this.align.right, this.align.justify, sep(),
       this.bul, this.num, out, inn, this.spacing, clear, sep(),
-      link, img, table, pb, fn, h("span.of-otb__grow"), findBtn, this.layoutBtn, this.zoomSel);
+      link, img, table, pb, fn, sep(), design, this.themeSel, this.trackBtn, h("span.of-otb__grow"), findBtn, this.layoutBtn, this.zoomSel);
     // roving arrow keys inside the toolbar
     this.toolbar.addEventListener("keydown", (e) => {
       if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
@@ -163,7 +170,8 @@ export class OfficeWorkspace {
     this.tabs = h("div.of-oside__tabs", { role: "tablist", "aria-label": "Sidebar" }, tabBtn("outline", "Outline"), tabBtn("styles", "Styles"));
     this.outlinePanel = h("div.of-oside__panel", { role: "tabpanel", "aria-label": "Outline" }, this.outlineList);
     const newStyle = h("button.of-btn.of-btn--default", { type: "button", onclick: () => import("./dialogs.js").then((m) => m.styleDialog(this.app, this, null)) }, "New style…");
-    this.stylesPanel = h("div.of-oside__panel", { role: "tabpanel", "aria-label": "Styles" }, this.stylesList, h("div.of-oside__actions", newStyle));
+    const updStyle = h("button.of-btn.of-btn--default", { type: "button", onclick: () => this.app.run("office.updateStyle") }, "Update from selection");
+    this.stylesPanel = h("div.of-oside__panel", { role: "tabpanel", "aria-label": "Styles" }, this.stylesList, h("div.of-oside__actions", newStyle, updStyle));
     this.side = h("aside.of-oside", this.tabs, this.outlinePanel, this.stylesPanel);
 
     this.find = createFindBar(this);
@@ -251,6 +259,8 @@ export class OfficeWorkspace {
     for (const [k, b] of Object.entries(this.align)) set(b, (pp.align || "left") === k);
     set(this.bul, p.list?.kind === "bullet");
     set(this.num, p.list?.kind === "number");
+    set(this.trackBtn, this.prj.model.trackChanges);
+    this.themeSel.value = this.prj.model.theme?.id || "";
     if (document.activeElement !== this.fontSel) this.fontSel.value = marks.font || "";
     if (document.activeElement !== this.sizeSel) this.sizeSel.value = marks.size ? String(marks.size) : "";
     this.styleSel.value = p.style || "Normal";

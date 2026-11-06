@@ -31,19 +31,19 @@ export const OFFICE_MENUS = [
     label: "Insert",
     studios: ["office"],
     officeKinds: ["document"],
-    items: ["office.insertImage", "office.insertTable", "office.insertLink", "-", "office.insertPageBreak", "office.insertRule", "office.insertFootnote", "-", "office.insertPageNumber", "office.insertDate"],
+    items: ["office.insertImage", "office.insertTable", "office.insertLink", "-", "office.insertTextBox", "-", "office.insertPageBreak", "office.insertSectionBreak", "office.insertRule", "office.insertFootnote", "office.insertToc", "-", "office.insertPageNumber", "office.insertDate"],
   },
   {
     label: "Format",
     studios: ["office"],
     officeKinds: ["document"],
-    items: ["office.bold", "office.italic", "office.underline", "office.strike", "office.superscript", "office.subscript", "-", "office.alignLeft", "office.alignCenter", "office.alignRight", "office.justify", "-", "office.bullets", "office.numbering", "office.indent", "office.outdent", "-", "office.paragraph", "office.styles", "office.clearFormatting"],
+    items: ["office.bold", "office.italic", "office.underline", "office.strike", "office.superscript", "office.subscript", "-", "office.alignLeft", "office.alignCenter", "office.alignRight", "office.justify", "-", "office.bullets", "office.numbering", "office.indent", "office.outdent", "-", "office.paragraph", "office.styles", "office.updateStyle", "office.design", "office.clearFormatting"],
   },
   {
     label: "Table",
     studios: ["office"],
     officeKinds: ["document"],
-    items: ["office.insertTable", "-", "office.rowAbove", "office.rowBelow", "office.colLeft", "office.colRight", "-", "office.deleteRow", "office.deleteCol", "office.deleteTable", "-", "office.mergeCells", "office.splitCell", "-", "office.headerRow", "office.cellShading", "office.tableBorders"],
+    items: ["office.insertTable", "-", "office.rowAbove", "office.rowBelow", "office.colLeft", "office.colRight", "-", "office.deleteRow", "office.deleteCol", "office.deleteTable", "-", "office.mergeCells", "office.splitCell", "-", "office.headerRow", "office.tableStyles", "office.cellShading", "office.tableBorders", "-", "office.sortAsc", "office.sortDesc", "office.totalRow", "office.distributeColumns", "office.fitTable"],
   },
   {
     label: "View",
@@ -55,7 +55,7 @@ export const OFFICE_MENUS = [
     label: "Document",
     studios: ["office"],
     officeKinds: ["document"],
-    items: ["office.pageSetup", "office.headerFooter", "office.properties", "office.wordCount", "-", "office.export", { label: "Export As", items: ["office.exportDocx", "office.exportOdt", "office.exportRtf", "office.exportPdf", "office.exportHtml", "office.exportMd", "office.exportTxt"] }, "office.importReport"],
+    items: ["office.pageSetup", "office.headerFooter", "office.properties", "office.wordCount", "-", "office.trackChanges", "office.review", "office.acceptAll", "office.rejectAll", "-", "office.export", { label: "Export As", items: ["office.exportDocx", "office.exportOdt", "office.exportRtf", "office.exportPdf", "office.exportHtml", "office.exportMd", "office.exportTxt"] }, "office.importReport"],
   },
   // Presentation app (office/slides): commands register when the app first loads (commands/office-slides.js)
   { label: "Edit", studios: ["office"], officeKinds: ["slides"], items: ["edit.undo", "edit.redo", "-", "slides.cut", "slides.copy", "slides.paste", "slides.duplicate", "slides.delete", "-", "slides.selectAll", "-", "edit.preferences"] },

@@ -3,6 +3,7 @@
 // end), applied to the model as one undoable transaction of the document history, and the changed blocks re-render.
 // Pages are an approximation: block heights are measured and blocks that do not fit are pushed to the next page.
 import * as M from "../../engine/office/model.js";
+import * as D from "../../engine/office/design.js";
 import { addMedia, fitSize, sniffImage } from "../../engine/office/media.js";
 import { commitOffice } from "../../core/office.js";
 import { h } from "../../core/util.js";
@@ -187,16 +188,35 @@ export class OfficeEditor {
     }
     const els = [];
     const counters = new Map();
-    m.blocks.forEach((b, i) => {
-      let el = this.cache.get(b);
+    const blockEl = (b, i) => {
+      let el = b.type === "toc" ? null : this.cache.get(b); // a table of contents follows every heading change
       if (!el) {
         el = this.#renderBlock(b);
-        this.cache.set(b, el);
+        if (b.type !== "toc") this.cache.set(b, el);
       }
       el.dataset.bi = String(i);
       if (b.type === "paragraph") this.#label(el, b, counters);
-      els.push(el);
-    });
+      return el;
+    };
+    // sections with several columns flow inside one CSS multi-column box (design.js ▸ sectionsOf)
+    const wraps = new Map();
+    for (const sec of D.sectionsOf(m)) {
+      let i = sec.from;
+      if (m.blocks[i]?.type === "sectionBreak") els.push(blockEl(m.blocks[i], i++));
+      const kids = [];
+      for (; i < sec.to; i++) kids.push(blockEl(m.blocks[i], i));
+      if (sec.columns < 2 || !kids.length) {
+        els.push(...kids);
+        continue;
+      }
+      let w = this.colWraps?.get(sec.from);
+      if (!w) w = h("div.of-oed__cols");
+      w.style.cssText = `column-count:${sec.columns};column-gap:${Math.round(sec.columnGap * PX)}px`;
+      if (w.children.length !== kids.length || kids.some((k, j) => w.children[j] !== k)) w.replaceChildren(...kids);
+      wraps.set(sec.from, w);
+      els.push(w);
+    }
+    this.colWraps = wraps;
     const cur = [...this.flow.children].filter((c) => !c.classList.contains("of-oed__gap"));
     if (cur.length !== els.length || cur.some((c, k) => c !== els[k])) this.flow.replaceChildren(...els);
     // footnote numbers in reading order
@@ -229,7 +249,18 @@ export class OfficeEditor {
     if (b.type === "pageBreak") return h("div.of-oed__pb", { contenteditable: "false", role: "separator", "aria-label": "Page break" }, h("span", "Page break"));
     if (b.type === "rule") return h("div.of-oed__hr", { contenteditable: "false", role: "separator" }, h("hr"));
     if (b.type === "table") return this.#renderTable(b);
+    if (b.type === "sectionBreak") return h("div.of-oed__pb.of-oed__sb", { contenteditable: "false", role: "separator", "aria-label": "Section break" }, h("span", `Section break (${b.start === "page" ? "next page" : "continuous"})${b.columns > 1 ? ` · ${b.columns} columns` : ""}`));
+    if (b.type === "toc") return this.#renderToc(b);
     return h("div");
+  }
+
+  #renderToc(b) {
+    const entries = D.tocEntries(this.model, b.levels);
+    return h("div.of-oed__toc", { contenteditable: "false", role: "navigation", "aria-label": "Table of contents" },
+      b.title ? h("div.of-oed__toc-title", b.title) : null,
+      entries.length
+        ? entries.map((e) => h("button.of-oed__toc-item", { type: "button", "data-target": String(e.path[0]), style: `padding-left:${pt((e.level - 1) * 18)}` }, h("span.of-oed__toc-text", e.text), h("span.of-oed__toc-pg")))
+        : h("div.of-oed__toc-empty", "Apply heading styles (Heading 1, Heading 2 …) to fill the table of contents."));
   }
 
   #renderPara(p) {
@@ -256,13 +287,22 @@ export class OfficeEditor {
       }
       const css = runCss(r);
       if (css) s.style.cssText = css;
+      if (r.ins || r.del) {
+        s.classList.add(r.del ? "of-oed__del" : "of-oed__ins");
+        s.title = r.del ? `Deleted by ${r.del}` : `Inserted by ${r.ins}`;
+      }
       s.textContent = r.text;
       return s;
     }
     if (r.type === "break") return h("br", { "data-br": "" });
     if (r.type === "image") {
       const media = this.model.media[r.media];
-      return h("img.of-oed__img", { "data-obj": "", "data-media": r.media, contenteditable: "false", draggable: "false", alt: r.alt || "", src: this.#mediaUrl(r.media, media), style: `width:${pt(r.width)};height:${pt(r.height)}` });
+      return h("img.of-oed__img", { "data-obj": "", "data-media": r.media, "data-wrap": r.wrap, contenteditable: "false", draggable: "false", alt: r.alt || "", src: this.#mediaUrl(r.media, media), style: `width:${pt(r.width)};height:${pt(r.height)}` });
+    }
+    if (r.type === "textbox") {
+      const box = h("span.of-oed__tbox", { "data-obj": "", "data-wrap": r.wrap, contenteditable: "false", title: "Text box (double-click to edit)", style: `width:${pt(r.width)};${r.fill ? `background:${r.fill};` : ""}${r.border ? `border:1px solid ${r.border};` : "border:0;"}` });
+      for (const line of r.text.split("\n")) box.append(h("span.of-oed__tbox-p", line || "\u00a0"));
+      return box;
     }
     if (r.type === "footnote") return h("sup.of-oed__fn", { "data-obj": "", "data-fn": r.id, contenteditable: "false", title: "Footnote (double-click to edit)" }, "#");
     if (r.type === "field") return h("span.of-oed__field", { "data-obj": "", contenteditable: "false", title: r.field === "page" ? "Page number" : r.field === "pages" ? "Number of pages" : "Date" }, r.field === "date" ? new Date().toLocaleDateString("en-US") : "#");
@@ -283,6 +323,7 @@ export class OfficeEditor {
 
   #renderTable(t) {
     const grid = M.tableGrid(t);
+    const headText = D.tableHeaderText(t, this.model.theme);
     const border = t.borders.style === "none" ? "" : `${pt(t.borders.width)} solid ${t.borders.color}`;
     const table = h("table.of-oed__table", { "data-borders": t.borders.style });
     table.append(h("colgroup", t.cols.map((w) => h("col", { style: `width:${pt(w)}` }))));
@@ -296,7 +337,8 @@ export class OfficeEditor {
         const td = h(row.header ? "th" : "td", { "data-r": String(r), "data-c": String(g.ci) });
         if (g.colspan > 1) td.colSpan = g.colspan;
         if (g.rowspan > 1) td.rowSpan = g.rowspan;
-        td.style.cssText = `${border ? `border:${border};` : ""}${cell.shading ? `background:${cell.shading};` : ""}${cell.vAlign ? `vertical-align:${cell.vAlign};` : ""}`;
+        td.style.cssText = `${border ? `border:${border};` : ""}${cell.shading ? `background:${cell.shading};` : ""}${cell.vAlign ? `vertical-align:${cell.vAlign};` : ""}${headText && row.header ? `--of-head:${headText};` : ""}`;
+        if (headText && row.header) td.classList.add("is-styled-head");
         const counters = new Map();
         for (const p of cell.blocks) {
           const pe = this.#renderPara(p);
@@ -361,6 +403,7 @@ export class OfficeEditor {
     this.notes.style.cssText = `width:${cw}px;margin-left:${m.left * PX}px;position:relative;top:${m.top * PX}px`;
     // measure blocks without spacers, then push blocks that do not fit to the next page
     const kids = [...this.flow.children];
+    const blockOf = (k) => this.model.blocks[Number(k.dataset.bi ?? k.firstElementChild?.dataset.bi)];
     const tops = kids.map((k) => k.offsetTop);
     const bottoms = kids.map((k) => k.offsetTop + k.offsetHeight);
     let shift = 0;
@@ -370,13 +413,13 @@ export class OfficeEditor {
       const B = bottoms[i] + shift;
       const page = Math.max(0, Math.floor(T / P));
       const start = page * P;
-      const block = this.model.blocks[i];
+      const block = blockOf(k);
       let s = 0;
       const brk = forceNext || (block?.type === "paragraph" && block.props?.pageBreakBefore && i > 0);
       if (brk) s = (page + 1) * P - T;
       else if (T > start + ch) s = (page + 1) * P - T; // starts in the gap between pages
       else if (B > start + ch && T > start + 2 && B - T <= ch) s = (page + 1) * P - T; // does not fit: next page
-      forceNext = block?.type === "pageBreak";
+      forceNext = block?.type === "pageBreak" || (block?.type === "sectionBreak" && block.start === "page");
       if (s > 0) {
         k.before(h("div.of-oed__gap", { contenteditable: "false", "aria-hidden": "true", style: `height:${s}px` }));
         shift += s;
@@ -394,6 +437,11 @@ export class OfficeEditor {
       sheets.push(sheet);
     }
     this.sheets.replaceChildren(...sheets);
+    // page numbers of the table of contents
+    for (const item of this.flow.querySelectorAll(".of-oed__toc-item")) {
+      const el = this.paraEl([Number(item.dataset.target)]);
+      item.lastElementChild.textContent = el ? String(Math.floor(el.offsetTop / P) + 1) : "";
+    }
     const totalH = pages * P - GAP;
     this.pagesEl.style.cssText = `width:${W}px;height:${totalH}px;transform:scale(${z})`;
     this.zoomBox.style.cssText = `width:${W * z}px;height:${totalH * z}px`;
@@ -434,14 +482,14 @@ export class OfficeEditor {
   // ------------------------------------------------------------------------------------------ DOM <-> model positions
 
   paraEl(path) {
-    const top = this.flow.querySelector(`:scope > [data-bi="${path[0]}"]`);
+    const top = this.flow.querySelector(`[data-bi="${path[0]}"]`);
     if (!top || path.length === 1) return top;
     const td = top.querySelector(`[data-r="${path[1]}"][data-c="${path[2]}"]`);
     return td ? [...td.children].filter((x) => x.dataset.p !== undefined)[path[3]] || null : null;
   }
 
   pathOf(pEl) {
-    if (pEl.parentElement === this.flow) return [Number(pEl.dataset.bi)];
+    if (pEl.dataset.bi !== undefined) return [Number(pEl.dataset.bi)];
     const td = pEl.closest("[data-r]");
     const top = td?.closest("[data-bi]");
     if (!td || !top) return null;
@@ -629,6 +677,11 @@ export class OfficeEditor {
     });
     f.addEventListener("drop", (e) => this.#drop(e));
     f.addEventListener("click", (e) => {
+      const toc = e.target.closest?.(".of-oed__toc-item");
+      if (toc) {
+        const path = [Number(toc.dataset.target)];
+        return this.setSelection({ anchor: { path, offset: 0 }, focus: { path, offset: 0 } });
+      }
       const a = e.target.closest?.("a.of-oed__link");
       if (a && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
@@ -636,7 +689,7 @@ export class OfficeEditor {
       } else if (a) e.preventDefault();
     });
     f.addEventListener("mousedown", (e) => {
-      const img = e.target.closest?.(".of-oed__img");
+      const img = e.target.closest?.(".of-oed__img, .of-oed__tbox");
       if (img) {
         e.preventDefault();
         this.#selectAtom(img);
@@ -645,6 +698,11 @@ export class OfficeEditor {
     f.addEventListener("dblclick", (e) => {
       const fn = e.target.closest?.("[data-fn]");
       if (fn) return this.editFootnote(fn.dataset.fn);
+      const box = e.target.closest?.(".of-oed__tbox");
+      if (box) {
+        this.#selectAtom(box);
+        return this.app.run("office.editTextBox");
+      }
       if (e.target.closest?.(".of-oed__img")) this.app.run("office.imageProperties");
     });
     f.addEventListener("contextmenu", (e) => {
@@ -694,7 +752,7 @@ export class OfficeEditor {
     let m = this.model;
     const from = { path, offset: a };
     m = M.deleteRange(m, from, { path, offset: modelText.length - b }).doc;
-    const marks = this.pending?.marks || M.marksAt(M.getBlock(m, path).runs, a);
+    const marks = this.#trackMarks(this.pending?.marks || M.marksAt(M.getBlock(m, path).runs, a));
     const r = M.insertText(m, from, inserted, marks);
     this.cache.delete(p); // the DOM of the old paragraph was changed by the IME
     this.commit(r.doc, { label: "Typing", sel: r.pos, coalesce: "office-typing" });
@@ -803,17 +861,30 @@ export class OfficeEditor {
 
   // ------------------------------------------------------------------------------------------ editing operations
 
+  /** Author name of tracked changes, or null when Track changes is off (design.js ▸ trackDelete). */
+  trackAuthor() {
+    return this.model.trackChanges ? this.app.prefs.collabNick || this.model.meta.author || "Author" : null;
+  }
+
+  /** Typed text is an insertion of the current author while tracking, and never inherits a neighbor's revision. */
+  #trackMarks(marks) {
+    const { ins: _i, del: _d, ...rest } = marks || {};
+    const author = this.trackAuthor();
+    return author ? { ...rest, ins: author } : rest;
+  }
+
   insertText(text, label = "Typing") {
     if (!text) return;
     let m = this.model;
     let pos = this.sel.focus;
+    const author = this.trackAuthor();
     if (!this.collapsed) {
       const [a, b] = this.range;
-      ({ doc: m, pos } = M.deleteRange(m, a, b));
+      ({ doc: m, pos } = author && M.samePath(a.path, b.path) ? D.trackDelete(m, a, b, author) : M.deleteRange(m, a, b));
     }
     const p = M.getBlock(m, pos.path);
     if (!p || p.type !== "paragraph") return;
-    const marks = this.pending && (!this.pending.at || M.comparePos(this.pending.at, pos) === 0) ? this.pending.marks : M.marksAt(p.runs, pos.offset);
+    const marks = this.#trackMarks(this.pending && (!this.pending.at || M.comparePos(this.pending.at, pos) === 0) ? this.pending.marks : M.marksAt(p.runs, pos.offset));
     const r = M.insertText(m, pos, text, marks);
     this.commit(r.doc, { label, sel: r.pos, coalesce: label === "Typing" ? "office-typing" : null });
   }
@@ -842,9 +913,10 @@ export class OfficeEditor {
 
   deleteBy(type) {
     const m = this.model;
+    const author = this.trackAuthor();
     if (!this.collapsed) {
       const [a, b] = this.range;
-      const r = M.deleteRange(m, a, b);
+      const r = author ? D.trackDelete(m, a, b, author) : M.deleteRange(m, a, b);
       return this.commit(r.doc, { label: "Delete", sel: r.pos });
     }
     const pos = this.sel.focus;
@@ -868,6 +940,12 @@ export class OfficeEditor {
     else len = clusterLen(text, pos.offset, back);
     const a = back ? { path: pos.path, offset: pos.offset - len } : pos;
     const b = back ? pos : { path: pos.path, offset: pos.offset + len };
+    if (author) {
+      // tracked: the text stays, struck through; the caret moves before it (backward) or past it (forward)
+      const gone = D.removedLength(p, a.offset, b.offset, author);
+      const r = D.trackDelete(m, a, b, author);
+      return this.commit(r.doc, { label: "Delete", sel: back ? a : { path: pos.path, offset: b.offset - gone }, coalesce: "office-delete" });
+    }
     const r = M.deleteRange(m, a, b);
     this.commit(r.doc, { label: "Delete", sel: r.pos, coalesce: /Word|Line/.test(type) ? null : "office-delete" });
   }

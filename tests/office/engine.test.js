@@ -262,8 +262,11 @@ test("DOCX: reads documents written by other tools (complex fields, vMerge, styl
   assert.equal(doc.blocks[1].list?.kind, "bullet");
   const p = doc.blocks[2];
   assert.equal(p.runs.find((r) => r.text === "site").link, "https://openfini.example/");
-  assert.equal(M.paraText(p), "site added");
-  assert.ok(report.items.some((i) => i.status === "dropped" && /deletions/.test(i.text)));
+  // tracked changes stay as revisions (engine/office/design.js): the deletion is kept, marked, until accepted
+  assert.equal(M.paraText(p), "site addedgone");
+  assert.equal(p.runs.find((r) => r.text === " added").ins, "Unknown");
+  assert.equal(p.runs.find((r) => r.text === "gone").del, "Unknown");
+  assert.ok(report.items.some((i) => i.status === "kept" && /tracked changes/i.test(i.text)));
   const t = doc.blocks[3];
   assert.equal(t.rows[0].cells[0].rowspan, 2);
   assert.equal(t.rows[1].cells.length, 1);

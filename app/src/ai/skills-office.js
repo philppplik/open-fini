@@ -6,7 +6,7 @@
 const WRITE_REPORT = `---
 name: write-report
 description: Write a structured report in the Office Document app - title, executive summary, sections with headings, data tables (optionally from an open spreadsheet), page numbers - and optionally a matching slide deck.
-allowed-tools: office_new_document, office_read_document, office_list_sections, office_read_section, office_insert_blocks, office_rewrite_section, office_insert_table, office_sheet_to_document, office_set_page_setup, office_set_style, office_document_to_slides, office_list_documents, office_export, ask_user, search_knowledge
+allowed-tools: office_new_document, office_read_document, office_list_sections, office_read_section, office_insert_blocks, office_rewrite_section, office_insert_table, office_sheet_to_document, office_set_page_setup, office_set_style, office_insert_toc, office_table_style, office_document_to_slides, office_list_documents, office_export, ask_user, search_knowledge
 tags: [office, writing, report]
 when-to-use: report, status report, analysis, white paper, findings, quarterly review
 ---
@@ -18,7 +18,7 @@ when-to-use: report, status report, analysis, white paper, findings, quarterly r
 3. Write the skeleton first with office_insert_blocks markdown: # Title, then ## Executive summary, ## Background, ## Findings, ## Recommendations, ## Next steps.
 4. Fill each section with office_rewrite_section (body only). Executive summary: 3 to 5 sentences with the main conclusion first.
 5. Data: when a spreadsheet is open (office_list_documents), insert its range with office_sheet_to_document after the matching heading; otherwise office_insert_table.
-6. office_set_page_setup footer "Page {PAGE} of {PAGES}", header with the report name.
+6. office_set_page_setup footer "Page {PAGE} of {PAGES}", header with the report name; office_insert_toc after the title when the report has more than three sections.
 7. Offer office_document_to_slides for a briefing deck and office_export to docx or pdf.
 
 ## Watch out
@@ -260,6 +260,34 @@ when-to-use: analyze data, pivot, summarize by, top 10, unique values, dropdown,
 ## Verify
 Take a screenshot of the result and look at it as the reader will. Then: sheet_read_range on the pivot (totals equal the sum of the source column) and on the spill anchors (no #SPILL!, #NAME? or #VALUE!); sheet_describe lists the table, names and validation.`;
 
+const DESIGN_DOC = `---
+name: design-document
+description: Give a text document a designed look - theme (fonts and colors), style set, styled tables, a table of contents, a newsletter-style two-column section with a sidebar text box - or start from the designed newsletter and proposal templates; also review tracked changes.
+allowed-tools: office_new_document, office_read_document, office_list_sections, office_set_style, office_apply_design, office_update_style, office_table_style, office_insert_section_break, office_insert_text_box, office_insert_toc, office_track_changes, office_design_info, office_table_edit, office_insert_styled_table, office_check_accessibility, ask_user
+tags: [office, design, layout, word]
+when-to-use: make it look professional, design, theme, newsletter, brochure-style document, table of contents, columns, sidebar, callout, table styles, tracked changes, review edits
+---
+# Design a document
+
+## Workflow
+1. office_read_document. For a new newsletter or proposal start with office_new_document template newsletter or proposal instead of building the layout by hand.
+2. Structure first: real heading styles (office_set_style) so the outline and table of contents work.
+3. office_apply_design with one theme (office for neutral business, classic or elegant for formal, modern or ocean for tech, bold for marketing, minimal for reports) and a style set (airy for short reading, compact for long reference, formal for contracts).
+4. Start with office_design_info. Tables: office_table_style with accent (follows the theme) or light; header true, banded true, total true when the last row sums up. office_table_edit sorts, adds a computed total row or fits the table to the page; office_insert_styled_table adds a new styled table in one call.
+5. Long documents (more than three headings): office_insert_toc after the title.
+6. Newsletter-style pages: office_insert_section_break columns 2 before the body and columns 1 after it; one office_insert_text_box per page at most, anchored to a long body paragraph.
+7. To fix one heading look everywhere: format one example, then office_update_style with its index.
+8. Review: office_track_changes list, then accept or reject only what the user decided.
+
+## Watch out
+- Direct run formatting (fonts, colors) wins over the theme: remove it before judging the theme.
+- Multi-column sections and text boxes are only kept in Word documents; other formats get one column and indented paragraphs.
+- A multi-column section must stay shorter than a page in the editor.
+- Never accept or reject tracked changes without the user asking.
+
+## Verify
+Take a screenshot of the result and look at it as the reader will. Then: office_read_document shows the theme, the toc block and tableStyle on the tables; office_check_accessibility reports no low-contrast text after the theme change.`;
+
 /** Office Suite skills (part 3 of the built-in library). */
 const BOARD_MATH = `---
 name: whiteboard-math-lesson
@@ -373,5 +401,5 @@ when-to-use: explain how something works, visual explanation, teach a concept, s
 ## Verify
 Take a screenshot of the result and look at it as the reader will. Then: board_describe for each page: every shape on the overview has a sub-board card or is self-explanatory, nothing overlaps.`;
 
-export const OFFICE_SKILLS = [WRITE_REPORT, POLISH, BUDGET, PITCH, CLEAN_DATA, BRAINSTORM, A11Y_DOC, TRANSLATE, MEETING, ANALYZE_SHEET, BOARD_MATH, BOARD_DATA, BOARD_DIAGRAM, BOARD_EXPLAINER];
+export const OFFICE_SKILLS = [WRITE_REPORT, POLISH, BUDGET, PITCH, CLEAN_DATA, BRAINSTORM, A11Y_DOC, TRANSLATE, MEETING, ANALYZE_SHEET, BOARD_MATH, BOARD_DATA, BOARD_DIAGRAM, BOARD_EXPLAINER, DESIGN_DOC];
 

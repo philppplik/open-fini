@@ -325,6 +325,25 @@ note: the mistakes models typically make with the tool and which describe/read t
 | `sheet_format_table`, `sheet_define_name`, `sheet_set_validation`, `sheet_paste_special`, `sheet_group`, `sheet_page_setup`, `sheet_pivot`, `sheet_add_sparkline` | Spreadsheet depth: table styles with a total row, defined names, drop-down and number validation, paste special, row/column groups, page setup, pivot-lite, sparklines ([office-sheet.md](office-sheet.md#tables-validation-and-data-tools)) |
 | `sheet_chart_data` | Categories and series of a range of any open spreadsheet, for charts and tables in other apps (read-only) |
 
+### Office design and review tools
+
+Design, tables and review of text documents (`vibe/tools/office-design.js`, pure logic in `engine/office/design.js`,
+user guide: [office-studio.md](office-studio.md#design-and-review)). Every description has a *Watch out* note; each
+edit is one undo step.
+
+| Tool | What it does |
+| --- | --- |
+| `office_design_info` | Current theme, table styles, sections, TOC, floating objects, tracked changes; ids of all themes, style sets and table styles (read-only) |
+| `office_apply_design` | Theme (`office`, `classic`, `modern`, `elegant`, `bold`, `minimal`, `ocean`) and/or style set (`default`, `compact`, `airy`, `formal`) |
+| `office_update_style` | Update a style to match an example paragraph (direct formatting moves into the style) |
+| `office_table_style` | Gallery style on a table: header row, banded rows, first column, total row |
+| `office_table_edit` | Sort by a column, total row, distribute or fit columns, set widths, insert or delete rows and columns, header on/off |
+| `office_insert_styled_table` | A styled table from rows of text in one call, optional total row |
+| `office_insert_section_break` | Section break with 1-4 columns, continuous or next page |
+| `office_insert_text_box` | Floating text box anchored to a paragraph (wrap left, right or in line, fill, border) |
+| `office_insert_toc` | Generated table of contents after the title |
+| `office_track_changes` | Track changes on/off, list, accept or reject (all, by id, author or kind) |
+
 ## Permissions
 
 | Mode | Behavior |
@@ -392,9 +411,10 @@ instructions. The assistant sees only the catalog and loads a skill when a task 
 skills cost almost no context. 35 are built in, including workflow skills for design systems, responsive sites from a
 brief, photo compositing, icon sets, presentations, print brochures, social campaign kits, mobile UI mockups, data
 reports, code refactoring, SEO, accessibility fixes, localization, brands from a logo, CSS animation and
-`multi-agent-project-lead` (how to split work across sub-agents), plus ten Office skills (`write-report`,
+`multi-agent-project-lead` (how to split work across sub-agents), plus eleven Office skills (`write-report`,
 `polish-document`, `build-budget-sheet`, `make-pitch-deck`, `clean-data`, `brainstorm-to-board`,
-`accessibility-check-document`, `translate-document-keeping-format`, `meeting-notes`, `analyze-sheet-data`), each with a *Watch out* and a
+`accessibility-check-document`, `translate-document-keeping-format`, `meeting-notes`, `analyze-sheet-data`,
+`design-document`), each with a *Watch out* and a
 *Verify* section.
 
 - `/skill-name` starts a skill; skills with parameters open a small form. A chip suggests a matching skill while you type.
