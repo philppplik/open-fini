@@ -213,7 +213,7 @@
   font-size: 12px; color: var(--of-text-dim); border-right: 1px solid var(--of-border-soft); position: relative;
 }
 .of-etab:hover { background: var(--of-hover); color: var(--of-text); }
-.of-etab.active { background: var(--of-editor-bg); color: var(--of-text); }
+.of-etab.active { background: var(--of-editor-bg); color: var(--of-editor-fg, var(--of-text)); }
 .of-etab.active::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--of-accent); }
 .of-etab__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .of-etab__name small { color: var(--of-text-faint); }
@@ -227,14 +227,14 @@
 .of-editor__empty p { margin: 2px; }
 
 /* CodeMirror */
-.of-editor .cm-editor { background: var(--of-editor-bg); color: var(--of-text); font-size: var(--of-code-font-size, 13px); outline: none; }
+.of-editor .cm-editor { background: var(--of-editor-bg); color: var(--of-editor-fg, var(--of-text)); font-size: var(--of-code-font-size, 13px); outline: none; }
 .of-editor .cm-editor.cm-focused { outline: none; }
 .of-editor .cm-scroller { font-family: var(--of-mono); line-height: 1.55; scrollbar-width: thin; }
-.of-editor .cm-content { caret-color: var(--of-accent); padding: 8px 0; }
-.of-editor .cm-cursor, .of-editor .cm-dropCursor { border-left-color: var(--of-accent); border-left-width: 2px; }
+.of-editor .cm-content { caret-color: var(--of-editor-cursor, var(--of-accent)); padding: 8px 0; }
+.of-editor .cm-cursor, .of-editor .cm-dropCursor { border-left-color: var(--of-editor-cursor, var(--of-accent)); border-left-width: 2px; }
 .of-editor .cm-gutters { background: var(--of-editor-bg); color: var(--of-editor-gutter); border: 0; padding-right: 4px; }
 .of-editor .cm-activeLine { background: var(--of-editor-line); }
-.of-editor .cm-activeLineGutter { background: var(--of-editor-line); color: var(--of-text); }
+.of-editor .cm-activeLineGutter { background: var(--of-editor-line); color: var(--of-editor-fg, var(--of-text)); }
 .of-editor .cm-selectionBackground, .of-editor .cm-editor.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .of-editor ::selection { background: var(--of-editor-select) !important; }
 .of-editor .cm-selectionMatch { background: rgba(255, 200, 80, 0.22); }
 .of-editor .cm-matchingBracket { background: var(--of-accent-soft); outline: 1px solid var(--of-accent); color: inherit !important; }
@@ -267,7 +267,7 @@
 .of-editor .tok-string, .of-editor .tok-string2, .of-editor .tok-regexp, .of-editor .tok-character { color: var(--of-syn-string); }
 .of-editor .tok-number, .of-editor .tok-bool, .of-editor .tok-atom, .of-editor .tok-null, .of-editor .tok-integer, .of-editor .tok-float, .of-editor .tok-unit { color: var(--of-syn-number); }
 .of-editor .tok-comment, .of-editor .tok-lineComment, .of-editor .tok-blockComment { color: var(--of-syn-comment); font-style: italic; }
-.of-editor .tok-variableName { color: var(--of-text); }
+.of-editor .tok-variableName { color: var(--of-editor-fg, var(--of-text)); }
 .of-editor .tok-variableName.tok-definition, .of-editor .tok-function { color: var(--of-syn-function); }
 .of-editor .tok-propertyName { color: var(--of-syn-prop); }
 .of-editor .tok-propertyName.tok-definition { color: var(--of-syn-prop); }

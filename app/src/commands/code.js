@@ -76,6 +76,7 @@ export function registerCodeCommands(app) {
   def("code.newLatex", "New LaTeX Document", () => import("../ui/code/mdsite.js").then((m) => m.newDocument(ws(), "tex")), { icon: "file-earmark-text" });
 
   // ---- editing
+  def("code.syntaxTheme", "Syntax Color Theme…",(a) => import("../ui/code/editor-settings.js").then((m) => m.openSyntaxThemeDialog(a)), { enabled: () => true, icon: "palette" });
   def("code.format", "Format Document", () => ws().editors.format(), { shortcut: "Shift+Alt+F", icon: "text-indent-left" });
   def("code.formatSelection", "Format Selection", () => ws().editors.formatSelection(), { icon: "text-indent-left" });
   def("code.syncHighlight", "Sync Highlighting between Preview and Code", (a) => a.setPref("codeSyncHighlight", !a.prefs.codeSyncHighlight), { checked: (a) => a.prefs.codeSyncHighlight !== false });

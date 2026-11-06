@@ -188,7 +188,7 @@ export function settingsSections(app) {
       label: "Code studio",
       icon: "code-slash",
       lead: "The code editor and the website preview.",
-      keywords: "editor tab size word wrap font format save preview scripts website",
+      keywords: "editor tab size word wrap font format save preview scripts website syntax theme colors highlighting suggestions autocomplete completion intellisense snippets hover color picker swatch path",
       groups: [
         {
           title: "Editor",
@@ -202,6 +202,26 @@ export function settingsSections(app) {
             num("codeLineWidth", "Formatter line width", 40, 240, 10, "", "Long HTML start tags wrap one attribute per line beyond this width."),
             seg("codeQuoteStyle", "Attribute quotes", [{ value: "keep", label: "Keep", text: "Keep" }, { value: "double", label: "Double", text: '"' }, { value: "single", label: "Single", text: "'" }], "HTML formatter only; never changes a value that contains the chosen quote."),
             sw("codeSyncHighlight", "Sync highlighting between preview and code", "Hovering or selecting an element highlights its source lines; the caret in a CSS rule outlines the elements it matches."),
+          ],
+        },
+        { title: "Syntax colors", items: [{ type: "custom", label: "Syntax color theme", render: () => codeEditorBlock("syntaxThemeSettings", app) }] },
+        {
+          title: "Suggestions",
+          items: [
+            sw("codeSuggest", "Code suggestions", "Completions for tags, properties, classes, files and your snippets. Off also turns off Ctrl+Space."),
+            { ...sw("codeSuggestOnType", "Show suggestions while typing", "Off: suggestions open only with Ctrl+Space."), when: () => app.prefs.codeSuggest !== false },
+            { ...num("codeSuggestDelay", "Suggestion delay", 0, 2000, 50, "ms", "How long typing pauses before suggestions open."), when: () => app.prefs.codeSuggest !== false && app.prefs.codeSuggestOnType !== false },
+            { ...sw("codeSuggestWords", "Suggest words from the file", "Names already used in the open file, ranked after the language's own suggestions."), when: () => app.prefs.codeSuggest !== false },
+            { ...sw("codeSuggestProject", "Suggest names from the project", "Classes and ids of your pages in CSS selectors, querySelector() and getElementById(), and the colors your stylesheets already use."), when: () => app.prefs.codeSuggest !== false },
+            { type: "custom", label: "Your snippets", render: () => codeEditorBlock("snippetSettings", app) },
+          ],
+        },
+        {
+          title: "Hover and swatches",
+          items: [
+            sw("codeHoverColors", "Color picker on hover", "Hover a color value to see it and change it with a picker; the value keeps its notation (hex, rgb() or hsl())."),
+            sw("codeColorSwatches", "Inline color swatches", "A small swatch in front of every color value. Click it to open the picker."),
+            sw("codeHoverPaths", "File preview on hover", "Hover a local path (src, href, url(), import) to preview the file and open it. Ctrl+click (Cmd+click) opens it directly."),
           ],
         },
         {
@@ -291,6 +311,13 @@ export function settingsSections(app) {
 }
 
 /** Chat bubble settings with a live preview (lazy: ui/vibe/bubble-settings.js). */
+/** A Code studio editor settings block (ui/code/editor-settings.js, loaded on demand). */
+function codeEditorBlock(exportName, app) {
+  const host = h("div");
+  import("./code/editor-settings.js").then((m) => host.replaceChildren(m[exportName](app)));
+  return host;
+}
+
 function bubbleSettingsHost(app) {
   const host = h("div.of-set__bubbles");
   import("./vibe/bubble-settings.js").then((m) => host.replaceChildren(m.bubbleSettingsPane(app)));
