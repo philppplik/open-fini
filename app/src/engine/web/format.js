@@ -7,25 +7,60 @@
 //     tag is optional and missing in the source stay without one. Limit: CSS `white-space: pre*` on a normal element
 //     is not known to the formatter.
 //   * CSS: delegates to `formatCss` (css.js).
-//   * JavaScript: line re-indentation by bracket depth, trailing whitespace, blank-line collapsing. No AST, no token
-//     is added, removed or moved, strings, template literals, comments and regex literals are never touched.
+//   * JavaScript: the token-based beautifier of js-format.js (spacing, one statement per line, blocks and long objects
+//     broken over lines, source line breaks kept). When its result cannot be proven to be the same program, and for
+//     TypeScript / JSX files or with `jsStyle: "reindent"`, the older line re-indentation is used: re-indentation by
+//     bracket depth, trailing whitespace, blank-line collapsing; strings, templates, comments and regex never touched.
 //   * JSON: parse + pretty print (fails on comments/trailing commas: the caller gets { ok: false }).
 //   * Markdown: trailing whitespace, blank lines around headings, `#Title` -> `# Title`; fenced code is untouched.
 //
 // Public API
-//   DEFAULT_FORMAT_OPTIONS = { indentSize: 2, useTabs: false, lineWidth: 100, quote: "keep" }
+//   DEFAULT_FORMAT_OPTIONS   every option with its default (below); FORMAT_PRESETS   named option sets
 //   formatHtml / formatJs / formatJson / formatMarkdown (text, opts) -> string   (formatJson throws on invalid input)
 //   formatText(lang, text, opts) -> { ok, text, error? }    lang is a `languageOf` id ("html", "css", "javascript", ...)
 //   formatRange(lang, text, from, to, opts) -> { ok, from, to, insert, error? }   whole lines covering the selection
-//   canFormat(lang)
+//   minifyText(lang, text, opts) -> { ok, text, error? }    HTML, CSS, JavaScript and JSON
+//   canFormat(lang), canMinify(lang)
+// Options: indentSize, useTabs, lineWidth, quote (HTML attributes), maxBlankLines; per language htmlIndentSize,
+// cssIndentSize, jsIndentSize (0 = indentSize); HTML htmlWrapAttributes (auto | force | never), htmlVoidStyle (keep |
+// html | xhtml), htmlIndentRoot; CSS cssSelectorsPerLine, cssBlankLines, cssHexCase (keep | lower | upper); JavaScript
+// jsStyle (beautify | reindent), jsBraceStyle (collapse | allman), jsQuote (keep | double | single),
+// jsSpaceBeforeFunctionParen, jsObjectInline; path (a .ts / .tsx / .jsx path keeps the re-indentation).
+// Minify: keepLicense, minifyInlineScripts.
 // Invariants: format(format(x)) === format(x); output ends with exactly one "\n" (empty input stays empty).
-import { formatCss } from "./css.js";
+import { formatCss, minifyCss } from "./css.js";
+import { minifyHtml } from "./site.js";
+import { beautifyJs, minifyJs } from "./js-format.js";
 
-export const DEFAULT_FORMAT_OPTIONS = Object.freeze({ indentSize: 2, useTabs: false, lineWidth: 100, quote: "keep" });
+export const DEFAULT_FORMAT_OPTIONS = Object.freeze({
+  indentSize: 2, useTabs: false, lineWidth: 100, quote: "keep", maxBlankLines: 1,
+  htmlIndentSize: 0, cssIndentSize: 0, jsIndentSize: 0,
+  htmlWrapAttributes: "auto", htmlVoidStyle: "keep", htmlIndentRoot: true,
+  cssSelectorsPerLine: true, cssBlankLines: true, cssHexCase: "keep",
+  jsStyle: "beautify", jsBraceStyle: "collapse", jsQuote: "keep", jsSpaceBeforeFunctionParen: false, jsObjectInline: true,
+  keepLicense: true, minifyInlineScripts: true,
+});
+
+/** Named option sets (Code > Formatting Options). Each preset only lists what differs from DEFAULT_FORMAT_OPTIONS. */
+export const FORMAT_PRESETS = Object.freeze({
+  default: {},
+  prettier: { lineWidth: 80, quote: "double", htmlVoidStyle: "xhtml", cssHexCase: "lower", jsQuote: "double" },
+  standard: { jsQuote: "single", jsSpaceBeforeFunctionParen: true, cssHexCase: "lower" },
+  compact: { lineWidth: 140, maxBlankLines: 0, htmlWrapAttributes: "never", htmlIndentRoot: false, cssSelectorsPerLine: false, cssBlankLines: false },
+  spacious: { indentSize: 4, maxBlankLines: 2, htmlWrapAttributes: "force", jsBraceStyle: "allman" },
+});
+
+/** Options of a language: its own indentation size when set (htmlIndentSize, cssIndentSize, jsIndentSize). */
+function forLang(opts, lang) {
+  const key = lang === "javascript" ? "jsIndentSize" : lang === "html" ? "htmlIndentSize" : lang === "css" ? "cssIndentSize" : null;
+  const own = key && Number(opts?.[key]);
+  return own ? { ...opts, indentSize: own } : opts;
+}
 
 function norm(opts) {
   const o = { ...DEFAULT_FORMAT_OPTIONS, ...(opts || {}) };
   o.indentSize = Math.max(1, Math.min(8, Math.round(Number(o.indentSize)) || 2));
+  o.maxBlankLines = Number.isFinite(Number(o.maxBlankLines)) ? Math.max(0, Math.min(3, Math.round(Number(o.maxBlankLines)))) : 1;
   o.lineWidth = Math.max(40, Math.min(240, Math.round(Number(o.lineWidth)) || 100));
   o.useTabs = !!o.useTabs;
   o.unit = o.useTabs ? "\t" : " ".repeat(o.indentSize);
@@ -221,12 +256,15 @@ function formatHtmlImpl(source, o) {
     return `${a.name}=${quote}${a.value}${quote}`;
   };
   let atomDepth = 0; // indentation of the line an inline atom starts on (for wrapping long start tags inside runs)
+  // `<br>` or `<br />`: void elements follow htmlVoidStyle, other self-closing tags (SVG) stay as written
+  const ending = (el) => (VOID.has(el.tag) && o.htmlVoidStyle !== "keep" ? (o.htmlVoidStyle === "xhtml" ? " />" : ">") : el.selfClose ? " />" : ">");
+  const wrapAttrs = (el, width) => el.attrs.length >= 2 && o.htmlWrapAttributes !== "never" && (o.htmlWrapAttributes === "force" || width > o.lineWidth);
   const inlineOpen = (el) => {
     const one = openTag(el);
-    if (el.attrs.length < 2 || pad(atomDepth).length + one.length <= o.lineWidth) return one;
-    return `<${el.rawTag}${el.attrs.map((a) => "\n" + pad(atomDepth + 1) + q(a)).join("")}${el.selfClose ? " />" : ">"}`;
+    if (!wrapAttrs(el, pad(atomDepth).length + one.length)) return one;
+    return `<${el.rawTag}${el.attrs.map((a) => "\n" + pad(atomDepth + 1) + q(a)).join("")}${ending(el)}`;
   };
-  const openTag = (el) => `<${el.rawTag}${el.attrs.map((a) => " " + q(a)).join("")}${el.selfClose ? " />" : ">"}`;
+  const openTag = (el) => `<${el.rawTag}${el.attrs.map((a) => " " + q(a)).join("")}${ending(el)}`;
 
   const isBlockish = (el) => {
     if (el.tag === "#stray") return false;
@@ -288,10 +326,10 @@ function formatHtmlImpl(source, o) {
   const hasNl = (list) => list.some((a) => a.s.includes("\n"));
   function emitTag(el, depth) {
     const one = openTag(el);
-    if (pad(depth).length + one.length <= o.lineWidth || el.attrs.length < 2) return [pad(depth) + one];
+    if (!wrapAttrs(el, pad(depth).length + one.length)) return [pad(depth) + one];
     const out = [`${pad(depth)}<${el.rawTag}`];
     for (const a of el.attrs) out.push(pad(depth + 1) + q(a));
-    out[out.length - 1] += el.selfClose ? " />" : ">";
+    out[out.length - 1] += ending(el);
     return out;
   }
   function rawBody(el, depth) {
@@ -300,7 +338,7 @@ function formatHtmlImpl(source, o) {
     if (el.tag === "style" && body.trim()) return { text: "\n" + formatCssLines(body, depth + 1, o) + pad(depth), block: true };
     if (el.tag === "script" && body.trim()) {
       const type = (el.attrs.find((a) => a.name.toLowerCase() === "type")?.value || "").toLowerCase();
-      if (type === "" || type.includes("javascript") || type === "module") return { text: "\n" + formatJsImpl(body, { ...o, baseDepth: depth + 1 }, true) + pad(depth), block: true };
+      if (type === "" || type.includes("javascript") || type === "module") return { text: "\n" + formatJsSmart(body, { ...o, baseDepth: depth + 1 }) + pad(depth), block: true };
       if (type.includes("json")) {
         try {
           return { text: "\n" + indentAll(JSON.stringify(JSON.parse(body), null, o.unit), pad(depth + 1)) + "\n" + pad(depth), block: true };
@@ -351,7 +389,7 @@ function formatHtmlImpl(source, o) {
       return;
     }
     out.push(...emitTag(el, depth));
-    emitChildren(el.children, depth + 1, out);
+    emitChildren(el.children, el.tag === "html" && !o.htmlIndentRoot ? depth : depth + 1, out);
     if (close) out.push(pad(depth) + close);
   }
   function emitChildren(children, depth, out) {
@@ -397,8 +435,10 @@ function formatHtmlImpl(source, o) {
 
 const indentAll = (text, p) => text.split("\n").map((l) => (l ? p + l : l)).join("\n");
 
+const cssOptions = (o) => ({ indent: o.unit, selectorsPerLine: o.cssSelectorsPerLine !== false, blankLines: o.cssBlankLines !== false, hexCase: o.cssHexCase });
+
 function formatCssLines(body, depth, o) {
-  const css = formatCss(body, { indent: o.unit }).replace(/\n+$/, "");
+  const css = formatCss(body, cssOptions(o)).replace(/\n+$/, "");
   return indentAll(css, o.unit.repeat(depth)) + "\n";
 }
 
@@ -567,9 +607,18 @@ function formatJsImpl(source, o, fragment = false) {
   }
 }
 
-/** Re-indents JavaScript (and TypeScript/JSX at the line level). */
+/** The beautifier, or the line re-indentation for TypeScript / JSX, `jsStyle: "reindent"` and unprovable results. */
+function formatJsSmart(source, o) {
+  if (o.jsStyle !== "reindent" && !/\.(tsx?|jsx|mts|cts)$/i.test(o.path || "")) {
+    const r = beautifyJs(eol(source), { ...o, indentUnit: o.unit });
+    if (r != null) return r;
+  }
+  return formatJsImpl(source, o, true);
+}
+
+/** Formats JavaScript (TypeScript and JSX: re-indentation at the line level). */
 export function formatJs(text, opts) {
-  return formatJsImpl(text, norm(opts));
+  return formatJsSmart(text, norm(forLang(opts, "javascript")));
 }
 
 // ------------------------------------------------------------------------------------------------ JSON, Markdown
@@ -627,13 +676,13 @@ export const canFormat = (lang) => LANGS.has(lang);
 
 /** @returns {{ ok: boolean, text: string, error?: string }} */
 export function formatText(lang, text, opts) {
-  const o = norm(opts);
+  const o = norm(forLang(opts, lang));
   const src = String(text ?? "");
   try {
     switch (lang) {
       case "html": return { ok: true, text: formatHtmlImpl(src, o) };
-      case "css": return { ok: true, text: formatCss(eol(src), { indent: o.unit }) };
-      case "javascript": return { ok: true, text: formatJsImpl(src, o) };
+      case "css": return { ok: true, text: formatCss(eol(src), cssOptions(o)) };
+      case "javascript": return { ok: true, text: formatJsSmart(src, o) };
       case "json": return { ok: true, text: formatJson(src, o) };
       case "markdown": return { ok: true, text: formatMarkdown(src) };
       default: return { ok: false, text: src, error: "No formatter for this file type." };
@@ -648,6 +697,7 @@ export function formatText(lang, text, opts) {
  * HTML and JavaScript start at the indentation of the first selected line; CSS and JSON are indented afterwards.
  */
 export function formatRange(lang, text, from, to, opts) {
+  opts = forLang(opts, lang);
   const o = norm(opts);
   const s = String(text ?? "");
   const a = s.lastIndexOf("\n", Math.max(0, from) - 1) + 1;
@@ -666,4 +716,47 @@ export function formatRange(lang, text, from, to, opts) {
   if (!r.ok) return { ok: false, from: a, to: b, insert: slice, error: r.error };
   const insert = r.text.replace(/\n$/, "");
   return { ok: true, from: a, to: b, insert };
+}
+
+// ------------------------------------------------------------------------------------------------ minify
+
+const MIN_LANGS = new Set(["html", "css", "javascript", "json"]);
+export const canMinify = (lang) => MIN_LANGS.has(lang);
+
+/**
+ * Minifies a file. HTML: comments and insignificant whitespace (site.js minifyHtml), inline styles, and inline scripts
+ * with `minifyInlineScripts`; CSS: minifyCss; JavaScript: minifyJs (license comments stay with `keepLicense`); JSON:
+ * without whitespace. A script that cannot be minified safely is left as it is.
+ * @returns {{ ok: boolean, text: string, error?: string }}
+ */
+export function minifyText(lang, text, opts) {
+  const o = { ...DEFAULT_FORMAT_OPTIONS, ...(opts || {}) };
+  const src = eol(text);
+  try {
+    switch (lang) {
+      case "css": return { ok: true, text: minifyCss(src) };
+      case "json": return { ok: true, text: JSON.stringify(JSON.parse(src)) };
+      case "javascript": {
+        if (/\.(tsx?|jsx|mts|cts)$/i.test(o.path || "")) return { ok: false, text: src, error: "TypeScript and JSX files are not minified." };
+        const out = minifyJs(src, { keepLicense: o.keepLicense !== false });
+        return out == null ? { ok: false, text: src, error: "This script could not be minified safely." } : { ok: true, text: out };
+      }
+      case "html": {
+        let out = minifyHtml(src);
+        if (o.minifyInlineScripts !== false) {
+          out = out.replace(/(<script\b([^>]*)>)([\s\S]*?)(<\/script\s*>)/gi, (all, open, attrs, body, close) => {
+            if (/\bsrc\s*=/i.test(attrs) || !body.trim()) return all;
+            const type = (/\btype\s*=\s*["']?([^"'\s>]+)/i.exec(attrs)?.[1] || "").toLowerCase();
+            if (type && type !== "module" && !type.includes("javascript")) return all;
+            const js = minifyJs(body, { keepLicense: o.keepLicense !== false });
+            return js == null || /<\/script/i.test(js) ? all : open + js + close;
+          });
+        }
+        return { ok: true, text: out };
+      }
+      default: return { ok: false, text: src, error: "No minifier for this file type." };
+    }
+  } catch (err) {
+    return { ok: false, text: src, error: err.message };
+  }
 }

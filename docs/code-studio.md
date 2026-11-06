@@ -154,21 +154,55 @@ preview frame**. By definition they agree:
 ### Formatting
 
 *Format Document* (`Shift+Alt+F`, command `code.format`), *Format Selection* (`code.formatSelection`), *Format on save* and
-*Format pasted code* use the built-in, dependency-free formatters in `engine/web/format.js`. A formatter contributed by a VS Code
+*Format pasted code* use the built-in, dependency-free formatters in `engine/web/format.js` and `engine/web/js-format.js`. A formatter contributed by a VS Code
 extension still takes precedence for whole documents.
 
 | Language | What it does |
 | --- | --- |
 | HTML | Re-indents blocks, re-wraps inline text at the line width (a newline between inline items equals a space), wraps long start tags one attribute per line, keeps `<pre>`, `<textarea>`, `<title>`, comments, attribute values and the spacing between inline elements; script and style bodies are re-indented; optional end tags stay omitted |
-| CSS | One declaration per line, normalized spacing and blank lines (`formatCss`) |
-| JavaScript | Re-indents by bracket depth, trims trailing whitespace, collapses blank lines. No parser: strings, template literals, comments and regex literals are never touched, no tokens are added or moved |
+| CSS | One declaration per line, normalized spacing and blank lines (`formatCss`); selector lists one per line or on one line, blank lines between rules on or off, hex colors kept, lower or upper case (never inside `url()` or custom properties) |
+| JavaScript | **Beautify** (default, `engine/web/js-format.js`): a tokenizer that knows strings, template literals with nested `${}`, comments, regex literals and numbers; the printer normalizes spacing, puts statements and blocks on their own lines, keeps short objects inline and breaks long ones one property per line, indents `case` bodies, keeps `} else {`, `} catch` and `} while` together. **Re-indent only** (and always for `.ts`, `.tsx`, `.jsx`): re-indents by bracket depth, trims trailing whitespace, collapses blank lines |
 | JSON | Pretty print (invalid JSON, comments and trailing commas are reported, the file is left alone) |
 | Markdown | Trailing whitespace, hard breaks kept, blank lines around headings, fenced code untouched |
 
-Options (Settings ▸ Code studio): tab size, *Indent with tabs*, *Formatter line width* (default 100), *Attribute quotes* (keep, double,
-single; a value is never rewritten if it contains the chosen quote). Guarantees, tested in `tests/web/format.test.js`: formatting is
-idempotent and does not change the rendered structure (tags, attributes, collapsed text) of every starter template. Limit: CSS
-`white-space: pre` on an ordinary element is not known to the formatter. The Vibe tool `format_file` runs the same code.
+The beautifier's safety rules: after printing, the output is tokenized again and must have exactly the same tokens (string quotes
+may change only when the body has no quote or backslash), and every line break between two tokens in the source must still be there,
+so automatic semicolon insertion, `return` and postfix `++` keep their meaning. It never joins lines and adds line breaks only after
+`;`, `{`, `,` in broken objects and around `}`. If a check fails or the file cannot be tokenized (an unterminated string, `<!--` in a
+script, U+2028), the re-indentation is used instead. Tested in `tests/web/js-format.test.js`, including every module of the app's own
+`engine/web`, `ui/code` and `core` folders (formatted safely and idempotently).
+
+**Formatting options** (*Edit ▸ Formatting Options…*, command `code.formatOptions`, also in Settings ▸ Code studio): a preset and
+per-language options with a live before/after sample, stored in the `codeFormat` preference as `{ preset, ...values }`. Your own
+values win over the preset; the preset wins over the editor settings (tab size, *Indent with tabs*, *Formatter line width*,
+*Attribute quotes*). Choosing a preset clears your own values.
+
+| Preset | Differs from Default |
+| --- | --- |
+| Default | 2 spaces, width 100, 1 blank line, attributes wrapped when too long, quotes and void tags kept |
+| Prettier-like | width 80, double quotes in HTML and JavaScript, `<br />`, lower-case hex colors |
+| Standard-like | single quotes in JavaScript, `function name ()`, lower-case hex colors |
+| Compact | width 140, no blank lines, attributes never wrapped, `<head>`/`<body>` not indented inside `<html>`, selector lists on one line, no blank lines between rules |
+| Spacious | 4 spaces, 2 blank lines, attributes always one per line, braces on the next line (Allman) |
+
+| Tab | Options |
+| --- | --- |
+| General | indentation (1 to 8), tabs, line width (40 to 240), blank lines to keep (0 to 3) |
+| HTML | own indentation (0 = general), wrap attributes (when too long, always, never), empty elements (keep, `<br>`, `<br />`), attribute quotes, indent inside `<html>` |
+| CSS | own indentation, one selector per line, blank line between rules, hex colors (keep, lower, upper) |
+| JavaScript | own indentation, style (beautify, re-indent only), braces (same line, next line), string quotes (keep, double, single; a string containing a quote or backslash is never changed), space before function parentheses, short objects on one line |
+| Minify | keep license comments (`/*!`, `@license`, `@preserve`), minify inline scripts in HTML |
+
+**Minify** (`code.minify` *Minify File*, in place and undoable; `code.minifyCopy` *Minify into a .min File*, writes
+`name.min.ext` next to the file): HTML (comments and insignificant whitespace as in the website export, inline styles, inline scripts),
+CSS (`minifyCss`), JavaScript (`minifyJs`: comments and whitespace removed; a source line break stays a line break wherever both sides
+could end and start a statement, so semicolon insertion cannot change the program; the result is checked token by token and an
+unsafe script is left alone) and JSON. TypeScript and JSX are not minified; names are never shortened.
+
+Guarantees, tested in `tests/web/format.test.js`: formatting is idempotent and does not change the rendered structure (tags,
+attributes, collapsed text) of every starter template. Limit: CSS `white-space: pre` on an ordinary element is not known to the
+formatter; the beautifier does not wrap long expressions or call arguments (only objects). The Vibe tool `format_file` runs the same
+code with your options.
 
 ### Syntax colors, suggestions and hover popovers
 

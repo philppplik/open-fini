@@ -3,13 +3,14 @@
 // Visual tools edit files through `applyChanges`, which goes through the same history as typing.
 import * as CM from "../../../vendor/codemirror/codemirror.js";
 import { Emitter, h, empty, formatBytes } from "../../core/util.js";
-import { languageOf, parseHtml, parseCss, resolveRef, dirname, formatText, formatRange, canFormat } from "../../engine/web/index.js";
+import { languageOf, parseHtml, parseCss, resolveRef, dirname, formatText, formatRange, canFormat, minifyText, canMinify, FORMAT_PRESETS } from "../../engine/web/index.js";
 import { expandHtml, expandCss, abbreviationBefore } from "../../engine/web/emmet.js";
 import { tailwindClasses, BOOTSTRAP_CLASSES, TAILWIND_VARIANTS, splitVariant, attributeOptions, htmxValues } from "../../engine/web/index.js";
 import { LATEX_COMMANDS, LATEX_ENVIRONMENTS, latexCompletionContext, latexLabels, bibKeys } from "../../engine/web/index.js";
 import { fileIcon, fuzzyScore, trimmedChange } from "./util.js";
 import { markContext } from "../context-menu/index.js";
 import { registerCodeContext, openEditorMenu } from "./context.js";
+import { t } from "../../i18n/index.js";
 
 const SNIPPETS_HTML = [
   { label: "html5", detail: "HTML document", template: `<!doctype html>\n<html lang="en-US">\n  <head>\n    <meta charset="utf-8" />\n    <meta name="viewport" content="width=device-width, initial-scale=1" />\n    <title>\${Title}</title>\n    <link rel="stylesheet" href="css/style.css" />\n  </head>\n  <body>\n    \${}\n    <script src="js/main.js"></script>\n  </body>\n</html>\n` },
@@ -705,17 +706,23 @@ export class CodeEditors extends Emitter {
     }
   }
 
-  /** Options of the built-in formatter from the preferences (Settings > Code studio). */
-  formatOptions() {
+  /**
+   * Options of the built-in formatter: the editor preferences (Settings > Code studio), then the preset and your own
+   * values from Code > Formatting Options (`codeFormat`). `path` lets TypeScript and JSX keep the re-indentation.
+   */
+  formatOptions(path) {
     const p = this.app.prefs;
-    return { indentSize: this.web.settings.tabSize || 2, useTabs: !!p.codeUseTabs, lineWidth: p.codeLineWidth || 100, quote: p.codeQuoteStyle || "keep" };
+    const custom = p.codeFormat && typeof p.codeFormat === "object" ? p.codeFormat : {};
+    const preset = FORMAT_PRESETS[custom.preset] || {};
+    const { preset: _preset, ...own } = custom;
+    return { indentSize: this.web.settings.tabSize || 2, useTabs: !!p.codeUseTabs, lineWidth: p.codeLineWidth || 100, quote: p.codeQuoteStyle || "keep", ...preset, ...own, ...(path ? { path } : {}) };
   }
 
   #formatPasted(path, from, to) {
     if (path !== this.active || !this.view) return;
     const text = this.web.text(path);
     if (to > text.length) return;
-    const r = formatRange(languageOf(path), text, from, to, this.formatOptions());
+    const r = formatRange(languageOf(path), text, from, to, this.formatOptions(path));
     if (r.ok && r.insert !== text.slice(r.from, r.to)) this.applyChanges(path, [{ from: r.from, to: r.to, insert: r.insert }], { userEvent: "input.format" });
   }
 
@@ -727,7 +734,7 @@ export class CodeEditors extends Emitter {
     if (sel.empty) return this.format(path);
     if (!canFormat(lang)) return false;
     const text = this.web.text(path);
-    const r = formatRange(lang, text, sel.from, sel.to, this.formatOptions());
+    const r = formatRange(lang, text, sel.from, sel.to, this.formatOptions(path));
     if (!r.ok) {
       this.app.toast(`Cannot format the selection: ${r.error}`, "warning");
       return false;
@@ -748,7 +755,7 @@ export class CodeEditors extends Emitter {
     const text = this.web.text(path);
     const lang = languageOf(path);
     if (canFormat(lang)) {
-      const r = formatText(lang, text, this.formatOptions());
+      const r = formatText(lang, text, this.formatOptions(path));
       if (!r.ok) {
         this.app.toast(`Cannot format ${path}: ${r.error}`, "warning");
         return false;
@@ -762,6 +769,36 @@ export class CodeEditors extends Emitter {
     CM.indentSelection(v);
     v.dispatch({ selection: sel });
     return true;
+  }
+
+  /**
+   * Minifies a file (HTML, CSS, JavaScript, JSON): in place as one undoable edit, or with `copy` into "name.min.ext"
+   * next to it (replaced when it exists). Returns the path written, or null.
+   */
+  minify(path = this.active, { copy = false } = {}) {
+    if (!path || !this.web.isText(path)) return null;
+    const lang = languageOf(path);
+    if (!canMinify(lang)) {
+      this.app.toast(t("No minifier for this file type."), "warning");
+      return null;
+    }
+    const text = this.web.text(path);
+    const r = minifyText(lang, text, this.formatOptions(path));
+    if (!r.ok) {
+      const known = { "TypeScript and JSX files are not minified.": t("TypeScript and JSX files are not minified."), "This script could not be minified safely.": t("This script could not be minified safely.") };
+      this.app.toast(t("Cannot minify {path}: {error}", { path, error: known[r.error] || r.error }), "warning", 6000);
+      return null;
+    }
+    if (!copy) {
+      if (r.text !== text) this.applyChanges(path, [trimmedChange(text, r.text)], { userEvent: "input.format" });
+      return path;
+    }
+    const target = path.replace(/(\.min)?(\.[^./]+)$/, ".min$2");
+    if (target === path) return null;
+    if (this.web.has(target)) this.web.setText(target, r.text, "api");
+    else this.web.create(target, r.text);
+    this.app.toast(t("Minified into {path} ({before} → {after}).", { path: target, before: formatBytes(new TextEncoder().encode(text).length), after: formatBytes(new TextEncoder().encode(r.text).length) }), "success", 3000);
+    return target;
   }
 
   /** Quick-open style search over file paths. */

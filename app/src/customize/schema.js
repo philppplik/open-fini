@@ -183,6 +183,7 @@ export const SETTINGS = [
   { key: "codeHoverColors", section: "code", type: "boolean", label: "Color picker on hover", check: bool },
   { key: "codeHoverPaths", section: "code", type: "boolean", label: "File preview on hover", check: bool },
   { key: "codeColorSwatches", section: "code", type: "boolean", label: "Inline color swatches", check: bool },
+  { key: "codeFormat", section: "code", type: "json", label: "Formatter and minifier options ({ preset, ...values }, see docs/code-studio.md)", check: (v) => isObj(v) && Object.keys(v).length <= 40 && Object.values(v).every((x) => ["string", "number", "boolean"].includes(typeof x) && String(x).length <= 40) },
   { key: "codeSyncHighlight", section: "code", type: "boolean", label: "Sync highlighting between the preview and the code", check: bool },
   { key: "codeLayout", section: "code", type: "enum", options: ["auto", "codeLeft", "codeRight", "codeTop", "codeBottom"], label: "Split layout of the Code studio", check: oneOf("auto", "codeLeft", "codeRight", "codeTop", "codeBottom") },
   { key: "codeMeasureUnit", section: "code", type: "enum", options: ["px", "mm", "cm", "in", "pt", "rem", "em", "%"], label: "Measure tool unit", check: oneOf("px", "mm", "cm", "in", "pt", "rem", "em", "%") },

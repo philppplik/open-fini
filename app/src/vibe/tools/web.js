@@ -137,7 +137,7 @@ export function webTools(app) {
       if (text == null) throw new Error(`“${a.path}” does not exist. Call list_files.`);
       const lang = E.languageOf(a.path);
       if (!E.canFormat(lang)) throw new Error(`There is no formatter for ${lang} files (HTML, CSS, JavaScript, JSON and Markdown are supported).`);
-      const opts = ws.editors.formatOptions();
+      const opts = ws.editors.formatOptions(a.path);
       let change = null;
       if (a.startLine) {
         const lines = text.split("\n");

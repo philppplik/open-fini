@@ -200,6 +200,7 @@ export function settingsSections(app) {
             sw("codeFormatOnPaste", "Format pasted code", "Re-indents a pasted block of HTML, CSS, JavaScript or JSON to fit its surroundings."),
             sw("codeUseTabs", "Indent with tabs when formatting"),
             num("codeLineWidth", "Formatter line width", 40, 240, 10, "", "Long HTML start tags wrap one attribute per line beyond this width."),
+            { type: "action", label: "Formatting options", hint: "Presets (Prettier-like, Standard-like, compact, spacious) and per-language options for HTML, CSS and JavaScript, with a live sample; also the minifier.", button: "Open…", run: () => app.run("code.formatOptions") },
             seg("codeQuoteStyle", "Attribute quotes", [{ value: "keep", label: "Keep", text: "Keep" }, { value: "double", label: "Double", text: '"' }, { value: "single", label: "Single", text: "'" }], "HTML formatter only; never changes a value that contains the chosen quote."),
             sw("codeSyncHighlight", "Sync highlighting between preview and code", "Hovering or selecting an element highlights its source lines; the caret in a CSS rule outlines the elements it matches."),
           ],
