@@ -30,7 +30,7 @@ the thinking effort. The assistant always knows which layers you have selected, 
   **Activity**.
 * **Models and connections, Tools and MCP, Skills, Knowledge, Memory** moved to **Settings ▸ Artificial intelligence**
   (sub-tabs under *Vibe Studio*). Deep link for scripts and extensions:
-  `app.run("settings.open", { section: "ai", tab: "models" })` (`tab`: `models`, `tools`, `web`, `terminal`, `skills`, `knowledge`, `memory`, `logging`). The
+  `app.run("settings.open", { section: "ai", tab: "models" })` (`tab`: `models`, `tools`, `web`, `terminal`, `files`, `skills`, `knowledge`, `memory`, `voice`, `logging`). The
   old commands *Show Models and Connections* etc. open the same place.
 
 ## Mentions: `@`, `/` and `!`
@@ -419,8 +419,15 @@ or read and write) through the native folder picker; `local_list_folders`, `loca
 `local_write_file` work only inside them, ask on every call and are recorded in an audit log. Paths are checked by the
 desktop app itself (no `..` or symbolic-link escape). Details: [vibe-files.md](vibe-files.md).
 
-## Memory, context window and sub-threads
+## Voice
 
+*Settings ▸ Artificial intelligence ▸ Voice*: Vibe can read its replies aloud with on-device system voices and an
+expressive sentence-by-sentence reading; the microphone uses the system recognizer (Chromium-based browsers send the
+audio to an online service) or can be switched off; **voice chat** in the composer listens, sends when you stop
+talking and reads the answer. Local speech models (whisper.cpp) can be downloaded and verified, but their runtime is
+not bundled yet. Details and status: [vibe-voice.md](vibe-voice.md).
+
+## Memory, context window and sub-threads
 Vibe remembers preferences, facts and project context across chats (`remember`, `recall_memory`, `forget_memory`)
 and sends only the memories relevant to each request. Manage them under *Settings ▸ Artificial intelligence ▸
 Memory* (global off switch, switch per memory, pin, edit, delete, export and import). The composer's **Context
