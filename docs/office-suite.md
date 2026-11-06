@@ -259,8 +259,11 @@ All in `app/src/office/toolkit/`; module headers document the full API.
 
 ## Roadmap: Office depth
 
-Done: semantic section tools, cross-app tools (tables → sheet, sheet range → table, outline → slides), the
-accessibility check, nine Office skills and spreadsheet data bars ([vibe-studio.md](vibe-studio.md#office-semantic-and-cross-app-tools)).
+Done: semantic section tools, cross-app tools (tables → sheet, sheet range → table, outline → slides, board →
+document, sheet range → slide chart), the accessibility check, nine Office skills and spreadsheet data bars
+([vibe-studio.md](vibe-studio.md#office-semantic-and-cross-app-tools)); presentation slide master and layout editing,
+footers and slide numbers, mixed formatting in a text box, charts from sheet data, designed templates and a themes
+gallery ([office-slides.md](office-slides.md)).
 Still open, roughly by payoff:
 
 * **Document**: style gallery with update-from-selection, themes (font and color sets), visible multi-column layout and
@@ -271,6 +274,9 @@ Still open, roughly by payoff:
   setup and print, dynamic arrays with spilling, pivot-lite, sparklines and sheet chart data for other apps are done
   ([office-sheet.md](office-sheet.md#tables-validation-and-data-tools)); still open there: XLSX/ODS round trip of these
   features, an outline gutter, refreshable pivots.
-* **Presentation**: master and layout editing, slide numbers and footers, mixed formatting and bullet levels in one
-  text box, charts from sheet data (the data side is ready: `sheetChartData` / `sheet_chart_data`), more shapes, smart guides and distribute.
-* **Vibe**: board → document summary tool, sheet → chart report tool, per-tool *Watch out* notes on the older tools.
+* **Presentation**: master and layout editing, slide numbers and footers, mixed formatting, charts from sheet data,
+  designed templates and a themes gallery are done ([office-slides.md](office-slides.md)); still open: bullet levels in
+  one text box, font and size runs, native PowerPoint charts, more shapes, smart guides and distribute.
+* **Vibe**: board → document is done (`office_board_to_document`); still open: sheet → chart report tool, per-tool
+  *Watch out* notes on the older tools.
+

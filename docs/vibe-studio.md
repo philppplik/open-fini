@@ -317,6 +317,9 @@ note: the mistakes models typically make with the tool and which describe/read t
 | `office_tables_to_sheet` | Document tables into a new spreadsheet (one sheet per table, typed values, bold header) |
 | `office_sheet_to_document` | A range of an open spreadsheet as a formatted table in the active document (a snapshot) |
 | `office_document_to_slides` | The outline as a new deck: Title slide, one slide per heading, bullets from lists and first sentences |
+| `office_board_to_document` | A whiteboard as a new text document: a heading per page and frame, notes as bullets, connectors as "A → B" |
+| `slides_insert_chart` | A chart on a slide from a range of an open spreadsheet (a snapshot; `slides_refresh_charts` re-reads it) |
+
 | `sheet_add_rule` | Conditional formatting: data bars, color scale, comparisons |
 | `sheet_format_table`, `sheet_define_name`, `sheet_set_validation`, `sheet_paste_special`, `sheet_group`, `sheet_page_setup`, `sheet_pivot`, `sheet_add_sparkline` | Spreadsheet depth: table styles with a total row, defined names, drop-down and number validation, paste special, row/column groups, page setup, pivot-lite, sparklines ([office-sheet.md](office-sheet.md#tables-validation-and-data-tools)) |
 | `sheet_chart_data` | Categories and series of a range of any open spreadsheet, for charts and tables in other apps (read-only) |

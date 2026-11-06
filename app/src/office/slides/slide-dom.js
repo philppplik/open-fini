@@ -4,7 +4,9 @@
 import { h } from "../../core/util.js";
 import { t } from "../../i18n/index.js";
 import * as M from "./model.js";
-import { TEXT_PAD, LINE_HEIGHT } from "./render.js";
+import { TEXT_PAD, LINE_HEIGHT, chartItems } from "./render.js";
+import { measure } from "../../core/fonts.js";
+import { displayListToSVG } from "../../engine/backends/svg.js";
 
 export class MediaUrls {
   constructor() {
@@ -47,11 +49,37 @@ export function textNode(deck, e, { hints = false } = {}) {
     },
   });
   if (empty && hints && e.ph) el.append(h("div.of-sl-p.of-sl-hint", t(M.placeholderHint(e.ph))));
-  else el.append(...paragraphs(e.text, look.bullets));
+  else el.append(...paragraphs(e.text, look.bullets, e.spans));
   return el;
 }
 
-export const paragraphs = (text, bullets) => String(text || "").split("\n").map((p) => h(`div.of-sl-p${bullets && p.trim() ? ".is-bullet" : ""}`, p || "​"));
+/** Paragraph divs; with spans, formatted pieces become <span>s (offsets count the "\n" between paragraphs). */
+export function paragraphs(text, bullets, spans = null) {
+  let at = 0;
+  return String(text || "").split("\n").map((p) => {
+    const start = at;
+    at += p.length + 1;
+    const cls = `div.of-sl-p${bullets && p.trim() ? ".is-bullet" : ""}`;
+    if (!p || !spans?.length) return h(cls, p || "​");
+    return h(cls, ...M.spanSegments(text, spans, start, start + p.length).map((s) => (Object.keys(s.fmt).length ? h("span", { style: spanCss(s.fmt) }, s.text) : s.text)));
+  });
+}
+const spanCss = (f) => ({ fontWeight: f.bold === undefined ? null : f.bold ? "700" : "400", fontStyle: f.italic === undefined ? null : f.italic ? "italic" : "normal", textDecoration: f.underline === undefined ? null : f.underline ? "underline" : "none", color: f.color || null });
+
+/** A chart element as inline SVG (same display list as the PDF and PNG export). */
+function chartNode(deck, e) {
+  const box = h("div.of-sl-chart");
+  try {
+    const svg = displayListToSVG({ width: e.w, height: e.h, items: chartItems(deck, e, measure) });
+    const node = document.importNode(new DOMParser().parseFromString(svg, "image/svg+xml").documentElement, true);
+    node.setAttribute("aria-hidden", "true");
+    box.append(node);
+
+  } catch {
+    box.textContent = t("Chart not available");
+  }
+  return box;
+}
 
 function shapeSvg(e) {
   const NS = "http://www.w3.org/2000/svg";
@@ -73,8 +101,9 @@ function shapeSvg(e) {
 /** One element as a positioned node (data-id = element id). */
 export function elementNode(deck, e, urls, { hints = false } = {}) {
   const tf = [`rotate(${e.rot || 0}deg)`, e.flipH || e.flipV ? `scale(${e.flipH ? -1 : 1}, ${e.flipV ? -1 : 1})` : ""].join(" ");
-  const node = h(`div.of-sl-el.is-${e.type}`, { "data-id": e.id, style: { left: `${e.x}px`, top: `${e.y}px`, width: `${e.w}px`, height: `${Math.max(e.h, 1)}px`, transform: tf } });
-  if (e.type === "image") {
+  const node = h(`div.of-sl-el.is-${e.type}${e.master ? ".is-master" : ""}`, { "data-id": e.master ? null : e.id, style: { left: `${e.x}px`, top: `${e.y}px`, width: `${e.w}px`, height: `${Math.max(e.h, 1)}px`, transform: tf } });
+  if (e.type === "chart") node.append(chartNode(deck, e));
+  else if (e.type === "image") {
     const src = urls?.url(deck, e.media);
     node.append(src ? h("img.of-sl-img", { src, alt: deck.media[e.media]?.name || "", draggable: "false" }) : h("div.of-sl-missing", t("Picture not available")));
   } else if (e.type === "table") {
@@ -95,7 +124,8 @@ export function elementNode(deck, e, urls, { hints = false } = {}) {
 export function slideNode(deck, slide, urls, { hints = false } = {}) {
   const bg = slide.background?.media ? urls?.url(deck, slide.background.media) : null;
   const el = h("div.of-sl-slide", { style: { width: `${deck.size.w}px`, height: `${deck.size.h}px`, background: slide.background?.color || deck.theme.bg, backgroundImage: bg ? `url("${bg}")` : null } });
-  el.append(...slide.elements.map((e) => elementNode(deck, e, urls, { hints })));
+  el.append(...M.renderElements(deck, slide).map((e) => elementNode(deck, e, urls, { hints: hints && !e.master })));
+
   return el;
 }
 

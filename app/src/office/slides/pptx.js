@@ -11,7 +11,8 @@
 import { readZip, writeZip, text as zipText } from "../../engine/office/zip.js";
 import { parseXml, child, children, find, findAll, attr, esc, escAttr } from "../../engine/office/xml.js";
 import { sniffImage, imageSize } from "../../engine/office/media.js";
-import { normalizeDeck, layoutOf, newId } from "./model.js";
+import { normalizeDeck, layoutOf, layoutPh, newId, spanSegments } from "./model.js";
+
 
 const EMU = 9525; // per px
 const px = (v) => Math.round((Number(v) || 0) / EMU);
@@ -225,7 +226,7 @@ export function readPptx(bytes, { report } = {}) {
     const bg = backgroundOf(doc, path) || L.bg || Mst.bg;
     slides.push({ id: newId("s"), layout: LAYOUT_TYPE[L.type] || (elements.some((e) => e.ph === "body") ? "title-content" : elements.some((e) => e.ph === "title") ? "title-only" : "blank"), background: bg, elements, notes, transition, ...(attr(root, "show") === "0" ? { hidden: true } : {}) });
   }
-  if (mixed) report?.flattened("Mixed text formatting inside a text box was reduced to one style per box.");
+  if (mixed) report?.flattened("Mixed font sizes or typefaces inside a text box were reduced to one per box.");
   if (Object.keys(entries).some((k) => k.startsWith("ppt/comments/") || k.startsWith("ppt/comments"))) report?.dropped("PowerPoint comments were left out.");
   const core = xml("docProps/core.xml");
   const deck = normalizeDeck({ size, theme, meta: { title: (find(core, "title") && textOfEl(find(core, "title"))) || "" }, slides, media });
@@ -315,7 +316,7 @@ function readShape(sp, ctx, place) {
   const strokeWidth = ln && attr(ln, "w") ? Math.max(0.5, Number(attr(ln, "w")) / EMU) : stroke ? 1 : 0;
   const tx = readText(child(sp, "txBody"), ctx, role);
   const isText = !!ph || attr(find(nv, "cNvSpPr"), "txBox") === "1" || (shape === "rect" && !fill && !stroke);
-  return { type: isText && shape === "rect" ? "text" : "shape", shape, ...(role ? { ph: role } : {}), ...place(box), fill, stroke, strokeWidth: stroke ? strokeWidth : 0, text: tx.text, style: tx.style };
+  return { type: isText && shape === "rect" ? "text" : "shape", shape, ...(role ? { ph: role } : {}), ...place(box), fill, stroke, strokeWidth: stroke ? strokeWidth : 0, text: tx.text, ...(tx.spans ? { spans: tx.spans } : {}), style: tx.style };
 }
 
 const ALIGN = { l: "left", ctr: "center", r: "right", just: "justify", dist: "justify" };
@@ -326,10 +327,13 @@ function readText(body, ctx, role = null) {
   const bodyPr = child(body, "bodyPr");
   const scale = Number(attr(child(bodyPr, "normAutofit"), "fontScale")) / 100000 || 1;
   const paras = [];
+  const pieces = []; // [offset, length, rPr] of every run, for mixed formatting
+  let offset = 0;
   let style = null;
   let bullets = role === "body" || role === "body2";
   let algn = null;
   const sig = new Set();
+  const sizes = new Set();
   for (const p of children(body, "p")) {
     const pPr = child(p, "pPr");
     if (algn === null && attr(pPr, "algn")) algn = attr(pPr, "algn");
@@ -341,20 +345,43 @@ function readText(body, ctx, role = null) {
       if (r.local === "r" || r.local === "fld") {
         const rPr = child(r, "rPr");
         const t = child(r, "t");
-        s += t ? t.children.filter((c) => typeof c === "string").join("") : "";
-        if (rPr) sig.add([attr(rPr, "sz"), attr(rPr, "b"), attr(rPr, "i"), colorIn(child(rPr, "solidFill"), ctx.scheme)].join("|"));
+        const piece = t ? t.children.filter((c) => typeof c === "string").join("") : "";
+        if (piece && rPr) pieces.push([offset + s.length, piece.length, rPr]);
+        s += piece;
+        if (rPr) {
+          sig.add([attr(rPr, "sz"), attr(rPr, "b"), attr(rPr, "i"), attr(rPr, "u"), colorIn(child(rPr, "solidFill"), ctx.scheme)].join("|"));
+          sizes.add(`${attr(rPr, "sz")}|${attr(child(rPr, "latin"), "typeface")}`);
+        }
         if (!style && rPr) style = rPr;
       } else if (r.local === "br") s += "\n";
     }
     if (!style) style = child(pPr, "defRPr") || child(p, "endParaRPr");
     paras.push(s);
+    offset += s.length + 1;
   }
-  if (sig.size > 1) ctx.onMixed?.();
+  if (sizes.size > 1) ctx.onMixed?.();
   const inherited = role === "title" ? ctx.Mst?.sizes.title : role ? ctx.Mst?.sizes.body : ctx.Mst?.sizes.other;
   const sz = Number(attr(style, "sz")) / 100 || inherited || (role === "title" ? 40 : role ? 22 : 18);
+  // runs that differ from the box's style in bold, italic, underline or color become spans
+  const look = (rPr) => ({ bold: attr(rPr, "b") === "1", italic: attr(rPr, "i") === "1", underline: !!attr(rPr, "u") && attr(rPr, "u") !== "none", color: colorIn(child(rPr, "solidFill"), ctx.scheme) });
+  if (sig.size > 1) {
+    // the box's style is the formatting that covers the most characters
+    const count = new Map();
+    for (const [, len, rPr] of pieces) count.set(rPr, (count.get(rPr) || 0) + len);
+    style = [...count].sort((a, b) => b[1] - a[1])[0]?.[0] || style;
+  }
+  const base = look(style);
+  const spans = [];
+  if (sig.size > 1) for (const [start, len, rPr] of pieces) {
+    const l = look(rPr);
+    const diff = Object.fromEntries(Object.entries(l).filter(([k, v]) => v !== base[k] && !(k === "color" && !v)));
+    if (Object.keys(diff).length) spans.push({ start, end: start + len, ...diff });
+  }
   return {
     text: paras.join("\n"),
+    ...(spans.length ? { spans } : {}),
     style: {
+
       size: Math.round(sz * scale * 2) / 2,
       bold: attr(style, "b") === "1",
       italic: attr(style, "i") === "1",
@@ -395,10 +422,19 @@ function runProps(st, tag = "a:rPr") {
   return `<${tag} lang="en-US" sz="${Math.round(st.size * 100)}"${st.bold ? ' b="1"' : ""}${st.italic ? ' i="1"' : ""}${st.underline ? ' u="sng"' : ""} dirty="0">${st.color ? `<a:solidFill><a:srgbClr val="${hex(st.color)}"/></a:solidFill>` : ""}${st.font ? `<a:latin typeface="${escAttr(st.font)}"/>` : ""}</${tag}>`;
 }
 const ALGN_OUT = { left: "l", center: "ctr", right: "r", justify: "just" };
-function txBody(text, st, tag = "p:txBody") {
-  const paras = String(text ?? "").split("\n");
+function txBody(text, st, tag = "p:txBody", spans = null) {
+  const all = String(text ?? "");
+  const paras = all.split("\n");
   const bu = st.bullets ? '<a:buFont typeface="Arial"/><a:buChar char="•"/>' : "<a:buNone/>";
-  const ps = paras.map((t) => `<a:p><a:pPr algn="${ALGN_OUT[st.align] || "l"}"${st.bullets ? ' marL="342900" indent="-342900"' : ' marL="0" indent="0"'}>${bu}</a:pPr>${t ? `<a:r>${runProps(st)}<a:t>${esc(t)}</a:t></a:r>` : ""}${runProps(st, "a:endParaRPr")}</a:p>`).join("");
+  let at = 0;
+  const runs = (t) => {
+    const start = at;
+    at += t.length + 1;
+    if (!t) return "";
+    if (!spans?.length) return `<a:r>${runProps(st)}<a:t>${esc(t)}</a:t></a:r>`;
+    return spanSegments(all, spans, start, start + t.length).map((s) => `<a:r>${runProps({ ...st, ...s.fmt })}<a:t>${esc(s.text)}</a:t></a:r>`).join("");
+  };
+  const ps = paras.map((t) => `<a:p><a:pPr algn="${ALGN_OUT[st.align] || "l"}"${st.bullets ? ' marL="342900" indent="-342900"' : ' marL="0" indent="0"'}>${bu}</a:pPr>${runs(t)}${runProps(st, "a:endParaRPr")}</a:p>`).join("");
   return `<${tag}><a:bodyPr wrap="square" lIns="91440" tIns="45720" rIns="91440" bIns="45720" anchor="${{ top: "t", middle: "ctr", bottom: "b" }[st.valign] || "t"}"><a:noAutofit/></a:bodyPr><a:lstStyle/>${ps}</${tag}>`;
 }
 
@@ -421,7 +457,7 @@ function shapeXml(e, n, relFor) {
   const prst = e.type === "shape" ? PRST_OUT[e.shape] || "rect" : "rect";
   const fill = e.fill ? `<a:solidFill><a:srgbClr val="${hex(e.fill)}"/></a:solidFill>` : "<a:noFill/>";
   const line = e.stroke && e.strokeWidth ? `<a:ln w="${emu(e.strokeWidth)}"><a:solidFill><a:srgbClr val="${hex(e.stroke)}"/></a:solidFill></a:ln>` : "<a:ln><a:noFill/></a:ln>";
-  return `<p:sp><p:nvSpPr><p:cNvPr id="${n}" name="${name}"/><p:cNvSpPr${e.type === "text" && !e.ph ? ' txBox="1"' : ""}/><p:nvPr>${ph}</p:nvPr></p:nvSpPr><p:spPr>${xfrm(e)}<a:prstGeom prst="${prst}"><a:avLst/></a:prstGeom>${fill}${line}</p:spPr>${txBody(e.text, e.style)}</p:sp>`;
+  return `<p:sp><p:nvSpPr><p:cNvPr id="${n}" name="${name}"/><p:cNvSpPr${e.type === "text" && !e.ph ? ' txBox="1"' : ""}/><p:nvPr>${ph}</p:nvPr></p:nvSpPr><p:spPr>${xfrm(e)}<a:prstGeom prst="${prst}"><a:avLst/></a:prstGeom>${fill}${line}</p:spPr>${txBody(e.text, e.style, "p:txBody", e.spans)}</p:sp>`;
 }
 
 /** Writes a deck as a PowerPoint package (.pptx). */
@@ -441,7 +477,7 @@ export function writePptx(deck, { title = "" } = {}) {
   files.push(["ppt/slideMasters/_rels/slideMaster1.xml.rels", relsXml([...layoutIds.map((_, i) => [`rId${i + 1}`, "slideLayout", `../slideLayouts/slideLayout${i + 1}.xml`]), [`rId${layoutIds.length + 1}`, "theme", "../theme/theme1.xml"]])]);
   ct.push(["/ppt/slideMasters/slideMaster1.xml", `${CT}.slideMaster+xml`]);
   layoutIds.forEach((id, i) => {
-    const phs = layoutOf(id).ph.map(([role, fx, fy, fw, fh], k) => shapeXml({ type: "text", ph: role, x: fx * deck.size.w, y: fy * deck.size.h, w: fw * deck.size.w, h: fh * deck.size.h, text: "", style: { size: role === "title" ? 40 : 22, align: "left", valign: role === "title" ? "middle" : "top", bullets: role.startsWith("body") } }, k + 2, () => null)).join("");
+    const phs = layoutPh(deck, id).map(([role, fx, fy, fw, fh], k) => shapeXml({ type: "text", ph: role, x: fx * deck.size.w, y: fy * deck.size.h, w: fw * deck.size.w, h: fh * deck.size.h, text: "", style: { size: role === "title" ? 40 : 22, align: "left", valign: role === "title" ? "middle" : "top", bullets: role.startsWith("body") } }, k + 2, () => null)).join("");
     files.push([`ppt/slideLayouts/slideLayout${i + 1}.xml`, `${HEAD}<p:sldLayout ${NS} type="${usedLayouts[id]}" preserve="1"><p:cSld name="${escAttr(layoutOf(id).name)}"><p:spTree>${GRP}${phs}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>`]);
     files.push([`ppt/slideLayouts/_rels/slideLayout${i + 1}.xml.rels`, relsXml([["rId1", "slideMaster", "../slideMasters/slideMaster1.xml"]])]);
     ct.push([`/ppt/slideLayouts/slideLayout${i + 1}.xml`, `${CT}.slideLayout+xml`]);

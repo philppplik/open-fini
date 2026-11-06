@@ -95,6 +95,10 @@ inside the records. Comments use the item anchor `el:<id>`. Remote cursors are n
 `board_add_connector` (bound to element ids), `board_update`, `board_delete`, `board_arrange` (grid, row, column,
 flow, align, distribute, group, z-order), `board_page`, `board_import` (Excalidraw / tldraw JSON into the current
 page) and `board_export` (Excalidraw, tldraw or SVG text). `office_describe`, `office_new` and `office_export` work too.
+`office_board_to_document` writes a board up as a new text document (`boardToMarkdown` in `model.js`: the title, one
+heading per page and frame, stickies, text boxes and labeled shapes as bullets in reading order, connectors as
+"A → B" lines).
+
 
 ## Import and export fidelity
 

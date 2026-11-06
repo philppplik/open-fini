@@ -44,6 +44,19 @@ export function registerSlidesCommands(app) {
     def(`slides.transition.${type}`, label, () => app.run("slides.transition", { type }), { checked: (a) => on(a) && a.officeUI.slide.transition.type === type });
   }
   def("slides.theme", "Apply Theme", (a, o) => v().commit("Apply Theme", M.applyTheme(v().deck, o?.theme || "office")), { icon: "palette" });
+  def("slides.themeDialog", "Themes…", () => v().themeDialog(), { icon: "palette" });
+  def("slides.design","Apply Design", (a, o) => v().commit("Apply Design", M.applyDesign(v().deck, o?.design || "pitch")), { icon: "stars" });
+
+  // ---- master, layouts and footers
+  def("slides.footer", "Header and Footer…", () => v().footerDialog(), { icon: "layout-text-window-reverse" });
+  def("slides.editMaster", "Edit Slide Master", (a, o) => v().editMaster(o?.target || M.MASTER_ID), { icon: "layout-wtf", checked: (a) => on(a) && M.isPseudo(a.officeUI.cur) });
+  def("slides.closeMaster", "Close Master View", () => v().closeMaster(), { enabled: (a) => on(a) && M.isPseudo(a.officeUI.cur) });
+  def("slides.resetLayout", "Reset Layout", () => {
+    const view = v();
+    if (!view.cur.startsWith(M.LAYOUT_PREFIX)) return;
+    view.commit("Reset Layout", M.resetLayout(view.deck, view.cur.slice(M.LAYOUT_PREFIX.length)));
+  }, { enabled: (a) => on(a) && String(a.officeUI.cur).startsWith(M.LAYOUT_PREFIX) });
+  def("slides.hideMasterGraphics", "Hide Master Graphics", deckOp("Hide Master Graphics", (d, s) => M.updateSlide(d, s.id, { hideMaster: !s.hideMaster })), { checked: (a) => on(a) && !!a.officeUI.slide.hideMaster, enabled: (a) => on(a) && !M.isPseudo(a.officeUI.cur) });
 
   // ---- inserting
   def("slides.insertText", "Text Box", () => v().insertText(), { icon: "fonts" });
@@ -54,6 +67,8 @@ export function registerSlidesCommands(app) {
     for (const f of files || []) await v().insertImageBytes(f.bytes, f.name);
   }, { icon: "image" });
   def("slides.insertTable", "Table", () => v().insertTable(), { icon: "table" });
+  def("slides.insertChart", "Chart from Spreadsheet…", () => v().chartDialog(), { icon: "bar-chart" });
+  def("slides.refreshCharts", "Refresh Chart Data", () => v().refreshCharts(), { icon: "arrow-repeat", enabled: (a) => on(a) && a.officeUI.deck.slides.some((s) => s.elements.some((e) => e.type === "chart" && e.source)) });
 
   // ---- elements
   def("slides.cut", "Cut", () => v().copy(true), { icon: "scissors", enabled: hasSel });

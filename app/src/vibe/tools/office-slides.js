@@ -30,11 +30,12 @@ export function slidesTools(app, ctx = {}) {
   const box = { x: S.num("Left in px (the slide is size.w × size.h, usually 960 × 540)"), y: S.num("Top in px"), w: S.num("Width in px"), h: S.num("Height in px") };
 
   return [
-    tool("slides_describe", "Describes the active presentation: size, theme, and per slide its number, id, layout, title, elements (id, type, placeholder, box [x, y, w, h], text) and speaker notes. Call this before editing.", { slide: S.str("Only this slide (number or id); default all") }, [], ({ slide } = {}) => {
+    tool("slides_describe", "Describes the active presentation: size, theme, and per slide its number, id, layout, title, elements (id, type, placeholder, box [x, y, w, h], text) and speaker notes, plus footer and master info. Call this before editing.", { slide: S.str("Only this slide (number or id), or @master for the master graphics, footer and edited layouts; default all") }, [], ({ slide } = {}) => {
       const deck = deckDoc().office.model;
       const d = M.describeDeck(deck, { full: true });
       if (slide != null) d.slides = d.slides.filter((s) => s.id === slideOf(deck, slide).id);
-      return { ...d, layouts: LAYOUT_IDS, themes: M.THEMES.map((t) => t.id) };
+      if (slide === M.MASTER_ID) return { master: deck.master, layouts: deck.layouts };
+      return { ...d, layouts: LAYOUT_IDS, themes: M.THEMES.map((t) => t.id), designs: Object.keys(M.DESIGNS) };
     }, { readOnly: true }),
 
     tool("slides_add_slide", "Adds a slide with a layout and optional placeholder texts. Body text: one bullet per line.", {
@@ -152,6 +153,116 @@ export function slidesTools(app, ctx = {}) {
       const deck = doc.office.model;
       commit(doc, "Speaker Notes", M.updateSlide(deck, slideOf(deck, slide).id, { notes }));
       return { ok: true };
+    }),
+
+    tool("slides_format_text", "Formats part of the text in one text box (mixed formatting): bold, italic, underline or color for the characters of `match` (or start/end offsets). Pass null-like false to remove bold/italic/underline. Watch out: match is case-sensitive and formats only the given occurrence; formatting the whole box uses slides_add_shape/slides_set_text styles instead. Verify with slides_describe (spans).", {
+      slide: slideArg, placeholder: S.str("Placeholder role", { enum: PH }), element: S.str("Element id (instead of placeholder)"),
+      match: S.str("Exact text to format"), occurrence: S.num("Which occurrence of match (1-based, default 1)"), start: S.num("Start offset (instead of match; \\n counts as one character)"), end: S.num("End offset (exclusive)"),
+      bold: S.bool("Bold"), italic: S.bool("Italic"), underline: S.bool("Underline"), color: S.str("Text color #rrggbb, or none to remove"),
+    }, ["slide"], ({ slide, placeholder, element, match, occurrence = 1, start, end, ...f }) => {
+      const doc = deckDoc();
+      const deck = doc.office.model;
+      const s = slideOf(deck, slide);
+      const el = element ? s.elements.find((e) => e.id === element) : s.elements.find((e) => e.ph === (placeholder || "title"));
+      if (!el || typeof el.text !== "string") throw new Error(`Slide ${num(deck, s.id)} has no text element ${element || placeholder || "title"}.`);
+      let a = start, b = end;
+      if (match != null) {
+        a = -1;
+        for (let k = 0, from = 0; k < Math.max(1, occurrence); k++) {
+          a = el.text.indexOf(String(match), from);
+          if (a < 0) break;
+          from = a + 1;
+        }
+        if (a < 0) throw new Error(`“${match}” does not occur ${occurrence > 1 ? `${occurrence} times ` : ""}in the text: “${el.text.slice(0, 120)}”.`);
+        b = a + String(match).length;
+      }
+      if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) throw new Error("Pass match, or start and end offsets with end > start.");
+      const patch = Object.fromEntries(Object.entries(f).filter(([, v]) => v !== undefined).map(([k, v]) => [k, k === "color" && (v === "none" || v === "") ? null : v]));
+      if (!Object.keys(patch).length) throw new Error("Pass at least one of bold, italic, underline or color.");
+      commit(doc, "Format Text", M.formatText(deck, s.id, el.id, a, b, patch));
+      return { ok: true, element: el.id, start: a, end: b, text: el.text.slice(a, b) };
+    }),
+
+    tool("slides_set_footer", "Sets the footer of every slide (master): footer text, date text, slide numbers and whether title slides skip them. Watch out: this is deck-wide; the date is plain text (write it out); slide numbers count hidden slides too.", {
+      text: S.str("Footer text (empty to remove)"), date: S.str("Date or any short text shown at the left (empty to remove)"), number: S.bool("Show slide numbers"), skipTitle: S.bool("Leave title-layout slides without footer (default true)"),
+    }, [], (a = {}) => {
+      const doc = deckDoc();
+      const patch = Object.fromEntries(Object.entries(a).filter(([, v]) => v !== undefined));
+      commit(doc, "Header and Footer", M.setFooter(doc.office.model, patch));
+      return { ok: true, footer: doc.office.model.master.footer };
+    }),
+
+    tool("slides_edit_master", "Edits the slide master: graphics that appear behind every slide (logo text, accent bars, shapes). action add adds a shape or text box; remove deletes master elements by id; clear removes all; hide/show toggles master graphics on one slide. Watch out: keep master graphics small and at the edges so they do not cover placeholders; ids come from slides_describe slide \"@master\".", {
+      action: S.str("What to do", { enum: ["add", "remove", "clear", "hide", "show"] }),
+      shape: S.str("For add: textbox or a shape", { enum: ["textbox", ...M.SHAPES] }), ...box, fill: S.str("Fill #rrggbb"), text: S.str("Text"), size: S.num("Font size in points"), color: S.str("Text color #rrggbb"),
+      ids: { type: "array", items: { type: "string" }, description: "For remove: master element ids" }, slide: S.str("For hide/show: slide number or id"),
+    }, ["action"], (a) => {
+      const doc = deckDoc();
+      const deck = doc.office.model;
+      if (a.action === "add") {
+        const isText = !a.shape || a.shape === "textbox";
+        const r = M.addElement(deck, M.MASTER_ID, { type: isText ? "text" : "shape", shape: isText ? undefined : a.shape, x: a.x ?? 20, y: a.y ?? 20, w: a.w ?? 160, h: a.h ?? (a.shape === "line" ? 0 : 40), fill: a.fill ?? (isText ? null : deck.theme.accent), text: a.text || "", style: Object.fromEntries(Object.entries({ size: a.size, color: a.color }).filter(([, v]) => v !== undefined)) });
+        commit(doc, "Edit Master", r.deck);
+        return { ok: true, element: r.id };
+      }
+      if (a.action === "remove") {
+        commit(doc, "Edit Master", M.deleteElements(deck, M.MASTER_ID, a.ids || []));
+        return { ok: true, remaining: doc.office.model.master.elements.length };
+      }
+      if (a.action === "clear") {
+        commit(doc, "Edit Master", M.deleteElements(deck, M.MASTER_ID, deck.master.elements.map((e) => e.id)));
+        return { ok: true };
+      }
+      const s = slideOf(deck, a.slide);
+      commit(doc, "Hide Master Graphics", M.updateSlide(deck, s.id, { hideMaster: a.action === "hide" }));
+      return { ok: true, slide: num(deck, s.id) };
+    }),
+
+    tool("slides_edit_layout", "Moves or resizes a placeholder of a layout (for example a wider title on every Title and content slide). Slides using the layout follow; reset restores the built-in layout. Watch out: boxes are slide px (deck size from slides_describe); placeholders that were moved by hand on a slide snap back to the layout box.", {
+      layout: S.str("Layout", { enum: LAYOUT_IDS }), placeholder: S.str("Placeholder role", { enum: PH }), ...box, reset: S.bool("Restore the built-in layout instead"),
+    }, ["layout"], ({ layout, placeholder, reset, ...b }) => {
+      const doc = deckDoc();
+      const deck = doc.office.model;
+      if (reset) {
+        commit(doc, "Reset Layout", M.resetLayout(deck, layout));
+        return { ok: true };
+      }
+      const pseudo = M.slideById(deck, M.LAYOUT_PREFIX + layout);
+      const el = pseudo.elements.find((e) => e.ph === placeholder);
+      if (!el) throw new Error(`The layout ${layout} has no ${placeholder} placeholder. It has: ${pseudo.elements.map((e) => e.ph).join(", ") || "none"}.`);
+      const patch = Object.fromEntries(["x", "y", "w", "h"].filter((k) => b[k] !== undefined).map((k) => [k, b[k]]));
+      if (!Object.keys(patch).length) throw new Error("Pass x, y, w and/or h (slide px), or reset.");
+      commit(doc, "Edit Layout", M.updateElements(deck, pseudo.id, [el.id], patch));
+      return { ok: true, layout, placeholders: M.layoutPh(doc.office.model, layout) };
+    }),
+
+    tool("slides_apply_design", "Applies a designed look to the whole deck: theme colors and fonts plus master graphics and footer (pitch: midnight with an accent bar; report: slate with a band; lesson: warm with circles; project: aurora with a stripe; roadmap: forest with a bottom band; portfolio: paper with a thin frame). Watch out: it replaces the current master graphics; slide content stays.", { design: S.str("Design", { enum: Object.keys(M.DESIGNS) }) }, ["design"], ({ design }) => {
+      const doc = deckDoc();
+      commit(doc, "Apply Design", M.applyDesign(doc.office.model, design));
+      return { ok: true, theme: doc.office.model.theme.id };
+    }),
+
+    tool("slides_insert_chart", "Inserts a chart built from a range of an OPEN spreadsheet (first row: series names, first column: categories; computed values). The slide keeps a snapshot; slides_refresh_charts updates it. Watch out: name the spreadsheet exactly as office_list_documents shows it; check the range with sheet_describe first; ranges over 500 rows or 40 columns are cut.", {
+      slide: slideArg, spreadsheet: S.str("Name of the open spreadsheet document"), range: S.str("A1 range, e.g. A1:C6 (default: the used range)"), sheet: S.str("Sheet name (default: active sheet)"),
+      type: S.str("Chart type", { enum: M.CHART_KINDS }), title: S.str("Chart title"), ...box,
+    }, ["slide", "spreadsheet"], async (a) => {
+      const doc = deckDoc();
+      const { chartFromSheet } = await import("../../office/slides/sheet-link.js");
+      const r = await chartFromSheet(app, { spreadsheet: a.spreadsheet, sheet: a.sheet, range: a.range, type: a.type || "column", title: a.title || "" });
+      const deck = doc.office.model;
+      const s = slideOf(deck, a.slide);
+      const { w, h } = deck.size;
+      const res = M.addElement(deck, s.id, { type: "chart", x: a.x ?? Math.round(w * 0.1), y: a.y ?? Math.round(h * 0.22), w: a.w ?? Math.round(w * 0.8), h: a.h ?? Math.round(h * 0.66), chart: r.chart, source: r.source });
+      commit(doc, "Insert Chart", res.deck);
+      return { ok: true, element: res.id, source: r.source, categories: r.rows, series: r.chart.data.series.map((x) => x.name) };
+    }),
+
+    tool("slides_refresh_charts", "Re-reads the data of every chart in the deck from its spreadsheet (the spreadsheets must be open). Watch out: charts whose spreadsheet is closed keep their old data; the result lists them.", {}, [], async () => {
+      const doc = deckDoc();
+      const { refreshDeckCharts } = await import("../../office/slides/sheet-link.js");
+      const r = await refreshDeckCharts(app, doc.office.model);
+      if (r.updated) commit(doc, "Refresh Chart Data", r.deck);
+      return { ok: true, updated: r.updated, missing: r.missing };
     }),
 
     tool("slides_set_transition", "Sets the transition into a slide (none, fade or slide) and its duration.", { slide: slideArg, type: S.str("Transition", { enum: M.TRANSITIONS }), duration: S.num("Seconds (0.1 – 5)") }, ["slide", "type"], ({ slide, type, duration = 0.5 }) => {

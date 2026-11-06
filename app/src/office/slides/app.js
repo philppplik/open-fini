@@ -22,6 +22,10 @@ function fidelityNotes(model, format) {
   if (format === "pptx" || format === "odp") {
     const bad = Object.values(model.media || {}).filter((m) => m.mime === "image/webp" || (format === "pptx" && m.mime === "image/svg+xml"));
     if (bad.length) notes.push(format === "pptx" ? "WebP and SVG pictures may not show in older PowerPoint versions." : "WebP pictures may not show in older Impress versions.");
+    const els = model.slides.flatMap((s) => s.elements);
+    if (els.some((e) => e.type === "chart")) notes.push("Charts are saved as tables of their data.");
+    if (model.master?.elements.length || model.master?.footer.number || model.master?.footer.text || model.master?.footer.date) notes.push("Master graphics, footers and slide numbers are saved as shapes on each slide.");
+    if (format === "odp" && els.some((e) => e.spans?.length)) notes.push("Mixed formatting inside a text box is saved as the box's main formatting.");
   }
   return notes;
 }
@@ -55,8 +59,9 @@ export default {
   /** Writes "pptx", "odp", "pdf" or "png" (a ZIP with one PNG per slide). */
   async save(model, format, { title = "" } = {}) {
     const deck = M.pruneMedia(model.version === M.SLIDES_VERSION ? model : M.normalizeDeck(model));
-    if (format === "pptx") return { bytes: (await import("./pptx.js")).writePptx(deck, { title }), mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation", ext: "pptx", notes: fidelityNotes(deck, "pptx") };
-    if (format === "odp") return { bytes: (await import("./odp.js")).writeOdp(deck, { title }), mime: "application/vnd.oasis.opendocument.presentation", ext: "odp", notes: fidelityNotes(deck, "odp") };
+    if (format === "pptx") return { bytes: (await import("./pptx.js")).writePptx(M.exportDeck(deck), { title }), mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation", ext: "pptx", notes: fidelityNotes(deck, "pptx") };
+    if (format === "odp") return { bytes: (await import("./odp.js")).writeOdp(M.exportDeck(deck), { title }),
+ mime: "application/vnd.oasis.opendocument.presentation", ext: "odp", notes: fidelityNotes(deck, "odp") };
     const R = await import("./render.js");
     if (format === "pdf") return { bytes: await R.deckToPdf(deck, { title: deck.meta.title || title }), mime: "application/pdf", ext: "pdf" };
     if (format === "png") return { bytes: await R.deckToPngZip(deck), mime: "application/zip", ext: "zip" };

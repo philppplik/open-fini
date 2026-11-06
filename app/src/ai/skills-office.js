@@ -82,7 +82,7 @@ Take a screenshot of the result and look at it as the reader will. Then: sheet_r
 const PITCH = `---
 name: make-pitch-deck
 description: Build a 10-12 slide pitch deck in the Presentation app - problem, solution, market, product, business model, traction, competition, team, financials, ask - with short bullets and speaker notes.
-allowed-tools: office_new, slides_describe, slides_add_slide, slides_set_text, slides_apply_layout, slides_apply_theme, slides_set_notes, slides_reorder, slides_delete, slides_add_shape, office_document_to_slides, ask_user
+allowed-tools: office_new, slides_describe, slides_add_slide, slides_set_text, slides_apply_layout, slides_apply_theme, slides_apply_design, slides_set_footer, slides_format_text, slides_insert_chart, slides_set_notes, slides_reorder, slides_delete, slides_add_shape, office_document_to_slides, ask_user
 tags: [office, slides, pitch, startup]
 when-to-use: pitch deck, investor deck, startup presentation, fundraising
 ---
@@ -94,7 +94,9 @@ when-to-use: pitch deck, investor deck, startup presentation, fundraising
 3. slides_describe, then one slide per topic: Title, Problem, Solution, Market size, Product, Business model, Traction, Competition, Team, Financials, The ask, Contact.
 4. slides_set_text per slide: title as a statement ("Teams lose 6 hours a week to X"), at most 4 bullets of under 10 words.
 5. slides_set_notes with what the presenter says (2 to 4 sentences per slide).
-6. Delete unused template slides (slides_delete) and keep one theme.
+6. Delete unused template slides (slides_delete) and keep one look: slides_apply_design pitch, then slides_set_footer number true.
+7. Traction and financials: when the numbers are in an open spreadsheet, slides_insert_chart from its range instead of typing them; emphasize the one key number per slide with slides_format_text (bold or accent color).
+
 
 ## Watch out
 - Slides are numbered from 1; numbers shift after slides_add_slide or slides_delete, so call slides_describe again.

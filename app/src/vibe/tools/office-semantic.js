@@ -1,6 +1,7 @@
 // Semantic and cross-app Vibe tools for the Office Suite (docs/vibe-studio.md ▸ Office): work on a text document by
 // its headings instead of block indexes (read, rewrite, move, promote a section), check accessibility, and move
-// content between apps (document tables → spreadsheet, spreadsheet range → document table, outline → slides).
+// content between apps (document tables → spreadsheet, spreadsheet range → document table, outline → slides, whiteboard
+// → document).
 // Pure structure logic lives in engine/office/sections.js; every edit is one undo step ("Vibe: …").
 // Each description ends with "Watch out": the mistakes models typically make with the tool and how to verify.
 import { tool, S } from "./helpers.js";
@@ -185,6 +186,29 @@ export function officeSemanticTools(app) {
       core.commitOffice(deckDoc, "Vibe: Document to Slides", deck);
       app.officeUI?.refresh?.();
       return { presentation: deckDoc.name, slides: plan.map((p, i) => ({ slide: i + 1, layout: p.layout, title: p.title, bullets: p.bullets.length })) };
+    }),
+
+    tool("office_board_to_document", "Writes a whiteboard up as a NEW text document: the board title as Title, one heading per page (several pages) and per frame, sticky notes, text boxes and labeled shapes as bullets in reading order, and connectors as “A → B” lines. Watch out: the result is a raw draft; rewrite it into prose with office_rewrite_section and check with office_list_sections. Unlabeled shapes, drawings and pictures are left out.", {
+      board: S.str("Name of the open whiteboard (default: the active document)"),
+      title: S.str("Title of the new document (default: the board title)"),
+      connections: S.bool("Include the Connections lists (default true)"),
+    }, [], async ({ board, title, connections = true } = {}) => {
+      const boards = app.docs.filter((x) => x.office?.kind === "board");
+      const src = board ? boards.find((x) => x.name === board) || boards.find((x) => x.name.toLowerCase() === String(board).toLowerCase()) : app.doc?.office?.kind === "board" ? app.doc : null;
+      if (!src) throw new Error(board ? `No open whiteboard named “${board}”. Open whiteboards: ${boards.map((x) => x.name).join(", ") || "none"}.` : "The active document is not a whiteboard; pass board with the name of an open whiteboard (office_list_documents).");
+      const B = await import("../../office/board/model.js");
+      const model = B.normalizeBoard(src.office.model);
+      const r = B.boardToMarkdown(model, { title: title || model.title || src.name, connections });
+      if (!r.items && !r.connections) throw new Error("The board has no text to write up (sticky notes, text boxes or labeled shapes).");
+      const { createOfficeDocument } = await import("../../ui/office/open.js");
+      const docName = title || `${model.title || src.name} notes`;
+      const textDocument = await createOfficeDocument(app, "document", { title: docName });
+      const [M, core] = await Promise.all([import("../../engine/office/model.js"), import("../../core/office.js")]);
+      const m = M.normalizeDoc(textDocument.office.model);
+      const { blocks, media } = await mdBlocks(r.markdown);
+      core.commitOffice(textDocument, "Vibe: Board to Document", { ...m, blocks, media: { ...m.media, ...media } });
+      app.officeUI?.refresh?.();
+      return { document: textDocument.name, sections: r.sections, bullets: r.items, connections: r.connections };
     }),
   ];
 }

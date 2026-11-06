@@ -20,7 +20,13 @@ export const SLIDES_APP = {
     { id: "blank", label: "Blank presentation", description: "One title slide", icon: "easel", category: "Basic" },
     { id: "pitch", label: "Pitch deck", description: "Problem, solution, market, model, traction, team and the ask", icon: "lightbulb", category: "Business" },
     { id: "report", label: "Report", description: "Summary, results, highlights, a numbers table and next steps", icon: "bar-chart", category: "Business" },
+    { id: "lesson", label: "Lesson", description: "Goals, warm-up, key idea, practice and summary on a warm design", icon: "mortarboard", category: "Education" },
+    { id: "project", label: "Project update", description: "Status, done and next, a chart, risks and decisions", icon: "kanban", category: "Business" },
+    { id: "roadmap", label: "Roadmap", description: "A quarterly timeline, now and next, and what is out of scope", icon: "signpost-split", category: "Business" },
+    { id: "portfolio", label: "Portfolio", description: "About me, project case studies and contact on a framed paper design", icon: "person-badge", category: "Personal" },
+
   ],
-  aiNote: "The active Office document is a presentation (slides with placeholders, text boxes, shapes, images and tables; speaker notes per slide). Read it with slides_describe before editing; use the slides_ tools (slides_add_slide, slides_set_text, slides_add_shape, slides_add_image, slides_apply_layout, slides_apply_theme, slides_reorder, slides_set_notes, slides_delete). Slides are numbered from 1. Every call is one undoable step.",
+  aiNote: "The active Office document is a presentation (slides with placeholders, text boxes, shapes, images, tables and charts; speaker notes per slide; a slide master with footer, slide numbers and editable layouts). Read it with slides_describe before editing; use the slides_ tools (slides_add_slide, slides_set_text, slides_format_text, slides_add_shape, slides_add_image, slides_insert_chart, slides_apply_layout, slides_apply_theme, slides_apply_design, slides_set_footer, slides_edit_master, slides_edit_layout, slides_reorder, slides_set_notes, slides_delete). Slides are numbered from 1. Every call is one undoable step.",
+
   load: () => import("./app.js"),
 };
