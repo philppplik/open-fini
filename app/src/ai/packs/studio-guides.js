@@ -169,7 +169,7 @@ slides_apply_design (or slides_apply_theme) once -> slides_set_footer (slide num
 slides_describe after the deck is built: every slide has a title, no empty placeholders, notes where promised; slides_describe slide @master shows the footer you set.`,
 
 
-  `${fm("board", "How to work on the whiteboard: elements, connectors, frames, arrange and checking the layout.", "office_describe, office_new, board_describe, board_add_shape, board_add_sticky, board_add_text, board_add_connector, board_update, board_arrange, board_page, office_board_to_document", "whiteboard, board, sticky notes, flowchart, mind map, diagram")}
+  `${fm("board", "How to work on the whiteboard: elements, connectors, frames, arrange and checking the layout.", "office_describe, office_new, board_describe, board_add_shape, board_add_sticky, board_add_text, board_add_connector, board_update, board_arrange, board_page, board_add_table, board_edit_table, board_add_chart, board_add_plot, board_add_math, board_add_subboard, board_add_diagram, board_draw, office_board_to_document", "whiteboard, board, sticky notes, flowchart, mind map, diagram, graph, formula, table, chart")}
 # Whiteboard guide
 
 ## Start
@@ -181,7 +181,9 @@ Frames (board_add_shape type frame) -> shapes and stickies -> board_add_connecto
 ## Behavior
 - Coordinates are board units on the current page; connectors follow the elements they link.
 - board_update changes only the given properties; board_delete leaves connectors to deleted elements in place (delete them too).
-- office_board_to_document writes the board up as a new text document: one section per page and frame, sticky notes and labels as bullets, connectors as "A → B" lines. Group ideas in frames first so the sections make sense.
+- Native objects instead of drawings: board_add_table (cells), board_add_chart (data or a spreadsheet range), board_add_plot (coordinate system with function graphs y = f(x), points and segments in math coordinates), board_add_math (typeset TeX formulas), board_add_diagram (mindmap, tree, timeline, cycle, matrix in one call), board_add_subboard (a card that opens a new page), board_draw (free polylines and polygons). Double-click opens their editors for the user.
+- office_board_to_document writes the board up
+ as a new text document: one section per page and frame, sticky notes and labels as bullets, connectors as "A → B" lines. Group ideas in frames first so the sections make sense.
 
 
 ## Pitfalls

@@ -33,6 +33,11 @@ export function registerBoardCommands(app) {
   def("board.toolSticky", "Sticky Note", () => b().setTool("sticky"), { icon: "sticky" });
   def("board.toolFrame", "Frame", () => b().setTool("frame"), { icon: "bounding-box" });
   def("board.insertImage", "Image…", () => b().insertImage(), { icon: "image" });
+  def("board.insertTable", "Table…", () => b().insertObject("table"), { icon: "table" });
+  def("board.insertChart", "Chart…", () => b().insertObject("chart"), { icon: "bar-chart" });
+  def("board.insertPlot", "Graph (Coordinate System)…", () => b().insertObject("plot"), { icon: "graph-up" });
+  def("board.insertMath", "Formula…", () => b().insertObject("math"), { icon: "calculator" });
+  def("board.insertSubboard", "Sub-board…", () => b().insertObject("portal"), { icon: "window-stack" });
 
   // edit
   def("board.cut", "Cut", () => b().cut(), { icon: "scissors", enabled: hasSel() });
@@ -92,6 +97,7 @@ export function registerBoardCommands(app) {
       const brd = c.data.board;
       if (c.data.page) return [{ label: "Rename page…", icon: "pencil", run: () => brd.renamePage(c.data.page) }, { label: "Add page", icon: "file-earmark-plus", run: () => brd.addPage() }, { label: "Delete page", icon: "trash", disabled: c.data.doc.office.model.pages.length < 2, run: () => brd.deletePage(c.data.page) }];
       const n = brd.selection.length;
+      const isObject = () => ["table", "chart", "plot", "math", "portal"].includes(c.data.doc.office.model.elements[brd.selection[0]]?.type);
       if (!n)
         return [
           { label: "Paste", icon: "clipboard", run: () => brd.paste() },
@@ -104,7 +110,8 @@ export function registerBoardCommands(app) {
           { label: "Zoom to fit", icon: "arrows-expand", run: () => brd.fit() },
         ];
       return [
-        { label: "Edit text", icon: "pencil", hidden: n !== 1, run: () => brd.editText() },
+        { label: "Edit text", icon: "pencil", hidden: n !== 1 || isObject(), run: () => brd.editText() },
+        { label: "Edit…", icon: "pencil", hidden: n !== 1 || !isObject(), run: () => brd.editObject() },
         { label: "Cut", icon: "scissors", run: () => brd.cut() },
         { label: "Copy", icon: "files", run: () => brd.copy() },
         { label: "Duplicate", icon: "copy", run: () => brd.duplicate() },

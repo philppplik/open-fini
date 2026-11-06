@@ -115,7 +115,7 @@ test("office skills parse and each has Watch out and Verify sections", () => {
     assert.match(s.body, /## Watch out/, s.id);
     assert.match(s.body, /## Verify/, s.id);
   }
-  assert.equal(OFFICE_SKILLS.length, 10);
+  assert.equal(OFFICE_SKILLS.length, 14);
 });
 
 test("sheet data bars: lengths from the range extent, negatives left of zero, xlsx round trip", () => {

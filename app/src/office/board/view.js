@@ -946,6 +946,8 @@ export function mountBoard(host, doc, app) {
   function onDouble(e) {
     const w = toWorld(...eventPoint(e));
     const hit = M.elementAt(prj.model, page(), w[0], w[1], 6 / view.zoom);
+    if (hit?.type === "portal" && prj.model.pages.some((p) => p.id === hit.target)) return gotoPage(hit.target);
+    if (hit && !hit.locked && M.OBJECT_TYPES.includes(hit.type)) return editObject(hit.id);
     if (hit && !hit.locked && hit.type !== "image" && !M.INK.includes(hit.type)) return editText(hit.id);
     if (!hit && tool === "select") createText([snapV(w[0]), snapV(w[1])]);
   }
@@ -1187,6 +1189,48 @@ export function mountBoard(host, doc, app) {
     setSelection([el.id]);
   }
 
+  // ------------------------------------------------------------------------------------------- rich objects
+  const OBJECT_SIZE = { table: [320, 120], chart: [480, 320], plot: [480, 360], math: [260, 80], portal: [240, 140] };
+  /** Insert ▸ Table / Chart / Graph / Formula / Sub-board: a dialog, then the object at the view center. */
+  async function insertObject(kind) {
+    const { objectDialog } = await import("./object-dialogs.js");
+    const props = await objectDialog(kind);
+    if (!props) return;
+    const c = toWorld(size.w / 2, size.h / 2);
+    let [w, hh] = OBJECT_SIZE[kind];
+    if (kind === "math") {
+      const { mathSize } = await import("./objects.js");
+      ({ w, h: hh } = mathSize(props.tex, 28, (s, z) => measureText(s, z, "serif")));
+    }
+    if (kind === "table") [w, hh] = [Math.max(160, props.rows[0].length * 130), Math.max(40, props.rows.length * 36)];
+    let m = prj.model;
+    const extra = {};
+    if (kind === "portal") {
+      const r = M.addPage(m, { name: props.name, after: page() });
+      m = r.model;
+      extra.target = r.page;
+    }
+    const el = newEl(kind, { x: c[0] - w / 2, y: c[1] - hh / 2, w, h: hh, ...props, ...extra });
+    commit(kind === "portal" ? "Add Sub-board" : "Insert", M.addElements(m, [el]));
+    setTool("select");
+    setSelection([el.id]);
+  }
+  async function editObject(id) {
+    const el = prj.model.elements[id];
+    if (!el) return;
+    const { objectDialog } = await import("./object-dialogs.js");
+    const props = await objectDialog(el.type, el);
+    if (!props) return;
+    let patch = props;
+    if (el.type === "math") {
+      const { mathSize } = await import("./objects.js");
+      patch = { ...props, ...mathSize(props.tex, el.fontSize, (s, z) => measureText(s, z, "serif")) };
+    }
+    let m = prj.model;
+    if (el.type === "portal" && m.pages.some((p) => p.id === el.target)) m = M.updatePage(m, el.target, { name: props.name });
+    commit("Edit", M.updateElements(m, { [id]: patch }));
+  }
+
   // ------------------------------------------------------------------------------------------- operations
   function deleteSelection(label = "Delete") {
     if (!sel.size) return;
@@ -1345,7 +1389,9 @@ export function mountBoard(host, doc, app) {
     deletePage,
     setPaper,
     insertImage,
-    editText: (id = [...sel][0]) => id && editText(id),
+    insertObject,
+    editObject: (id = [...sel][0]) => id && editObject(id),
+    editText:(id = [...sel][0]) => id && editText(id),
     copy: () => (stage.focus(), document.execCommand?.("copy")),
     cut: () => (stage.focus(), document.execCommand?.("cut")),
     async paste() {

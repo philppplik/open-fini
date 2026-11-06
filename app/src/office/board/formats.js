@@ -9,6 +9,7 @@
 // `report` is a core/import-report.js ImportReport (kept / simplified / dropped); notes are the lossy parts of a write.
 import { makeElement, normalizeBoard, addElements, emptyModel, newId, isId, LINEAR, INK, SHAPES, STICKY_COLORS, sortedPages, pageElements, unionBounds, toBase64, fromBase64, center, rotate } from "./model.js";
 import { initialKey } from "../../collab/fractional.js";
+import { OBJECT_TYPES, objectText } from "./objects.js";
 
 const MAX_BYTES = 64 * 1024 * 1024;
 const MAX_ELEMENTS = 50000;
@@ -239,6 +240,10 @@ export function writeExcalidraw(model) {
         if (md?.bytes) elements.push({ ...base, type: "image", fileId: e.media, status: "saved", scale: [1, 1], strokeColor: "transparent" });
       } else if (e.type === "frame") {
         elements.push({ ...base, type: "frame", name: e.name || "Frame", backgroundColor: "transparent" });
+      } else if (OBJECT_TYPES.includes(e.type)) {
+        elements.push({ ...base, type: "rectangle", backgroundColor: "transparent", roughness: 0, boundElements: [{ id: labelId, type: "text" }] });
+        elements.push(textEl(labelId, { ...e, x: e.x + 8, y: e.y + 8, w: e.w - 16, h: e.h - 16, fontSize: 16, font: "sans" }, dx, objectText(e), e.id, { frameId }));
+        notes.add("Tables, charts, graphs, formulas and sub-board cards became rectangles with their text.");
       }
       if (e.text && e.type !== "text") {
         bound.push({ id: labelId, type: "text" });
@@ -535,6 +540,15 @@ export function writeTldraw(model) {
         case "frame":
           shape("frame", { w: e.w, h: e.h, name: e.name || "Frame" });
           break;
+        case "table":
+        case "chart":
+        case "plot":
+        case "math":
+        case "portal":
+          shape("geo", { w: e.w, h: e.h, geo: "rectangle", color: "black", labelColor: "black", fill: "none", dash: "solid", size: "s", font: "sans", text: objectText(e), align: "start", verticalAlign: "start", growY: 0, url: "", scale: 1 });
+          notes.add("Tables, charts, graphs, formulas and sub-board cards became rectangles with their text.");
+          break;
+
         case "image": {
           const md = e.media && model.media?.[e.media];
           if (!md?.bytes) {

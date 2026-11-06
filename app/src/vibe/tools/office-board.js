@@ -187,6 +187,131 @@ export function officeBoardTools(app) {
       return { ok: true, arranged: list.length };
     }),
 
+    tool("board_add_table", "Adds a real table to the whiteboard (rows × columns of text; first row as a bold header by default). Returns its id. Watch out: one string per cell, at most 200 rows × 30 columns; long cell text is cut with … on the board, so keep cells short; change cells later with board_edit_table.", {
+      rows: { type: "array", items: { type: "array", items: { type: "string" } }, description: "Rows of cell texts, first row = header" },
+      header: S.bool("First row is a header (default true)"),
+      x: S.num("Left edge"), y: S.num("Top edge"), w: S.num("Width (default 140 per column)"), h: S.num("Height (default 40 per row)"),
+      fontSize: S.num("Font size (default 16)"), fill: S.str(`Header color (${COLORS})`), page: S.str("Page id (default: current page)"),
+    }, ["rows", "x", "y"], async (a) => {
+      const { M, page, commit, model } = await board(app);
+      if (!Array.isArray(a.rows) || !a.rows.length) throw new Error("rows must be a non-empty array of rows.");
+      const cols = Math.max(...a.rows.map((r) => (Array.isArray(r) ? r.length : 0)), 1);
+      const el = M.makeElement("table", { page: page(a.page), x: a.x, y: a.y, w: a.w || cols * 140, h: a.h || a.rows.length * 40, rows: a.rows, header: a.header !== false, fontSize: a.fontSize, ...(hex(a.fill) ? { fill: hex(a.fill) } : {}) });
+      commit("Add Table", M.addElements(model(), [el]));
+      return { ok: true, id: el.id, rows: el.rows.length, columns: el.rows[0].length };
+    }),
+
+    tool("board_edit_table", "Edits a whiteboard table: set cells, replace all rows, or add a row or column. Watch out: rows and columns are 0-based; the table keeps its size, so resize with board_update (h) after adding rows.", {
+      id: S.str("Table element id"),
+      cells: { type: "array", items: { type: "object", properties: { row: { type: "number" }, col: { type: "number" }, text: { type: "string" } }, required: ["row", "col", "text"] }, description: "Cells to set" },
+      rows: { type: "array", items: { type: "array", items: { type: "string" } }, description: "Replace every row" },
+      addRow: S.bool("Append an empty row"), addColumn: S.bool("Append an empty column"),
+    }, ["id"], async (a) => {
+      const { M, commit, model } = await board(app);
+      const el = model().elements[a.id];
+      if (el?.type !== "table") throw new Error(`"${a.id}" is not a table. Call board_describe.`);
+      let rows = a.rows || el.rows.map((r) => r.slice());
+      for (const c of a.cells || []) {
+        while (rows.length <= c.row) rows.push(rows[0].map(() => ""));
+        while (rows[0].length <= c.col) rows = rows.map((r) => [...r, ""]);
+        rows[c.row][c.col] = String(c.text);
+      }
+      if (a.addRow) rows.push(rows[0].map(() => ""));
+      if (a.addColumn) rows = rows.map((r) => [...r, ""]);
+      const h = a.addRow ? el.h + el.h / el.rows.length : el.h;
+      const w = a.addColumn ? el.w + el.w / el.rows[0].length : el.w;
+      commit("Edit Table", M.updateElements(model(), { [el.id]: { rows, w, h } }));
+      return { ok: true, rows: rows.length, columns: rows[0].length };
+    }),
+
+    tool("board_add_chart", "Adds a chart (column, bar, line, area, pie, donut, scatter, radar …) to the whiteboard from data you give or from a range of an OPEN spreadsheet. Returns its id. Watch out: with data, categories and every series must have the same length; with a spreadsheet, the first row holds the series names and the first column the categories; the chart is a snapshot.", {
+      type: S.str("Chart type", { enum: ["column", "stacked-column", "bar", "line", "area", "pie", "donut", "scatter", "radar"] }),
+      title: S.str("Chart title"),
+      categories: { type: "array", items: { type: "string" }, description: "Category labels (x axis or slices)" },
+      series: { type: "array", items: { type: "object", properties: { name: { type: "string" }, values: { type: "array", items: { type: "number" } }, color: { type: "string" } }, required: ["values"] }, description: "Data series" },
+      spreadsheet: S.str("Instead of data: name of an open spreadsheet"), range: S.str("A1 range in that spreadsheet"), sheet: S.str("Sheet name"),
+      x: S.num("Left edge"), y: S.num("Top edge"), w: S.num("Width (default 480)"), h: S.num("Height (default 320)"), page: S.str("Page id"),
+    }, ["x", "y"], async (a) => {
+      const { M, page, commit, model } = await board(app);
+      let chart;
+      if (a.spreadsheet) chart = (await (await import("../../office/slides/sheet-link.js")).chartFromSheet(app, { spreadsheet: a.spreadsheet, sheet: a.sheet, range: a.range, type: a.type || "column", title: a.title || "" })).chart;
+      else {
+        if (!Array.isArray(a.series) || !a.series.length) throw new Error("Pass series (with values) and categories, or spreadsheet and range.");
+        chart = { type: a.type || "column", title: a.title || "", data: { categories: a.categories || [], series: a.series } };
+      }
+      const el = M.makeElement("chart", { page: page(a.page), x: a.x, y: a.y, w: a.w || 480, h: a.h || 320, chart });
+      commit("Add Chart", M.addElements(model(), [el]));
+      return { ok: true, id: el.id, type: el.chart.type, categories: el.chart.data.categories.length, series: el.chart.data.series.map((s) => s.name) };
+    }),
+
+    tool("board_add_plot", "Adds a coordinate system to the whiteboard: axes with ticks and grid, graphs of functions y = f(x) (e.g. \"x^2 - 3x + 2\", \"sin(x)\", \"2x + 1\", \"1/x\", \"sqrt(x)\", \"e^(-x^2)\"), labeled points and line segments, in math coordinates. Returns its id. Watch out: use * or implicit multiplication (2x), ^ for powers and ln/log for logarithms; pick x/y ranges that show the interesting part (roots, vertex, intersections); verify points by computing them with calculate.", {
+      functions: { type: "array", items: { type: "object", properties: { expr: { type: "string" }, color: { type: "string" }, label: { type: "string" } }, required: ["expr"] }, description: "Graphs y = f(x)" },
+      points: { type: "array", items: { type: "object", properties: { x: { type: "number" }, y: { type: "number" }, label: { type: "string" }, color: { type: "string" } }, required: ["x", "y"] }, description: "Points to mark" },
+      segments: { type: "array", items: { type: "object", properties: { from: { type: "array", items: { type: "number" } }, to: { type: "array", items: { type: "number" } }, color: { type: "string" } }, required: ["from", "to"] }, description: "Line segments (vectors, triangles, tangents)" },
+      xMin: S.num("Smallest x (default -10)"), xMax: S.num("Largest x (default 10)"), yMin: S.num("Smallest y (default -10)"), yMax: S.num("Largest y (default 10)"),
+      xLabel: S.str("x axis label"), yLabel: S.str("y axis label"), grid: S.bool("Grid lines (default true)"),
+      x: S.num("Left edge on the board"), y: S.num("Top edge on the board"), w: S.num("Width (default 480)"), h: S.num("Height (default 360)"), page: S.str("Page id"),
+    }, ["x", "y"], async (a) => {
+      const { M, page, commit, model } = await board(app);
+      const { compileExpr } = await import("../../office/board/objects.js");
+      for (const f of a.functions || []) compileExpr(f.expr); // readable error before anything is added
+      const el = M.makeElement("plot", { page: page(a.page), x: a.x, y: a.y, w: a.w || 480, h: a.h || 360, functions: a.functions, points: a.points, segments: a.segments, xMin: a.xMin, xMax: a.xMax, yMin: a.yMin, yMax: a.yMax, grid: a.grid, axisLabels: { x: a.xLabel ?? "x", y: a.yLabel ?? "y" } });
+      commit("Add Graph", M.addElements(model(), [el]));
+      return { ok: true, id: el.id, functions: el.functions.length, points: el.points.length, range: { x: [el.xMin, el.xMax], y: [el.yMin, el.yMax] } };
+    }),
+
+    tool("board_add_math", "Adds a typeset math formula to the whiteboard from TeX-like input: \\frac{a}{b}, \\sqrt{x}, x^{2}, x_{i}, Greek letters (\\alpha, \\pi …), \\sum, \\int, \\infty, \\le, \\ge, \\ne, \\approx, \\pm, \\cdot, \\to. Returns its id. Watch out: group with braces (x^{10}, not x^10); matrices, \\begin environments and \\left/\\right sizing are not supported; one formula per element.", {
+      tex: S.str("Formula, e.g. x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}"),
+      x: S.num("Left edge"), y: S.num("Top edge"), fontSize: S.num("Size (default 28)"), color: S.str(`Color (${COLORS})`), page: S.str("Page id"),
+    }, ["tex", "x", "y"], async (a) => {
+      const { M, A, page, commit, model } = await board(app);
+      const { mathSize } = await import("../../office/board/objects.js");
+      const size = a.fontSize || 28;
+      const box = mathSize(a.tex, size, (t, s, it) => A.measureText(t, s, "serif"));
+      const el = M.makeElement("math", { page: page(a.page), x: a.x, y: a.y, w: box.w, h: box.h, tex: a.tex, fontSize: size, ...(hex(a.color) ? { stroke: hex(a.color) } : {}) });
+      commit("Add Formula", M.addElements(model(), [el]));
+      return { ok: true, id: el.id, w: el.w, h: el.h };
+    }),
+
+    tool("board_add_subboard", "Adds a sub-board: a new page with its own canvas plus a card on the current page that opens it on double-click (zoom into a topic, details of a step, one board per chapter). Returns the card id and the new page id; add content to that page by passing it as page to the other board_ tools. Watch out: the new page is not shown until the user opens the card or you call board_page goto.", {
+      name: S.str("Name of the sub-board"), x: S.num("Card left edge"), y: S.num("Card top edge"), w: S.num("Card width (default 240)"), h: S.num("Card height (default 140)"),
+      paper: S.str("Paper of the new page", { enum: ["plain", "dots", "grid", "lines"] }), page: S.str("Page id for the card (default: current page)"),
+    }, ["name", "x", "y"], async (a) => {
+      const { M, page, commit, model } = await board(app);
+      const here = page(a.page);
+      const r = M.addPage(model(), { name: a.name, paper: a.paper || "plain", after: here });
+      const card = M.makeElement("portal", { page: here, x: a.x, y: a.y, w: a.w || 240, h: a.h || 140, target: r.page, name: a.name });
+      commit("Add Sub-board", M.addElements(r.model, [card]));
+      return { ok: true, id: card.id, page: r.page };
+    }),
+
+    tool("board_add_diagram", "Draws a complete diagram from structured items, laid out and connected: mindmap (title in the center, branches and their children around it), tree (org chart, decision tree, hierarchy), timeline (dated steps along a line), cycle (steps in a loop) or matrix (2 × 2 quadrants with notes). Returns the new ids. Watch out: keep item texts short (under 6 words); children are one level deeper (max 3 levels); use board_arrange or board_update afterward rather than re-creating the diagram.", {
+      kind: S.str("Diagram kind", { enum: ["mindmap", "tree", "timeline", "cycle", "matrix"] }),
+      title: S.str("Center topic, root or heading"),
+      items: { type: "array", items: { type: "object", properties: { text: { type: "string" }, children: { type: "array", items: { type: "object", properties: { text: { type: "string" }, children: { type: "array", items: { type: "object" } } } } } }, required: ["text"] }, description: "Items with optional children" },
+      x: S.num("Left edge (default 0)"), y: S.num("Top edge (default 0)"), style: S.str("hand-drawn (default) or clean", { enum: ["hand-drawn", "clean"] }), page: S.str("Page id"),
+    }, ["kind", "items"], async (a) => {
+      const { M, page, commit, model } = await board(app);
+      const { buildDiagram } = await import("../../office/board/diagrams.js");
+      const r = buildDiagram(a.kind, { title: a.title || "", items: a.items, page: page(a.page), at: [a.x || 0, a.y || 0], style: { rough: a.style === "clean" ? 0 : 1 } });
+      commit("Add Diagram", M.addElements(model(), r.elements));
+      return { ok: true, kind: a.kind, ids: r.elements.map((e) => e.id), ...r.ids };
+    }),
+
+    tool("board_draw", "Draws a free graphic from points: a polyline or closed polygon (straight or smoothed), for icons, outlines, arrows along a path, geometric figures or annotations. Returns its id. Watch out: points are absolute board coordinates [[x, y], …]; at least 2 points; use board_add_plot for anything in math coordinates.", {
+      points: { type: "array", items: { type: "array", items: { type: "number" } }, description: "Points [[x, y], …]" },
+      closed: S.bool("Close the shape (back to the first point)"), smooth: S.bool("Smooth curve through the points"),
+      arrow: S.bool("Arrow head at the end"), stroke: S.str(`Line color (${COLORS})`), width: S.num("Line width (default 2)"), style: S.str("hand-drawn or clean (default)", { enum: ["hand-drawn", "clean"] }), page: S.str("Page id"),
+    }, ["points"], async (a) => {
+      const { M, page, commit, model } = await board(app);
+      const pts = (a.points || []).filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1])).slice(0, 2000).map((p) => [p[0], p[1]]);
+      if (pts.length < 2) throw new Error("Give at least two points [[x, y], …].");
+      if (a.closed) pts.push(pts[0]);
+      const el = M.makeElement(a.arrow ? "arrow" : "line", { page: page(a.page), points: pts, curve: !!a.smooth, width: a.width || 2, rough: a.style === "hand-drawn" ? 1 : 0, heads: { start: "none", end: a.arrow ? "arrow" : "none" }, ...(hex(a.stroke) ? { stroke: hex(a.stroke) } : {}) });
+      commit("Draw", M.addElements(model(), [el]));
+      return { ok: true, id: el.id };
+    }),
+
     tool("board_page", "Manages whiteboard pages (notebook style): add, rename, delete, go to, or set the paper (plain, dots, grid, lines).", {
       action: S.str("add, rename, delete, goto or paper", { enum: ["add", "rename", "delete", "goto", "paper"] }),
       page: S.str("Page id (default: the current page)"),

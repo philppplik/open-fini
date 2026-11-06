@@ -39,3 +39,6 @@
 @media (prefers-reduced-motion: reduce) {
   .of-board__page { transition: none; }
 }
+
+/* rich object dialogs (object-dialogs.js) */
+.of-board__range { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
