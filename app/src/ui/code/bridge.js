@@ -3,17 +3,20 @@
 // self-contained: no imports, no references to anything outside of `bridgeMain`.
 //
 // Parent → frame messages: { of:1, type: "mode"|"select"|"hover"|"computed"|"live"|"liveClear"|"css"|"scroll"|
-//   "reveal"|"dropProbe"|"dropEnd"|"textEditStart"|"spacing"|"measure"|"measureBox" , ... }
+//   "reveal"|"dropProbe"|"dropEnd"|"textEditStart"|"spacing"|"measure"|"measureBox"|"probe" , ... }
 // Frame → parent messages: { of:1, type: "ready"|"console"|"pick"|"hover"|"context"|"computed"|"scroll"|"navigate"|
 //   "external"|"textEdit"|"htmlEdit"|"moveDrop"|"dropTarget"|"key"|"dblclick"|"submit"|"measureInfo"|"measureBox"|
-//   "measureExit"|"measureCopied"|"measureOpt" , ... }
+//   "measureExit"|"measureCopied"|"measureOpt"|"probe" , ... }
+// "probe" answers the assistant's questions about the rendered page and performs simple interactions (click, type,
+// …) with the self-contained `probeKit` of ui/code/probe.js, passed in as `pageProbe`. It never evaluates code.
 // The measure tool (section "measure tool" below) draws its overlay in the frame; its geometry and unit code is the
 // self-contained `measureKit` of engine/web/measure.js, passed in as `kit` (see `bridgeSource`). The host validates
 // every measure message with `sanitizeBox` before using it.
 /* eslint-disable no-undef */
 import { measureKit } from "../../engine/web/measure.js";
+import { probeKit } from "./probe.js";
 
-export function bridgeMain(kit) {
+export function bridgeMain(kit, pageProbe) {
   var cfg = window.__OF_CONFIG__ || {};
   var TOP = window.parent;
   var ACCENT = cfg.accent || "#4f8cff";
@@ -1028,6 +1031,24 @@ export function bridgeMain(kit) {
       case "endTextEdit":
         endTextEdit(true);
         break;
+      case "probe": {
+        var reply = { type: "probe", reqId: m.reqId };
+        var wasEdit = edit;
+        try {
+          if (m.op === "query") reply.result = pageProbe.query(m);
+          else if (m.op === "state") reply.result = pageProbe.state();
+          else if (m.op === "act") {
+            // behave like preview mode for the moment of the event, so links report "navigate" instead of loading
+            edit = false;
+            reply.result = { done: pageProbe.act(m.step) };
+          } else throw new Error("Unknown probe.");
+        } catch (err) {
+          reply.error = String((err && err.message) || err);
+        }
+        edit = wasEdit;
+        post(reply);
+        break;
+      }
       default:
         break;
     }
@@ -1039,4 +1060,4 @@ export function bridgeMain(kit) {
 }
 
 /** Source text injected into the preview: the function body wrapped in an IIFE. */
-export const bridgeSource = `(${bridgeMain.toString()})((${measureKit.toString()})());`;
+export const bridgeSource = `(${bridgeMain.toString()})((${measureKit.toString()})(), (${probeKit.toString()})());`;

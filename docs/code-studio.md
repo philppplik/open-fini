@@ -366,6 +366,7 @@ studio is opened, so it adds nothing to application start-up.
   `splitV`; prefs `codeLayout`, `codeMeasureUnit`, `codeMeasurePpi`, `codeMeasureDpr`, `codeViewportSizes`.
 * **Commands and Vibe tools**: `code.measure`, `code.rulers`, `code.viewportRotate`, `code.layout.*` in `commands/code.js`;
   `set_viewport`, `get_viewport`, `measure_element`, `set_code_layout` in `vibe/tools/web-view.js`.
+* **Preview probe** (`ui/code/probe.js`): `probeKit` is injected next to the bridge and answers `probe` messages (`query`, `state`, `act`) for the Vibe tools `preview_query`, `preview_state` and `preview_interact`; `PreviewPane.probe()` is the host side. The kit is self-contained ES5, never evaluates code, and its replies pass `sanitizeProbe` before use.
 
 * **Layout metrics and sync** (additive bridge messages): host to frame `viewportOpts {scrollbar}`, `metrics`, `matchSel {selector}`;
   frame to host `layoutMetrics`, `matchCount`. Sync lives in `ui/code/sync.js` (`SyncController`: line highlights as a CodeMirror

@@ -40,6 +40,22 @@ export function officeSuiteTools(app) {
       return { name: d.name, kind, app: m.label, exports: m.formats.filter((f) => f.write).map((f) => f.id), ...(describe ? { summary: describe(d.office.model) } : {}) };
     }, { readOnly: true }),
 
+    tool("office_screenshot", "Renders one page of the active Office document to an image so you can SEE your work: a laid-out page of a text document, one sheet of a spreadsheet, one slide, or one whiteboard page. Do this after significant edits to check layout, overflow, colors and alignment. page counts from 1; the result also lists every page label.", {
+      page: S.num("Page, sheet, slide or board page, counted from 1 (default 1)", { minimum: 1 }),
+      maxSize: S.num("Longest side in px (default 900, max 1600)", { minimum: 200, maximum: 1600 }),
+    }, [], async (a) => {
+      const d = app.doc;
+      if (!d?.office) throw new Error("The active document is not an Office document. Use screenshot for canvas documents.");
+      if (typeof OffscreenCanvas === "undefined" && typeof document === "undefined") throw new Error("Rendering needs the app window.");
+      const { officePreview } = await import("../../office/preview.js");
+      const r = await officePreview(d, { index: (a.page || 1) - 1, maxPx: a.maxSize || 900 });
+      if (!r?.bytes) throw new Error("This Office document cannot be rendered.");
+      let bin = "";
+      for (let i = 0; i < r.bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, r.bytes.subarray(i, i + 0x8000));
+      const labels = (r.labels || []).slice(0, 60).map((l, i) => `${i + 1}. ${l}`).join(", ");
+      return [{ type: "text", text: `“${d.name}”, page ${(r.index ?? 0) + 1} of ${r.count ?? r.labels?.length ?? 1} (${Math.round(r.width)} × ${Math.round(r.height)} px). Pages: ${labels}` }, { type: "image", mime: "image/png", data: btoa(bin) }];
+    }, { readOnly: true, exclusive: true }),
+
     tool("office_new", "Creates a new Office document of a kind (document, sheet, slides, board — see office_formats) from a template, opens it in the Office studio and makes it active.", {
       kind: S.str("App kind, e.g. document, sheet, slides, board"),
       template: S.str("Template id from office_formats (default blank)"),
