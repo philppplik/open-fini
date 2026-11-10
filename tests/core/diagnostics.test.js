@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Logger } from "../../app/src/core/log.js";
-import { groupProblems, hintFor, buildReport, buildBundleFiles, buildIssueUrl, buildInventory, describeKey, browserInfo, environmentSummary, environmentLines, problemSummary, inventoryText } from "../../app/src/core/diagnostics.js";
+import { groupProblems, hintFor, buildReport, buildBundleFiles, buildIssueUrl, buildInventory, describeKey, browserInfo, environmentSummary, environmentLines, problemSummary, inventoryText, earlierOnly } from "../../app/src/core/diagnostics.js";
 
 const logger = () => {
   let t = 1_700_000_000_000;
@@ -132,4 +132,25 @@ test("browserInfo recognizes common browsers and the desktop web view", () => {
   assert.equal(browserInfo("").name, "Unknown");
   assert.match(environmentSummary(env()), /^OpenFini 0\.3\.0 \(build abc12345\) · browser · windows · Chrome 130/);
   assert.ok(environmentLines(env()).every((l) => !l.includes("jane")));
+});
+
+test("the report lists warnings and errors of earlier sessions, not only the running one", () => {
+  const history = [
+    { t: Date.UTC(2026, 10, 4, 16), level: "error", scope: "app", msg: "TypeError: old crash", session: "s1", build: "1.0.0+74a9d3f", count: 3 },
+    { t: Date.UTC(2026, 10, 4, 16, 1), level: "info", scope: "app", msg: "OpenFini started", session: "s1", build: "1.0.0+74a9d3f" },
+    { t: Date.UTC(2026, 10, 5, 9), level: "warn", scope: "net", msg: "HTTP 422 for POST https://openrouter.ai/api/v1/chat/completions", session: "s2", build: "1.0.0+74a9d3f" },
+    { t: Date.UTC(2026, 10, 6, 9), level: "error", scope: "app", msg: "current session error", session: "now", build: "1.0.1" },
+  ];
+  const earlier = earlierOnly(history, "now");
+  assert.equal(earlier.length, 3);
+  const text = buildReport({ entries: [], history: earlier });
+  assert.match(text, /## Earlier sessions \(2 sessions; 2 warning/);
+  assert.match(text, /### Session s1 \(1\.0\.0\+74a9d3f\)/);
+  assert.match(text, /old crash/);
+  assert.match(text, /HTTP 422/);
+  assert.doesNotMatch(text, /current session error/);
+  assert.doesNotMatch(text, /OpenFini started/, "info entries of earlier sessions stay in the bundle only");
+  const files = buildBundleFiles({ entries: [], history, session: "now" });
+  assert.match(files["report.txt"], /old crash/);
+  assert.doesNotMatch(buildReport({ entries: [] }), /Earlier sessions/);
 });

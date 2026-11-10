@@ -60,6 +60,8 @@ test("completeSignIn: refusals (state, error, client, claims, missing registrati
   await assert.rejects(completeSignIn({ fetch: tokenFetch({ id: { exp: 1 } }), query: q, expect: expect() }), { code: "bad_id_token" });
   const denied = fakeFetch(() => jsonResponse({ error: "invalid_grant" }, { status: 400 }));
   await assert.rejects(completeSignIn({ fetch: denied, query: q, expect: expect() }), { code: "invalid_grant" });
+  // the HTTP 400 of the token endpoint tells the user what to do next
+  await assert.rejects(completeSignIn({ fetch: denied, query: q, expect: expect() }), (e) => e.status === 400 && /expired or been used already\. Please sign in again/.test(e.message));
 });
 
 test("completeSignIn: sign-in without plan usage is flagged", async () => {

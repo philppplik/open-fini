@@ -505,6 +505,7 @@ export class VibeSession extends Emitter {
       this.agentMgr.cancelAll("The parent request ended.");
       for (const m of res.messages) this.chat.messages.push(m);
       failed = res.stopReason === "error";
+      if (failed) log.warn("ai", `The assistant run failed: ${String(res.error || "unknown error").slice(0, 300)}`);
       this.emit("done", res);
     } catch (err) {
       failed = true;

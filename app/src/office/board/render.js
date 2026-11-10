@@ -8,6 +8,7 @@
 //   inkOutline(points, width) → [[x, y]]              variable-width outline of a pressure stroke (polygon)
 //   smoothPath(points, closed?) → PathData           quadratic smoothing through midpoints
 //   wrapText(text, width, size, measure) → string[]
+//   rotationStemStart(handles) → { x, y } | null    where the rotate handle's stem starts (top middle)
 //   FONT_FAMILY                                       board font id → CSS family
 // ctx: { measure(text, size, font) → px, image(mediaId) → ImageRef | null }
 import { roughRect, roughEllipse, roughPolygon, roughPolyline, roughLine, hachure } from "../toolkit/rough.js";
@@ -100,6 +101,19 @@ export function inkOutline(points, width) {
   const ae = Math.atan2(left[n - 1][1] - end[1], left[n - 1][0] - end[0]);
   const as = Math.atan2(right[0][1] - start[1], right[0][0] - start[0]);
   return [...left, ...cap(end, ae, ae - Math.PI, rad(end) * 0.55), ...right.reverse(), ...cap(start, as, as - Math.PI, rad(start) * 0.55)];
+}
+
+/**
+ * Start of the stem drawn to the rotate handle: the top-middle handle, or the midpoint of the top corners when the
+ * selection has no edge handles (a single text box only gets corner handles). Null without a top edge.
+ */
+export function rotationStemStart(handles) {
+  const by = (id) => handles.find((h) => h.id === id);
+  const n = by("n");
+  if (n) return { x: n.x, y: n.y };
+  const nw = by("nw");
+  const ne = by("ne");
+  return nw && ne ? { x: (nw.x + ne.x) / 2, y: (nw.y + ne.y) / 2 } : null;
 }
 
 /** Greedy word wrap to a width (long words break by characters). */

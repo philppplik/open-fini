@@ -133,7 +133,7 @@ export function environmentSummary(env = {}) {
  * The text of the diagnostic report. Contains no documents, keys or file names: logs and environment only, redacted.
  * @param {{env?:object, entries?:object[], problems?:object[], security?:object[], generatedAt?:number, maxEntries?:number}} o
  */
-export function buildReport({ env = {}, entries = [], problems, security, generatedAt = Date.now(), maxEntries = 200, logInfo } = {}) {
+export function buildReport({ env = {}, entries = [], problems, security, generatedAt = Date.now(), maxEntries = 200, logInfo, history, maxHistory = 150 } = {}) {
   const probs = problems || groupProblems(entries);
   const lines = [];
   lines.push("# OpenFini diagnostic report", "", `Generated: ${new Date(generatedAt).toISOString()}`, `Summary: ${environmentSummary(env)}`, "");
@@ -152,14 +152,39 @@ export function buildReport({ env = {}, entries = [], problems, security, genera
   const recent = entries.slice(-maxEntries);
   if (logInfo) lines.push("", `Build: ${logInfo.build || "development"}`, `Persisted log: ${logInfo.sessions} earlier session${logInfo.sessions === 1 ? "" : "s"}, ${logInfo.entries} entries stored (kept ${logInfo.retentionDays ? `${logInfo.retentionDays} days` : "for this session only"}).`);
   lines.push("", `## Recent log (${recent.length} of ${entries.length} entries${logInfo ? `; ${logInfo.entries} more stored from earlier sessions` : ""})`, "", recent.length ? entriesToText(recent) : "The log is empty.", "");
+  if (history?.length) lines.push(...earlierSessionLines(history, maxHistory));
   return redact(lines.join("\n"));
 }
+
+/**
+ * "Earlier sessions" section: warnings and errors of the stored log (core/log-store.js) grouped by session, newest
+ * session last, at most `max` entries (the newest are kept). `history` entries carry `session` and `build`.
+ */
+export function earlierSessionLines(history, max = 150) {
+  const problems = history.filter((e) => levelRank(e.level) >= levelRank("warn")).slice(-max);
+  const sessions = new Set(history.map((e) => e.session));
+  const out = ["", `## Earlier sessions (${sessions.size} session${sessions.size === 1 ? "" : "s"}; ${problems.length} warning${problems.length === 1 ? "" : "s"} and errors shown)`, ""];
+  if (!problems.length) return [...out, "No warnings or errors were logged in earlier sessions.", ""];
+  let cur = null;
+  for (const e of problems) {
+    if (e.session !== cur) {
+      cur = e.session;
+      out.push(`### Session ${cur || "unknown"}${e.build ? ` (${e.build})` : ""}, ${new Date(e.t).toISOString()}`);
+    }
+    out.push(entriesToText([e]));
+  }
+  out.push("");
+  return out;
+}
+
+/** Stored entries of sessions other than `session` (the running one, whose entries the report already lists). */
+export const earlierOnly = (history, session) => (history || []).filter((e) => e.session !== session);
 
 /**
  * Files of the diagnostic bundle (ZIP/JSON). Never contains documents, keys or file names.
  * @returns {{[name:string]: string}}
  */
-export function buildBundleFiles({ env = {}, entries = [], inventory, security, generatedAt = Date.now(), logInfo, history } = {}) {
+export function buildBundleFiles({ env = {}, entries = [], inventory, security, generatedAt = Date.now(), logInfo, history, session = null } = {}) {
   const problems = groupProblems(entries);
   const clean = redactValue(env);
   const files = {
@@ -177,7 +202,7 @@ export function buildBundleFiles({ env = {}, entries = [], inventory, security, 
       "Documents, API keys, chat contents and file names are never included. Secrets and your user name in file paths",
       "are removed automatically, but please skim the files before sending them to anyone.",
     ].filter((l) => l !== "").join("\n"),
-    "report.txt": buildReport({ env, entries, problems, security, generatedAt, logInfo }),
+    "report.txt": buildReport({ env, entries, problems, security, generatedAt, logInfo, history: earlierOnly(history, session) }),
     "environment.json": JSON.stringify(clean, null, 2),
     "log.json": JSON.stringify({ generatedAt: new Date(generatedAt).toISOString(), entries: entries.map((e) => ({ time: new Date(e.t).toISOString(), level: e.level, scope: e.scope, message: redact(e.msg), count: e.count, ...(e.stack ? { stack: redact(e.stack) } : {}), ...(e.prev ? { previousSession: true } : {}) })), problems: problems.map((p) => ({ level: p.level, scope: p.scope, message: redact(p.msg), count: p.count, hint: p.hint?.title || null })) }, null, 2),
     "log.txt": redact(entriesToText(entries)),

@@ -76,6 +76,21 @@ test('text line grouping and paragraph blocks', async () => {
   }
 });
 
+test('an `n` without a current path (ReportLab writes `n x y w h re B*`) does not break the page', async () => {
+  // regression: pdf.js hands such an endPath a [null] path; every ReportLab PDF failed with
+  // "Cannot read properties of null (reading 'length')"
+  const bytes = simplePdf('0.2 0.4 0.8 rg\nn 72 60 50 40 re B*\n1 0 0 RG\nn 10 10 m 150 60 250 40 30 50 c S');
+  const { src, page } = await read(bytes);
+  try {
+    const paths = page.items.filter((i) => i.k === 'path');
+    assert.equal(paths.length, 2);
+    assert.equal(paths[0].fill.color, '#3366cc');
+    assert.ok(paths[1].d.some((c) => c[0] === 'C'));
+  } finally {
+    src.destroy();
+  }
+});
+
 test('vector paths: fill, stroke, dash, even-odd, curves, clipping, alpha', async () => {
   const content = `q 1 0 0 RG 2 w [3 1] 0 d 1 J 1 j 10 10 80 40 re S Q
 q 0.5 g 20 20 m 60 20 l 40 60 l h f* Q

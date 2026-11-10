@@ -1,5 +1,6 @@
 // Small helpers shared by the Code studio modules.
 import { h } from "../../core/util.js";
+import { applyChanges } from "../../engine/web/edit.js";
 
 const FILE_ICONS = {
   html: "filetype-html",
@@ -80,6 +81,17 @@ export function offsetOf(text, line, col = 1) {
     off = i + 1;
   }
   return Math.min(text.length, off + Math.max(0, col - 1));
+}
+
+/**
+ * Rewrites changes computed against `base` (the project text) so they apply to `doc` (the editor text). Both usually
+ * match; they differ when the file has Windows (CRLF) or old Mac (CR) line breaks, which the editor stores as "\n", or
+ * when the editor state is stale. The edit is then replayed on `base` and turned into one minimal change of `doc`.
+ */
+export function rebaseChanges(doc, base, changes) {
+  if (doc === base || !changes?.length) return changes;
+  const target = applyChanges(base, changes).replace(/\r\n?/g, "\n");
+  return doc === target ? [] : [trimmedChange(doc, target)];
 }
 
 /** Smallest single replacement that turns `a` into `b` (keeps cursors stable when a document is reformatted). */

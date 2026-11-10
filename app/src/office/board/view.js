@@ -12,7 +12,7 @@ import { t, N_ } from "../../i18n/index.js";
 import { commitOffice } from "../../core/office.js";
 import { ribbon, button, colorPicker, zoomControl, officeContextMenu, promptDialog } from "../toolkit/ui.js";
 import { drawDisplayList, CanvasPool } from "../../engine/backends/canvas.js";
-import { elementItems, inkOutline } from "./render.js";
+import { elementItems, inkOutline, rotationStemStart } from "./render.js";
 import { measureText } from "./app.js";
 import { officeItemAnchor } from "../../collab/anchors.js";
 import * as M from "./model.js";
@@ -317,8 +317,8 @@ export function mountBoard(host, doc, app) {
         ctx.closePath();
         ctx.stroke();
         const rot = f.handles.find((x) => x.id === "rot");
-        if (rot) {
-          const n = f.handles.find((x) => x.id === "n");
+        const n = rot && rotationStemStart(f.handles);
+        if (n) {
           ctx.beginPath();
           ctx.moveTo(n.x, n.y);
           ctx.lineTo(rot.x, rot.y);

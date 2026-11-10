@@ -70,7 +70,14 @@ export async function completeSignIn({ fetch: f, query, expect, now = Date.now()
   if (expect.clientId && issued && issued !== expect.clientId) throw new OAuthError("client_mismatch", "The sign-in answered for a different registration. Please try again.");
   const clientId = expect.clientId || issued;
   if (!clientId) throw new OAuthError("registration_incomplete", "OpenAI did not issue a client ID for this app. Please try again.");
-  const json = await postForm(f, OPENAI_AUTH.tokenUrl, { grant_type: "authorization_code", client_id: clientId, code, code_verifier: expect.verifier, redirect_uri: expect.redirectUri, resource: OPENAI_AUTH.resource });
+  let json;
+  try {
+    json = await postForm(f, OPENAI_AUTH.tokenUrl, { grant_type: "authorization_code", client_id: clientId, code, code_verifier: expect.verifier, redirect_uri: expect.redirectUri, resource: OPENAI_AUTH.resource });
+  } catch (e) {
+    // HTTP 400 from the token endpoint: the one-time code expired, was used already or belongs to another attempt
+    if (e instanceof OAuthError && e.status === 400) throw new OAuthError(e.code, `OpenAI refused the sign-in code (${e.code}). It may have expired or been used already. Please sign in again.`, { status: 400 });
+    throw e;
+  }
   const tokens = tokensFromResponse(json, now);
   const claims = decodeJwt(tokens.idToken);
   if (!claims) throw new OAuthError("bad_id_token", "OpenAI returned no readable ID token.");

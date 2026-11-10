@@ -191,6 +191,20 @@ test("McpAuthSession: concurrent callers share one refresh (rotating tokens)", a
   assert.equal(f.calls.length, 1);
 });
 
+test("McpAuthSession: invalid_grant after another session rotated the token uses the new tokens", async () => {
+  // regression: two sessions refreshed with the same single-use refresh token; OpenAI answered HTTP 400 invalid_grant
+  // to the second one and the user was signed out although the first one had saved fresh tokens
+  const store = memStore(record({ tokens: { accessToken: "A1", refreshToken: "R1", expiresAt: 0 } }));
+  const f = fakeFetch(() => {
+    store.rec = { ...store.rec, tokens: { accessToken: "A2", refreshToken: "R2", expiresAt: 9_000_000 } }; // the other window won
+    return jsonResponse({ error: "invalid_grant" }, { status: 400 });
+  });
+  assert.equal(await new McpAuthSession({ fetch: f, store, now: () => 1_000 }).getAccessToken(), "A2");
+  assert.equal(store.rec.tokens.refreshToken, "R2", "the fresh tokens are kept");
+  const lone = memStore(record({ tokens: { accessToken: "A1", refreshToken: "R1", expiresAt: 0 } }));
+  await assert.rejects(new McpAuthSession({ fetch: fakeFetch(() => jsonResponse({ error: "invalid_grant" }, { status: 400 })), store: lone, now: () => 1 }).getAccessToken(), (e) => e.code === "invalid_grant" && /sign in again/.test(e.message));
+});
+
 test("McpAuthSession: refused refresh token clears the sign-in, a network error keeps it", async () => {
   const bad = fakeFetch(() => jsonResponse({ error: "invalid_grant" }, { status: 400 }));
   const store = memStore(record({ tokens: { accessToken: "A1", refreshToken: "R1", expiresAt: 0 } }));

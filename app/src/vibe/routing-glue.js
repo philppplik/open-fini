@@ -87,6 +87,7 @@ export async function checkProvider(hub, id, { signal } = {}) {
   const t0 = Date.now();
   let res;
   try {
+    (await hub.ai()).resetLocalBackoff?.(); // an explicit check always asks the server again
     const prov = await hub.providerFor(id);
     const models = prov.health ? (await prov.health({ signal }), await prov.listModels({ signal }).catch(() => [])) : await prov.listModels({ signal });
     res = { ok: true, ms: Date.now() - t0, models: models.length, at: Date.now() };

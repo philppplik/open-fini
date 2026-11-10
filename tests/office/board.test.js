@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import * as M from "../../app/src/office/board/model.js";
 import { readExcalidraw, writeExcalidraw, readTldraw, writeTldraw, parseJson } from "../../app/src/office/board/formats.js";
-import { pageDisplayList, inkOutline, wrapText } from "../../app/src/office/board/render.js";
+import { pageDisplayList, inkOutline, wrapText, rotationStemStart } from "../../app/src/office/board/render.js";
 import { BOARD_APP } from "../../app/src/office/board/manifest.js";
 import { officeApp, appForFile, checkImpl } from "../../app/src/office/index.js";
 
@@ -226,4 +226,14 @@ test("boardToMarkdown: frames become sections, connectors become lines", () => {
   assert.match(k.markdown, /## To do\n\n- First task/);
   const esc = M.boardToMarkdown({ ...M.emptyModel({ title: "x" }), elements: { a: M.makeElement("sticky", { id: "a", text: "# not a heading", x: 0, y: 0 }) } });
   assert.match(esc.markdown, /- \\# not a heading/);
+});
+
+test("rotate handle stem: a single text box (corner handles only) still has a start point", () => {
+  // regression: the overlay looked up the "n" handle, which text boxes do not have, and threw
+  // "Cannot read properties of undefined (reading 'x')" on every animation frame
+  const corners = [{ id: "nw", x: 0, y: 10 }, { id: "ne", x: 100, y: 10 }, { id: "se", x: 100, y: 60 }, { id: "sw", x: 0, y: 60 }, { id: "rot", x: 50, y: -14 }];
+  assert.deepEqual(rotationStemStart(corners), { x: 50, y: 10 });
+  assert.deepEqual(rotationStemStart([...corners, { id: "n", x: 51, y: 9 }]), { x: 51, y: 9 });
+  assert.equal(rotationStemStart([{ id: "rot", x: 0, y: 0 }]), null);
+  assert.equal(rotationStemStart([]), null);
 });

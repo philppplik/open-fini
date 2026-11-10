@@ -59,6 +59,11 @@ describe("scripts/build.mjs", () => {
     assert.match(bundle, /\bawait\b/, "top-level await survived (target ES2022)");
   });
 
+  it("keeps the trailing slash of folder URLs (pdf.js wasmUrl / iccUrl refuse them without it)", () => {
+    // regression: every PDF failed to open in release builds with "Invalid factory url ... must include trailing slash"
+    assert.match(bundle, /new URL\("\.\/icons\/",\s*import\.meta\.url\)/);
+  });
+
   it("code-splits import() into chunks", async () => {
     const assets = await readdir(join(fx.out, "assets"));
     assert.ok(assets.some((f) => /^chunk-[A-Z0-9]+\.js$/.test(f)), "a chunk exists");

@@ -7,7 +7,7 @@ import { languageOf, parseHtml, parseCss, resolveRef, dirname, formatText, forma
 import { expandHtml, expandCss, abbreviationBefore } from "../../engine/web/emmet.js";
 import { tailwindClasses, BOOTSTRAP_CLASSES, TAILWIND_VARIANTS, splitVariant, attributeOptions, htmxValues } from "../../engine/web/index.js";
 import { LATEX_COMMANDS, LATEX_ENVIRONMENTS, latexCompletionContext, latexLabels, bibKeys } from "../../engine/web/index.js";
-import { fileIcon, fuzzyScore, trimmedChange } from "./util.js";
+import { fileIcon, fuzzyScore, trimmedChange, rebaseChanges } from "./util.js";
 import { markContext } from "../context-menu/index.js";
 import { registerCodeContext, openEditorMenu } from "./context.js";
 import { t } from "../../i18n/index.js";
@@ -605,8 +605,14 @@ export class CodeEditors extends Emitter {
     if (!changes?.length) return false;
     const st = this.stateFor(path);
     if (!st) return false;
+    // offsets are relative to the project text; the editor keeps "\n" line breaks only (CRLF files) or may lag behind
+    const doc = (path === this.active && this.view ? this.view.state : st).doc.toString();
+    const base = this.web.text(path);
+    const rebased = base != null && base !== doc;
+    if (rebased) changes = rebaseChanges(doc, base, changes);
+    if (!changes.length) return true;
     const spec = { changes: changes.map((c) => ({ from: c.from, to: c.to, insert: c.insert })), userEvent };
-    if (selection) spec.selection = selection;
+    if (selection && !rebased) spec.selection = selection;
     if (path === this.active && this.view) this.view.dispatch(spec);
     else {
       const tr = st.update(spec);

@@ -3,7 +3,7 @@
 
 export { createOpenCodeServerProvider, parseOpenCodeConfig, stripJsonc } from "./providers/opencode.js";
 export { createRoutedProvider, resolveRoute, normalizePolicy, DEFAULT_POLICY, RouteError, RouteHealth, RouteStats, suggestFallback, testRoute, fallbackNotice, targetKey, targetLabel } from "./routing.js";
-export { classifyProviderError, ProviderError, parseSse, createSseParser, parseJsonLenient, isAbortError } from "./util.js";
+export { classifyProviderError, ProviderError, parseSse, createSseParser, parseJsonLenient, isAbortError, isHttpUrl, badBaseUrlMessage, resetLocalBackoff } from "./util.js";
 export {
   createProvider,
   PROVIDER_PRESETS,

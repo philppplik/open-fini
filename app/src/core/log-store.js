@@ -95,8 +95,12 @@ export function createLogStore({ storage, session, build = "development", now = 
   let chain = Promise.resolve();
   const serial = (fn) => (chain = chain.then(fn, fn));
 
-  const loadIndex = async () => (index ||= ((await storage.get(indexKey)) || []).filter((r) => r && r.key));
-  const nextKey = () => `${segPrefix}${Math.max(0, ...index.map((r) => Number(r.key.slice(segPrefix.length)) || 0)) + 1}`;
+  const readIndex = async () => ((await storage.get(indexKey)) || []).filter((r) => r && r.key);
+  const loadIndex = async () => (index ||= await readIndex());
+  // Keys carry the session id: several windows (each its own session) write the same store, and a counter derived from
+  // a cached index would hand two windows the same key so one overwrote the other's log.
+  let segCount = 0;
+  const nextKey = () => `${segPrefix}${String(session).replace(/[^\w-]/g, "")}.${++segCount}`;
 
   return {
     session,
@@ -120,7 +124,7 @@ export function createLogStore({ storage, session, build = "development", now = 
         if (!dirty || !seg || !days) return;
         dirty = false;
         try {
-          await loadIndex();
+          index = await readIndex(); // fresh: other windows (sessions) may have added or pruned segments meanwhile
           const todo = [...closed, seg];
           for (const open of todo) {
             const entries = open.entries.map((x) => slim(x.src));
@@ -151,11 +155,11 @@ export function createLogStore({ storage, session, build = "development", now = 
     },
     /** Sessions on disk (including the open one), newest first. */
     async sessions() {
-      return summarizeSessions(await loadIndex());
+      return summarizeSessions((index = await readIndex()));
     },
     /** Entries of one session id, or of every stored session ("all", each entry tagged with `session` and `build`), oldest first. */
     async load(sessionId = "all") {
-      const rows = (await loadIndex()).filter((r) => sessionId === "all" || r.session === sessionId).sort((a, b) => a.t0 - b.t0);
+      const rows = (index = await readIndex()).filter((r) => sessionId === "all" || r.session === sessionId).sort((a, b) => a.t0 - b.t0);
       const out = [];
       for (const r of rows) {
         const s = await storage.get(r.key);
@@ -176,7 +180,7 @@ export function createLogStore({ storage, session, build = "development", now = 
       });
     },
     async stats() {
-      const rows = await loadIndex();
+      const rows = (index = await readIndex());
       return { sessions: summarizeSessions(rows).length, entries: rows.reduce((n, r) => n + r.count, 0), bytes: rows.reduce((n, r) => n + r.bytes, 0) };
     },
   };

@@ -870,6 +870,8 @@ export function createChat(vs) {
     cur = null;
     if (res.stopReason === "max_steps") note("Stopped after the maximum number of steps. Say “continue” to go on.");
     else if (res.stopReason === "aborted") note("Stopped.");
+    // provider failures end the run with stopReason "error" (no exception): show them instead of an empty reply
+    else if (res.stopReason === "error") note(res.error || "The request failed.", "error", { label: "Retry", run: retryLast });
     const u = res.usage;
     if (u?.input || u?.output) thread.append(h("div.of-vusage", `${u.input?.toLocaleString("en-US") || 0} tokens in · ${u.output?.toLocaleString("en-US") || 0} out · ${res.steps || 1} step${res.steps === 1 ? "" : "s"}`));
     runSummary(vs.hub.active?.runId);
