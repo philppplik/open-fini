@@ -21,6 +21,21 @@ function run(tl) {
   tl.finish({ stopReason: "end_turn", steps: 2, usage: { input: 10, output: 5 } });
 }
 
+test("plan_work checklists keep task ids; an update after the run ends goes back to that run", () => {
+  const tl = new Timeline(clock());
+  tl.startRun("Build a site");
+  tl.setPlan([{ text: "[code] Page", status: "active", task: "page", state: "running" }, { text: "[vector] Logo", status: "pending", task: "logo", state: "pending" }]);
+  tl.finish({ stopReason: "end_turn" });
+  tl.startRun("Something else");
+  tl.finish({ stopReason: "end_turn" });
+  tl.setPlan([{ text: "[code] Page (undone)", status: "done", task: "page", state: "done", undone: true }, { text: "[vector] Logo", status: "done", task: "logo", state: "done" }]);
+  assert.equal(tl.runs.length, 2, "no new run was started");
+  assert.deepEqual(tl.runs[0].plan[0], { text: "[code] Page (undone)", status: "done", task: "page", state: "done", undone: true });
+  assert.deepEqual(tl.runs[1].plan, []);
+  tl.setPlan(["plain step"]);
+  assert.equal(tl.runs.length, 3, "a plain plan outside a run still opens one");
+});
+
 test("tool format helpers", () => {
   assert.equal(toolTitle("mcp_github__list_issues"), "Github › list issues");
   assert.equal(toolTitle("add_shape"), "Add shape");

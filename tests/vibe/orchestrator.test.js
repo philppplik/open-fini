@@ -66,6 +66,12 @@ test("runs tasks in dependency order with a live checklist, review and per-task 
   assert.ok(headAgent.started >= logoAgent.ended, "the dependent task starts after its dependency");
   assert.ok(plans.length >= 3 && plans.at(-1).every((s) => s.status === "done"), "checklist ends all done");
   assert.match(logoAgent.task, /guide for vector/);
+  // checklist rows carry the task id and state for the Activity tab's Cancel / Undo task buttons
+  assert.deepEqual(plans.at(-1).filter((s) => s.task).map((s) => [s.task, s.state]), [["logo", "done"], ["head", "done"]]);
+  assert.ok(orch.markUndone("logo") && !orch.markUndone("nope"));
+  assert.ok(plans.at(-1).find((s) => s.task === "logo").undone);
+  assert.match(plans.at(-1).find((s) => s.task === "logo").text, /\(undone\)/);
+  assert.equal(orch.status().tasks[0].undone, true);
 });
 
 test("a failed dependency skips dependents; cancel and resume work per task", async () => {

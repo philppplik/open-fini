@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { WriteLock } from "../../app/src/vibe/locks.js";
-import { undoRun, undoRunCheck, runSteps } from "../../app/src/vibe/run-undo.js";
+import { undoRun, undoRunCheck, runSteps, undoTask, undoTaskCheck, taskSteps } from "../../app/src/vibe/run-undo.js";
 import { History } from "../../app/src/core/history.js";
 import { Doc } from "../../app/src/core/doc.js";
 
@@ -89,4 +89,27 @@ test("run undo: an untagged (user) edit after the run blocks it", () => {
   const c = undoRunCheck(d.history, "ra");
   assert.equal(c.blockedBy, "user");
   assert.match(c.reason, /You edited/);
+});
+
+test("task undo: only one plan_work task's entries, top of the stack only", () => {
+  const { d, edit } = docWith();
+  edit({ chat: "A", run: "ra", task: "logo" }, "l1");
+  edit({ chat: "A", run: "ra", task: "logo" }, "l2");
+  edit({ chat: "A", run: "ra", task: "copy" }, "c1");
+  assert.equal(taskSteps(d.history, "ra", "logo"), 2);
+  assert.equal(taskSteps(d.history, "rb", "logo"), 0, "the run id is part of the match");
+  const c = undoTaskCheck(d.history, "ra", "logo");
+  assert.equal(c.blockedBy, "task");
+  assert.match(c.reason, /“copy”/);
+  assert.deepEqual(undoTask(d, "ra", "copy"), { undone: 1 });
+  assert.deepEqual(undoTask(d, "ra", "logo"), { undone: 2 });
+  assert.equal(d.pages[0].name, "Page 1");
+  assert.match(undoTask(d, "ra", "logo").reason, /no edits left/);
+  // another chat or the user on top blocks it as for runs
+  edit({ chat: "A", run: "ra", task: "logo" }, "l3");
+  edit({ chat: "B", run: "rb" }, "b1");
+  assert.equal(undoTaskCheck(d.history, "ra", "logo").blockedBy, "other");
+  d.undo();
+  d.set(d.pages[0], { name: "user" });
+  assert.equal(undoTaskCheck(d.history, "ra", "logo").blockedBy, "user");
 });

@@ -2,6 +2,7 @@
 // approvals, errors, token usage), filter chips, per-run undo, click-to-reveal and copy/clear.
 // The data comes from the pure Timeline (timeline.js) that run-log.js feeds from the session's events.
 import { h, empty } from "../../core/util.js";
+import { t } from "../../i18n/index.js";
 import { iconEl } from "../toolbox.js";
 import { copyText, toolIcon } from "./tool-cards.js";
 import { FILTERS, visibleEntries, undoPlan, formatLog, summarizeTouched } from "./timeline.js";
@@ -102,6 +103,40 @@ export function createActivityPanel(vs) {
     return row;
   }
 
+  // ---- plan_work tasks: Cancel while pending or running, Undo task once final (vibe/session.js cancelTask / undoTask)
+  const latestTaskRun = () => [...timeline.runs].reverse().find((r) => r.plan.some((s) => s.task));
+  function taskControls(s) {
+    const known = session.orch?.tasks.some((x) => x.id === s.task);
+    if (!known) return null;
+    const wrap = h("span.of-vplan__acts");
+    if (s.state === "pending" || s.state === "running") {
+      const b = h("button.of-btn.of-btn--sm", { type: "button", title: t("Stop this task and skip the tasks that depend on it") }, iconEl("x-circle"), t("Cancel"));
+      b.addEventListener("click", () => {
+        b.disabled = true;
+        if (!session.cancelTask(s.task)) app.toast(t("This task has already finished."), "warning", 2000);
+      });
+      wrap.append(b);
+    } else if (!s.undone && ["done", "error", "cancelled"].includes(s.state)) {
+      const edits = session.taskEdits(s.task);
+      const n = edits.reduce((a, x) => a + x.steps, 0);
+      if (!n) return null;
+      const b = h("button.of-btn.of-btn--sm", { type: "button", title: t("{n, plural, one {Undo the # edit of this task} other {Undo the # edits of this task}} in {docs}", { n, docs: edits.map((x) => x.doc.name).join(", ") }) }, iconEl("arrow-counterclockwise"), t("Undo task"));
+      b.addEventListener("click", async () => {
+        b.disabled = true;
+        try {
+          const r = await session.undoTask(s.task);
+          if (r.undone) app.toast(t("{n, plural, one {Undid # change.} other {Undid # changes.}}", { n: r.undone }), "success", 1800);
+          if (r.reasons.length) app.toast(r.reasons.join("\n"), "warning", 6000);
+        } catch (err) {
+          app.toast(err.message, "warning", 4000);
+        }
+        schedule();
+      });
+      wrap.append(b);
+    } else return null;
+    return wrap;
+  }
+
   function runCard(run, i, plan) {
     const isNewest = i === 0;
     const open = opened.has(run.id) ? opened.get(run.id) : isNewest;
@@ -148,7 +183,8 @@ export function createActivityPanel(vs) {
 
     if (run.plan.length) {
       const done = run.plan.filter((s) => s.status === "done").length;
-      body.append(h("div.of-vlog__plan", h("h3", `Plan · ${done}/${run.plan.length}`), run.plan.map((s) => h("div.of-vplan__step", { class: s.status }, iconEl(s.status === "done" ? "check-circle-fill" : s.status === "active" ? "arrow-right-circle-fill" : "circle"), h("span", s.text)))));
+      const controls = run === latestTaskRun();
+      body.append(h("div.of-vlog__plan", h("h3", `Plan · ${done}/${run.plan.length}`), run.plan.map((s) => h("div.of-vplan__step", { class: s.status }, iconEl(s.status === "done" ? "check-circle-fill" : s.status === "active" ? "arrow-right-circle-fill" : "circle"), h("span", s.text), controls && s.task ? taskControls(s) : null))));
     }
     body.append(entries.length ? h("ol.of-vlog__list", entries.map(entryRow)) : h("div.of-empty", run.entries.length ? "Nothing matches this filter." : run.status === "running" ? "Waiting for the first step…" : "No tool calls in this run."));
     card.append(body);

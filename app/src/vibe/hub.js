@@ -56,6 +56,10 @@ export class SessionView extends Emitter {
   get attachments() { return this.session.attachments; }
   get overrides() { return this.session.overrides; }
   get lastUndoError() { return this.session.lastUndoError; }
+  get orch() { return this.session.orch; }
+  cancelTask(id) { return this.session.cancelTask(id); }
+  taskEdits(id) { return this.session.taskEdits(id); }
+  undoTask(id) { return this.session.undoTask(id); }
   settings() { return this.session.settings(); }
   setOverrides(p) { return this.session.setOverrides(p); }
   send(text, files) { return this.session.send(text, files); }
