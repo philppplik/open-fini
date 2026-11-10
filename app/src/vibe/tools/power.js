@@ -52,7 +52,12 @@ export function pageFacts(app, page, { maxText = 120 } = {}) {
     if (b) Object.assign(f, { x: r1(b.x), y: r1(b.y), w: r1(b.w), h: r1(b.h) });
     if ("fill" in n && n.fill) f.fill = paintSummary(n.fill);
     if ("stroke" in n && n.stroke?.fill) f.stroke = `${paintSummary(n.stroke.fill)}/${n.stroke.width}`;
-    if (n.type === "text") f.text = nodeText(doc, n).slice(0, maxText);
+    if (n.type === "text") {
+      f.text = nodeText(doc, n).slice(0, maxText);
+      const ch = doc.stories[n.storyId]?.defaults?.char;
+      if (ch?.fontFamily) f.fontFamily = ch.fontFamily;
+      if (ch?.fontSize) f.fontSize = r1(ch.fontSize);
+    }
     if (n.opacity != null && n.opacity < 1) f.opacity = n.opacity;
     flat.push(f);
     if (n.children?.length) {

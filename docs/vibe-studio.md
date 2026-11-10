@@ -283,6 +283,21 @@ Sources: opencode.ai/docs/server, /docs/sdk, /docs/zen, /docs/providers.
   colors and grids; no network; may call read-only tools), `screenshot_layers` (isolated render, `lowRes`),
   `compare_screenshots` (save, then before/after), `grid_layout`, `distribute_layers`, `snap_layers`, `make_component`
   (group + copies with overrides by child name). Error messages include valid values and the nearest tool names.
+- **Scripting and checks** ([ADR 0028](adr/0028-vibe-code-mode.md)): `run_script` is code mode. The assistant
+  writes a short JavaScript function body; inside, `await openfini.<tool_name>(args)` runs any tool, so loops,
+  conditions and computed values make hundreds of exact edits in one turn. The script runs in a Web Worker without
+  network, DOM, storage or imports and is stopped at its compute time limit (default 10 s, at most 60 s, 500 tool
+  calls). All document edits fold into one undo step. `dryRun` runs it, returns the structural diff (layers
+  added, removed, changed fields) and reverts everything; it covers layer, table, chart and layout tools. Tools
+  that ask you on every call (web, local files, terminal, publishing, memory) and nested scripts are refused inside
+  a script. `find_tools` searches the tool set and prints TypeScript-like signatures. `checkpoint` saves a named
+  state (structure plus a render of the active page), lists them and diffs against one; `restore_checkpoint`
+  undoes back to it (asks first; redo brings the edits back). `visual_diff` compares a checkpoint's render with
+  the page now and returns the percent changed, the changed regions in page px and an outlined image.
+  `measure_layers` returns bounds, pairwise gaps, overlaps, shared edges, equal spacing and the WCAG contrast of
+  text against its backdrop. `find_replace` replaces text (plain or regular expression, formatting kept), solid
+  colors (fill, stroke, text) and font families across a page or the whole document in one undo step, with a dry
+  run. Checkpoints live in the chat and rely on the undo history.
 - **Agents**: `spawn_agent`, `wait_agent`, `list_agents`, `cancel_agent` (see Sub-agents).
 - **Attachments**: `list_attachments` and `open_attachment` open a file you attached in this chat as a new document
   through the same importers as File ▸ Open (images in Pixel, SVG in Vector, PDF and Illustrator in Layout with the
@@ -534,7 +549,7 @@ developer** (also in the Troubleshooting dialog). Format: [ai-logging.md](ai-log
 | Part | Location |
 | --- | --- |
 | Pure AI runtime (providers, agent loop, MCP, RAG, skills, vault) | `app/src/ai/` — see [ai-engine.md](ai-engine.md) |
-| OpenFini tools (130) | `app/src/vibe/tools/` (power tools `power.js`, agents `agents.js`, attachments `attachments.js`) |
+| OpenFini tools | `app/src/vibe/tools/` (power tools `power.js`, code mode and checks `script.js` with pure logic in `vibe/script-lib.js`, agents `agents.js`, attachments `attachments.js`) |
 | Hub (many chats, shared services, write lock), chat session | `app/src/vibe/hub.js`, `app/src/vibe/session.js` |
 | Write lock, run undo, sub-agent engine, query/ref/scene helpers (pure) | `app/src/vibe/locks.js`, `run-undo.js`, `agents.js`, `query.js` |
 | Store, custom tools, quick actions, OAuth return | `app/src/vibe/` |

@@ -12,7 +12,7 @@ when-to-use: ${when}
 ---`;
 
 export const STUDIO_GUIDES = [
-  `${fm("vector", "How to work in the Vector studio: start, tool order, coordinates, ids, undo and verification.", "get_document_info, describe_page, query_layers, run_plan, add_shape, add_text, add_path, import_svg, set_style, transform_layers, group_layers, apply_to_many, grid_layout, make_component, screenshot, screenshot_layers", "vector, logo, icon, illustration, shapes, paths")}
+  `${fm("vector", "How to work in the Vector studio: start, tool order, coordinates, ids, undo and verification.", "get_document_info, describe_page, query_layers, run_plan, add_shape, add_text, add_path, import_svg, set_style, transform_layers, group_layers, apply_to_many, grid_layout, make_component, screenshot, screenshot_layers, run_script, find_tools, checkpoint, restore_checkpoint, visual_diff, measure_layers, find_replace", "vector, logo, icon, illustration, shapes, paths")}
 # Vector studio guide
 
 ## Start
@@ -20,7 +20,7 @@ export const STUDIO_GUIDES = [
 2. describe_page (compact scene: one line per layer with id, type, name, x,y wxh, fill) instead of list_layers. Pass since=<revision> on later calls.
 
 ## Tool order
-- Build: run_plan for several known steps (refer to earlier ids with {"$ref":"step.id"}); import_svg for anything complex (icons, logos, illustrations); add_shape/add_text/add_path for single items.
+- Build: run_plan for several known steps (refer to earlier ids with {"$ref":"step.id"}); run_script when the work needs loops, conditions or computed values (dryRun first for large changes; find_tools prints signatures); import_svg for anything complex (icons, logos, illustrations); add_shape/add_text/add_path for single items.
 - Change: query_layers to find ids, then apply_to_many (one undo step) or set_style/transform_layers.
 - Arrange: grid_layout, distribute_layers, align_layers, group_layers; make_component for repeated parts with overrides by child NAME.
 
@@ -36,7 +36,7 @@ export const STUDIO_GUIDES = [
 - Many single calls instead of one run_plan; screenshots after every tiny step.
 
 ## Verify
-describe_page (problems section) after each batch, then one screenshot; screenshot_layers for details. Name every top-level group ("Logo", "Header").`,
+describe_page (problems section) after each batch, then one screenshot; screenshot_layers for details. measure_layers for exact gaps, alignment and text contrast. Before risky work: checkpoint save, afterwards checkpoint diff or visual_diff, restore_checkpoint to start over. Name every top-level group ("Logo", "Header").`,
 
   `${fm("pixel", "How to work in the Pixel studio: non-destructive adjustments, selections, native photo edits and how to check them.", "get_document_info, list_layers, list_effects, get_histogram, auto_correct_suggestion, apply_adjustment, select_area, select_subject, edit_pixels, remove_background, crop_image, resize_image, add_pixel_layer, generate_image, edit_image, screenshot", "photo, pixel, image, retouch, brighten, color correct, background removal")}
 # Pixel studio guide
