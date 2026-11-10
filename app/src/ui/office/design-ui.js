@@ -5,6 +5,7 @@ import { h } from "../../core/util.js";
 import * as M from "../../engine/office/model.js";
 import * as D from "../../engine/office/design.js";
 import { openDialog } from "../dialogs.js";
+import { runCss } from "./editor.js";
 
 const field = (label, input) => h("label.of-ofield", h("span", label), input);
 const check = (label, on) => {
@@ -152,12 +153,92 @@ export function selectedTextBox(ed) {
   return r?.type === "textbox" ? { p, path: a.path, offset: a.offset, box: r } : null;
 }
 
+/**
+ * A small rich-text field for text box content: bold, italic, underline, color, size and alignment per paragraph.
+ * Returns { el, get() } where get() reads the field back as box paragraphs (model.js ▸ normBoxParas cleans them).
+ */
+function richField(paras) {
+  const area = h("div.of-oinput.of-oed__rich", { contenteditable: "true", role: "textbox", "aria-multiline": "true", "aria-label": "Text", spellcheck: "true" });
+  for (const p of paras) {
+    const d = h("div", p.align ? { style: `text-align:${p.align}` } : {});
+    for (const r of p.runs) d.append(h("span", { style: runCss(r) }, r.text));
+    if (!p.runs.length) d.append(h("br"));
+    area.append(d);
+  }
+  const exec = (cmd, value) => {
+    area.focus();
+    document.execCommand("styleWithCSS", false, "true");
+    document.execCommand(cmd, false, value);
+  };
+  const btn = (label, title, cmd) => h("button.of-btn.of-btn--default", { type: "button", title, "aria-label": title, onmousedown: (e) => e.preventDefault(), onclick: () => exec(cmd) }, label);
+  const color = h("input.of-oinput", { type: "color", value: "#000000", title: "Text color", "aria-label": "Text color", onchange: () => exec("foreColor", color.value) });
+  const size = sel([["", "Size"], ...[8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36].map((n) => [String(n), `${n} pt`])], "");
+  size.title = "Font size";
+  size.addEventListener("change", () => {
+    if (!size.value) return;
+    // fontSize only knows 1-7: mark the selection with the largest size, then set the real size in points
+    exec("fontSize", "7");
+    for (const el of area.querySelectorAll("font[size=\"7\"], [style*=\"xxx-large\"]")) {
+      el.removeAttribute("size");
+      el.style.fontSize = `${size.value}pt`;
+    }
+    size.value = "";
+  });
+  const align = sel([["", "Align"], ["justifyLeft", "Left"], ["justifyCenter", "Center"], ["justifyRight", "Right"], ["justifyFull", "Justify"]], "");
+  align.title = "Alignment";
+  align.addEventListener("change", () => (align.value && exec(align.value), (align.value = "")));
+  const bar = h("div.of-oed__richbar", btn(h("b", "B"), "Bold", "bold"), btn(h("i", "I"), "Italic", "italic"), btn(h("u", "U"), "Underline", "underline"), color, size, align);
+  const get = () => {
+    const out = [];
+    let cur = null;
+    const start = (a) => {
+      cur = { runs: [], ...(a ? { align: a } : {}) };
+      out.push(cur);
+    };
+    const alignOf = (el) => ({ left: "left", start: "left", center: "center", right: "right", end: "right", justify: "justify" })[el.style.textAlign || el.getAttribute("align") || ""];
+    const walk = (node, m) => {
+      for (const c of node.childNodes) {
+        if (c.nodeType === 3) {
+          if (!cur) start();
+          if (c.data) cur.runs.push({ text: c.data.replace(/\u00a0/g, " "), ...m });
+          continue;
+        }
+        if (c.nodeType !== 1) continue;
+        const tag = c.tagName;
+        if (tag === "BR") {
+          if (c.nextSibling) start(cur?.align);
+          continue;
+        }
+        const st = c.style;
+        const n = { ...m };
+        const w = st.fontWeight;
+        if (tag === "B" || tag === "STRONG" || w === "bold" || Number(w) >= 600) n.b = true;
+        else if (w === "normal" || Number(w) === 400) delete n.b;
+        if (tag === "I" || tag === "EM" || st.fontStyle === "italic") n.i = true;
+        else if (st.fontStyle === "normal") delete n.i;
+        if (tag === "U" || /underline/.test(st.textDecoration || st.textDecorationLine || "")) n.u = true;
+        if (st.color) n.color = st.color;
+        else if (tag === "FONT" && c.getAttribute("color")) n.color = c.getAttribute("color");
+        if (/pt$/.test(st.fontSize)) n.size = parseFloat(st.fontSize);
+        if (/^(DIV|P|LI|H[1-6])$/.test(tag)) {
+          start(alignOf(c));
+          walk(c, n);
+          cur = null;
+        } else walk(c, n);
+      }
+    };
+    walk(area, {});
+    return out.length ? out : [{ runs: [] }];
+  };
+  return { el: h("div.of-oform", bar, area), get };
+}
+
 export function textBoxDialog(app, ws, { edit = false } = {}) {
   const ed = ws.editor;
   const cur = edit ? selectedTextBox(ed) : null;
   if (edit && !cur) return app.toast("Double-click a text box first.", "warning");
   const box = cur?.box || D.textBox({ text: "", wrap: "right", fill: "#f2f6fc", border: "#8eaadb" });
-  const txt = h("textarea.of-oinput", { rows: 5, "aria-label": "Text" }, box.text);
+  const rich = richField(box.paras || [{ runs: box.text ? [{ text: box.text }] : [] }]);
   const width = h("input.of-oinput", { type: "number", min: 36, max: 1000, step: 1, value: String(box.width) });
   const wrap = sel([["right", "Float right, text wraps left"], ["left", "Float left, text wraps right"], ["none", "In line with text"]], box.wrap);
   const fill = h("input.of-oinput", { type: "color", value: box.fill || "#ffffff" });
@@ -178,7 +259,7 @@ export function textBoxDialog(app, ws, { edit = false } = {}) {
     label: cur ? "Apply" : "Insert",
     variant: "primary",
     onClick: (c) => {
-      const next = D.textBox({ text: txt.value, width: Number(width.value), wrap: wrap.value, fill: noFill.get() ? null : fill.value, border: noBorder.get() ? null : border.value });
+      const next = D.textBox({ paras: rich.get(), width: Number(width.value), wrap: wrap.value, fill: noFill.get() ? null : fill.value, border: noBorder.get() ? null : border.value });
       if (cur) {
         const runs = [...M.sliceRuns(cur.p.runs, 0, cur.offset), next, ...M.sliceRuns(cur.p.runs, cur.offset + 1, Infinity)];
         ed.commit(M.setBlock(ws.prj.model, cur.path, { ...cur.p, runs }), { label: "Text Box", sel: ed.sel });
@@ -188,7 +269,7 @@ export function textBoxDialog(app, ws, { edit = false } = {}) {
   });
   openDialog({
     title: cur ? "Text Box" : "Insert Text Box",
-    body: h("div.of-oform", field("Text (one paragraph per line)", txt), h("div.of-orow", field("Width (pt)", width), field("Wrapping", wrap)), h("div.of-orow", field("Fill", fill), noFill.el, field("Border", border), noBorder.el), h("p.of-hint", "The box floats beside the paragraph it is anchored to and the text wraps around it. Word and other formats receive the box text as indented paragraphs.")),
+    body: h("div.of-oform", h("div.of-ofield", h("span", "Text"), rich.el), h("div.of-orow", field("Width (pt)", width), field("Wrapping", wrap)), h("div.of-orow", field("Fill", fill), noFill.el, field("Border", border), noBorder.el), h("p.of-hint", "The box floats beside the paragraph it is anchored to and the text wraps around it. Word and OpenDocument files keep it as a floating text box; other formats receive its paragraphs indented after the anchor.")),
     width: 560,
     buttons,
   });
@@ -252,11 +333,11 @@ export function reviewDialog(app, ws) {
           render();
         };
         const go = h("button.of-oreview__text.of-linkbtn", { type: "button", title: "Show in the document", onclick: () => ed.setSelection({ anchor: { path: r.path, offset: r.from }, focus: { path: r.path, offset: r.to } }) }, r.text || "(object)");
-        return h("li.of-oreview__item", h("span.of-oreview__kind", { class: `is-${r.kind}` }, r.kind === "ins" ? "Inserted" : "Deleted"), h("small", r.author), go,
+        return h("li.of-oreview__item", h("span.of-oreview__kind", { class: `is-${r.kind}` }, ({ ins: "Inserted", del: "Deleted", format: "Formatted", paragraph: "Paragraph", split: "New paragraph", join: "Joined" })[r.kind]), h("small", r.author), go,
           h("button.of-btn.of-btn--default", { type: "button", onclick: act(true) }, "Accept"), h("button.of-btn.of-btn--default", { type: "button", onclick: act(false) }, "Reject"));
       }),
     );
-    if (!revs.length) list.append(h("li.of-oside__empty", "No tracked changes. Turn on Track Changes (Document menu) and edit: insertions are underlined, deletions struck through."));
+    if (!revs.length) list.append(h("li.of-oside__empty", "No tracked changes. Turn on Track Changes (Document menu) and edit: insertions are underlined, deletions struck through, format changes double-underlined, and changed paragraphs get a bar on the left."));
   };
   render();
   openDialog({

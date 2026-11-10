@@ -1,7 +1,7 @@
 // OpenDocument Text (ODT, ISO/IEC 26300) reader and writer for the office document model. Pure (no DOM).
 import { readZip, text as zipText, writeZip } from "./zip.js";
 import { parseXml, child, children, find, findAll, attr, textOf, esc, escAttr } from "./xml.js";
-import { createDocument, defaultStyles, defaultPage, normalizeDoc, mergeRuns, tableGrid, PAGE_SIZES, normColor, safeHref, isText, resolveStyle } from "./model.js";
+import { createDocument, defaultStyles, defaultPage, normalizeDoc, mergeRuns, tableGrid, PAGE_SIZES, normColor, safeHref, isText, resolveStyle, boxHeight } from "./model.js";
 import { sniffImage, IMAGE_EXT, imageSize, fromBase64 } from "./media.js";
 import { createReport, plural } from "./report.js";
 
@@ -128,6 +128,20 @@ export function writeOdt(input) {
     }
     return paraStyles.get(key);
   };
+  // floating frames (wrapped images, text boxes): one graphic style per side and look; ODF names the side the
+  // text flows on, so a frame on the right has style:wrap="left"
+  const graphicStyles = new Map();
+  const graphicStyle = (side, fill, border) => {
+    const key = `${side}|${fill || ""}|${border || ""}`;
+    if (!graphicStyles.has(key)) {
+      const name = `fr${graphicStyles.size + 1}`;
+      graphicStyles.set(key, name);
+      const look = fill !== undefined ? ` fo:background-color="${fill || "transparent"}" fo:border="${border ? `0.75pt solid ${border}` : "none"}" fo:padding="5pt"` : "";
+      const place = side ? ` style:wrap="${side === "left" ? "right" : "left"}" style:number-wrapped-paragraphs="no-limit" style:horizontal-pos="${side}" style:horizontal-rel="paragraph" style:vertical-pos="top" style:vertical-rel="paragraph"` : ` style:vertical-pos="top" style:vertical-rel="baseline"`;
+      auto.push(`<style:style style:name="${name}" style:family="graphic"><style:graphic-properties${place}${look}/></style:style>`);
+    }
+    return graphicStyles.get(key);
+  };
   const footnoteNo = new Map();
   const inline = (runs, inNote = false) => {
     let x = "";
@@ -150,7 +164,13 @@ export function writeOdt(input) {
           pictures.push([href, m.bytes, m.mime]);
         }
         frameN++;
-        piece = `<draw:frame draw:name="Image${frameN}" text:anchor-type="as-char" svg:width="${pt(r.width)}" svg:height="${pt(r.height)}" draw:z-index="0"><draw:image xlink:href="${escAttr(href)}" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad"/>${r.alt ? `<svg:desc>${esc(r.alt)}</svg:desc>` : ""}</draw:frame>`;
+        const fl = r.wrap ? ` draw:style-name="${graphicStyle(r.wrap)}"` : "";
+        piece = `<draw:frame draw:name="Image${frameN}"${fl} text:anchor-type="${r.wrap ? "paragraph" : "as-char"}" svg:width="${pt(r.width)}" svg:height="${pt(r.height)}" draw:z-index="0"><draw:image xlink:href="${escAttr(href)}" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad"/>${r.alt ? `<svg:desc>${esc(r.alt)}</svg:desc>` : ""}</draw:frame>`;
+      } else if (r.type === "textbox" && !inNote) {
+        frameN++;
+        const side = r.wrap === "none" ? null : r.wrap;
+        const paras = r.paras.map((p) => `<text:p text:style-name="${escAttr(paraStyle({ style: "Normal", props: { spaceAfter: 2, ...(p.align ? { align: p.align } : {}) } }))}">${inline(p.runs, true)}</text:p>`).join("") || "<text:p/>";
+        piece = `<draw:frame draw:name="TextBox${frameN}" draw:style-name="${graphicStyle(side, r.fill || null, r.border || null)}" text:anchor-type="${side ? "paragraph" : "as-char"}" svg:width="${pt(r.width)}" draw:z-index="1"><draw:text-box fo:min-height="${pt(boxHeight(r))}">${paras}</draw:text-box></draw:frame>`;
       } else if (r.type === "footnote" && !inNote) {
         if (!footnoteNo.has(r.id)) footnoteNo.set(r.id, footnoteNo.size + 1);
         const n = footnoteNo.get(r.id);
@@ -208,8 +228,27 @@ export function writeOdt(input) {
   let pendingBreak = false;
   let tables = 0;
   const blocks = doc.blocks;
+  // sections with columns (design.js ▸ sectionsOf): a text:section per multi-column section; with section breaks the
+  // first section is a text:section too, so the page layout keeps one column
+  const hasSections = blocks.some((b) => b.type === "sectionBreak");
+  let sections = 0;
+  let inSection = false;
+  const openSection = (n, gap) => {
+    const name = `Sect${++sections}`;
+    auto.push(`<style:style style:name="${name}" style:family="section"><style:section-properties text:dont-balance-text-columns="false"><style:columns fo:column-count="${n}" fo:column-gap="${pt(gap)}"/></style:section-properties></style:style>`);
+    body += `<text:section text:style-name="${name}" text:name="Section${sections}">`;
+    inSection = true;
+  };
+  if (hasSections && doc.page.columns > 1) openSection(doc.page.columns, doc.page.columnGap);
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i];
+    if (b.type === "sectionBreak") {
+      if (inSection) body += "</text:section>";
+      inSection = false;
+      if (b.columns > 1) openSection(b.columns, b.columnGap);
+      if (b.start === "page") pendingBreak = true;
+      continue;
+    }
     const brk = pendingBreak ? 'fo:break-before="page"' : "";
     if (b.type === "paragraph" && b.list) {
       // consecutive list paragraphs of one list become one nested text:list
@@ -228,12 +267,13 @@ export function writeOdt(input) {
     } else if (b.type === "rule") body += `<text:p text:style-name="${paraStyle({ style: "Normal" }, 'fo:border-bottom="0.75pt solid #808080" fo:padding-bottom="2pt"')}"/>`;
     pendingBreak = b.type === "pageBreak";
   }
+  if (inSection) body += "</text:section>";
 
   const content = `<?xml version="1.0" encoding="UTF-8"?>\n<office:document-content ${NSDECL} office:version="1.3"><office:font-face-decls>${fontDecls(doc)}</office:font-face-decls><office:automatic-styles>${listStyles()}${auto.join("")}</office:automatic-styles><office:body><office:text>${body}</office:text></office:body></office:document-content>`;
   const pg = doc.page;
   const hf = (tag, blocks) => (blocks.length ? `<style:${tag}>${blocks.map((p) => `<text:p text:style-name="${odfName(p.style)}">${inline(p.runs, true)}</text:p>`).join("")}</style:${tag}>` : "");
   const headerHeight = (m) => `<style:header-footer-properties fo:min-height="0pt" fo:margin-${m}="${pt(6)}"/>`;
-  const styles = `<?xml version="1.0" encoding="UTF-8"?>\n<office:document-styles ${NSDECL} office:version="1.3"><office:font-face-decls>${fontDecls(doc)}</office:font-face-decls><office:styles>${namedStyles(doc)}<style:style style:name="Footnote" style:family="paragraph" style:parent-style-name="Standard" style:class="extra"><style:paragraph-properties fo:margin-left="0pt" fo:text-indent="0pt"/><style:text-properties fo:font-size="10pt"/></style:style><text:notes-configuration text:note-class="footnote" style:num-format="1" text:start-value="0" text:footnotes-position="page" text:start-numbering-at="document"/></office:styles><office:automatic-styles><style:page-layout style:name="pm1"><style:page-layout-properties fo:page-width="${pt(pg.width)}" fo:page-height="${pt(pg.height)}" style:print-orientation="${pg.orientation}" fo:margin-top="${pt(doc.header.length ? pg.margins.header : pg.margins.top)}" fo:margin-bottom="${pt(doc.footer.length ? pg.margins.footer : pg.margins.bottom)}" fo:margin-left="${pt(pg.margins.left)}" fo:margin-right="${pt(pg.margins.right)}">${pg.columns > 1 ? `<style:columns fo:column-count="${pg.columns}" fo:column-gap="${pt(pg.columnGap)}"/>` : ""}</style:page-layout-properties><style:header-style>${doc.header.length ? headerHeight("bottom").replace(pt(6), pt(Math.max(0, pg.margins.top - pg.margins.header - 14))) : ""}</style:header-style><style:footer-style>${doc.footer.length ? headerHeight("top").replace(pt(6), pt(Math.max(0, pg.margins.bottom - pg.margins.footer - 14))) : ""}</style:footer-style></style:page-layout></office:automatic-styles><office:master-styles><style:master-page style:name="Standard" style:page-layout-name="pm1">${hf("header", doc.header)}${hf("footer", doc.footer)}</style:master-page></office:master-styles></office:document-styles>`;
+  const styles = `<?xml version="1.0" encoding="UTF-8"?>\n<office:document-styles ${NSDECL} office:version="1.3"><office:font-face-decls>${fontDecls(doc)}</office:font-face-decls><office:styles>${namedStyles(doc)}<style:style style:name="Footnote" style:family="paragraph" style:parent-style-name="Standard" style:class="extra"><style:paragraph-properties fo:margin-left="0pt" fo:text-indent="0pt"/><style:text-properties fo:font-size="10pt"/></style:style><text:notes-configuration text:note-class="footnote" style:num-format="1" text:start-value="0" text:footnotes-position="page" text:start-numbering-at="document"/></office:styles><office:automatic-styles><style:page-layout style:name="pm1"><style:page-layout-properties fo:page-width="${pt(pg.width)}" fo:page-height="${pt(pg.height)}" style:print-orientation="${pg.orientation}" fo:margin-top="${pt(doc.header.length ? pg.margins.header : pg.margins.top)}" fo:margin-bottom="${pt(doc.footer.length ? pg.margins.footer : pg.margins.bottom)}" fo:margin-left="${pt(pg.margins.left)}" fo:margin-right="${pt(pg.margins.right)}">${pg.columns > 1 && !hasSections ? `<style:columns fo:column-count="${pg.columns}" fo:column-gap="${pt(pg.columnGap)}"/>` : ""}</style:page-layout-properties><style:header-style>${doc.header.length ? headerHeight("bottom").replace(pt(6), pt(Math.max(0, pg.margins.top - pg.margins.header - 14))) : ""}</style:header-style><style:footer-style>${doc.footer.length ? headerHeight("top").replace(pt(6), pt(Math.max(0, pg.margins.bottom - pg.margins.footer - 14))) : ""}</style:footer-style></style:page-layout></office:automatic-styles><office:master-styles><style:master-page style:name="Standard" style:page-layout-name="pm1">${hf("header", doc.header)}${hf("footer", doc.footer)}</style:master-page></office:master-styles></office:document-styles>`;
   const m = doc.meta;
   const meta = `<?xml version="1.0" encoding="UTF-8"?>\n<office:document-meta ${NSDECL} office:version="1.3"><office:meta><meta:generator>OpenFini</meta:generator><dc:title>${esc(m.title)}</dc:title><dc:subject>${esc(m.subject)}</dc:subject><dc:creator>${esc(m.author)}</dc:creator><meta:initial-creator>${esc(m.author)}</meta:initial-creator>${m.keywords ? m.keywords.split(/\s*,\s*/).filter(Boolean).map((k) => `<meta:keyword>${esc(k)}</meta:keyword>`).join("") : ""}<dc:language>${esc(m.lang || "en-US")}</dc:language>${/^\d{4}-/.test(m.created) ? `<meta:creation-date>${esc(m.created.replace(/Z$/, ""))}</meta:creation-date>` : ""}</office:meta></office:document-meta>`;
   const manifest = `<?xml version="1.0" encoding="UTF-8"?>\n<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.3"><manifest:file-entry manifest:full-path="/" manifest:version="1.3" manifest:media-type="${ODT_MIME}"/><manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/><manifest:file-entry manifest:full-path="styles.xml" manifest:media-type="text/xml"/><manifest:file-entry manifest:full-path="meta.xml" manifest:media-type="text/xml"/>${pictures.map(([p, , mime]) => `<manifest:file-entry manifest:full-path="${escAttr(p)}" manifest:media-type="${mime}"/>`).join("")}</manifest:manifest>`;
@@ -384,6 +424,8 @@ function styleTable(root) {
       text: readTextProps(child(s, "style:text-properties")),
       cell: child(s, "style:table-cell-properties"),
       col: child(s, "style:table-column-properties"),
+      graphic: child(s, "style:graphic-properties"),
+      columns: child(child(s, "style:section-properties"), "style:columns"),
     });
   }
   for (const s of findAll(root, "text:list-style")) {
@@ -517,6 +559,15 @@ export function readOdt(bytes, o = {}) {
     model.meta.keywords = findAll(m, "meta:keyword").map(textOf).join(", ");
     model.meta.created = textOf(find(m, "meta:creation-date")).trim() || model.meta.created;
   }
+  // sections: a leading section sets the first section's columns; a closing break that ends the document or meets
+  // the next section break is not needed
+  const bl = model.blocks;
+  model.blocks = bl.filter((b, i) => !(b._close && (i === bl.length - 1 || bl[i + 1]?.type === "sectionBreak")));
+  if (model.blocks[0]?.type === "sectionBreak") {
+    const first = model.blocks.shift();
+    model.page = { ...model.page, columns: first.columns, columnGap: first.columnGap };
+  }
+  if (model.blocks.some((b) => b.type === "sectionBreak")) report.kept("Sections with their columns.");
   model.media = ctx.media;
   model.footnotes = ctx.footnotes;
   const c = ctx.counts;
@@ -524,6 +575,7 @@ export function readOdt(bytes, o = {}) {
   if (c.lists) report.kept(`${plural(c.lists, "list paragraph")}.`);
   if (c.tables) report.kept(`${plural(c.tables, "table")}.`);
   if (c.images) report.kept(`${plural(c.images, "image")}.`);
+  if (c.boxes) report.kept(`${plural(c.boxes, "text box", "text boxes")} with their formatting.`);
   if (Object.keys(ctx.footnotes).length) report.kept(`${plural(Object.keys(ctx.footnotes).length, "footnote")}.`);
   return { doc: normalizeDoc(model), report };
 }
@@ -570,11 +622,19 @@ function readBody(parent, ctx, listCtx = null) {
           for (const cell of findAll(el, "table:table-cell")) out.push(...readBody(cell, ctx));
         } else out.push(readTable(el, ctx));
         break;
-      case "text:section":
+      case "text:section": {
+        // a section with columns becomes a section break before it and a one-column break after it (readOdt tidies up)
+        const cols = ctx.lookup("section", el.attrs["text:style-name"])?.columns;
+        const n = Math.min(4, Math.max(1, Number(cols?.attrs["fo:column-count"]) || 1));
+        const top = !listCtx && parent.name === "office:text";
+        if (n > 1 && top) out.push({ type: "sectionBreak", columns: n, columnGap: lengthPt(cols.attrs["fo:column-gap"]) ?? 36, start: "continuous" });
+        out.push(...readBody(el, ctx, listCtx));
+        if (n > 1 && top) out.push({ type: "sectionBreak", columns: 1, columnGap: 36, start: "continuous", _close: true });
+        break;
+      }
       case "text:soft-page-break":
       case "office:forms":
       case "text:sequence-decls":
-        if (el.name === "text:section") out.push(...readBody(el, ctx, listCtx));
         break;
       case "text:table-of-content":
       case "text:alphabetical-index":
@@ -670,8 +730,21 @@ function readInline(el, ctx, base, link = null) {
         if (img) {
           const r = readImage(c, img, ctx);
           if (r) out.push(r);
+        } else if (box && !ctx.inBox) {
+          ctx.inBox = true;
+          const paras = readBody(box, ctx).filter((b) => b.type === "paragraph").map((p) => ({ runs: p.runs.filter(isText).map(({ link: _l, ...m }) => m), ...(p.props?.align ? { align: p.props.align } : {}) }));
+          ctx.inBox = false;
+          const g = ctx.lookup("graphic", c.attrs["draw:style-name"])?.graphic;
+          const side = frameSide(c, g);
+          const r = { type: "textbox", paras, width: lengthPt(c.attrs["svg:width"]) || lengthPt(c.attrs["fo:min-width"]) || 180, wrap: side || "none" };
+          const fill = normColor(g?.attrs["fo:background-color"]);
+          const border = /solid\s+(#[0-9a-f]{3,6})/i.exec(g?.attrs["fo:border"] || "")?.[1];
+          if (fill) r.fill = fill;
+          if (border) r.border = normColor(border);
+          ctx.counts.boxes = (ctx.counts.boxes || 0) + 1;
+          out.push(r);
         } else if (box) {
-          ctx.report.flattened("Text frames were converted to inline text.");
+          ctx.report.flattened("Text frames inside text frames were converted to inline text.");
           out.push({ text: ` ${findAll(box, "text:p").map(textOf).join(" ")} `, ...base });
         } else ctx.report.dropped("Embedded objects and charts.");
         break;
@@ -729,9 +802,21 @@ function readImage(frame, img, ctx) {
   const width = lengthPt(frame.attrs["svg:width"]) || (ctx.media[id].w || 200) * 0.75;
   const height = lengthPt(frame.attrs["svg:height"]) || (ctx.media[id].h || 150) * 0.75;
   const alt = textOf(child(frame, "svg:desc")) || textOf(child(frame, "svg:title")) || "";
-  if (frame.attrs["text:anchor-type"] && frame.attrs["text:anchor-type"] !== "as-char") ctx.report.flattened("Floating images were placed inline with the text.");
+  const wrap = frameSide(frame, ctx.lookup("graphic", frame.attrs["draw:style-name"])?.graphic);
+  if (!wrap && frame.attrs["text:anchor-type"] && frame.attrs["text:anchor-type"] !== "as-char") ctx.report.flattened("Images without text wrapping on a side were placed inline with the text.");
   ctx.counts.images++;
-  return { type: "image", media: id, width, height, ...(alt ? { alt } : {}) };
+  return { type: "image", media: id, width, height, ...(alt ? { alt } : {}), ...(wrap ? { wrap } : {}) };
+}
+
+/** The side a floating frame sits on ("left" | "right"), or null when it is inline or text does not flow beside it. */
+function frameSide(frame, g) {
+  const anchor = frame.attrs["text:anchor-type"];
+  if (!anchor || anchor === "as-char" || !g) return null;
+  const wrap = g.attrs["style:wrap"];
+  if (!wrap || wrap === "none" || wrap === "run-through") return null;
+  const pos = g.attrs["style:horizontal-pos"];
+  if (pos) return /left|inside/.test(pos) ? "left" : "right";
+  return wrap === "right" ? "left" : "right";
 }
 
 function readTable(el, ctx) {

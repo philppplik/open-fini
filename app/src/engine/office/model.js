@@ -11,14 +11,19 @@
 //              | { type: "sectionBreak", columns: 1-4, columnGap, start: "page"|"continuous" }  (starts a new section;
 //                the first section uses page.columns)
 //              | { type: "toc", levels: 1-6, title }                                           (generated table of contents)
-//   Paragraph  = { type: "paragraph", style, props?, list?: { kind: "bullet"|"number", level, id? }, runs: Inline[] }
+//   Paragraph  = { type: "paragraph", style, props?, list?: { kind: "bullet"|"number", level, id? }, runs: Inline[],
+//                  pchg?: { author, style, props?, list? }   (tracked paragraph change: the properties before it)
+//                  pins?: author, pdel?: author }             (tracked paragraph mark: inserted by a split / deleted by a join)
 //   Table      = { type: "table", cols: number[], rows: [{ header?, cells: [{ blocks: Paragraph[], colspan?, rowspan?, shading?, vAlign? }] }], borders,
 //                  design?: { style, header, banded, firstCol, total } }   (table style gallery, engine/office/design.js)
-//   Inline     = { text, b?, i?, u?, s?, va?: "sub"|"super", color?, highlight?, font?, size?, link?, ins?: author, del?: author }
+//   Inline     = { text, b?, i?, u?, s?, va?: "sub"|"super", color?, highlight?, font?, size?, link?, ins?: author, del?: author,
+//                  fmt?: { author, old: marks } }   (tracked format change: the formatting before it)
 //              | { type: "break" } | { type: "image", media, width, height, alt?, wrap?: "left"|"right" } | { type: "footnote", id }
 //              | { type: "field", field: "page"|"pages"|"date" }
-//              | { type: "textbox", text, width, wrap: "left"|"right"|"none", fill?, border? }  (floating text box)
-// `ins` / `del` mark tracked changes (the author's name); accepting and rejecting them lives in engine/office/design.js.
+//              | { type: "textbox", text, paras: [{ runs: [{ text, b?, i?, u?, color?, size?, font? }], align? }], width,
+//                  wrap: "left"|"right"|"none", fill?, border? }  (floating text box; `text` is the plain text of `paras`)
+// `ins` / `del` / `fmt` and the paragraph keys `pchg` / `pins` / `pdel` mark tracked changes (the author's name);
+// accepting and rejecting them lives in engine/office/design.js.
 // Inline objects count as one character in offsets (a line break as "\n", the others as U+FFFC).
 
 export const OFFICE_VERSION = 1;
@@ -33,7 +38,9 @@ export const PAGE_SIZES = {
   A3: { label: "A3", width: 841.89, height: 1190.55 },
 };
 
-export const MARK_KEYS = ["b", "i", "u", "s", "va", "color", "highlight", "font", "size", "link", "ins", "del"];
+export const MARK_KEYS = ["b", "i", "u", "s", "va", "color", "highlight", "font", "size", "link", "ins", "del", "fmt"];
+/** The formatting marks (no link, no revision marks): what a tracked format change records. */
+export const FORMAT_KEYS = ["b", "i", "u", "s", "va", "color", "highlight", "font", "size"];
 /** Block types that are one non-editable unit (Backspace / Delete next to them removes them). */
 export const ATOM_BLOCKS = ["pageBreak", "rule", "sectionBreak", "toc"];
 export const PARA_KEYS = ["align", "spaceBefore", "spaceAfter", "lineHeight", "indentLeft", "indentRight", "indentFirst", "keepWithNext", "pageBreakBefore"];
@@ -150,7 +157,38 @@ export function normMarks(r) {
   const link = safeHref(r.link);
   if (link) m.link = link;
   for (const k of ["ins", "del"]) if (typeof r[k] === "string" && r[k].trim()) m[k] = r[k].trim().slice(0, 100);
+  if (r.fmt && typeof r.fmt === "object" && typeof r.fmt.author === "string" && r.fmt.author.trim()) {
+    const { link: _l, ins: _i, del: _d, fmt: _f, ...old } = normMarks(r.fmt.old);
+    m.fmt = { author: r.fmt.author.trim().slice(0, 100), old };
+  }
   return m;
+}
+
+/** Cleans the content of a text box: paragraphs of formatted runs (no links, no revision marks). */
+export function normBoxParas(paras) {
+  const out = [];
+  for (const p of Array.isArray(paras) ? paras.slice(0, 200) : []) {
+    const runs = [];
+    for (const r of Array.isArray(p?.runs) ? p.runs.slice(0, 500) : []) {
+      const text = str(r?.text).replace(/[\r\n\u0000-\u0008\u000b\u000c\u000e-\u001f￼]+/g, " ");
+      if (!text) continue;
+      const { link: _l, ins: _i, del: _d, fmt: _f, ...m } = normMarks(r);
+      runs.push({ text, ...m });
+    }
+    out.push({ runs: mergeRuns(runs), ...(ALIGNS.includes(p?.align) ? { align: p.align } : {}) });
+  }
+  return out;
+}
+export const boxText = (paras) => paras.map((p) => p.runs.map((r) => r.text).join("")).join("\n");
+/** Estimated height in points of a text box (writers need one; Word and LibreOffice grow the box to fit). */
+export function boxHeight(box, base = 11) {
+  let h = 10;
+  for (const p of box.paras || []) {
+    const size = Math.max(base, ...p.runs.map((r) => r.size || base));
+    const chars = p.runs.reduce((n, r) => n + r.text.length * ((r.size || base) / base), 0);
+    h += Math.max(1, Math.ceil((chars * base * 0.5) / Math.max(20, box.width - 14))) * size * 1.25;
+  }
+  return Math.round(h);
 }
 
 export function normParaProps(p) {
@@ -184,7 +222,10 @@ function normInline(r, media, footnotes) {
   if (r.type === "textbox") {
     const fill = normColor(r.fill);
     const border = normColor(r.border);
-    return { type: "textbox", text: str(r.text, 5000).replace(/\r\n?/g, "\n"), width: clampNum(r.width, 36, 1000, 180), wrap: ["left", "right", "none"].includes(r.wrap) ? r.wrap : "right", ...(fill ? { fill } : {}), ...(border ? { border } : {}) };
+    // rich content wins; a plain `text` (older documents, simple callers) becomes one unformatted run per line
+    let paras = normBoxParas(Array.isArray(r.paras) ? r.paras : str(r.text, 5000).replace(/\r\n?/g, "\n").split("\n").map((l) => ({ runs: [{ text: l }] })));
+    if (!paras.length) paras = [{ runs: [] }];
+    return { type: "textbox", text: boxText(paras).slice(0, 5000), paras, width: clampNum(r.width, 36, 1000, 180), wrap: ["left", "right", "none"].includes(r.wrap) ? r.wrap : "right", ...(fill ? { fill } : {}), ...(border ? { border } : {}) };
   }
   if (r.type === "footnote") return footnotes[r.id] ? { type: "footnote", id: str(r.id, 64) } : null;
   if (r.type === "field") return ["page", "pages", "date"].includes(r.field) ? { type: "field", field: r.field } : null;
@@ -204,6 +245,14 @@ export function normParagraph(p, ctx) {
     if (n) out.runs.push(n);
   }
   out.runs = mergeRuns(out.runs);
+  const who = (v) => (typeof v === "string" && v.trim() ? v.trim().slice(0, 100) : null);
+  if (who(p?.pins)) out.pins = who(p.pins);
+  if (who(p?.pdel)) out.pdel = who(p.pdel);
+  if (p?.pchg && who(p.pchg.author)) {
+    const c = p.pchg;
+    const props = normParaProps(c.props);
+    out.pchg = { author: who(c.author), style: typeof c.style === "string" && ctx.styles[c.style] ? c.style : "Normal", ...(Object.keys(props).length ? { props } : {}), ...(c.list && (c.list.kind === "bullet" || c.list.kind === "number") ? { list: { kind: c.list.kind, level: clampInt(c.list.level, 0, 8, 0), ...(c.list.id ? { id: str(c.list.id, 64) } : {}) } } : {}) };
+  }
   return out;
 }
 
@@ -367,7 +416,11 @@ export const runLength = (r) => (isText(r) ? r.text.length : 1);
 export const runChar = (r) => (isText(r) ? r.text : r.type === "break" ? "\n" : OBJ);
 
 export function sameMarks(a, b) {
-  for (const k of MARK_KEYS) if ((a[k] ?? undefined) !== (b[k] ?? undefined)) return false;
+  for (const k of MARK_KEYS) {
+    if ((a[k] ?? undefined) === (b[k] ?? undefined)) continue;
+    if (k === "fmt" && a.fmt && b.fmt && JSON.stringify(a.fmt) === JSON.stringify(b.fmt)) continue;
+    return false;
+  }
   return true;
 }
 export function marksOf(r) {
@@ -417,6 +470,11 @@ export function insertRuns(runs, at, add) {
 
 /** Marks a character typed at `offset` should get: the marks of the text before it (or after, at the start). */
 export function marksAt(runs, offset) {
+  // a tracked format change describes existing text, never new text
+  const { fmt: _f, ...m } = marksNear(runs, offset);
+  return m;
+}
+function marksNear(runs, offset) {
   let pos = 0;
   let prev = null;
   for (const r of runs) {
@@ -716,7 +774,7 @@ export function clearFormatting(doc, from, to) {
     const a = samePath(path, from.path) ? from.offset : 0;
     const b = samePath(path, to.path) ? to.offset : Infinity;
     const runs = mapRuns(p.runs, a, b, () => ({}));
-    return { type: "paragraph", style: p.list ? "List" : "Normal", runs, ...(p.list ? { list: p.list } : {}) };
+    return { type: "paragraph", style: p.list ? "List" : "Normal", runs, ...(p.list ? { list: p.list } : {}), ...(p.pchg ? { pchg: p.pchg } : {}), ...(p.pins ? { pins: p.pins } : {}), ...(p.pdel ? { pdel: p.pdel } : {}) };
   });
 }
 

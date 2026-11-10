@@ -122,7 +122,7 @@
 .of-oed__noteedit:focus-visible { outline: 2px solid #3b82f6; }
 
 /* design and review (engine/office/design.js): columns, text boxes, wrapped images, TOC, tracked changes */
-.of-oed__cols { column-fill: balance; }
+.of-oed__cols { column-fill: balance; position: relative; }
 .of-oed__cols > * { break-inside: avoid-column; }
 .of-oed__sb { color: #6b7280; }
 .of-oed__tbox { display: block; box-sizing: border-box; padding: 4pt 6pt; margin: 2pt 0 4pt; text-indent: 0; text-align: left; font-size: 0.95em; cursor: default; user-select: none; }
@@ -143,6 +143,14 @@
 .of-oed__toc-empty { color: #6b7280; font-style: italic; }
 .of-oed__ins { color: #1a7f37; text-decoration: underline; text-decoration-color: #1a7f37; }
 .of-oed__del { color: #b42318; text-decoration: line-through; text-decoration-color: #b42318; }
+.of-oed__fmt { text-decoration: underline double; text-decoration-color: #7c3aed; }
+.of-oed__flow [data-p].is-pchg { box-shadow: -6pt 0 0 -4pt #7c3aed; }
+.of-oed__flow [data-p].is-pins::after { content: "\00b6"; color: #1a7f37; text-decoration: underline; }
+.of-oed__flow [data-p].is-pdel::after { content: "\00b6"; color: #b42318; text-decoration: line-through; }
+.of-oed__rich { min-height: 7em; max-height: 16em; overflow: auto; padding: 6px 8px; line-height: 1.4; }
+.of-oed__rich:focus-visible { outline: 2px solid #3b82f6; }
+.of-oed__richbar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.of-oed__richbar .of-oinput { width: auto; }
 .of-oed__table .is-styled-head > [data-p] { color: var(--of-head); }
 .of-odesign__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
 .of-odesign__card { all: unset; box-sizing: border-box; border: 1px solid var(--of-border); border-radius: var(--of-radius); padding: 8px 10px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; background: var(--of-bg-panel); }

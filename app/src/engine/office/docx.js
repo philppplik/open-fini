@@ -2,7 +2,7 @@
 // Clean-room implementation from the published ECMA-376 specification. Pure (no DOM).
 import { readZip, text as zipText, writeZip } from "./zip.js";
 import { parseXml, child, children, find, findAll, attr, textOf, esc, escAttr } from "./xml.js";
-import { createDocument, defaultStyles, defaultPage, normalizeDoc, mergeRuns, tableGrid, resolveStyle, PAGE_SIZES, normColor, safeHref, isText } from "./model.js";
+import { createDocument, defaultStyles, defaultPage, normalizeDoc, mergeRuns, tableGrid, resolveStyle, PAGE_SIZES, normColor, safeHref, isText, boxHeight } from "./model.js";
 import { sniffImage, IMAGE_EXT, imageSize } from "./media.js";
 import { createReport, plural } from "./report.js";
 
@@ -12,6 +12,8 @@ const NS = {
   wp: "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing",
   a: "http://schemas.openxmlformats.org/drawingml/2006/main",
   pic: "http://schemas.openxmlformats.org/drawingml/2006/picture",
+  mc: "http://schemas.openxmlformats.org/markup-compatibility/2006",
+  wps: "http://schemas.microsoft.com/office/word/2010/wordprocessingShape",
 };
 const REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 const EMU = 12700; // per point
@@ -29,7 +31,7 @@ const STYLE_NAMES = { Normal: "Normal", Title: "Title", Subtitle: "Subtitle", Qu
 const wordStyleName = (id, s) => (/^Heading[1-9]$/.test(id) ? `heading ${id.slice(7)}` : STYLE_NAMES[id] || s.name || id);
 const sid = (id) => String(id).replace(/[^\w-]/g, "") || "Normal";
 
-function rPrXml(m, { style } = {}) {
+function rPrXml(m, { style, change = "" } = {}) {
   let x = "";
   if (style) x += `<w:rStyle w:val="${escAttr(style)}"/>`;
   if (m.font) x += `<w:rFonts w:ascii="${escAttr(m.font)}" w:hAnsi="${escAttr(m.font)}" w:eastAsia="${escAttr(m.font)}" w:cs="${escAttr(m.font)}"/>`;
@@ -44,10 +46,11 @@ function rPrXml(m, { style } = {}) {
   }
   if (m.u) x += '<w:u w:val="single"/>';
   if (m.va) x += `<w:vertAlign w:val="${m.va === "sub" ? "subscript" : "superscript"}"/>`;
+  x += change; // w:rPrChange is the last child
   return x ? `<w:rPr>${x}</w:rPr>` : "";
 }
 
-function pPrXml(p, { style, numId, level, inner = "" } = {}) {
+function pPrXml(p, { style, numId, level, inner = "", tail = "" } = {}) {
   let x = "";
   if (style && style !== "Normal") x += `<w:pStyle w:val="${escAttr(sid(style))}"/>`;
   const pr = p || {};
@@ -66,10 +69,11 @@ function pPrXml(p, { style, numId, level, inner = "" } = {}) {
   if (pr.indentFirst !== undefined) ind.push(pr.indentFirst < 0 ? `w:hanging="${tw(-pr.indentFirst)}"` : `w:firstLine="${tw(pr.indentFirst)}"`);
   if (ind.length) x += `<w:ind ${ind.join(" ")}/>`;
   if (pr.align) x += `<w:jc w:val="${pr.align === "justify" ? "both" : pr.align}"/>`;
+  x += tail; // the paragraph mark's w:rPr and w:pPrChange come last
   return x ? `<w:pPr>${x}</w:pPr>` : "";
 }
 
-function textRunsXml(text, m, style) {
+function textRunsXml(text, m, style, change = "") {
   // tabs become <w:tab/>; everything else is <w:t>
   const parts = text.split("\t");
   let body = "";
@@ -77,7 +81,7 @@ function textRunsXml(text, m, style) {
     if (i) body += "<w:tab/>";
     if (t) body += `<w:t xml:space="preserve">${esc(t)}</w:t>`;
   });
-  return `<w:r>${rPrXml(m, { style })}${body}</w:r>`;
+  return `<w:r>${rPrXml(m, { style, change })}${body}</w:r>`;
 }
 
 /**
@@ -126,7 +130,30 @@ export function writeDocx(input, o = {}) {
     const blip = rid.svg
       ? `<a:blip r:embed="${rid.main}"><a:extLst><a:ext uri="{96DAC541-7B7A-43D3-8B79-37D633B846F1}"><asvg:svgBlip xmlns:asvg="http://schemas.microsoft.com/office/drawing/2016/SVG/main" r:embed="${rid.svg}"/></a:ext></a:extLst></a:blip>`
       : `<a:blip r:embed="${rid.main}"/>`;
-    return `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="${id}" name="Picture ${id}"${descr}/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${id}" name="${escAttr(r.media)}"${descr}/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill>${blip}<a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
+    const graphic = `<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${id}" name="${escAttr(r.media)}"${descr}/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill>${blip}<a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>`;
+    const frame = { cx, cy, id, name: `Picture ${id}`, descr, graphic, lock: "<a:graphicFrameLocks noChangeAspect=\"1\"/>" };
+    return `<w:r><w:drawing>${r.wrap ? anchorXml({ ...frame, side: r.wrap }) : inlineFrame(frame)}</w:drawing></w:r>`;
+  };
+  // floating objects: anchored to the paragraph, aligned left or right, text wraps on both sides (wp:wrapSquare)
+  const inlineFrame = (f) => `<wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${f.cx}" cy="${f.cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="${f.id}" name="${f.name}"${f.descr}/><wp:cNvGraphicFramePr>${f.lock || ""}</wp:cNvGraphicFramePr>${f.graphic}</wp:inline>`;
+  const anchorXml = (f) => `<wp:anchor distT="57150" distB="57150" distL="114300" distR="114300" simplePos="0" relativeHeight="${251658240 + f.id}" behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1"><wp:simplePos x="0" y="0"/><wp:positionH relativeFrom="column"><wp:align>${f.side === "left" ? "left" : "right"}</wp:align></wp:positionH><wp:positionV relativeFrom="paragraph"><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx="${f.cx}" cy="${f.cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:wrapSquare wrapText="bothSides"/><wp:docPr id="${f.id}" name="${f.name}"${f.descr}/><wp:cNvGraphicFramePr>${f.lock || ""}</wp:cNvGraphicFramePr>${f.graphic}</wp:anchor>`;
+  // text boxes: a WordprocessingML shape (wps:wsp with w:txbxContent) and a VML fallback for older readers
+  const hex = (c) => c.slice(1).toUpperCase();
+  const textboxXml = (box) => {
+    const h = boxHeight(box);
+    const cx = Math.round(box.width * EMU);
+    const cy = Math.round(h * EMU);
+    const id = picId++;
+    const paras = box.paras.map((p) => `<w:p>${p.align ? `<w:pPr><w:jc w:val="${p.align === "justify" ? "both" : p.align}"/></w:pPr>` : ""}${p.runs.map((x) => textRunsXml(x.text, x)).join("")}</w:p>`).join("") || "<w:p/>";
+    const content = `<w:txbxContent>${paras}</w:txbxContent>`;
+    const fill = box.fill ? `<a:solidFill><a:srgbClr val="${hex(box.fill)}"/></a:solidFill>` : "<a:noFill/>";
+    const ln = box.border ? `<a:ln w="9525"><a:solidFill><a:srgbClr val="${hex(box.border)}"/></a:solidFill></a:ln>` : "<a:ln><a:noFill/></a:ln>";
+    const graphic = `<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"><wps:wsp><wps:cNvSpPr txBox="1"/><wps:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom>${fill}${ln}</wps:spPr><wps:txbx>${content}</wps:txbx><wps:bodyPr rot="0" vert="horz" wrap="square" lIns="91440" tIns="45720" rIns="91440" bIns="45720" anchor="t" anchorCtr="0"><a:spAutoFit/></wps:bodyPr></wps:wsp></a:graphicData></a:graphic>`;
+    const frame = { cx, cy, id, name: `Text Box ${id}`, descr: "", graphic };
+    const float = box.wrap !== "none";
+    const style = `width:${box.width}pt;height:${h}pt${float ? `;position:absolute;mso-position-horizontal:${box.wrap};mso-position-horizontal-relative:text;mso-position-vertical-relative:text;mso-wrap-style:square` : ""}`;
+    const vml = `<w:pict><v:shape id="TextBox${id}" style="${style}" ${box.fill ? `fillcolor="${box.fill}"` : `filled="f"`} ${box.border ? `strokecolor="${box.border}"` : `stroked="f"`}><v:textbox inset="7.2pt,3.6pt,7.2pt,3.6pt">${content}</v:textbox>${float ? `<w10:wrap type="square"/>` : ""}</v:shape></w:pict>`;
+    return `<w:r><mc:AlternateContent><mc:Choice Requires="wps"><w:drawing>${float ? anchorXml({ ...frame, side: box.wrap }) : inlineFrame(frame)}</w:drawing></mc:Choice><mc:Fallback>${vml}</mc:Fallback></mc:AlternateContent></w:r>`;
   };
 
   // lists: one w:num per list id (numbered lists restart per list)
@@ -154,10 +181,10 @@ export function writeDocx(input, o = {}) {
     };
     for (const r of runs) {
       let piece;
-      if (isText(r) && (r.ins || r.del)) piece = revisionXml(r);
-      else if (isText(r)) piece = textRunsXml(r.text, r, r.link ? "Hyperlink" : undefined);
+      if (isText(r)) piece = revisionXml(r);
       else if (r.type === "break") piece = "<w:r><w:br/></w:r>";
       else if (r.type === "image") piece = imageXml(r);
+      else if (r.type === "textbox") piece = textboxXml(r);
       else if (r.type === "field") piece = fieldXml(r.field);
       else if (r.type === "footnote") {
         if (!footnoteIds.has(r.id)) footnoteIds.set(r.id, footnoteIds.size + 1);
@@ -173,19 +200,29 @@ export function writeDocx(input, o = {}) {
     flush();
     return x;
   };
-  // tracked changes (engine/office/design.js): w:ins / w:del around the run, deleted text as w:delText
+  // tracked changes (engine/office/track.js): w:ins / w:del around the run, deleted text as w:delText, format
+  // changes as w:rPrChange, paragraph changes as w:pPrChange and inserted / deleted paragraph marks in the mark's w:rPr
   let revId = 1;
   const revDate = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+  const rev = (who) => `w:id="${revId++}" w:author="${escAttr(who)}" w:date="${revDate}"`;
   const revisionXml = (r) => {
-    let run = textRunsXml(r.text, r, r.link ? "Hyperlink" : undefined);
+    const change = r.fmt ? `<w:rPrChange ${rev(r.fmt.author)}><w:rPr>${rPrXml(r.fmt.old).replace(/^<w:rPr>|<\/w:rPr>$/g, "")}</w:rPr></w:rPrChange>` : "";
+    let run = textRunsXml(r.text, r, r.link ? "Hyperlink" : undefined, change);
+    if (!r.ins && !r.del) return run;
     if (r.del) run = run.replace(/<w:t xml:space="preserve">/g, '<w:delText xml:space="preserve">').replace(/<\/w:t>/g, "</w:delText>");
-    if (r.del) run = `<w:del w:id="${revId++}" w:author="${escAttr(r.del)}" w:date="${revDate}">${run}</w:del>`;
-    if (r.ins) run = `<w:ins w:id="${revId++}" w:author="${escAttr(r.ins)}" w:date="${revDate}">${run}</w:ins>`;
+    if (r.del) run = `<w:del ${rev(r.del)}>${run}</w:del>`;
+    if (r.ins) run = `<w:ins ${rev(r.ins)}>${run}</w:ins>`;
     return run;
   };
   const paraXml = (p, extraInner = "") => {
     const numId = p.list ? numFor(p.list) : 0;
-    return `<w:p>${pPrXml(p.props, { style: p.style, numId, level: p.list?.level, inner: extraInner })}${inlineXml(p.runs)}</w:p>`;
+    let tail = p.pins || p.pdel ? `<w:rPr>${p.pins ? `<w:ins ${rev(p.pins)}/>` : ""}${p.pdel ? `<w:del ${rev(p.pdel)}/>` : ""}</w:rPr>` : "";
+    if (p.pchg) {
+      const o = p.pchg;
+      const old = pPrXml(o.props, { style: o.style, numId: o.list ? numFor(o.list) : 0, level: o.list?.level }).replace(/^<w:pPr>|<\/w:pPr>$/g, "");
+      tail += `<w:pPrChange ${rev(o.author)}><w:pPr>${old}</w:pPr></w:pPrChange>`;
+    }
+    return `<w:p>${pPrXml(p.props, { style: p.style, numId, level: p.list?.level, inner: extraInner, tail })}${inlineXml(p.runs)}</w:p>`;
   };
   const tableXml = (t) => {
     const b = t.borders;
@@ -317,7 +354,7 @@ export function writeDocx(input, o = {}) {
 }
 
 function nsDecl() {
-  return `xmlns:w="${NS.w}" xmlns:r="${NS.r}" xmlns:wp="${NS.wp}" xmlns:a="${NS.a}" xmlns:pic="${NS.pic}"`;
+  return `xmlns:w="${NS.w}" xmlns:r="${NS.r}" xmlns:wp="${NS.wp}" xmlns:a="${NS.a}" xmlns:pic="${NS.pic}" xmlns:mc="${NS.mc}" xmlns:wps="${NS.wps}" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w10="urn:schemas-microsoft-com:office:word"`;
 }
 
 function stylesXml(doc) {
@@ -698,10 +735,11 @@ export function readDocx(bytes, o = {}) {
   report.kept(`${plural(paras, "paragraph")}, text formatting and named styles.`);
   if (c.lists) report.kept(`${plural(c.lists, "list paragraph")} (bulleted and numbered, with levels).`);
   if (c.tables) report.kept(`${plural(c.tables, "table")} with merged cells and shading.`);
-  if (c.images) report.kept(`${plural(c.images, "image")}.`);
+  if (c.images) report.kept(`${plural(c.images, "image")}${model.blocks.some((b) => b.type === "paragraph" && b.runs.some((r) => r.wrap && r.type === "image")) ? " (floating images with text wrapping)" : ""}.`);
+  if (c.boxes) report.kept(`${plural(c.boxes, "text box", "text boxes")} with their formatting.`);
   if (c.links) report.kept(`${plural(c.links, "link")}.`);
   if (Object.keys(ctx.footnotes).length) report.kept(`${plural(Object.keys(ctx.footnotes).length, "footnote")}.`);
-  if (model.blocks.some((b) => b.type === "paragraph" && b.runs.some((r) => r.ins || r.del))) report.kept("Tracked changes (insertions and deletions with their authors; accept or reject them with Document ▸ Review Changes…).");
+  if (model.blocks.some((b) => b.type === "paragraph" && (b.pchg || b.pins || b.pdel || b.runs.some((r) => r.ins || r.del || r.fmt)))) report.kept("Tracked changes (insertions, deletions, format and paragraph changes with their authors; accept or reject them with Document ▸ Review Changes…).");
   const doc = normalizeDoc(model);
   return { doc, report };
 }
@@ -830,6 +868,20 @@ function readParagraph(p, ctx) {
   };
   walk(p, null);
   para.runs = mergeRuns(para.runs);
+  // tracked paragraph mark (inserted by a split, deleted by a join) and paragraph property change
+  const mark = child(pPr, "rPr");
+  if (child(mark, "ins")) para.pins = String(attr(child(mark, "ins"), "author") || "Unknown").slice(0, 100);
+  if (child(mark, "del")) para.pdel = String(attr(child(mark, "del"), "author") || "Unknown").slice(0, 100);
+  const pc = child(pPr, "pPrChange");
+  if (pc) {
+    const old = child(pc, "pPr");
+    const oid = attr(child(old, "pStyle"), "val");
+    const oprops = pPrToProps(old);
+    const onum = child(old, "numPr");
+    const oNumId = attr(child(onum, "numId"), "val");
+    const fmt = oNumId && oNumId !== "0" ? ctx.numbering.get(oNumId)?.[Number(attr(child(onum, "ilvl"), "val") || 0)] || "decimal" : null;
+    para.pchg = { author: String(attr(pc, "author") || "Unknown").slice(0, 100), style: (oid && ctx.idMap.get(oid)) || "Normal", ...(Object.keys(oprops).length ? { props: oprops } : {}), ...(fmt && fmt !== "none" ? { list: { kind: fmt === "bullet" ? "bullet" : "number", level: Math.min(8, Number(attr(child(onum, "ilvl"), "val") || 0)), id: `n${oNumId}` } } : {}) };
+  }
   blocks.push(para);
   // a section ends after this paragraph (resolved in readDocx); the usual empty carrier paragraph is dropped
   const sp = child(pPr, "sectPr");
@@ -854,6 +906,9 @@ function fieldKind(instr) {
 function readRun(r, ctx, link, state, push, pageBreak) {
   const marks = rPrToMarks(child(r, "rPr"), ctx);
   if (link) marks.link = link;
+  // a tracked format change: the formatting before it
+  const chg = child(child(r, "rPr"), "rPrChange");
+  if (chg && !ctx.inBox) marks.fmt = { author: String(attr(chg, "author") || "Unknown").slice(0, 100), old: rPrToMarks(child(chg, "rPr"), ctx) };
   const add = (text) => {
     if (state.skip || !text || state.field === "instr") return;
     push({ text, ...marks, ...(!link && state.fieldLink ? { link: state.fieldLink } : {}) });
@@ -918,11 +973,8 @@ function readRun(r, ctx, link, state, push, pageBreak) {
       case "AlternateContent": {
         const choice = child(c, "Choice");
         if (choice && find(choice, "blip")) readDrawing(choice, ctx, push);
-        else if (choice && find(choice, "txbxContent")) {
-          ctx.report.flattened("Text boxes were converted to inline text.");
-          const txt = findAll(find(choice, "txbxContent"), "p").map((pp) => findAll(pp, "t").map(textOf).join("")).filter(Boolean).join(" ");
-          add(txt ? ` ${txt} ` : "");
-        } else if (child(c, "Fallback")) readDrawing(child(c, "Fallback"), ctx, push);
+        else if (choice && find(choice, "txbxContent")) readDrawing(choice, ctx, push);
+        else if (child(c, "Fallback")) readDrawing(child(c, "Fallback"), ctx, push);
         break;
       }
       case "footnoteReference":
@@ -942,9 +994,14 @@ function readDrawing(el, ctx, push) {
   if (!rid) {
     if (find(el, "chart")) ctx.report.dropped("Charts.");
     else if (find(el, "txbxContent")) {
-      ctx.report.flattened("Text boxes were converted to inline text.");
-      const txt = findAll(find(el, "txbxContent"), "t").map(textOf).join("");
-      if (txt) push({ text: ` ${txt} ` });
+      const box = readTextBox(el, ctx);
+      if (box) push(box);
+      else {
+        // a text box inside a text box: its text
+        const txt = findAll(find(el, "txbxContent"), "t").map(textOf).join("");
+        if (txt) push({ text: ` ${txt} ` });
+        ctx.report.flattened("Text boxes inside text boxes were converted to inline text.");
+      }
     } else ctx.report.dropped("Shapes, SmartArt and embedded objects.");
     return;
   }
@@ -978,11 +1035,55 @@ function readDrawing(el, ctx, push) {
     width = parseFloat(/width:\s*([\d.]+)pt/.exec(style)?.[1]) || (ctx.media[id].w || 200) * 0.75;
     height = parseFloat(/height:\s*([\d.]+)pt/.exec(style)?.[1]) || (ctx.media[id].h || 150) * 0.75;
   }
-  if (find(el, "anchor")) ctx.report.flattened("Floating images were placed inline with the text.");
+  const anchor = find(el, "anchor");
+  const vstyle = String(attr(find(el, "shape"), "style") || "");
+  const wrap = anchor ? floatSide(anchor) : /position:\s*absolute/.test(vstyle) ? (/mso-position-horizontal:\s*left/.test(vstyle) ? "left" : "right") : null;
+  if (anchor && !wrap) ctx.report.flattened("Images in front of or behind the text, or with text above and below only, were placed inline.");
   const docPr = find(el, "docPr");
   const alt = attr(docPr, "descr") || attr(docPr, "title") || "";
   ctx.counts.images++;
-  push({ type: "image", media: id, width, height, ...(alt ? { alt } : {}) });
+  push({ type: "image", media: id, width, height, ...(alt ? { alt } : {}), ...(wrap ? { wrap } : {}) });
+}
+
+/** The side a floating object sits on when text wraps around it ("left" | "right"), or null (no side wrapping). */
+function floatSide(anchor) {
+  if (find(anchor, "wrapNone") || find(anchor, "wrapTopAndBottom")) return null;
+  const ph = child(anchor, "positionH");
+  const align = textOf(child(ph, "align")).trim();
+  if (align) return align === "left" || align === "inside" ? "left" : "right";
+  const off = Number(textOf(child(ph, "posOffset")));
+  return Number.isFinite(off) && off < 1440000 ? "left" : "right";
+}
+
+/** A text box (DrawingML wps:wsp or VML v:textbox) as a textbox run: formatted paragraphs, width, side and colors. */
+function readTextBox(el, ctx) {
+  if (ctx.inBox) return null;
+  const content = find(el, "txbxContent");
+  ctx.inBox = true;
+  const blocks = readBlocks(content, ctx).filter((b) => b.type === "paragraph");
+  ctx.inBox = false;
+  const paras = blocks.map((p) => ({ runs: p.runs.filter(isText).map(({ link: _l, ins: _i, del: _d, fmt: _f, ...m }) => m), ...(p.props?.align ? { align: p.props.align } : {}) }));
+  const shape = el.local === "shape" ? el : find(el, "shape");
+  const style = String(attr(shape, "style") || "");
+  let width = Number(attr(find(el, "extent"), "cx")) / EMU;
+  if (!(width > 0)) width = parseFloat(/width:\s*([\d.]+)pt/.exec(style)?.[1]) || 180;
+  const anchor = find(el, "anchor");
+  const wrap = anchor ? floatSide(anchor) || "none" : /position:\s*absolute/.test(style) ? (/mso-position-horizontal:\s*left/.test(style) ? "left" : "right") : "none";
+  const box = { type: "textbox", paras, width, wrap };
+  const spPr = find(el, "spPr");
+  const color = (node) => (node ? normColor(`#${attr(child(node, "srgbClr"), "val") || ""}`) : undefined);
+  if (spPr) {
+    const fill = color(child(spPr, "solidFill"));
+    const ln = child(spPr, "ln");
+    const border = ln && !child(ln, "noFill") ? color(child(ln, "solidFill")) : undefined;
+    if (fill) box.fill = fill;
+    if (border) box.border = border;
+  } else if (shape) {
+    if (attr(shape, "filled") !== "f" && normColor(attr(shape, "fillcolor"))) box.fill = normColor(attr(shape, "fillcolor"));
+    if (attr(shape, "stroked") !== "f") box.border = normColor(attr(shape, "strokecolor")) || "#000000";
+  }
+  ctx.counts.boxes = (ctx.counts.boxes || 0) + 1;
+  return box;
 }
 
 function readTable(tbl, ctx) {

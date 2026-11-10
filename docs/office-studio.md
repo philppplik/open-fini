@@ -75,26 +75,32 @@ dialogs in `ui/office/design-ui.js`; every action is one undo step.
   Dark, Minimal) with *Header row*, *Banded rows*, *First column* and *Total row* options. The colors are written into
   the cells (shading, header text color, bold), so every export keeps them; *Theme accent* follows the theme.
 * **Sections and columns**: *Insert ▸ Section Break (Columns)…* starts a new section with one to four columns, on the
-  same page (continuous) or a new page. Insert another break with one column to return to full width. In the editor a
-  multi-column section is one box that does not split across pages, so keep it shorter than a page.
-* **Text boxes**: *Insert ▸ Text Box…* adds a floating box (plain text, one paragraph per line, width, wrap left /
-  right / in line, fill and border) at the caret; text wraps around it. Double-click a box to edit or delete it.
+  same page (continuous) or a new page. Insert another break with one column to return to full width. In print layout a
+  multi-column section fills its columns to the bottom of the page and continues on the next one; its last part
+  balances the columns. A single block taller than a column stays in one piece.
+* **Text boxes**: *Insert ▸ Text Box…* adds a floating box at the caret (width, wrap left / right / in line, fill and
+  border); text wraps around it. Its text is formatted in the dialog: bold, italic, underline, color and size for the
+  selected characters and an alignment per paragraph. Double-click a box to edit or delete it.
 * **Table of contents**: *Insert ▸ Table of Contents* lists the headings (three levels) with page numbers in print
   layout; it updates itself, and a click on an entry jumps there.
 * **Track changes** (*Document ▸ Track Changes* or the toolbar button): your typing is marked as an insertion
   (underlined, green) and deleted text stays struck through (red) with your name (*Settings ▸ Collaboration*
   nickname, else the document author). *Document ▸ Review Changes…* lists every change with *Accept* / *Reject*, plus
-  *Accept all* / *Reject all*. Splitting and joining paragraphs is not tracked; text you inserted yourself is removed
-  when you delete it.
+  *Accept all* / *Reject all*. Formatting is tracked too: character formatting (double-underlined, the old formatting
+  is kept), paragraph style, alignment, spacing, indents and lists (a bar on the left), and splitting or joining
+  paragraphs (a green or struck-through ¶). Rejecting restores the old formatting and paragraphs. Text you inserted
+  yourself is removed when you delete it, and a paragraph you split yourself is joined again. While tracking is on,
+  edits made by the Vibe assistant are tracked as well, authored *Vibe (AI)*. Changes inside text boxes, and inserted
+  or deleted tables and breaks, are not tracked. The engine is `engine/office/track.js`.
 
-| Feature | DOCX | ODT, RTF, HTML, Markdown, text, PDF |
-| --- | --- | --- |
-| Themes, style sets, table styles | kept (as styles and cell formatting) | kept (as styles and cell formatting) |
-| Sections with columns | kept (section properties per section, continuous or next page) | one column; a *next page* section becomes a page break |
-| Table of contents | a real TOC field (Word refreshes page numbers) with the current entries | plain paragraphs |
-| Text boxes | indented paragraphs after their anchor paragraph | indented paragraphs after their anchor paragraph |
-| Wrapped images | inline | inline |
-| Tracked changes | kept (`w:ins` / `w:del` with author; read back from Word files too) | accepted on export |
+| Feature | DOCX | ODT | RTF, HTML, Markdown, text, PDF |
+| --- | --- | --- | --- |
+| Themes, style sets, table styles | kept (as styles and cell formatting) | kept | kept |
+| Sections with columns | kept (section properties per section, continuous or next page) | kept (`text:section` with `style:columns`; a *next page* section starts with a page break) | one column; a *next page* section becomes a page break |
+| Table of contents | a real TOC field (Word refreshes page numbers) with the current entries | plain paragraphs | plain paragraphs |
+| Text boxes | floating text boxes (`wps:wsp` in `wp:anchor` with square wrapping, VML fallback), formatting kept, read back | floating frames (`draw:frame` with `draw:text-box`), read back | indented paragraphs with their formatting after the anchor paragraph |
+| Wrapped images | floating (`wp:anchor`, left or right, square wrapping), read back | floating frames (left or right), read back | inline |
+| Tracked changes | kept: insertions and deletions (`w:ins` / `w:del`), format changes (`w:rPrChange`), paragraph changes (`w:pPrChange`), inserted and deleted paragraph marks; read back from Word files too | accepted on export | accepted on export |
 
 The export dialog lists what was converted.
 
@@ -120,8 +126,8 @@ The export dialog lists what was converted.
 
 | Format | Open | Save / export | What is kept | Simplified or not supported |
 | --- | --- | --- | --- | --- |
-| Word `.docx` (`.docm`; templates `.dotx`, `.dotm` open as a new untitled document) | yes | yes | text formatting, named paragraph styles with inheritance, theme fonts, lists (numbering definitions, levels, list styles), tables (grid widths, `gridSpan`, `vMerge`, shading, borders, header rows), inline and floating images (PNG, JPEG, GIF, SVG with PNG fallback), hyperlinks (also as fields), footnotes and endnotes (as footnotes), page breaks, header and footer (default) with page fields, page size, margins, columns, document properties | character styles become direct formatting; text boxes and equations become plain text; floating images become inline; comments are dropped; charts, SmartArt, shapes, EMF/WMF images and OLE objects are dropped; sections keep their columns but share one page size and margins; first/even page headers are replaced by the default one; macros are never run (`.docm` content is read as a document only) |
-| OpenDocument `.odt` (`.fodt`; template `.ott` opens as a new untitled document) | yes | yes | the same set as DOCX: styles and automatic styles, nested lists with list styles, tables with spans and cell properties, frames with images, notes, links, page layout of the default master page, header and footer, metadata | sections and indexes become plain paragraphs; text frames become text; drawing shapes and embedded objects are dropped |
+| Word `.docx` (`.docm`; templates `.dotx`, `.dotm` open as a new untitled document) | yes | yes | text formatting, named paragraph styles with inheritance, theme fonts, lists (numbering definitions, levels, list styles), tables (grid widths, `gridSpan`, `vMerge`, shading, borders, header rows), inline and floating images (PNG, JPEG, GIF, SVG with PNG fallback), hyperlinks (also as fields), footnotes and endnotes (as footnotes), page breaks, header and footer (default) with page fields, page size, margins, columns, document properties | character styles become direct formatting; equations become plain text; images in front of or behind the text become inline; comments are dropped; charts, SmartArt, shapes, EMF/WMF images and OLE objects are dropped; sections keep their columns but share one page size and margins; first/even page headers are replaced by the default one; macros are never run (`.docm` content is read as a document only) |
+| OpenDocument `.odt` (`.fodt`; template `.ott` opens as a new untitled document) | yes | yes | the same set as DOCX: styles and automatic styles, nested lists with list styles, tables with spans and cell properties, frames with images, notes, links, page layout of the default master page, header and footer, metadata | sections keep their columns; indexes become plain paragraphs; text frames inside text frames become text; drawing shapes and embedded objects are dropped |
 | Rich Text `.rtf` | yes | yes | fonts, colors, sizes, bold / italic / underline / strike, sub / superscript, highlight, paragraph alignment, spacing, indents, styles (stylesheet), lists (`\pn` and `\ls`), tables with merged cells and shading, PNG/JPEG pictures, footnotes, hyperlinks and page fields, headers and footers, page size and margins, Unicode (`\uN`) | non-Windows-1252 code pages are read as Windows-1252; WMF/EMF pictures and nested tables are simplified; SVG images are written as PNG |
 | HTML `.html` | yes (sanitized) | yes | headings, paragraphs, inline formatting and colors, lists, tables with spans, `data:` images, links, footnote sections; exports clean semantic HTML with embedded CSS (`@page` size and margins) and data-URI images | scripts, styles, frames, forms, event handlers and `javascript:` links are removed; remote images are not downloaded |
 | Markdown `.md` | yes | yes | headings, emphasis, links, lists, GFM tables, code blocks, block quotes, footnotes, images as data URIs | fonts, colors, alignment and page setup are not representable; merged cells are repeated empty; underline, highlight and sub/superscript use inline HTML |
