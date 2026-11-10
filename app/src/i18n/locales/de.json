@@ -3142,5 +3142,18 @@
   "No visible layers to export.": "Keine sichtbaren Ebenen zum Exportieren.",
   "{name}: {w} × {h} px is too large. Use a smaller size.": "{name}: {w} × {h} px ist zu groß. Wähle eine kleinere Größe.",
   "This is not an OpenFini export preset file.": "Das ist keine OpenFini-Exportvorgabendatei.",
-  "Area": "Bereich"
+  "Area": "Bereich",
+  "Deeper Office apps, pro export, smarter Vibe": "Tiefere Office-Apps, Profi-Export, klügeres Vibe",
+  "Richer documents": "Reichere Dokumente",
+  "Themes, table styles, columns, text boxes, tracked changes and a table of contents for the word processor, plus new designed templates.": "Themes, Tabellenstile, Spalten, Textfelder, Änderungsverfolgung und Inhaltsverzeichnis für die Textverarbeitung, dazu neue gestaltete Vorlagen.",
+  "Smarter spreadsheets": "Klügere Tabellen",
+  "Spill formulas, named ranges, drop-down validation, paste special, pivot tables and sparklines.": "Spill-Formeln, benannte Bereiche, Dropdown-Validierung, Inhalte einfügen, Pivot-Tabellen und Sparklines.",
+  "Better slides and whiteboards": "Bessere Folien und Whiteboards",
+  "Slide masters, footers, charts from spreadsheet data and themes. Whiteboards gain tables, charts, graphs, formulas and diagram generators.": "Folienmaster, Fußzeilen, Diagramme aus Tabellendaten und Themes. Whiteboards bekommen Tabellen, Diagramme, Graphen, Formeln und Diagramm-Generatoren.",
+  "Code studio upgrades": "Code-Studio-Upgrades",
+  "More starters, syntax color themes, color and path popovers, a JavaScript beautifier, minify and safe zip opening.": "Mehr Startvorlagen, Syntax-Farbthemes, Farb- und Pfad-Popovers, ein JavaScript-Beautifier, Minify und sicheres Öffnen von ZIP-Dateien.",
+  "Pro export options": "Profi-Exportoptionen",
+  "Choose quality, resolution, color, bleed, marks, page ranges and more per format, and save your own presets.": "Wähle pro Format Qualität, Auflösung, Farbe, Beschnitt, Marken, Seitenbereiche und mehr und speichere eigene Presets.",
+  "Vibe remembers you": "Vibe merkt sich dich",
+  "Memory across chats, a context overview, sub-threads, voice chat, and optional access to folders you choose.": "Gedächtnis über Chats hinweg, Kontext-Übersicht, Sub-Threads, Sprach-Chat und optionaler Zugriff auf Ordner, die du freigibst."
 }
