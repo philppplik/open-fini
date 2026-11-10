@@ -187,8 +187,10 @@ export function officeBoardTools(app) {
       return { ok: true, arranged: list.length };
     }),
 
-    tool("board_add_table", "Adds a real table to the whiteboard (rows × columns of text; first row as a bold header by default). Returns its id. Watch out: one string per cell, at most 200 rows × 30 columns; long cell text is cut with … on the board, so keep cells short; change cells later with board_edit_table.", {
+    tool("board_add_table", "Adds a real table to the whiteboard (rows × columns of text; first row as a bold header by default). Returns its id. Watch out: one string per cell, at most 200 rows × 30 columns; long cell text is cut with … on the board, so keep cells short; a merged range shows the text of its top-left cell; change cells later with board_edit_table.", {
       rows: { type: "array", items: { type: "array", items: { type: "string" } }, description: "Rows of cell texts, first row = header" },
+      merges: { type: "array", items: { type: "string" }, description: "Merged cell ranges in A1 notation, e.g. [\"A1:C1\"]" },
+      bold: { type: "array", items: { type: "string" }, description: "Cells in bold, e.g. [\"A5\", \"B5\"]" },
       header: S.bool("First row is a header (default true)"),
       x: S.num("Left edge"), y: S.num("Top edge"), w: S.num("Width (default 140 per column)"), h: S.num("Height (default 40 per row)"),
       fontSize: S.num("Font size (default 16)"), fill: S.str(`Header color (${COLORS})`), page: S.str("Page id (default: current page)"),
@@ -196,12 +198,14 @@ export function officeBoardTools(app) {
       const { M, page, commit, model } = await board(app);
       if (!Array.isArray(a.rows) || !a.rows.length) throw new Error("rows must be a non-empty array of rows.");
       const cols = Math.max(...a.rows.map((r) => (Array.isArray(r) ? r.length : 0)), 1);
-      const el = M.makeElement("table", { page: page(a.page), x: a.x, y: a.y, w: a.w || cols * 140, h: a.h || a.rows.length * 40, rows: a.rows, header: a.header !== false, fontSize: a.fontSize, ...(hex(a.fill) ? { fill: hex(a.fill) } : {}) });
+      const el = M.makeElement("table", { page: page(a.page), x: a.x, y: a.y, w: a.w || cols * 140, h: a.h || a.rows.length * 40, rows: a.rows, header: a.header !== false, fontSize: a.fontSize, merges: a.merges, styles: Object.fromEntries((a.bold || []).map((k) => [k, { bold: true }])), ...(hex(a.fill) ? { fill: hex(a.fill) } : {}) });
       commit("Add Table", M.addElements(model(), [el]));
-      return { ok: true, id: el.id, rows: el.rows.length, columns: el.rows[0].length };
+      return { ok: true, id: el.id, rows: el.rows.length, columns: el.rows[0].length, merges: el.merges || [] };
     }),
 
-    tool("board_edit_table", "Edits a whiteboard table: set cells, replace all rows, or add a row or column. Watch out: rows and columns are 0-based; the table keeps its size, so resize with board_update (h) after adding rows.", {
+    tool("board_edit_table", "Edits a whiteboard table: set cells, replace all rows, add a row or column, merge or unmerge cells, set bold cells. Watch out: rows and columns are 0-based; merges and bold use A1 names (A1 = row 0, column 0); the table keeps its size, so resize with board_update (h) after adding rows.", {
+      merges: { type: "array", items: { type: "string" }, description: "Replace the merged ranges, e.g. [\"A1:C1\"] ([] unmerges all)" },
+      bold: { type: "array", items: { type: "string" }, description: "Replace the bold cells, e.g. [\"A5\"]" },
       id: S.str("Table element id"),
       cells: { type: "array", items: { type: "object", properties: { row: { type: "number" }, col: { type: "number" }, text: { type: "string" } }, required: ["row", "col", "text"] }, description: "Cells to set" },
       rows: { type: "array", items: { type: "array", items: { type: "string" } }, description: "Replace every row" },
@@ -220,8 +224,12 @@ export function officeBoardTools(app) {
       if (a.addColumn) rows = rows.map((r) => [...r, ""]);
       const h = a.addRow ? el.h + el.h / el.rows.length : el.h;
       const w = a.addColumn ? el.w + el.w / el.rows[0].length : el.w;
-      commit("Edit Table", M.updateElements(model(), { [el.id]: { rows, w, h } }));
-      return { ok: true, rows: rows.length, columns: rows[0].length };
+      const patch = { rows, w, h };
+      if (Array.isArray(a.merges)) patch.merges = a.merges;
+      if (Array.isArray(a.bold)) patch.styles = { ...Object.fromEntries(Object.entries(el.styles || {}).map(([k, s]) => [k, { ...s, bold: false }])), ...Object.fromEntries(a.bold.map((k) => [String(k).toUpperCase(), { ...(el.styles?.[String(k).toUpperCase()] || {}), bold: true }])) };
+      commit("Edit Table", M.updateElements(model(), { [el.id]: patch }));
+      const next = model().elements[el.id];
+      return { ok: true, rows: rows.length, columns: rows[0].length, merges: next?.merges || [] };
     }),
 
     tool("board_add_chart", "Adds a chart (column, bar, line, area, pie, donut, scatter, radar …) to the whiteboard from data you give or from a range of an OPEN spreadsheet. Returns its id. Watch out: with data, categories and every series must have the same length; with a spreadsheet, the first row holds the series names and the first column the categories; the chart is a snapshot.", {
@@ -244,8 +252,8 @@ export function officeBoardTools(app) {
       return { ok: true, id: el.id, type: el.chart.type, categories: el.chart.data.categories.length, series: el.chart.data.series.map((s) => s.name) };
     }),
 
-    tool("board_add_plot", "Adds a coordinate system to the whiteboard: axes with ticks and grid, graphs of functions y = f(x) (e.g. \"x^2 - 3x + 2\", \"sin(x)\", \"2x + 1\", \"1/x\", \"sqrt(x)\", \"e^(-x^2)\"), labeled points and line segments, in math coordinates. Returns its id. Watch out: use * or implicit multiplication (2x), ^ for powers and ln/log for logarithms; pick x/y ranges that show the interesting part (roots, vertex, intersections); verify points by computing them with calculate.", {
-      functions: { type: "array", items: { type: "object", properties: { expr: { type: "string" }, color: { type: "string" }, label: { type: "string" } }, required: ["expr"] }, description: "Graphs y = f(x)" },
+    tool("board_add_plot", "Adds a coordinate system to the whiteboard: axes with ticks and grid, graphs of functions y = f(x) (e.g. \"x^2 - 3x + 2\", \"sin(x)\", \"2x + 1\", \"1/x\", \"sqrt(x)\", \"e^(-x^2)\"), parametric curves (\"(cos(t), 2 sin(t))\", optional range \"(t, t^2) t = -2..2\"; t from 0 to 2pi by default), implicit curves (\"x^2 + y^2 = 9\", \"x = 3\"), labeled points and line segments, in math coordinates. Returns its id. Watch out: use * or implicit multiplication (2x; write x*y, not xy), ^ for powers and ln/log for logarithms; pick x/y ranges that show the interesting part (roots, vertex, intersections); verify points by computing them with calculate.", {
+      functions: { type: "array", items: { type: "object", properties: { expr: { type: "string" }, color: { type: "string" }, label: { type: "string" } }, required: ["expr"] }, description: "Graphs y = f(x), parametric curves (x(t), y(t)) or implicit curves F(x, y) = 0" },
       points: { type: "array", items: { type: "object", properties: { x: { type: "number" }, y: { type: "number" }, label: { type: "string" }, color: { type: "string" } }, required: ["x", "y"] }, description: "Points to mark" },
       segments: { type: "array", items: { type: "object", properties: { from: { type: "array", items: { type: "number" } }, to: { type: "array", items: { type: "number" } }, color: { type: "string" } }, required: ["from", "to"] }, description: "Line segments (vectors, triangles, tangents)" },
       xMin: S.num("Smallest x (default -10)"), xMax: S.num("Largest x (default 10)"), yMin: S.num("Smallest y (default -10)"), yMax: S.num("Largest y (default 10)"),
@@ -253,14 +261,14 @@ export function officeBoardTools(app) {
       x: S.num("Left edge on the board"), y: S.num("Top edge on the board"), w: S.num("Width (default 480)"), h: S.num("Height (default 360)"), page: S.str("Page id"),
     }, ["x", "y"], async (a) => {
       const { M, page, commit, model } = await board(app);
-      const { compileExpr } = await import("../../office/board/objects.js");
-      for (const f of a.functions || []) compileExpr(f.expr); // readable error before anything is added
+      const { parseCurve } = await import("../../office/board/objects.js");
+      for (const f of a.functions || []) parseCurve(f.expr); // readable error before anything is added
       const el = M.makeElement("plot", { page: page(a.page), x: a.x, y: a.y, w: a.w || 480, h: a.h || 360, functions: a.functions, points: a.points, segments: a.segments, xMin: a.xMin, xMax: a.xMax, yMin: a.yMin, yMax: a.yMax, grid: a.grid, axisLabels: { x: a.xLabel ?? "x", y: a.yLabel ?? "y" } });
       commit("Add Graph", M.addElements(model(), [el]));
       return { ok: true, id: el.id, functions: el.functions.length, points: el.points.length, range: { x: [el.xMin, el.xMax], y: [el.yMin, el.yMax] } };
     }),
 
-    tool("board_add_math", "Adds a typeset math formula to the whiteboard from TeX-like input: \\frac{a}{b}, \\sqrt{x}, x^{2}, x_{i}, Greek letters (\\alpha, \\pi …), \\sum, \\int, \\infty, \\le, \\ge, \\ne, \\approx, \\pm, \\cdot, \\to. Returns its id. Watch out: group with braces (x^{10}, not x^10); matrices, \\begin environments and \\left/\\right sizing are not supported; one formula per element.", {
+    tool("board_add_math", "Adds a typeset math formula to the whiteboard from TeX-like input: \\frac{a}{b}, \\sqrt{x}, x^{2}, x_{i}, Greek letters (\\alpha, \\pi …), \\sum, \\int, \\infty, \\le, \\ge, \\ne, \\approx, \\pm, \\cdot, \\to, stretched \\left( … \\right) delimiters and the environments matrix, pmatrix, bmatrix, Bmatrix, vmatrix, Vmatrix, cases and aligned (cells separated by &, rows by \\\\). Returns its id. Watch out: group with braces (x^{10}, not x^10); one formula per element.", {
       tex: S.str("Formula, e.g. x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}"),
       x: S.num("Left edge"), y: S.num("Top edge"), fontSize: S.num("Size (default 28)"), color: S.str(`Color (${COLORS})`), page: S.str("Page id"),
     }, ["tex", "x", "y"], async (a) => {

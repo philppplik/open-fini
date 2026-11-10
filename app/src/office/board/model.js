@@ -19,6 +19,7 @@
 // re-routed by layoutConnectors() after every change that moves or resizes elements (the ops below call it).
 import { initialKey, keyBetween, isKey } from "../../collab/fractional.js";
 import { OBJECT_TYPES, normalizeObject, objectText } from "./objects.js";
+import { t } from "../../i18n/index.js";
 
 export const BOARD_VERSION = 1;
 export const SHAPES = ["rect", "ellipse", "diamond"];
@@ -52,7 +53,7 @@ const r2 = (v) => Math.round(v * 100) / 100;
 // ---------------------------------------------------------------------------------------------- model basics
 
 export function emptyModel({ title = "", paper = "plain" } = {}) {
-  return { version: BOARD_VERSION, title, background: "#ffffff", pages: [{ id: "p1", name: "Page 1", z: initialKey(0, 1), paper }], elements: {}, media: {} };
+  return { version: BOARD_VERSION, title, background: "#ffffff", pages: [{ id: "p1", name: t("Page {n}", { n: 1 }), z: initialKey(0, 1), paper }], elements: {}, media: {} };
 }
 
 const DEFAULTS = { angle: 0, stroke: "#1e1e1e", fill: null, fillStyle: "solid", width: 2, dash: "solid", rough: 1, opacity: 1 };
@@ -70,7 +71,7 @@ export function makeElement(type, props = {}) {
   if (type === "line") el.heads = { start: "none", end: "none", ...(props.heads || {}) };
   if (type === "highlighter") Object.assign(el, { stroke: props.stroke || "#ffd43b", width: props.width || 18, opacity: props.opacity ?? 0.45, rough: 0 });
   if (type === "pen") el.rough = 0;
-  if (type === "frame") Object.assign(el, { name: props.name || "Frame", stroke: props.stroke || "#868e96", width: 1, rough: 0 });
+  if (type === "frame") Object.assign(el, { name: props.name || t("Frame"), stroke: props.stroke || "#868e96", width: 1, rough: 0 });
   if (OBJECT_TYPES.includes(type)) return normalizeObject({ ...el, rough: 0, stroke: props.stroke ?? (type === "portal" ? "#495057" : "#1e1e1e") });
   if (LINEAR.includes(type) || INK.includes(type)) return normalizePoints(el);
   return el;
@@ -580,7 +581,7 @@ export function addPage(model, { name, paper = "plain", after = null } = {}) {
   const i = after ? pages.findIndex((p) => p.id === after) : pages.length - 1;
   const z = keyBetween(pages[i]?.z ?? null, pages[i + 1]?.z ?? null);
   let id = newId("p");
-  const page = { id, name: name || `Page ${pages.length + 1}`, z, paper: PAPERS.includes(paper) ? paper : "plain" };
+  const page = { id, name: name || t("Page {n}", { n: pages.length + 1 }), z, paper: PAPERS.includes(paper) ? paper : "plain" };
   return { model: { ...model, pages: [...model.pages, page] }, page: id };
 }
 
@@ -769,33 +770,33 @@ export function templateBoard(template = "blank", { title = "" } = {}) {
   const p = m.pages[0].id;
   const els = [];
   if (template === "brainstorm") {
-    const topic = shape("ellipse", p, 380, 260, 240, 130, "Main topic", { fill: "#d0ebff", fontSize: 28 });
+    const topic = shape("ellipse", p, 380, 260, 240, 130, t("Main topic"), { fill: "#d0ebff", fontSize: 28 });
     els.push(topic);
-    const ideas = ["Idea", "Question", "Risk", "Opportunity", "Next step", "Who to ask"];
+    const ideas = [t("Idea"), t("Question"), t("Risk"), t("Opportunity"), t("Next step"), t("Who to ask")];
     ideas.forEach((txt, i) => {
       const a = (i / ideas.length) * Math.PI * 2 - Math.PI / 2;
       const s = sticky(p, 500 + Math.cos(a) * 360 - 90, 325 + Math.sin(a) * 250 - 90, txt, STICKY_COLORS[i % STICKY_COLORS.length], { w: 180, h: 180 });
       els.push(s, link("line", topic, s, { stroke: "#868e96" }));
     });
   } else if (template === "kanban") {
-    ["To do", "Doing", "Done"].forEach((name, i) => {
+    [t("To do"), t("Doing"), t("Done")].forEach((name, i) => {
       const f = makeElement("frame", { page: p, name, x: 40 + i * 340, y: 40, w: 300, h: 640 });
       els.push(f);
-      const notes = i === 0 ? ["First task", "Second task", "Third task"] : i === 1 ? ["In progress"] : ["Finished"];
-      notes.forEach((t, k) => els.push(sticky(p, f.x + 40, f.y + 30 + k * 200, t, STICKY_COLORS[i], { w: 220, h: 170, frame: f.id })));
+      const notes = i === 0 ? [t("First task"), t("Second task"), t("Third task")] : i === 1 ? [t("In progress")] : [t("Finished")];
+      notes.forEach((text, k) => els.push(sticky(p, f.x + 40, f.y + 30 + k * 200, text, STICKY_COLORS[i], { w: 220, h: 170, frame: f.id })));
     });
   } else if (template === "flowchart") {
-    const start = shape("ellipse", p, 340, 40, 200, 80, "Start", { fill: "#c8f0d0" });
-    const step = shape("rect", p, 330, 190, 220, 90, "Do something", { round: true });
-    const q = shape("diamond", p, 320, 350, 240, 140, "Decision?", { fill: "#fff3a0" });
-    const yes = shape("rect", p, 90, 560, 220, 90, "Yes: continue", { round: true });
-    const no = shape("rect", p, 570, 560, 220, 90, "No: try again", { round: true });
-    const end = shape("ellipse", p, 340, 730, 200, 80, "End", { fill: "#ffd1dc" });
-    els.push(start, step, q, yes, no, end, link("arrow", start, step), link("arrow", step, q), link("arrow", q, yes, { text: "yes" }), link("arrow", q, no, { text: "no" }), link("arrow", yes, end), link("arrow", no, step));
+    const start = shape("ellipse", p, 340, 40, 200, 80, t("Start"), { fill: "#c8f0d0" });
+    const step = shape("rect", p, 330, 190, 220, 90, t("Do something"), { round: true });
+    const q = shape("diamond", p, 320, 350, 240, 140, t("Decision?"), { fill: "#fff3a0" });
+    const yes = shape("rect", p, 90, 560, 220, 90, t("Yes: continue"), { round: true });
+    const no = shape("rect", p, 570, 560, 220, 90, t("No: try again"), { round: true });
+    const end = shape("ellipse", p, 340, 730, 200, 80, t("End"), { fill: "#ffd1dc" });
+    els.push(start, step, q, yes, no, end, link("arrow", start, step), link("arrow", step, q), link("arrow", q, yes, { text: t("yes") }), link("arrow", q, no, { text: t("no") }), link("arrow", yes, end), link("arrow", no, step));
   } else if (template === "notebook") {
-    els.push(makeElement("text", { page: p, x: 60, y: 40, text: "Notes", fontSize: 40, w: 140, h: 50 }));
-    m = { ...m, pages: [...m.pages, { id: "p2", name: "Page 2", z: keyBetween(m.pages[0].z, null), paper: "lines" }] };
-    m = { ...m, pages: [...m.pages, { id: "p3", name: "Page 3", z: keyBetween(m.pages[1].z, null), paper: "grid" }] };
+    els.push(makeElement("text", { page: p, x: 60, y: 40, text: t("Notes"), fontSize: 40, w: 140, h: 50 }));
+    m = { ...m, pages: [...m.pages, { id: "p2", name: t("Page {n}", { n: 2 }), z: keyBetween(m.pages[0].z, null), paper: "lines" }] };
+    m = { ...m, pages: [...m.pages, { id: "p3", name: t("Page {n}", { n: 3 }), z: keyBetween(m.pages[1].z, null), paper: "grid" }] };
   }
   return addElements(m, els);
 }

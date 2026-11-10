@@ -10,10 +10,12 @@
 //   wrapText(text, width, size, measure) → string[]
 //   rotationStemStart(handles) → { x, y } | null    where the rotate handle's stem starts (top middle)
 //   FONT_FAMILY                                       board font id → CSS family
-// ctx: { measure(text, size, font) → px, image(mediaId) → ImageRef | null }
+// ctx: { measure(text, size, font) → px, image(mediaId) → ImageRef | null, board? } — with `board` (the model),
+//      sub-board cards show a preview of their target page (previews inside previews are not drawn)
 import { roughRect, roughEllipse, roughPolygon, roughPolyline, roughLine, hachure } from "../toolkit/rough.js";
 import { pageElements, unionBounds, absPoints, INK, LINEAR, approxWidth } from "./model.js";
 import { objectItems } from "./objects.js";
+import { t, locale } from "../../i18n/index.js";
 
 export const FONT_FAMILY = { hand: "Comic Sans MS", sans: "Helvetica", serif: "Georgia", mono: "Courier New" };
 const IDENT = [1, 0, 0, 1, 0, 0];
@@ -165,10 +167,12 @@ const cache = new WeakMap(); // element object → items (models are immutable; 
 
 /** Display list items of one element in world coordinates. */
 export function elementItems(el, ctx = {}) {
+  const key = `${ctx.key}|${locale()}`;
+  const boardKey = el.type === "portal" ? ctx.board?.elements || null : null; // previews follow the target page
   const hit = cache.get(el);
-  if (hit && hit.ctxKey === ctx.key) return hit.items;
-  const items = build(el, { measure: ctx.measure || ((s, size) => approxWidth(s, size)), image: ctx.image || (() => null) });
-  if (!el.media || ctx.image?.(el.media)) cache.set(el, { items, ctxKey: ctx.key });
+  if (hit && hit.ctxKey === key && hit.boardKey === boardKey) return hit.items;
+  const items = build(el, { measure: ctx.measure || ((s, size) => approxWidth(s, size)), image: ctx.image || (() => null), board: ctx.board || null });
+  if (!el.media || ctx.image?.(el.media)) cache.set(el, { items, ctxKey: key, boardKey });
   return items;
 }
 
@@ -282,12 +286,12 @@ function build(el, ctx) {
     case "plot":
     case "math":
     case "portal":
-      items.push(...objectItems(el, ctx.measure, m));
+      items.push(...objectItems(el, ctx.measure, m, { preview: el.type === "portal" && ctx.board && el.target !== el.page ? pagePreview(ctx.board, el.target, ctx) : null }));
       break;
     case "frame": {
 
       items.push(path(polyD([[0, 0], [w, 0], [w, h], [0, h]], true), el.fill ? solid(el.fill) : null, stroke(el.stroke || "#868e96", 1), m));
-      const it = textItem([el.name || "Frame"], { x: 0, y: -20, w, h: 18, size: 14, font: "sans", color: "#868e96", align: "left", measure: (t, sz) => ctx.measure(t, sz, "sans") });
+      const it = textItem([el.name || t("Frame")], { x: 0, y: -20, w, h: 18, size: 14, font: "sans", color: "#868e96", align: "left", measure: (t, sz) => ctx.measure(t, sz, "sans") });
       if (it) items.push({ ...it, m });
       break;
     }
@@ -351,18 +355,24 @@ function arrowHead(tip, from, kind, el, ro) {
  * The display list of a page: every element, translated so the content (or `region`) starts at 0, 0 with `padding`.
  * `origin` is the world point at (0, 0) of the list.
  */
-export function pageDisplayList(model, pageId, { region = null, padding = 32, measure, image, background = model.background } = {}) {
+export function pageDisplayList(model, pageId, { region = null, padding = 32, measure, image, background = model.background, previews = true } = {}) {
   const els = pageElements(model, pageId);
   const box = region || unionBounds(els) || { x: 0, y: 0, w: 800, h: 600 };
   const x0 = box.x - (region ? 0 : padding);
   const y0 = box.y - (region ? 0 : padding);
   const width = Math.ceil(box.w + (region ? 0 : padding * 2));
   const height = Math.ceil(box.h + (region ? 0 : padding * 2));
-  const ctx = { measure, image, key: "export" };
+  const ctx = { measure, image, key: previews ? "export" : "preview", board: previews ? model : null };
   const items = [];
   if (background) items.push(path(polyD([[0, 0], [width, 0], [width, height], [0, height]], true), solid(background), null));
   items.push({ t: "group", items: els.flatMap((e) => elementItems(e, ctx)), m: [1, 0, 0, 1, -x0, -y0], opacity: 1, blend: "normal", clip: null, isolate: false });
   return { width, height, items, origin: [x0, y0] };
+}
+
+/** The content of a sub-board's target page for its card (without nested previews), or null for an empty page. */
+function pagePreview(model, pageId, ctx) {
+  if (!model.pages?.some((p) => p.id === pageId) || !pageElements(model, pageId).length) return null;
+  return pageDisplayList(model, pageId, { padding: 16, measure: ctx.measure, image: ctx.image, background: null, previews: false });
 }
 
 export { INK, LINEAR };

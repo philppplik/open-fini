@@ -4,7 +4,7 @@
 import { h } from "../../core/util.js";
 import { t, N_ } from "../../i18n/index.js";
 import { openDialog } from "../toolkit/ui.js";
-import { compileExpr } from "./objects.js";
+import { parseCurve, cellRange } from "./objects.js";
 
 const CHART_TYPES = [{ value: "column", label: N_("Column") }, { value: "bar", label: N_("Bar") }, { value: "line", label: N_("Line") }, { value: "area", label: N_("Area") }, { value: "pie", label: N_("Pie") }, { value: "donut", label: N_("Donut") }, { value: "scatter", label: N_("Scatter") }, { value: "radar", label: N_("Radar") }];
 
@@ -42,10 +42,18 @@ export async function objectDialog(kind, el = null) {
     const ta = h("textarea.of-oinput", { rows: 8, spellcheck: "false", value: tsv(el?.rows || [["Name", "Value"], ["", ""]]) });
     ta.value = tsv(el?.rows || [["Name", "Value"], ["", ""]]);
     const head = h("sl-checkbox", { checked: el ? el.header : true }, t("First row is a header"));
-    return ask(el ? t("Edit table") : t("Insert table"), [field(t("Cells (one row per line; separate cells with Tab, comma or |)"), ta), head], () => {
+    const merges = h("input.of-oinput", { value: (el?.merges || []).join(", "), placeholder: "A1:C1, B2:B3", spellcheck: "false" });
+    const bold = h("input.of-oinput", { value: Object.entries(el?.styles || {}).filter(([, s]) => s.bold).map(([k]) => k).join(", "), placeholder: "A3, C5", spellcheck: "false" });
+    const refs = (input) => input.value.split(/[\s,;]+/).filter(Boolean).map((x) => {
+      if (!cellRange(x)) throw new Error(t("“{ref}” is not a cell or range such as B2 or A1:C1.", { ref: x }));
+      return x.toUpperCase();
+    });
+    return ask(el ? t("Edit table") : t("Insert table"), [field(t("Cells (one row per line; separate cells with Tab, comma or |)"), ta), head, field(t("Merged cells (ranges such as A1:C1)"), merges), field(t("Bold cells"), bold)], () => {
       const rows = parseRows(ta.value);
       if (!rows.length) throw new Error(t("Enter at least one row."));
-      return { rows, header: head.checked };
+      const styles = Object.fromEntries(Object.entries(el?.styles || {}).map(([k, s]) => [k, { ...s, bold: false }]));
+      for (const k of refs(bold)) styles[k] = { ...(styles[k] || {}), bold: true };
+      return { rows, header: head.checked, merges: refs(merges), styles };
     });
   }
   if (kind === "chart") {
@@ -70,9 +78,9 @@ export async function objectDialog(kind, el = null) {
     pts.value = (el?.points || []).map((p) => `${p.label || ""} ${p.x} ${p.y}`.trim()).join("\n");
     const r = (k, d) => h("input.of-oinput", { type: "number", step: "any", value: String(el?.[k] ?? d) });
     const range = { xMin: r("xMin", -10), xMax: r("xMax", 10), yMin: r("yMin", -10), yMax: r("yMax", 10) };
-    return ask(el ? t("Edit graph") : t("Insert graph"), [field(t("Functions y = f(x), one per line"), fx), field(t("Points (optional label, x and y per line)"), pts), h("div.of-board__range", field(t("x from"), range.xMin), field(t("x to"), range.xMax), field(t("y from"), range.yMin), field(t("y to"), range.yMax))], () => {
+    return ask(el ? t("Edit graph") : t("Insert graph"), [field(t("Graphs, one per line: y = f(x), a curve (x(t), y(t)) t = 0..2pi, or an equation in x and y"), fx), field(t("Points (optional label, x and y per line)"), pts), h("div.of-board__range", field(t("x from"), range.xMin), field(t("x to"), range.xMax), field(t("y from"), range.yMin), field(t("y to"), range.yMax))], () => {
       const functions = fx.value.split("\n").map((s) => s.trim()).filter(Boolean).map((expr, k) => {
-        compileExpr(expr);
+        parseCurve(expr);
         return { expr, ...(el?.functions?.[k]?.color ? { color: el.functions[k].color } : {}) };
       });
       const points = pts.value.split("\n").map((s) => s.trim().split(/\s+/)).filter((p) => p.length >= 2 && p[0]).map((p) => {
@@ -88,7 +96,7 @@ export async function objectDialog(kind, el = null) {
   if (kind === "math") {
     const ta = h("textarea.of-oinput", { rows: 3, spellcheck: "false", placeholder: "x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}" });
     ta.value = el?.tex || "";
-    return ask(el ? t("Edit formula") : t("Insert formula"), [field(t("Formula (TeX: \\frac{a}{b}, \\sqrt{x}, x^{2}, x_{i}, \\alpha, \\sum, \\le …)"), ta)], () => {
+    return ask(el ? t("Edit formula") : t("Insert formula"), [field(t("Formula (TeX: \\frac{a}{b}, \\sqrt{x}, x^{2}, x_{i}, \\alpha, \\sum, \\le, \\left( \\right), \\begin{pmatrix} … \\end{pmatrix} …)"), ta)], () => {
       if (!ta.value.trim()) throw new Error(t("Enter a formula."));
       return { tex: ta.value.trim() };
     });
