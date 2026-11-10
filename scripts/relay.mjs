@@ -642,7 +642,19 @@ export async function runCli(opts, out = console) {
   return relay;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] || "").href) {
+/** Whether this module is the program node was started with (compares real paths: macOS temp folders are symlinks). */
+function isMain() {
+  const arg = process.argv[1];
+  if (!arg) return false;
+  if (import.meta.url === pathToFileURL(arg).href) return true;
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(arg);
+  } catch {
+    return false;
+  }
+}
+
+if (isMain()) {
   let opts;
   try {
     opts = parseArgs(process.argv.slice(2));

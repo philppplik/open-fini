@@ -8,6 +8,7 @@
 // size budget's total; the Collaboration window's "How to start a relay" saves it), and the release attaches the same
 // file as a release asset. The bundle sets globalThis.__OPENFINI_RELAY__ before relay.mjs runs (see its header).
 import { build as esbuild } from "esbuild";
+import { realpathSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -59,7 +60,7 @@ export async function bundleRelay({ out = join(projectRoot, "dist", "tools", "op
   return out;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] || "").href) {
+if (process.argv[1] && realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1])) {
   const i = process.argv.indexOf("--out");
   const out = i > 0 ? resolve(process.argv[i + 1]) : undefined;
   bundleRelay({ out }).then((p) => console.log(`relay: wrote ${p}`), (e) => {
