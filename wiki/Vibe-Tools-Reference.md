@@ -33,6 +33,7 @@ The Vibe assistant acts through tools: named functions with schemas that call in
 | Text and encoding | `encode_text`, `decode_text`, `transform_file_text` | More than one file needs approval |
 | Assistant | knowledge search, remember, `use_skill`, `create_skill`, ask you a question, update the plan, create a tool | |
 | Power tools | `run_plan`, `query_layers`, `describe_page`, `describe_selection`, `apply_to_many`, `evaluate`, `screenshot_layers`, `compare_screenshots`, `grid_layout`, `distribute_layers`, `snap_layers`, `make_component` | Fewer round trips; `run_plan` gives one approval and one undo step |
+| Scripting and checks | `run_script`, `find_tools`, `checkpoint`, `restore_checkpoint`, `visual_diff`, `measure_layers`, `find_replace` | Code mode: a script in an isolated worker calls tools in loops, one undo step, `dryRun` returns the diff and reverts. Tools that ask on every call are refused inside a script. Restoring a checkpoint asks |
 | Agents | `spawn_agent`, `wait_agent`, `list_agents`, `cancel_agent` | See [[Vibe Studio]] |
 | Web | `web_search`, `fetch_page`, `download_image` | Off by default (Settings ▸ Artificial intelligence ▸ Web access); ask per domain in every mode; local and private addresses blocked; results are untrusted data. See [[Vibe Studio]] |
 | Attachments | `list_attachments`, `open_attachment` | Attachments live in memory for the session |
@@ -41,6 +42,21 @@ The Vibe assistant acts through tools: named functions with schemas that call in
 | Collaboration | `get_collab_status`, `read_chat`, `list_versions`, `save_version`, `post_chat_message`, `share_document` | Messages ask |
 
 There are well over 100 tools (counts quoted in older documents differ because the set grows with every release); the app's Tools list is the truth.
+
+## Code mode example
+
+`run_script` with a dry run first, then for real:
+
+```json
+{
+  "code": "const { ids } = await openfini.query_layers({ selector: 'text[name^=\"Price\"]' });\nlet n = 0;\nfor (const id of ids) { await openfini.set_style({ ids: [id], text: (args.base + n * args.step).toFixed(2) + ' €' }); n++; }\nreturn n;",
+  "args": { "base": 9.9, "step": 5 },
+  "dryRun": true
+}
+```
+
+The result lists the tool calls per tool and, for a dry run, the layers that would be added, removed or changed.
+`find_tools` with `{ "query": "align distribute" }` returns the matching signatures.
 
 ## Power tool examples
 
