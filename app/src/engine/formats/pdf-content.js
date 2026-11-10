@@ -107,7 +107,8 @@ export function interpretPage(ol, o) {
   const sc = () => Math.sqrt(Math.abs(gs.ctm[0] * gs.ctm[3] - gs.ctm[1] * gs.ctm[2])) || 1;
 
   function pathFrom(args) {
-    const chunks = ArrayBuffer.isView(args[1]) ? [args[1]] : args[1] || [];
+    // pdf.js passes [null] for a path operator without a current path (e.g. `n` before `re`, as ReportLab writes it)
+    const chunks = (ArrayBuffer.isView(args[1]) ? [args[1]] : Array.isArray(args[1]) ? args[1] : []).filter((c) => c && typeof c.length === 'number');
     const d = [];
     let cx = 0;
     let cy = 0;

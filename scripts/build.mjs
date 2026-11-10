@@ -228,7 +228,10 @@ export async function build({
                   workerEntries.add(target);
                 }
                 changed = true;
-                return `new URL(${quote}${urlFrom(outDir, distOf(target))}${suffix}${quote}, import.meta.url)`;
+                // path.resolve() drops a trailing slash; folder URLs (pdf.js wasmUrl / iccUrl) must keep it, or pdf.js
+                // refuses to open any PDF ("Invalid factory url ... must include trailing slash")
+                const ref = prefix.split(/[?#]/)[0].endsWith("/") ? folderUrl(outDir, distOf(target)) : urlFrom(outDir, distOf(target));
+                return `new URL(${quote}${ref}${suffix}${quote}, import.meta.url)`;
               }
               // Dynamic: only the folder part before the first ${...} can be rewritten.
               const slash = prefix.lastIndexOf("/");

@@ -2,7 +2,7 @@
 // Ollama and any OpenAI-compatible endpoint), keys, default models and the key vault.
 import { h, empty } from "../../core/util.js";
 import { vibeStore } from "../../vibe/store.js";
-import { PROVIDER_PRESETS, createPkce, openRouterAuthUrl } from "../../ai/index.js";
+import { PROVIDER_PRESETS, createPkce, openRouterAuthUrl, isHttpUrl, badBaseUrlMessage, resetLocalBackoff } from "../../ai/index.js";
 import { promptDialog, confirmDialog } from "../dialogs.js";
 import { platform } from "../../platform/index.js";
 import { iconEl } from "../toolbox.js";
@@ -69,6 +69,7 @@ export function createModelsPanel(vs) {
     presetSel.addEventListener("change", onPreset);
     const save = async () => {
       const p = PROVIDER_PRESETS.find((x) => x.id === presetSel.value);
+      if (!isHttpUrl(url.value)) throw new Error(badBaseUrlMessage(url.value.trim()));
       const rec = await vibeStore.saveProvider({ id: existing?.id, preset: p.id, label: label.value.trim() || p.label, kind: p.id === "custom" ? kindSel.value : p.kind, headers: p.id === "custom" || p.id === "openai" ? parseHeaders() : (existing?.headers || {}), baseUrl: url.value.trim().replace(/\/+$/, ""), apiKey: key.value.trim() });
       return rec;
     };
@@ -77,6 +78,7 @@ export function createModelsPanel(vs) {
       status.replaceChildren(h("sl-spinner"), " Connecting…");
       try {
         const rec = await save();
+        resetLocalBackoff(); // an explicit test always asks the server again
         const prov = await session.providerFor(rec.id);
         const models = await prov.listModels();
         status.replaceChildren(iconEl("check-circle-fill"), ` Connected — ${models.length} model${models.length === 1 ? "" : "s"} available.`);

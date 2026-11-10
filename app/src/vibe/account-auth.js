@@ -66,13 +66,16 @@ export async function signInOpenAI(app, existingId) {
 }
 
 /** Access-token getter for the provider (auto refresh, one refresh at a time, rotated refresh token saved). */
+// One session per connection: a provider object is created per request, and two sessions refreshing at once would
+// send the same single-use refresh token twice (OpenAI answers HTTP 400 invalid_grant and the user is signed out).
+const sessions = new Map();
+function sharedSession(lib, key) {
+  let session = sessions.get(key);
+  if (!session) sessions.set(key, (session = new lib.OAuthSession({ fetch: (...a) => fetch(...a), store: recordStore(key) })));
+  return session;
+}
 export function openAIGetToken(providerId) {
-  let session;
-  return async ({ force } = {}) => {
-    const lib = await ai();
-    session ||= new lib.OAuthSession({ fetch: (...a) => fetch(...a), store: recordStore(providerId) });
-    return session.getAccessToken({ force });
-  };
+  return async ({ force } = {}) => sharedSession(await ai(), providerId).getAccessToken({ force });
 }
 
 /** What the UI shows for a connection: email, plan-usage flag, signed-in state. */
@@ -100,7 +103,7 @@ export const mcpSignedIn = (srv) => !!readRecord(mcpKey(srv))?.tokens;
 export async function mcpAuthFor(srv) {
   if (!readRecord(mcpKey(srv))) return null;
   const lib = await ai();
-  return new lib.OAuthSession({ fetch: (...a) => fetch(...a), store: recordStore(mcpKey(srv)) });
+  return sharedSession(lib, mcpKey(srv));
 }
 
 /** Asks the server without credentials; returns its `WWW-Authenticate` header when it demands a sign-in. */

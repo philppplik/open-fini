@@ -190,15 +190,24 @@ export class McpAuthSession {
     if (!force && !needsRefresh(rec.tokens, this.now(), this.skewMs)) return rec.tokens.accessToken;
     if (!rec.tokens.refreshToken) return !force && rec.tokens.expiresAt > this.now() ? rec.tokens.accessToken : "";
     this._refreshing ||= (async () => {
+      let latest = rec;
       try {
-        const latest = (await this.store.load()) || rec; // another tab may have refreshed already
+        latest = (await this.store.load()) || rec; // another tab may have refreshed already
         if (!force && !needsRefresh(latest.tokens, this.now(), this.skewMs)) return latest.tokens.accessToken;
         const tokens = await refreshTokens({ fetch: this.fetch, record: latest, now: this.now(), signal });
         await this.store.save({ ...latest, tokens });
         return tokens.accessToken;
       } catch (e) {
         // a refused refresh token means "sign in again"; a network hiccup keeps the record
-        if (e instanceof OAuthError && /^(invalid_grant|invalid_client|no_refresh_token|unauthorized_client|invalid_refresh_token|token_expired|refresh_token_expired|refresh_token_invalidated|refresh_token_reused)$/.test(e.code)) await this.store.save({ ...rec, tokens: null });
+        if (e instanceof OAuthError && /^(invalid_grant|invalid_client|no_refresh_token|unauthorized_client|invalid_refresh_token|token_expired|refresh_token_expired|refresh_token_invalidated|refresh_token_reused)$/.test(e.code)) {
+          // Rotating refresh tokens are single-use: when another session (tab, window) refreshed first, OpenAI answers
+          // HTTP 400 invalid_grant for the old one. Use the tokens that session saved instead of signing the user out.
+          const cur = (await this.store.load()) || latest;
+          const used = latest.tokens?.refreshToken;
+          if (cur.tokens?.refreshToken && cur.tokens.refreshToken !== used && cur.tokens.accessToken && !needsRefresh(cur.tokens, this.now(), 0)) return cur.tokens.accessToken;
+          await this.store.save({ ...latest, tokens: null });
+          throw new OAuthError(e.code, "The sign-in has expired or was revoked. Please sign in again.", { status: e.status });
+        }
         throw e;
       } finally {
         this._refreshing = null;

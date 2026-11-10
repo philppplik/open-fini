@@ -114,3 +114,34 @@ test("summarizeSessions and filterEntries", () => {
   assert.equal(filterEntries(es, { level: "warn" }).length, 1);
   assert.equal(filterEntries(es, { scope: "app", search: "OK" }).length, 1);
 });
+
+test("several windows (sessions) writing the same store keep each other's segments", async () => {
+  // regression: the segment key came from a cached index, so two windows wrote "diag.seg.1" over each other and the
+  // last index write dropped the other window's rows: earlier sessions vanished from the diagnostic report
+  const storage = fake();
+  const a = createLogStore({ storage, session: "winA", now: () => 1000 });
+  const b = createLogStore({ storage, session: "winB", now: () => 1000 });
+  await a.sessions();
+  await b.sessions(); // both have read the (empty) index
+  a.append(entry(1000, { msg: "from A" }));
+  b.append(entry(1001, { msg: "from B" }));
+  await a.flush();
+  await b.flush();
+  a.append(entry(1002, { msg: "A again" }));
+  await a.flush();
+  const all = await createLogStore({ storage, session: "later", now: () => 2000 }).load("all");
+  assert.deepEqual(all.map((e) => e.msg).sort(), ["A again", "from A", "from B"]);
+  assert.deepEqual((await b.sessions()).map((s) => s.session).sort(), ["winA", "winB"]);
+});
+
+test("a new app start sees the sessions of earlier starts", async () => {
+  const storage = fake();
+  const first = createLogStore({ storage, session: "start1", now: () => 1000 });
+  first.append(entry(1000, { level: "error", msg: "boom" }));
+  await first.flush();
+  const second = createLogStore({ storage, session: "start2", now: () => 5000 });
+  second.append(entry(5000));
+  await second.flush();
+  assert.deepEqual((await second.sessions()).map((s) => s.session), ["start2", "start1"]);
+  assert.equal((await second.load("start1"))[0].msg, "boom");
+});

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { errorFromBody, classifyProviderError, ProviderError } from "../../app/src/ai/util.js";
+import { errorFromBody, classifyProviderError, ProviderError, errorHint, doFetch, isHttpUrl, resetLocalBackoff } from "../../app/src/ai/util.js";
 
 // Fixtures: real-world error bodies of OpenAI-compatible and Anthropic APIs (and OpenCode Zen, observed 2026-10-27).
 const FIX = [
@@ -41,4 +41,50 @@ test("classification: network errors and explicit overrides", () => {
   assert.equal(n.fallbackWorthy, true);
   assert.equal(new ProviderError("x", { status: 500, category: "auth", fallbackWorthy: false }).category, "auth");
   assert.equal(classifyProviderError({ status: 0, code: "stream_truncated", message: "The stream ended before the model finished." }).category, "network");
+});
+
+test("OpenRouter 403 and 422 get a next step; moderation is a content filter (another model may work)", () => {
+  const mod = errorFromBody({ error: { code: 403, message: "anthropic/x requires moderation on OpenRouter. Your input was flagged for \"harassment\".", metadata: { reasons: ["harassment"], flagged_input: "..." } } }, "", 403, undefined, "openrouter");
+  assert.equal(mod.category, "content_filter");
+  assert.equal(mod.fallbackWorthy, true);
+  assert.match(mod.message, /Rephrase it or pick another model/);
+  const key = errorFromBody({ error: { code: 403, message: "Key limit exceeded" } }, "", 403);
+  assert.equal(key.category, "auth");
+  assert.match(key.message, /^Key limit exceeded .*spending limit/);
+  const unproc = errorFromBody({ error: { code: 422, message: "Provider returned error" } }, "", 422);
+  assert.equal(unproc.category, "invalid_request");
+  assert.match(unproc.message, /HTTP 422\).*Pick another model/);
+  // an empty body still says what happened, never only "HTTP 422"
+  assert.match(errorFromBody(undefined, "", 422).message, /^HTTP 422: The provider could not process/);
+  assert.equal(errorHint(500, "x"), "");
+});
+
+test("doFetch refuses non-web server addresses before fetching (no file:// request for the CSP to block)", async () => {
+  let calls = 0;
+  const f = async () => (calls++, new Response("{}"));
+  await assert.rejects(doFetch(f, "file:///C:/Users/me/.ollama/models/models", { method: "GET" }, "ollama"), (e) => e.code === "bad_base_url" && /http:\/\/localhost:11434\/v1/.test(e.message) && !/file:/.test(e.message));
+  await assert.rejects(doFetch(f, "C:\\Users\\me\\.ollama\\models/models", {}, "ollama"), { code: "bad_base_url" });
+  assert.equal(calls, 0);
+  assert.equal(isHttpUrl("http://localhost:11434/v1"), true);
+  assert.equal(isHttpUrl("~/.ollama/models"), false);
+});
+
+test("doFetch backs off from an unreachable local server for GETs and says how to start Ollama", async () => {
+  resetLocalBackoff();
+  let calls = 0;
+  const down = async () => {
+    calls++;
+    throw new TypeError("Failed to fetch");
+  };
+  await assert.rejects(doFetch(down, "http://localhost:11434/v1/models", { method: "GET" }), (e) => e.category === "network" && /ollama serve/.test(e.message));
+  await assert.rejects(doFetch(down, "http://localhost:11434/v1/models", { method: "GET" }), /ollama serve/);
+  assert.equal(calls, 1, "the second model-list request within the pause is not sent");
+  await assert.rejects(doFetch(down, "http://localhost:11434/v1/chat/completions", { method: "POST" }));
+  assert.equal(calls, 2, "chat requests are always sent");
+  await assert.rejects(doFetch(down, "https://api.example.com/v1/models", { method: "GET" }));
+  await assert.rejects(doFetch(down, "https://api.example.com/v1/models", { method: "GET" }));
+  assert.equal(calls, 4, "remote servers are not throttled here");
+  resetLocalBackoff();
+  const ok = await doFetch(async () => new Response("{}"), "http://localhost:11434/v1/models", { method: "GET" });
+  assert.equal(ok.status, 200);
 });

@@ -45,8 +45,8 @@ export function classifyProviderError(e = {}) {
   const text = `${code} ${e.message || ""}`;
   const out = (category, retryable, fallbackWorthy) => ({ category, retryable, fallbackWorthy });
   if (/context[_ ]length|context[_ ]window|maximum context|prompt is too long|too many tokens|exceeds the (maximum|model)|request too large/i.test(text) || status === 413) return out("context_length", false, true);
+  if (/content[_ ]filter|content_policy|safety|moderation|flagged/i.test(text)) return out("content_filter", false, true);
   if (status === 401 || status === 403 || /invalid[_ ]api[_ ]key|authentication|unauthori[sz]ed|permission_denied|permission_error|incorrect api key/i.test(text)) return out("auth", false, false);
-  if (/content[_ ]filter|content_policy|safety|moderation/i.test(text)) return out("content_filter", false, true);
   if (/insufficient[_ ]quota|insufficient (credits|quota)|billing|credit balance|FreeUsageLimit|usage limit|quota/i.test(text) || status === 402) return out("rate_limit", false, true);
   if (status === 429 || /rate[_ ]?limit|too many requests/i.test(text)) return out("rate_limit", true, true);
   if (status === 529 || status === 503 || /overloaded/i.test(text)) return out("overloaded", true, true);
@@ -453,16 +453,66 @@ export function errorFromBody(body, raw, status, retryAfter, provider) {
       message = message ? `${message} (${extra})` : extra;
     }
   }
-  if (!message) message = (raw || "").slice(0, 300).trim() || `HTTP ${status}`;
+  const reasons = e && typeof e === "object" && Array.isArray(e.metadata?.reasons) ? e.metadata.reasons.filter((r) => typeof r === "string").slice(0, 5) : [];
+  if (reasons.length && !message.includes(reasons[0])) message = `${message ? `${message} ` : ""}(flagged: ${reasons.join(", ")})`;
+  if (!message || /^<(!doctype|html)/i.test(message)) message = /^\s*</.test(raw || "") ? "" : (raw || "").slice(0, 300).trim();
   if (code == null) code = status ? String(status) : "error";
   let st = status;
   if ((!st || st === 200) && typeof code === "number") st = code; // OpenRouter mid-stream errors
+  const hint = errorHint(st, `${code} ${message}`);
+  message = message ? (hint ? `${message} ${hint}` : message) : `HTTP ${st || status}${hint ? `: ${hint}` : ""}`;
   const c = String(code);
   let retryable = st === 408 || st === 409 || st === 425 || st === 429 || st === 529 || (st >= 500 && st !== 501 && st !== 505);
   if (/overloaded|rate_limit|api_error|server_error|timeout/i.test(c)) retryable = true;
   if (/insufficient_quota|FreeUsageLimit|billing|credit|invalid_api_key|authentication|permission|not_found|invalid_request/i.test(c)) retryable = false;
   if (/insufficient (credits|quota)|billing/i.test(message)) retryable = false;
   return new ProviderError(message, { status: st, code: c, retryable, retryAfterMs: retryAfter, provider, body });
+}
+
+/** True for a server address the app can call (http or https). */
+export const isHttpUrl = (url) => /^https?:\/\/[^/\s]/i.test(String(url || "").trim());
+
+/** Message for a server address that is not a web address (a folder, file:// or a bare host). */
+export function badBaseUrlMessage(url) {
+  const shown = String(url || "").replace(/^file:\/+/i, "").slice(0, 120);
+  return `“${shown}” is not a server address. Enter the address starting with http:// or https:// (Ollama: http://localhost:11434/v1). A model folder on disk cannot be used directly.`;
+}
+
+/**
+ * Plain-language next step for HTTP failures whose provider text alone does not say what to do (OpenRouter answers 403
+ * for moderation and key restrictions and 422 for parameters the routed model cannot take). "" when none applies.
+ * @param {number} status @param {string} text provider code + message
+ */
+export function errorHint(status, text = "") {
+  if (status === 403 && /moderation|flagged/i.test(text)) return "The provider's moderation flagged the request. Rephrase it or pick another model.";
+  if (status === 403) return "The provider refused access (HTTP 403). Check that the API key is enabled, within its spending limit and allowed to use this model (and in your region), or pick another model.";
+  if (status === 422) return "The provider could not process the request (HTTP 422). This model may not support a setting that was sent (tools, images, reasoning or response format). Pick another model or turn that option off.";
+  return "";
+}
+
+const LOCAL_BACKOFF_MS = 2000;
+const LOCAL_BACKOFF_MAX_MS = 30_000;
+/** origin of an unreachable local server → { until, delay, message } */
+const localDown = new Map();
+
+/** Origin of a loopback URL (localhost, 127.x, [::1]), else "". */
+function localOrigin(url) {
+  try {
+    const u = new URL(url);
+    return /^(localhost|127(\.\d+){3}|\[::1\])$/i.test(u.hostname) ? u.origin : "";
+  } catch {
+    return "";
+  }
+}
+
+function localDownError(origin, message, provider) {
+  const hint = /:11434$/.test(origin) ? " Is Ollama running? Start the Ollama app or run “ollama serve”." : /:1234$/.test(origin) ? " Is LM Studio's server running? Start it in LM Studio (Developer tab)." : " Is the local server running?";
+  return new ProviderError(`${message} (${origin}).${hint}`, { status: 0, code: "network_error", retryable: true, provider });
+}
+
+/** Forgets remembered failures of local servers (tests; a user who just started the server can also retry). */
+export function resetLocalBackoff() {
+  localDown.clear();
 }
 
 /**
@@ -476,13 +526,28 @@ export function errorFromBody(body, raw, status, retryAfter, provider) {
  */
 export async function doFetch(fetchFn, url, init, provider) {
   if (typeof fetchFn !== "function") throw new ProviderError("No fetch implementation available", { code: "no_fetch", provider });
+  // a folder pasted as the server address (e.g. ~/.ollama/models) becomes a file:// request that the CSP blocks
+  if (!/^https?:\/\//i.test(String(url))) throw new ProviderError(badBaseUrlMessage(url), { status: 0, code: "bad_base_url", retryable: false, category: "invalid_request", fallbackWorthy: true, provider });
+  // A local server that is not running (Ollama, LM Studio) is asked again only after a growing pause: model lists and
+  // health checks would otherwise repeat the same failing request on every menu open and route attempt.
+  const local = localOrigin(url);
+  const isGet = !init?.method || String(init.method).toUpperCase() === "GET";
+  const down = local && isGet ? localDown.get(local) : null;
+  if (down && down.until > Date.now()) throw localDownError(local, down.message, provider);
   let res;
   try {
     res = await fetchFn(url, init);
   } catch (e) {
     if (isAbortError(e) || (init && init.signal && init.signal.aborted)) throw isAbortError(e) ? e : abortError(init.signal);
-    throw new ProviderError(`Network error: ${e && e.message ? e.message : e}`, { status: 0, code: "network_error", retryable: true, provider });
+    const message = `Network error: ${e && e.message ? e.message : e}`;
+    if (local) {
+      const delay = Math.min(LOCAL_BACKOFF_MAX_MS, (localDown.get(local)?.delay || LOCAL_BACKOFF_MS / 2) * 2);
+      localDown.set(local, { until: Date.now() + delay, delay, message });
+      throw localDownError(local, message, provider);
+    }
+    throw new ProviderError(message, { status: 0, code: "network_error", retryable: true, provider });
   }
+  if (local) localDown.delete(local);
   if (!res.ok) throw await errorFromResponse(res, provider);
   return res;
 }

@@ -20,6 +20,13 @@ All notable changes to OpenFini are documented here. The format follows
 
 ### Fixed
 - The local preview server and LaTeX settings (`codePreviewPort`, `codePreviewSpa`, `latexEngine`, `codePreviewLan`, `latexRemoteUrl`) are now in the customization schema: validated, listed by `get_settings`, and the first three travel in profiles and can be set by the assistant. `codePreviewLan` and `latexRemoteUrl` change what leaves the device, so they stay with the user: never exported, skipped with a warning on import, refused by `set_setting`.
+- **PDFs failed to open in release builds** with "Invalid factory url … must include trailing slash": the build dropped the trailing slash of pdf.js's decoder and color-profile folder URLs. PDFs written by ReportLab and other tools that start paths with `n` also failed ("Cannot read properties of null (reading 'length')"). Checked with classic, compressed, object-stream, encrypted, incrementally updated, CRLF, prefixed, truncated and damaged files.
+- Whiteboard: selecting a single text box no longer throws "Cannot read properties of undefined (reading 'x')" on every frame (the rotate handle looked for an edge handle text boxes do not have).
+- Code studio: inserting an element, image or snippet into an HTML file with Windows (CRLF) line breaks no longer fails with "Invalid change range" (offsets of the project text are rebased onto the editor text).
+- Vibe: provider errors that end a run (for example OpenRouter HTTP 422 or 403) are now shown in the chat with Retry instead of an empty reply, and HTTP 403 (moderation or key limits) and 422 (an unsupported setting) come with a next step. Moderation refusals count as content filter, so routes can fall back.
+- Vibe: a folder or `file://` path as the server address (such as `~/.ollama/models`) is refused with the right address to use instead of a blocked request; an unreachable local server (Ollama, LM Studio) is not asked again for model lists for a short, growing pause and the error says how to start it (*Save and test* always asks again).
+- OpenAI account: requests no longer refresh the token in parallel with the same single-use refresh token (HTTP 400 `invalid_grant` that signed users out); a refused sign-in code explains to sign in again.
+- Diagnostics: logs of several windows no longer overwrite each other in storage, and the diagnostic report now lists the warnings and errors of earlier sessions (the stored log already kept them across app starts).
 
 ## [1.0.1] — Deeper Office apps, pro export, smarter Vibe
 

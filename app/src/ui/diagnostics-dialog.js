@@ -2,7 +2,7 @@
 // (copy report, save bundle, issue on GitHub, safe mode, reset). Loaded on demand. Everything shown or exported is redacted.
 import { h, empty, formatBytes, downloadName } from "../core/util.js";
 import { log, formatTime, formatEntry, entriesToText, redact, redactValue, LEVELS } from "../core/log.js";
-import { groupProblems, buildReport, buildBundleFiles, buildIssueUrl } from "../core/diagnostics.js";
+import { groupProblems, buildReport, buildBundleFiles, buildIssueUrl, earlierOnly } from "../core/diagnostics.js";
 import { collectEnvironment, collectInventory, securityOverview } from "../core/env.js";
 import { safeModeUrl } from "../core/bootguard.js";
 import { openDialog, confirmDialog } from "./dialogs.js";
@@ -44,10 +44,20 @@ async function persistedInfo(app) {
 }
 const sessionId = (store) => store.session;
 
-/** The full redacted report text (environment, problems, security overview, log). */
+/** Stored entries of every session and the running session's id (empty when nothing is stored). */
+async function storedHistory() {
+  try {
+    const store = await (await import("../core/log-capture.js")).getLogStore();
+    return store ? { history: await store.load("all"), session: store.session } : { history: [], session: null };
+  } catch {
+    return { history: [], session: null };
+  }
+}
+
+/** The full redacted report text (environment, problems, security overview, log, warnings and errors of earlier sessions). */
 export async function reportText(app) {
-  const [env, sec, info] = await Promise.all([collectEnvironment(app), securityOverview(app).catch(() => null), persistedInfo(app)]);
-  return buildReport({ env, entries: log.entries(), security: sec?.checks, logInfo: { ...info, build: `${env.app?.version}${env.app?.commit ? "+" + String(env.app.commit).slice(0, 7) : ""}` } });
+  const [env, sec, info, stored] = await Promise.all([collectEnvironment(app), securityOverview(app).catch(() => null), persistedInfo(app), storedHistory()]);
+  return buildReport({ env, entries: log.entries(), security: sec?.checks, history: earlierOnly(stored.history, stored.session), logInfo: { ...info, build: `${env.app?.version}${env.app?.commit ? "+" + String(env.app.commit).slice(0, 7) : ""}` } });
 }
 
 export async function copyReport(app) {
@@ -57,8 +67,8 @@ export async function copyReport(app) {
 /** Saves a ZIP with report, environment and redacted logs. Never contains documents, keys or file names. */
 export async function saveBundle(app, format = "zip") {
   const [env, inventory, sec, info] = await Promise.all([collectEnvironment(app), collectInventory().catch(() => null), securityOverview(app).catch(() => null), persistedInfo(app)]);
-  const history = await (await import("../core/log-capture.js")).getLogStore().then((st) => st?.load("all")).catch(() => []);
-  const files = buildBundleFiles({ env, entries: log.entries(), inventory, security: sec?.checks, history, logInfo: { ...info, build: `${env.app?.version}${env.app?.commit ? "+" + String(env.app.commit).slice(0, 7) : ""}` } });
+  const { history, session } = await storedHistory();
+  const files = buildBundleFiles({ env, entries: log.entries(), inventory, security: sec?.checks, history, session, logInfo: { ...info, build: `${env.app?.version}${env.app?.commit ? "+" + String(env.app.commit).slice(0, 7) : ""}` } });
   const stamp = new Date().toISOString().slice(0, 10);
   if (format === "json") return writeFile(app, `openfini-diagnostics-${stamp}.json`, JSON.stringify({ format: "openfini-diagnostic-bundle", files: Object.fromEntries(Object.entries(files).map(([k, v]) => [k, k.endsWith(".json") ? JSON.parse(v) : v])) }, null, 2), "application/json", "JSON", "json");
   const { zipSync, strToU8 } = await import("../../vendor/fflate/fflate.js");
