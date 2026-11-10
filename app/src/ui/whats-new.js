@@ -3,6 +3,18 @@
 
 export const WHATS_NEW = [
   {
+    version: "1.0.1",
+    title: "Deeper Office apps, pro export, smarter Vibe",
+    items: [
+      { icon: "file-earmark-richtext", title: "Richer documents", text: "Themes, table styles, columns, text boxes, tracked changes and a table of contents for the word processor, plus new designed templates." },
+      { icon: "table", title: "Smarter spreadsheets", text: "Spill formulas, named ranges, drop-down validation, paste special, pivot tables and sparklines." },
+      { icon: "easel", title: "Better slides and whiteboards", text: "Slide masters, footers, charts from spreadsheet data and themes. Whiteboards gain tables, charts, graphs, formulas and diagram generators." },
+      { icon: "braces", title: "Code studio upgrades", text: "More starters, syntax color themes, color and path popovers, a JavaScript beautifier, minify and safe zip opening." },
+      { icon: "sliders", title: "Pro export options", text: "Choose quality, resolution, color, bleed, marks, page ranges and more per format, and save your own presets." },
+      { icon: "brain", title: "Vibe remembers you", text: "Memory across chats, a context overview, sub-threads, voice chat, and optional access to folders you choose." },
+    ],
+  },
+  {
     version: "1.0.0",
     title: "Office Suite, print colors, built-in networking",
     items: [

@@ -6,6 +6,8 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.1] — Deeper Office apps, pro export, smarter Vibe
+
 ### Added
 - Code studio: **21 more starters** in *New website* (Resume, Restaurant, Event, Product page, Coming soon, Photo gallery, To-do PWA, Notes, Calculator, Snake, Breakout, Memory, and Phaser, p5.js, Chart.js, Leaflet, D3, Pico CSS, Bulma, Mithril and jQuery starters), loaded only when used. **Smarter opening**: a dropped or opened **.zip** is unpacked safely (zip-slip protection, entry and size limits) and opens as a project; dropping an **HTML page with the files it uses** offers to open them together as one website (files placed where the page expects them); a page dropped alone offers to open its folder; folders, archives and pages dropped on a canvas are no longer placed as images. See [docs/code-studio.md](docs/code-studio.md#opening-folders-archives-and-pages).
 - Code studio: a real **JavaScript beautifier** (spacing, one statement per line, blocks and long objects broken over lines, `case` bodies indented; every result is checked token by token and keeps all source line breaks, otherwise the old re-indentation is used), **Formatting Options…** with presets (Default, Prettier-like, Standard-like, Compact, Spacious) and per-language options for HTML (attribute wrapping, `<br>` / `<br />`, quotes, indentation inside `<html>`), CSS (selector lists, blank lines, hex case) and JavaScript (style, braces, quotes, function spacing, inline objects) with a live sample, and **Minify File** / **Minify into a .min File** for HTML, CSS, JavaScript and JSON. See [docs/code-studio.md](docs/code-studio.md#formatting).
