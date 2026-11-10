@@ -299,6 +299,17 @@ Sources: opencode.ai/docs/server, /docs/sdk, /docs/zen, /docs/providers.
   text against its backdrop. `find_replace` replaces text (plain or regular expression, formatting kept), solid
   colors (fill, stroke, text) and font families across a page or the whole document in one undo step, with a dry
   run. Checkpoints live in the chat and rely on the undo history.
+- **Compact tool list** (Settings ▸ Artificial intelligence ▸ Models ▸ Engine, off by default): every request
+  normally carries the definition of every tool. With the compact list, only the core groups (Documents, Assistant,
+  Scripting and checks, Agents, Attachments, Comments), the groups of what is open (the studio or Office app of the
+  active document), the tools of an active skill and your custom, MCP and extension tools are listed
+  (`advertisedTools` in `vibe/script-lib.js`). The assistant finds the others with `find_tools` and runs them
+  with `call_tool`. `call_tool` asks exactly what the called tool would ask, in every approval mode, and offers no
+  "Always allow" of its own. This cuts the tokens sent per request by more than half; the price is one extra step
+  when a tool from another area is needed.
+- **Long results**: a tool result longer than the limit is cut in the middle as before, but the full text is now
+  kept for the chat (the latest eight) and the cut result ends with its id. `read_result` returns the next part by
+  offset or jumps to a search text, so the assistant does not have to run the tool again.
 - **Design checks and assets** (no image model, pure logic in `vibe/design-lib.js`): `lint_design` checks a page
   or the document for low text contrast (WCAG 4.5:1, large text 3:1), tiny or empty text, layers outside the page,
   off-grid positions (when a grid is given), edges that miss each other by a pixel or two, almost-equal gaps,

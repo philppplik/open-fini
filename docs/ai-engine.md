@@ -217,7 +217,8 @@ Semantics:
   valid) and while waiting for approval. Result: `stopReason:'aborted'`.
 - Tool calls arriving with a `max_tokens` stop are executed normally; calls whose arguments were cut off get an
   error telling the model to shorten or split. A plain `max_tokens` end returns `stopReason:'end', truncated:true`.
-- Results longer than `maxResultChars` keep head (70 percent) and tail with an omission marker.
+- Results longer than `maxResultChars` keep head (70 percent) and tail with an omission marker. `onTruncated({ id, name, text })` receives the full text of such a result; what it returns is appended as a note (the Vibe session stores the text for `read_result`).
+- `advertise(tool)` decides which tools are listed in the request; tools it hides stay callable (the Vibe session uses it for the compact tool list).
 - Loop guard: the same failing call (name and input) three times in a row gets a hint appended to the result.
 - `contextBudget` (estimated tokens): above it the request uses `compactMessages(history, {maxChars: budget*4})`; the
   returned `messages` are never compacted.

@@ -225,8 +225,10 @@ export function compactMessages(messages, { maxChars = 200000, keepRecent = 6 } 
 
 // ------------------------------------------------------------------ the loop
 
-function normalizeResult(result, max) {
-  if (typeof result === "string") return truncateText(result, max);
+function normalizeResult(result, max, onLong) {
+  // onLong(fullText) may store the whole text and return a note that tells the model how to read the rest
+  const cut = (text) => (text.length > max && onLong ? `${truncateText(text, max)}${onLong(text) || ""}` : truncateText(text, max));
+  if (typeof result === "string") return cut(result);
   if (result === undefined || result === null) return "OK";
   if (Array.isArray(result) && result.length && result.every((b) => b && (b.type === "text" || b.type === "image"))) {
     return result.map((b) => (b.type === "text" ? { ...b, text: truncateText(b.text ?? "", max) } : b));
@@ -237,7 +239,7 @@ function normalizeResult(result, max) {
   } catch {
     s = String(result);
   }
-  return truncateText(s ?? "OK", max);
+  return cut(s ?? "OK");
 }
 
 function schemaHint(schema) {
@@ -264,6 +266,8 @@ function schemaHint(schema) {
  * @param {string} [o.system]
  * @param {{role:string,content:any}[]} o.messages existing transcript (not mutated)
  * @param {ToolDef[]} [o.tools]
+ * @param {(tool: ToolDef) => boolean} [o.advertise] which tools are listed for the model (default: all)
+ * @param {(r: {id: string, name: string, text: string}) => string|void} [o.onTruncated] called with the full text of a result that was cut; its return value is appended as a note
  * @param {number} [o.maxSteps=24]
  * @param {number} [o.maxTokens]
  * @param {number} [o.temperature]
@@ -292,6 +296,8 @@ export async function runAgent(o) {
     signal,
     onEvent,
     approve,
+    advertise,
+    onTruncated,
     retries = 2,
     contextBudget,
     maxResultChars = 60000,
@@ -313,7 +319,8 @@ export async function runAgent(o) {
   let cachedTotal = 0;
   let steps = 0;
   const toolMap = new Map(tools.map((t) => [t.name, t]));
-  const specs = tools.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema || { type: "object", properties: {} } }));
+  // advertise(tool) === false keeps a tool callable but out of the list sent to the model (compact tool list)
+  const specs = tools.filter((t) => !advertise || advertise(t)).map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema || { type: "object", properties: {} } }));
   let lastFail = { sig: "", count: 0 };
 
   const push = (m) => {
@@ -451,7 +458,7 @@ export async function runAgent(o) {
           if (!isError) {
             const ctx = { ...(toolContext || {}), id, name, signal, step: stepNo, report: (text) => emit({ type: "tool_progress", id, name, text: String(text) }) };
             const r = await abortRace(Promise.resolve().then(() => tool.run(input, ctx)));
-            content = normalizeResult(r, maxResultChars);
+            content = normalizeResult(r, maxResultChars, onTruncated ? (text) => onTruncated({ id, name, text }) : null);
           }
         } catch (e) {
           if (isAbortError(e) || aborted()) fail("Aborted by the user.");

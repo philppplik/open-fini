@@ -10,6 +10,8 @@
 //   runScript(code, { args, timeoutMs, maxCalls, call, createWorker }) → Promise<{ result, logs, calls, ms }>
 //   tsType(schema) / tsSignature(tool) → string              TypeScript-like signature of a tool
 //   searchTools(tools, query, { group, groups, limit }) → tool[]
+//   advertisedTools(groups, context, extra) → Set<string>    tool names listed in the compact mode; CORE_GROUPS
+//   pageText(text, { offset, length, search }) → window      paging for read_result
 //   diffFacts(before, after) → { added, removed, changed }   structural diff of two pageFacts lists
 //   measure(boxes, { tolerance }) → { union, gaps, overlaps, aligned }
 //   contrastRatio(hexA, hexB) → number                       WCAG 2 contrast
@@ -150,6 +152,47 @@ export function searchTools(tools, query, { group, groups = {}, limit = 12 } = {
     if (score > 0) scored.push({ t, score, group: tg });
   }
   return scored.sort((a, b) => b.score - a.score || a.t.name.localeCompare(b.t.name)).slice(0, limit).map((x) => ({ tool: x.t, group: x.group, score: x.score }));
+}
+
+// ------------------------------------------------------------------ compact tool list
+
+/** Groups that are always listed, whatever the user works on. */
+export const CORE_GROUPS = ["Documents", "Assistant", "Scripting and checks", "Agents", "Attachments", "Comments"];
+const STUDIO_GROUPS = {
+  vector: ["Layers and vector", "Power tools", "Design checks and assets"],
+  pixel: ["Layers and vector", "Power tools", "Pixel", "Image editing"],
+  layout: ["Layers and vector", "Power tools", "Design checks and assets", "Tables and charts", "Color"],
+  code: ["Code and websites", "Frameworks, libraries and documents", "Git and publishing"],
+  document: ["Office suite", "Office documents"],
+  sheet: ["Office suite", "Spreadsheets"],
+  slides: ["Office suite", "Presentation"],
+  board: ["Office suite", "Whiteboard"],
+};
+
+/**
+ * Names of the tools to list for the model in the compact mode: the core groups, the groups of what is open
+ * (`context`: vector, pixel, layout, code, document, sheet, slides, board) and `extra` names (an active skill's
+ * tools). Everything else stays callable through call_tool after find_tools.
+ */
+export function advertisedTools(groups, context, extra = []) {
+  const out = new Set(extra);
+  for (const g of [...CORE_GROUPS, ...(STUDIO_GROUPS[context] || STUDIO_GROUPS.vector)]) for (const n of groups[g] || []) out.add(n);
+  return out;
+}
+
+/** A window of a long text for read_result: by offset, or around the first match of `search`. */
+export function pageText(text, { offset = 0, length = 20000, search } = {}) {
+  const total = text.length;
+  let at = Math.max(0, Math.min(total, Math.floor(offset)));
+  let found;
+  if (search) {
+    const i = text.toLowerCase().indexOf(String(search).toLowerCase(), at);
+    found = i >= 0;
+    if (found) at = Math.max(0, i - 200);
+  }
+  const len = Math.max(200, Math.min(60000, Math.floor(length)));
+  const part = text.slice(at, at + len);
+  return { total, offset: at, length: part.length, ...(search ? { found } : {}), ...(at + part.length < total ? { next: at + part.length } : { end: true }), text: part };
 }
 
 // ------------------------------------------------------------------ structural diff

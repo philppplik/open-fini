@@ -2,6 +2,8 @@
 //   run_script     code mode: a JavaScript function body in a locked-down worker; openfini.<tool>(args) runs tools,
 //                  all document edits fold into ONE undo step; dryRun reverts them and returns the structural diff
 //   find_tools     tool search with TypeScript-like signatures (the typed API of run_script)
+//   call_tool      runs a tool that is not in the compact tool list (same approvals as calling it directly)
+//   read_result    pages through a tool result that was cut for length
 //   checkpoint / restore_checkpoint   named states of the document: save, list, diff, delete; undo back to one
 //   visual_diff    pixel comparison of a checkpoint's render with the page now (changed regions in page px)
 //   measure_layers bounds, gaps, overlaps, shared edges, equal spacing and text contrast
@@ -19,7 +21,7 @@ import { pageFacts } from "./power.js";
 const r1 = (n) => Math.round(n * 10) / 10;
 
 /** Tools a script may never call: nested code, user prompts and orchestration. */
-export const SCRIPT_BLOCKED = new Set(["run_script", "run_plan", "evaluate", "run_code", "create_tool", "create_skill", "ask_user", "spawn_agent", "wait_agent", "cancel_agent", "plan_work", "work_task"]);
+export const SCRIPT_BLOCKED = new Set(["run_script", "call_tool", "run_plan", "evaluate", "run_code", "create_tool", "create_skill", "ask_user", "spawn_agent", "wait_agent", "cancel_agent", "plan_work", "work_task"]);
 /** Groups whose write tools record everything in the document history, so a dry run can revert them exactly. */
 export const DRY_RUN_GROUPS = ["Layers and vector", "Tables and charts", "Power tools", "Scripting and checks", "Design checks and assets"];
 const DRY_RUN_BLOCKED = new Set(["add_page", "reorder_pages", "import_svg", "generate_asset", "data_merge"]);
@@ -144,6 +146,34 @@ export function scriptTools(app, ctx) {
       const hits = searchTools(all, a.query, { group: a.group, groups: TOOL_GROUPS, limit: a.limit || 12 });
       if (!hits.length) return { tools: "", note: "Nothing matched. Call find_tools without arguments to see the groups." };
       return { count: hits.length, tools: hits.map((h) => `/* ${h.group}${h.tool.readOnly ? ", read-only" : ""} */ ${tsSignature(h.tool)}`).join("\n") };
+    }, { readOnly: true }),
+
+    tool("call_tool", "Runs any OpenFini tool by name. Use it when the tool you need is not in your tool list (the compact tool list shows only the tools for what is open): find it with find_tools, then call it here with its arguments. The tool's own rules apply unchanged, including every approval.", {
+      name: S.str("Tool name from find_tools"),
+      args: { type: "object", description: "The tool's arguments, as its signature says" },
+    }, ["name"], async (a, c) => {
+      if (a.name === "call_tool") throw new Error("call_tool cannot call itself.");
+      if (ctx.allowed && !ctx.allowed(a.name)) throw new Error(`“${a.name}” is not allowed while the active skill restricts tools.`);
+      const t = lookup(a.name);
+      const problems = validateSchema(a.args || {}, t.inputSchema, "args");
+      if (problems.length) throw new Error(`Invalid args for ${a.name}: ${problems.slice(0, 4).join("; ")}. find_tools with names: ["${a.name}"] prints the signature.`);
+      return t.run(a.args || {}, { ...(c || {}), name: a.name });
+    }, {
+      // the approval is the called tool's own, in every mode: "Always allow" for call_tool must not cover other tools
+      alwaysAsk: true,
+      needsApproval: (a) => ctx.policy?.(a.name, a.args || {}) || false,
+    }),
+
+    tool("read_result", "Reads more of a tool result that was cut for length. A cut result ends with a note naming its id; give that id with an offset (or a search text) to read the next part instead of running the tool again.", {
+      id: S.str("Result id from the note at the end of the cut result"),
+      offset: S.num("Character offset to start at (default 0)", { minimum: 0 }),
+      length: S.num("Characters to return (default 20000, max 60000)", { minimum: 200, maximum: 60000 }),
+      search: S.str("Jump to the first occurrence of this text at or after the offset"),
+    }, ["id"], async (a) => {
+      const full = ctx.results?.get(a.id);
+      if (full == null) throw new Error(`No stored result “${a.id}”. Stored: ${[...(ctx.results?.keys() || [])].join(", ") || "none"} (only the latest long results of this chat are kept).`);
+      const { pageText } = await lib();
+      return pageText(full, a);
     }, { readOnly: true }),
 
     tool("checkpoint", "Named states of the open document. save remembers the current state (and a render of the active page); diff lists what changed since (layers added, removed, changed fields); list and delete manage them. Save one before risky work, then diff or visual_diff to prove what changed, or restore_checkpoint to go back. Checkpoints live in this chat and rely on the undo history: a checkpoint older than the history limit can no longer be restored.", {

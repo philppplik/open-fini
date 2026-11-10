@@ -30,4 +30,4 @@ export const allAllowed = (hosts, web) => hosts.length > 0 && hosts.every((h) =>
 export const WEB_TOOL_NAMES = new Set(["web_search", "fetch_page", "download_image", "scrape_page"]);
 
 /** Tools whose approval card offers no "Always allow": every call is approved on its own. */
-export const ONCE_ONLY_TOOLS = new Set(["crawl_site", "http_request", "run_command", "clipboard_read", "rag_add_source"]);
+export const ONCE_ONLY_TOOLS = new Set(["crawl_site", "http_request", "run_command", "clipboard_read", "rag_add_source", "call_tool"]);
