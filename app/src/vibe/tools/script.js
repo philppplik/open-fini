@@ -9,6 +9,8 @@
 // Pure logic lives in ../script-lib.js. The session supplies ctx.lookup, ctx.allowed, ctx.toolNames (see power.js).
 import { tool, S, nodesById, requireDoc, cssToHex } from "./helpers.js";
 import { pageBounds } from "../../core/transform.js";
+import { exportRaster } from "../../core/io.js";
+import * as T from "../../engine/layout/text-model.js";
 import { validateSchema } from "../../ai/agent.js";
 import { historyMark, mergeSince } from "../../extensions/history.js";
 import { resultValue, nearest, queryFacts } from "../query.js";
@@ -19,8 +21,8 @@ const r1 = (n) => Math.round(n * 10) / 10;
 /** Tools a script may never call: nested code, user prompts and orchestration. */
 export const SCRIPT_BLOCKED = new Set(["run_script", "run_plan", "evaluate", "run_code", "create_tool", "create_skill", "ask_user", "spawn_agent", "wait_agent", "cancel_agent", "plan_work", "work_task"]);
 /** Groups whose write tools record everything in the document history, so a dry run can revert them exactly. */
-export const DRY_RUN_GROUPS = ["Layers and vector", "Tables and charts", "Power tools", "Scripting and checks"];
-const DRY_RUN_BLOCKED = new Set(["add_page", "reorder_pages", "import_svg"]);
+export const DRY_RUN_GROUPS = ["Layers and vector", "Tables and charts", "Power tools", "Scripting and checks", "Design checks and assets"];
+const DRY_RUN_BLOCKED = new Set(["add_page", "reorder_pages", "import_svg", "generate_asset", "data_merge"]);
 
 function b64(bytes) {
   let bin = "";
@@ -56,7 +58,6 @@ export function scriptTools(app, ctx) {
   };
   const checkpoints = () => (ctx.checkpoints ||= new Map());
   const renderPage = async (pg, area, maxSize = 640) => {
-    const { exportRaster } = await import("../../core/io.js");
     const k = Math.min(2, maxSize / Math.max(area.w, area.h));
     const r = await exportRaster(app, { page: pg, format: "png", scale: k, area });
     return { bytes: r.bytes, width: r.width, height: r.height, area, page: pg.id, scale: k };
@@ -279,7 +280,6 @@ export function scriptTools(app, ctx) {
     }, ["kind", "find", "replace"], async (a) => {
       const doc = requireDoc(app);
       if (!doc.pages) throw new Error("find_replace works on canvas documents. Use office_replace_text or edit_file for other documents.");
-      const T = await import("../../engine/layout/text-model.js");
       const pages = a.scope === "page" ? [app.page] : doc.pages;
       const targets = [];
       for (const pg of pages) {

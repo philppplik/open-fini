@@ -12,7 +12,7 @@ when-to-use: ${when}
 ---`;
 
 export const STUDIO_GUIDES = [
-  `${fm("vector", "How to work in the Vector studio: start, tool order, coordinates, ids, undo and verification.", "get_document_info, describe_page, query_layers, run_plan, add_shape, add_text, add_path, import_svg, set_style, transform_layers, group_layers, apply_to_many, grid_layout, make_component, screenshot, screenshot_layers, run_script, find_tools, checkpoint, restore_checkpoint, visual_diff, measure_layers, find_replace", "vector, logo, icon, illustration, shapes, paths")}
+  `${fm("vector", "How to work in the Vector studio: start, tool order, coordinates, ids, undo and verification.", "get_document_info, describe_page, query_layers, run_plan, add_shape, add_text, add_path, import_svg, set_style, transform_layers, group_layers, apply_to_many, grid_layout, make_component, screenshot, screenshot_layers, run_script, find_tools, checkpoint, restore_checkpoint, visual_diff, measure_layers, find_replace, lint_design, fix_design_issues, generate_asset, make_palette, type_scale, column_grid", "vector, logo, icon, illustration, shapes, paths")}
 # Vector studio guide
 
 ## Start
@@ -23,6 +23,7 @@ export const STUDIO_GUIDES = [
 - Build: run_plan for several known steps (refer to earlier ids with {"$ref":"step.id"}); run_script when the work needs loops, conditions or computed values (dryRun first for large changes; find_tools prints signatures); import_svg for anything complex (icons, logos, illustrations); add_shape/add_text/add_path for single items.
 - Change: query_layers to find ids, then apply_to_many (one undo step) or set_style/transform_layers.
 - Arrange: grid_layout, distribute_layers, align_layers, group_layers; make_component for repeated parts with overrides by child NAME.
+- Decide by rule, not by feel: make_palette for colors, type_scale for font sizes, column_grid for x positions; generate_asset for patterns, blobs, dividers, placeholders, QR codes and barcodes (no image model needed).
 
 ## Behavior
 - Units px; page space: origin top-left of the page, x right, y down; x,y is the top-left of the bounds; rotation in degrees about the center.
@@ -36,7 +37,7 @@ export const STUDIO_GUIDES = [
 - Many single calls instead of one run_plan; screenshots after every tiny step.
 
 ## Verify
-describe_page (problems section) after each batch, then one screenshot; screenshot_layers for details. measure_layers for exact gaps, alignment and text contrast. Before risky work: checkpoint save, afterwards checkpoint diff or visual_diff, restore_checkpoint to start over. Name every top-level group ("Logo", "Header").`,
+describe_page (problems section) after each batch, then one screenshot; screenshot_layers for details. measure_layers for exact gaps, alignment and text contrast. lint_design before you call the design finished; fix_design_issues applies its fixes. Before risky work: checkpoint save, afterwards checkpoint diff or visual_diff, restore_checkpoint to start over. Name every top-level group ("Logo", "Header").`,
 
   `${fm("pixel", "How to work in the Pixel studio: non-destructive adjustments, selections, native photo edits and how to check them.", "get_document_info, list_layers, list_effects, get_histogram, auto_correct_suggestion, apply_adjustment, select_area, select_subject, edit_pixels, remove_background, crop_image, resize_image, add_pixel_layer, generate_image, edit_image, screenshot", "photo, pixel, image, retouch, brighten, color correct, background removal")}
 # Pixel studio guide
@@ -62,7 +63,7 @@ describe_page (problems section) after each batch, then one screenshot; screensh
 ## Verify
 get_histogram again (clipping below 1 percent), then screenshot. Compare with compare_screenshots save/compare for before and after.`,
 
-  `${fm("layout", "How to work in the Layout studio: pages, text frames, tables, charts, print units and verification.", "get_document_info, new_document, add_page, describe_page, add_text, add_shape, add_table, edit_table, read_table, import_csv_to_table, add_chart, edit_chart, read_chart, grid_layout, screenshot", "layout, print, brochure, flyer, report, pages, table, chart")}
+  `${fm("layout", "How to work in the Layout studio: pages, text frames, tables, charts, print units and verification.", "get_document_info, new_document, add_page, describe_page, add_text, add_shape, add_table, edit_table, read_table, import_csv_to_table, add_chart, edit_chart, read_chart, grid_layout, screenshot, list_merge_fields, data_merge, lint_design, fix_design_issues, column_grid, type_scale, find_replace, run_script", "layout, print, brochure, flyer, report, pages, table, chart")}
 # Layout studio guide
 
 ## Start
@@ -81,7 +82,7 @@ Structure (pages, margins) -> text frames (add_text with width) -> images and sh
 - Text frames too small (overset text), body text under 9 pt in print, charts with made-up data (label samples), mixing mm and px.
 
 ## Verify
-read_table / read_chart for numbers, describe_page for overlaps, screenshot of each page. For print: preflight_pdf.`,
+read_table / read_chart for numbers, describe_page for overlaps, lint_design with scope document, screenshot of each page. For print: preflight_pdf. Many copies from a list (badges, certificates, price tags): write <<Field>> placeholders into one template page, then data_merge.`,
 
   `${fm("code", "How to work in the Code studio: files, the live preview, element ids, breakpoints and checks.", "create_website, list_files, read_file, write_file, edit_file, get_page_outline, inspect_element, set_element_style, set_viewport, show_page, check_problems, screenshot", "code, website, html, css, javascript, landing page, web")}
 # Code studio guide

@@ -298,6 +298,18 @@ Sources: opencode.ai/docs/server, /docs/sdk, /docs/zen, /docs/providers.
   text against its backdrop. `find_replace` replaces text (plain or regular expression, formatting kept), solid
   colors (fill, stroke, text) and font families across a page or the whole document in one undo step, with a dry
   run. Checkpoints live in the chat and rely on the undo history.
+- **Design checks and assets** (no image model, pure logic in `vibe/design-lib.js`): `lint_design` checks a page
+  or the document for low text contrast (WCAG 4.5:1, large text 3:1), tiny or empty text, layers outside the page,
+  off-grid positions (when a grid is given), edges that miss each other by a pixel or two, almost-equal gaps,
+  overlapping text, images without alt text, near-duplicate colors and too many fonts or sizes. Every issue names
+  its layers and most carry a fix as a tool call; `fix_design_issues` applies them in one undo step (with a dry
+  run) and reports what remains. `generate_asset` places procedural vectors as editable paths: dots, grid,
+  stripes, checker, waves, triangles, crosses, confetti, blob, wave divider, sunburst, rings, a labeled placeholder,
+  a QR code and a Code 128 barcode; a seed makes results repeatable and every shape stays inside its box.
+  `make_palette` returns a harmony and a 50-900 scale with the readable text color and contrast for each color;
+  `extract_palette` lists the colors a page uses (from layers, or sampled from the render). `type_scale` and
+  `column_grid` compute modular font sizes and column positions. `list_merge_fields` and `data_merge` fill
+  `<<Field Name>>` placeholders from records or CSV text, one copy of the template page per record, one undo step.
 - **Agents**: `spawn_agent`, `wait_agent`, `list_agents`, `cancel_agent` (see Sub-agents).
 - **Attachments**: `list_attachments` and `open_attachment` open a file you attached in this chat as a new document
   through the same importers as File ▸ Open (images in Pixel, SVG in Vector, PDF and Illustrator in Layout with the
@@ -549,7 +561,7 @@ developer** (also in the Troubleshooting dialog). Format: [ai-logging.md](ai-log
 | Part | Location |
 | --- | --- |
 | Pure AI runtime (providers, agent loop, MCP, RAG, skills, vault) | `app/src/ai/` — see [ai-engine.md](ai-engine.md) |
-| OpenFini tools | `app/src/vibe/tools/` (power tools `power.js`, code mode and checks `script.js` with pure logic in `vibe/script-lib.js`, agents `agents.js`, attachments `attachments.js`) |
+| OpenFini tools | `app/src/vibe/tools/` (power tools `power.js`, code mode and checks `script.js` with pure logic in `vibe/script-lib.js`, design checks and assets `design-assist.js` with `vibe/design-lib.js`, agents `agents.js`, attachments `attachments.js`) |
 | Hub (many chats, shared services, write lock), chat session | `app/src/vibe/hub.js`, `app/src/vibe/session.js` |
 | Write lock, run undo, sub-agent engine, query/ref/scene helpers (pure) | `app/src/vibe/locks.js`, `run-undo.js`, `agents.js`, `query.js` |
 | Store, custom tools, quick actions, OAuth return | `app/src/vibe/` |

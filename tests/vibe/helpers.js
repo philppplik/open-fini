@@ -10,7 +10,7 @@ export function fakeApp({ doc = true } = {}) {
     doc: null,
     selection: [],
     get page() {
-      return this.doc?.pages[0] || null;
+      return (this.activePage && this.doc?.pages.includes(this.activePage) ? this.activePage : this.doc?.pages[0]) || null;
     },
     get context() {
       return this.page?.root || null;
@@ -29,7 +29,15 @@ export function fakeApp({ doc = true } = {}) {
     select(nodes) {
       this.selection = (Array.isArray(nodes) ? nodes : [nodes]).filter(Boolean);
     },
-    setActivePage() {},
+    setActivePage(p) {
+      if (p) this.activePage = p;
+    },
+    // commands a test needs are registered here: app.commands.set(id, fn)
+    commands: new Map(),
+    run(id, args) {
+      const fn = this.commands.get(id);
+      return fn ? (fn(this, args), true) : false;
+    },
     toast() {},
     status() {},
     on(name, fn) {
