@@ -53,7 +53,9 @@ uses the `slides_` tools; each step can be undone.
 
 ## Limits
 
-One text style per text box, no charts, SmartArt, animations or video, and built-in layouts only. See
+No SmartArt, animations or video, no numbered lists or text autofit, one slide master, and built-in layouts only (they
+can be edited). Charts from a spreadsheet follow it while both are open and are saved as real charts in PowerPoint and
+OpenDocument files, without an embedded workbook. Use **Tab** / **Shift+Tab** while editing for sub-bullets. See
 `docs/office-slides.md` in the repository for details.
 
 ## See also
