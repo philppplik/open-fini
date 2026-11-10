@@ -39,11 +39,11 @@ export function webTools(app) {
   };
 
   return [
-    tool("create_website", "Creates a new website project (in a new document) from a template or from your own files, and opens the Code studio. Templates: blank, landing, portfolio, blog, docs, link-in-bio, plus framework, Markdown and PWA starters (call list_templates).", {
-      name: S.str("Project name"), template: S.str("Template id", { enum: E.TEMPLATES.map((t) => t.id) }),
+    tool("create_website", "Creates a new website project (in a new document) from a template or from your own files, and opens the Code studio. Templates: blank, landing, portfolio, blog, docs, link-in-bio, plus framework, Markdown and PWA starters, static sites, apps, games and library starters (call list_templates).", {
+      name: S.str("Project name"), template: S.str("Template id", { enum: [...E.TEMPLATES.map((t) => t.id), ...E.STARTERS.map((t) => t.id)] }),
       files: { type: "object", description: "Optional { path: text } files that replace/extend the template (e.g. {'index.html': '…', 'css/style.css': '…'})", additionalProperties: { type: "string" } },
     }, [], async (a) => {
-      const t = E.TEMPLATES.find((x) => x.id === (a.template || "blank")) || E.TEMPLATES[0];
+      const t = E.TEMPLATES.find((x) => x.id === (a.template || "blank")) || (await E.loadStarter(a.template)) || E.TEMPLATES[0];
       const files = { ...t.files, ...(a.files || {}) };
       const doc = new Doc({ name: a.name || t.name, width: 1280, height: 800, studio: "code" });
       ensureWeb(doc, files);

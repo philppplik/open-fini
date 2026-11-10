@@ -91,6 +91,9 @@ export class CanvasView {
       e.dataTransfer.dropEffect = "copy";
     });
     s.addEventListener("drop", (e) => {
+      // folders, .zip archives and web pages are opened by the window-wide handler (ui/open-folder.js), not placed
+      const items = [...(e.dataTransfer?.items || [])];
+      if (items.some((i) => i.webkitGetAsEntry?.()?.isDirectory) || [...(e.dataTransfer?.files || [])].some((f) => /\.(zip|html?)$/i.test(f.name))) return;
       e.preventDefault();
       const files = [...(e.dataTransfer?.files || [])];
       if (files.length) {

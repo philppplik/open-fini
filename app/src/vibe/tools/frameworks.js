@@ -40,7 +40,7 @@ export function frameworkTools(app) {
   return [
     tool("list_templates", "Lists the website templates for create_website: plain HTML starters plus framework starters (Tailwind CSS, Bootstrap, Alpine.js, htmx, Vue, Preact, React, Lit, web components, Three.js), Markdown blog and docs sites, and a PWA. All run without a build step.", {
       framework: S.bool("Only framework, Markdown and PWA templates"),
-    }, [], async (a) => E.TEMPLATES.filter((t) => !a.framework || t.framework).map((t) => ({ id: t.id, name: t.name, description: t.description, category: t.category, libraries: t.libs || [], files: Object.keys(t.files).length })), { readOnly: true }),
+    }, [], async (a) => [...E.TEMPLATES, ...E.STARTERS.map((s) => ({ ...s, framework: !!s.libs }))].filter((t) => !a.framework || t.framework).map((t) => ({ id: t.id, name: t.name, description: t.description, category: t.category, libraries: t.libs || [], ...(t.files ? { files: Object.keys(t.files).length } : {}) })), { readOnly: true }),
 
     tool("list_libraries", "Lists the libraries the website project uses (script and stylesheet tags, import map entries, CDN imports in JavaScript) and the catalog of popular libraries that add_library can add by id.", {
       catalog: S.bool("Also list the catalog entries (default true)"),

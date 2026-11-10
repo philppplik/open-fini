@@ -305,6 +305,26 @@ the folder not followed, folder must be in the granted fs scope. Unsaved edits a
 live-reload script. Port and SPA fallback: Settings ▸ Code studio. The web build opens a sandboxed tab instead.
 Pure helpers and tests: `engine/web/local-serve.js`, `tests/web/local-serve.test.js`. LaTeX: see [latex.md](latex.md).
 
+## Opening folders, archives and pages
+
+* **A folder** dropped anywhere (also on the Vector, Pixel or Layout canvas, which no longer tries to place it) opens with
+  `openFolderEntries`: a folder with HTML, Markdown or LaTeX becomes one Code studio project (one wrapping folder is the project
+  root), design files open as documents.
+* **A .zip** (dropped, or File ▸ Open) is unpacked in memory and opens the same way (`ui/open-drop.js`,
+  `engine/web/open-plan.js projectFromZip`). Protection: entry names with `..`, a leading `/`, a drive letter, a backslash or a
+  NUL are skipped (zip slip), as are names that only become safe after normalization; at most 5000 entries, 50 MB per entry and
+  200 MB in total (declared sizes are checked before inflating and actual sizes after); the archive itself may be 200 MB. macOS
+  metadata (`__MACOSX`, `._*`, `.DS_Store`), dot files, `.git` and `node_modules` are skipped. Problems are listed in a toast.
+* **An HTML page with its files**: when the dropped files include a page and files it loads (`<link rel=stylesheet|icon|manifest>`,
+  `<script src>`, `<img src/srcset>`, media, frames and `url()` in styles; plain `<a href>` links do not count), a dialog offers
+  *Open together*: one website project where every file is placed at the path the page uses (a dropped `style.css` lands at
+  `css/style.css` when the page links that). Referenced files that were not dropped are named in the dialog. *Open separately*
+  opens each file as before.
+* **A page dropped alone** that loads local files offers *Choose folder…* (the folder picker, to open the whole site) or *Open page
+  only*.
+
+Limits: browsers do not give dropped files their folder path, so the app cannot find the other files of a page on its own.
+
 ## Publishing
 
 **Export ▸ Website** (header button or `File ▸ Export…`):
