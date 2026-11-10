@@ -16,9 +16,9 @@ const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const GROUPS = ["shell-js", "vendor-js", "on-demand", "css", "fonts", "images", "markup-data", "legal", "other"];
 /** Groups that do not count towards the "total download" budget. */
-/** `on-demand` holds large libraries (PDF import, KaTeX) that load only when a feature is used and are not precached. */
+/** `on-demand` holds large libraries (PDF import, KaTeX) that load only when a feature is used and the one-file relay (tools/, saved on request); none of them is precached. */
 const EXCLUDED_FROM_TOTAL = new Set(["fonts", "legal", "on-demand"]);
-const ON_DEMAND = /^vendor\/(pdfjs|katex)\//;
+const ON_DEMAND = /^(vendor\/(pdfjs|katex)\/|tools\/)/;
 
 /**
  * @param {string} rel posix path relative to the build folder

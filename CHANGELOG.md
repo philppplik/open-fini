@@ -27,6 +27,7 @@ All notable changes to OpenFini are documented here. The format follows
 - Vibe: a folder or `file://` path as the server address (such as `~/.ollama/models`) is refused with the right address to use instead of a blocked request; an unreachable local server (Ollama, LM Studio) is not asked again for model lists for a short, growing pause and the error says how to start it (*Save and test* always asks again).
 - OpenAI account: requests no longer refresh the token in parallel with the same single-use refresh token (HTTP 400 `invalid_grant` that signed users out); a refused sign-in code explains to sign in again.
 - Diagnostics: logs of several windows no longer overwrite each other in storage, and the diagnostic report now lists the warnings and errors of earlier sessions (the stored log already kept them across app starts).
+- Collaboration: a **one-file relay** for people without the desktop app. *Collaborate ▸ How to start a relay ▸ Save the relay program* saves `openfini-relay.mjs` (also a release asset); `node openfini-relay.mjs --lan` runs it in any folder with Node.js 20+ only (no npm, no package install), with https/wss and the QR code built in. The dialog now walks through the three steps and explains the `ENOENT … package.json` error of `npm run relay` outside the source folder; in-app hints no longer tell people to run `npm run relay`. See [docs/collaboration.md](docs/collaboration.md#running-a-relay).
 
 ## [1.0.1] — Deeper Office apps, pro export, smarter Vibe
 

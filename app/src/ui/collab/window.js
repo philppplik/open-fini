@@ -355,7 +355,7 @@ function createWindow(app, c) {
     );
     const tunnelBox = h("input", { type: "checkbox" });
     const builtinNote = h("p.of-collab-hint", { hidden: true }, h("label", tunnelBox, " ", t("Also reach it from other networks through a tunnel (cloudflared, ngrok or tailscale, if installed; asks first)")), h("br"), t("OpenFini starts a small relay inside this app and creates the room on it. Others in your network join with the invite code in the OpenFini desktop app. Your firewall may ask once whether OpenFini may accept connections: allow it for private networks. The relay stops when you stop it or close OpenFini."));
-    const webNote = desktop ? null : h("p.of-collab-note", { hidden: true }, icon("info-circle"), t("A browser cannot start a relay. Enter the address of a hosted relay (wss://…), or of one started on a computer in your network with the desktop app or with node relay.mjs --lan."));
+    const webNote = desktop ? null : h("p.of-collab-note", { hidden: true }, icon("info-circle"), t("A browser cannot start a relay. Enter the address of a hosted relay (wss://…), or of one started on a computer in your network with the desktop app or the one-file relay (How to start a relay)."));
     const relay = h("input.of-collab-input", { value: app.prefs.collabRelay || "ws://127.0.0.1:8787/", spellcheck: false, "aria-label": t("Relay address"), placeholder: "wss://relay.example.org/" });
     // relay: loopback warning, "Test connection" with a diagnosis, and how to start one
     const loopNote = h("p.of-collab-note", { hidden: true }, icon("info-circle"), t("localhost is this computer only. Other devices join through this computer's network address: after creating the room, pick it under People ▸ Invite."));
@@ -757,7 +757,7 @@ function createWindow(app, c) {
     const addr = r.addresses[0];
     const parts = [
       h("p.of-collab-status", icon("share"), h("span", addr ? t("Relay running on this computer: {url}", { url: addr }) : t("Relay running on this computer (port {port}), but no network address was found. Is this computer connected to a network?", { port: r.port }))),
-      h("p.of-collab-hint", t("Others join with the invite code in the OpenFini desktop app on the same network. Browsers on other devices need a relay with https (node relay.mjs --lan).")),
+      h("p.of-collab-hint", t("Others join with the invite code in the OpenFini desktop app on the same network. Browsers on other devices need a relay with https: the one-file relay (node openfini-relay.mjs --lan, see How to start a relay).")),
     ];
     const qrBox = h("div.of-collab-qr");
     const qrBtn = btn(showQr ? t("Hide QR code") : t("Show QR code"), () => ((showQr = !showQr), renderPeople()), { ic: "phone" });
@@ -830,7 +830,7 @@ function createWindow(app, c) {
             }
           });
           parts.push(h("label.of-collab-field", h("span", t("Address for other devices")), sel));
-        } else if (!info && net.isLoopbackRelay(s.invite.relay)) parts.push(h("p.of-collab-hint", t("The relay's network addresses could not be read. Start it with npm run relay -- --lan, or type this computer's IP address into the relay address.")));
+        } else if (!info && net.isLoopbackRelay(s.invite.relay)) parts.push(h("p.of-collab-hint", t("The relay's network addresses could not be read. Start it with node openfini-relay.mjs --lan (How to start a relay), or type this computer's IP address into the relay address.")));
         const link = net.joinLink(info, s.shareInviteCode);
         if (link) {
           const qrBox = h("div.of-collab-qr");

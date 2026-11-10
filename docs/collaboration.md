@@ -417,14 +417,23 @@ can encrypt). Browsers cannot search the network for relays; share the printed a
 The desktop app has the relay built in (see *One click in the desktop app* above); the commands below are for servers,
 for browsers on other devices, and for people without the desktop app.
 
+**Without the sources: the one-file relay.** Every app build contains `tools/openfini-relay.mjs`
+(`scripts/relay-bundle.mjs` bundles `relay.mjs`, `relay-tls.mjs` and the QR encoder into one file; each release also
+attaches it as an asset). People get it with *Collaborate ▸ How to start a relay ▸ Save the relay program*, which saves it
+with the normal save dialog (a source checkout or dev server has no build, so the button points to the releases page).
+It needs only Node.js 20 or newer: no npm, no package install, no other files. In the folder where it was saved:
+`node openfini-relay.mjs --lan` (https/wss and the QR code included; it relays only, because there is no app next to it
+to serve: others open OpenFini themselves). The file is not precached by the service worker and is outside the size
+budget's total (`scripts/check-size.mjs` group `on-demand`).
+
 `npm run relay` only works **inside the OpenFini project folder**: anywhere else npm stops with
-`ENOENT: no such file or directory, open '…/package.json'`. Without the sources, download `scripts/relay.mjs` (one file,
-no dependencies) into any folder and run `node relay.mjs --lan` there. Put `scripts/relay-tls.mjs` next to it for
-https/wss; without it the standalone relay says so and serves `ws://` only. Without the app next to it, `--lan` only
-relays (it prints a note) and the QR code is skipped when `app/src/collab/qr.js` is not found.
+`ENOENT: no such file or directory, open '…/package.json'`. The *How to start a relay* dialog says so next to the
+one-file relay. `scripts/relay.mjs` alone in a folder works as well (`node relay.mjs --lan`), but without
+`scripts/relay-tls.mjs` next to it it serves `ws://` only (it says so) and it skips the QR code.
 
 ```sh
-node relay.mjs --lan                           # standalone: this one file in any folder
+node openfini-relay.mjs --lan                  # one-file relay in any folder (Node.js 20+ only)
+node relay.mjs --lan                           # scripts/relay.mjs alone in any folder (no https without relay-tls.mjs)
 npm run relay                                  # ws://127.0.0.1:8787/ (this computer only)
 npm run relay -- --lan                         # your network: see "Rooms across your network"
 node scripts/relay.mjs --host 0.0.0.0          # your network without serving the app (prints a warning)

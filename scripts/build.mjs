@@ -15,7 +15,9 @@
 //   4. minifies the <link rel="stylesheet"> files into content-hashed files;
 //   5. rewrites index.html (adds modulepreload hints for the entry's static imports);
 //   6. injects the build version and the precache manifest into sw.js;
-//   7. writes dist/build-info.json.
+//   7. writes dist/build-info.json;
+//   8. (app build only) writes the one-file collaboration relay dist/tools/openfini-relay.mjs (scripts/relay-bundle.mjs;
+//      not precached: the Collaboration window fetches it only when someone saves it).
 //
 // Conventions the app must follow (see docs/building.md): import() specifiers and
 // new URL(..., import.meta.url) arguments must be string literals.
@@ -388,6 +390,12 @@ export async function build({
 
   await removeEmptyDirs(out);
 
+  // 8 (before the manifest, which skips it). One-file relay -------------------------
+  if (root === join(projectRoot, "app")) {
+    const { bundleRelay } = await import("./relay-bundle.mjs");
+    await bundleRelay({ out: join(out, "tools", "openfini-relay.mjs"), version: pkg.version });
+  }
+
   // 6. Service worker --------------------------------------------------------------
   const swPath = join(out, "sw.js");
   const infoPath = join(out, "build-info.json");
@@ -395,6 +403,7 @@ export async function build({
     rel === "sw.js" ||
     rel === "build-info.json" ||
     rel.startsWith("extensions/") || // bundled extensions are fetched on demand when the user installs one
+    rel.startsWith("tools/") || // the one-file relay is fetched only when someone saves it
     /\.map$/.test(rel) ||
     /^vendor\/(pdfjs|katex)\//.test(rel) || // large and on demand: the service worker caches them on first use
     /^(LICENSE|COPYING|NOTICE)/i.test(basename(rel)) ||

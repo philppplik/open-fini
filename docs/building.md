@@ -56,6 +56,9 @@ itself and deletes its caches, so you never see stale files while editing.
 6. Deletes the source files that now live inside bundles, so nothing ships twice.
 7. Injects the build version and the **precache manifest** (every file with a content hash) into
    `sw.js`, then writes `dist/build-info.json`.
+8. App builds only (before step 7): writes the one-file collaboration relay `dist/tools/openfini-relay.mjs`
+   (`scripts/relay-bundle.mjs`: `scripts/relay.mjs` with `relay-tls.mjs` and the QR encoder bundled in). It is not
+   precached and counts as on-demand in the size budget; the Collaboration window saves it on request.
 
 Rules the app code has to follow so the build can do this safely:
 
@@ -83,7 +86,7 @@ Rules the app code has to follow so the build can do this safely:
 | --- | --- | --- |
 | `shellJsGzipKiB` | 1050 | all JavaScript outside `vendor/` (the app, its lazily loaded studios, panels and engines, and the service worker) |
 | `startupJsGzipKiB` | 380 | JavaScript needed to start: the `index.html` modules and everything they import statically |
-| `totalGzipKiB` | 2048 | everything the browser downloads, except fonts, license texts and the on-demand libraries (PDF import and KaTeX under `vendor/pdfjs` and `vendor/katex`, which are not precached and are cached on first use) |
+| `totalGzipKiB` | 2048 | everything the browser downloads, except fonts, license texts and the on-demand files (PDF import and KaTeX under `vendor/pdfjs` and `vendor/katex`, which are not precached and are cached on first use, and the one-file relay under `tools/`) |
 
 CI runs it on every push. Raise a budget only deliberately, in its own commit.
 
