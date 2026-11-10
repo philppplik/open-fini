@@ -105,10 +105,10 @@ size reasons as A7.
 ### A9 Rust relay key (H/S, Closed)
 
 *Cause.* The built-in relay had no access control beyond room tokens, so a relay reachable from the internet (for
-example through a tunnel) was an open forwarder. *Lift.* `relay_start` takes an optional key (22+ characters, the app
-generates one); WebSocket upgrades without `?key=<key>` get `401` (constant-time comparison, same rule as the Node
-relay's `--auth-token`). The Collaboration window offers *Require a relay key* and puts the key into the addresses and
-invites.
+example through a tunnel) was an open forwarder. *Lift.* `relay_start` takes an optional key (16 to 128 base64url characters;
+the app generates 22); WebSocket upgrades without `?key=<key>` get `401` (constant-time comparison, same rule as the Node
+relay's `--auth-token`). When a room is started with the tunnel option, the app generates a key, restarts a keyless relay
+and puts the key into the local address and the public invite; LAN-only rooms stay keyless (trusted network).
 
 ### A10 Rust relay TLS (M/L, Open)
 

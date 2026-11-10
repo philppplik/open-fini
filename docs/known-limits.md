@@ -16,7 +16,7 @@ Legend: **Unverified** = built and unit-tested but never run in the real environ
 ## Security and ownership follow-ups
 
 - Two CodeQL alerts `rust/disabled-certificate-check` in `src-tauri/src/netio.rs` (lines ~185–186) are intentional (user-opted self-signed FTPS/SMTP) and still need to be dismissed by the repo owner.
-- Built-in Rust relay is plain `ws://` only: no TLS and no relay key. Use the Node relay behind TLS for anything beyond a trusted LAN.
+- Built-in Rust relay is plain `ws://` only (no TLS; it requires a relay key when started with a tunnel). Use the Node relay with `--tls-cert` or a TLS proxy for browsers on other devices.
 - Wiki needs the owner's one-time "Create first page" / "Publish wiki".
 - Dependabot PR for katex 0.19.0 to 0.19.1 may still be open.
 

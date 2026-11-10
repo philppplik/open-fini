@@ -489,7 +489,9 @@ never who can read content. Options, from simplest:
 - **Tunnel from the desktop app:** when `cloudflared`, `ngrok` or `tailscale` is installed, the Collaboration window offers
   *Also reach it from other networks through a tunnel* for the built-in relay. It asks first, starts the CLI with a fixed
   argument list (`cloudflared tunnel --url http://127.0.0.1:<port>`, `ngrok http …`, `tailscale funnel <port>`), puts the
-  public `wss://` address into the invite and shows a warning. The tunnel provider then sees what a relay sees. Without a
+  public `wss://` address into the invite and shows a warning. With a tunnel the built-in relay requires a **relay key**
+  (generated per start, 128 bits, carried as `?key=` in the invite; connections without it get `401`), like the Node
+  relay's `--auth-token`. The tunnel provider then sees what a relay sees. Without a
   CLI the option only explains how to install one; OpenFini never downloads it.
 - **Docker / Compose:** `docker compose -f deploy/relay/compose.yaml up -d` (binds 127.0.0.1:8787; put TLS in front).
 - **Node standalone:** copy `scripts/relay.mjs` to any server with Node 20+, run

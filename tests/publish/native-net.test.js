@@ -3,7 +3,8 @@
 // The Rust side has its own unit tests (src-tauri/src/*.rs); real servers are not contacted here.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseNetError, withTrust, NativeNetError, bytesToBase64, nativeNetAvailable, invokeNet, relay } from "../../app/src/platform/native-net.js";
+import { parseNetError, withTrust, NativeNetError, bytesToBase64, nativeNetAvailable, invokeNet, relay, newRelayKey, withRelayKey } from "../../app/src/platform/native-net.js";
+import { normalizeRelay } from "../../app/src/collab/crypto.js";
 import { deployFtp, ftpTarget, targetById, deploy } from "../../app/src/engine/publish/targets.js";
 
 const FP = "AB:".repeat(31) + "AB";
@@ -98,4 +99,14 @@ test("send by email and Node.js tool helpers", async () => {
   const steps = nodeToolSteps("publish-helper");
   assert.ok(steps.some((s) => s.includes("npm run publish:helper")));
   assert.ok(steps.some((s) => s.includes("package.json")));
+});
+
+test("relay key: generated keys fit the built-in relay and survive invite validation", () => {
+  const k = newRelayKey();
+  assert.match(k, /^[A-Za-z0-9_-]{22}$/);
+  assert.notEqual(k, newRelayKey());
+  const local = `ws://127.0.0.1:8787/?key=${k}`;
+  assert.equal(withRelayKey("wss://abc.trycloudflare.com/", local), `wss://abc.trycloudflare.com/?key=${k}`);
+  assert.equal(withRelayKey("wss://abc.example/", "ws://127.0.0.1:8787/"), "wss://abc.example/");
+  assert.equal(normalizeRelay(local), local);
 });

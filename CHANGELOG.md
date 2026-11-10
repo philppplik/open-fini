@@ -6,6 +6,9 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Security
+- Built-in relay (desktop): a **relay key**. Rooms started with the tunnel option get a generated key (128 bits) that travels in the invite as `?key=`; WebSocket connections without it get `401` (constant-time check, same rule as the Node relay's `--auth-token`), so a tunneled relay is no longer an open forwarder.
+
 ### Added
 - Vibe **compact tool list** (Settings ▸ Artificial intelligence ▸ Models ▸ Engine, off by default): only the tools for what is open are sent with each request; the assistant finds the others with `find_tools` and runs them with the new `call_tool`, which asks exactly what the called tool would ask. More than half of the tool definitions are no longer sent.
 - Vibe `read_result`: a tool result that was cut for length keeps its full text for the chat, and the assistant can read on by offset or search instead of running the tool again.
