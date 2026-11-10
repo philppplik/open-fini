@@ -188,9 +188,9 @@ export function installCustomization(app, { defaults } = {}) {
 
     // ---- settings (generic)
     defaults: prefDefaults,
-    /** Sets one portable setting after validating it. Returns { ok, error?, from, to }. */
-    set(key, value) {
-      const r = validateSetting(key, value);
+    /** Sets one setting after validating it; `by` is "user" or "assistant" (schema.js validateSetting). Returns { ok, error?, from, to }. */
+    set(key, value, { by = "user" } = {}) {
+      const r = validateSetting(key, value, { by });
       if (!r.ok) return r;
       const from = app.prefs[key];
       app.setPref(key, value);

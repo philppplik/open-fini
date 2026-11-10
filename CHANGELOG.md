@@ -6,6 +6,12 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- [docs/limits-audit.md](docs/limits-audit.md): every AI, Vibe and platform limit with its cause, the extension point that lifts it and a value/effort rating.
+
+### Fixed
+- The local preview server and LaTeX settings (`codePreviewPort`, `codePreviewSpa`, `latexEngine`, `codePreviewLan`, `latexRemoteUrl`) are now in the customization schema: validated, listed by `get_settings`, and the first three travel in profiles and can be set by the assistant. `codePreviewLan` and `latexRemoteUrl` change what leaves the device, so they stay with the user: never exported, skipped with a warning on import, refused by `set_setting`.
+
 ## [1.0.1] — Deeper Office apps, pro export, smarter Vibe
 
 ### Added
