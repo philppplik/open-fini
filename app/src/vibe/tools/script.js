@@ -124,7 +124,7 @@ export function scriptTools(app, ctx) {
       } else if (doc0 !== app.doc) undo = "the script switched documents; undo per document";
       if (error) {
         const kept = a.dryRun ? "" : summary.toolCalls ? ` ${summary.toolCalls - summary.failedCalls} tool call(s) had already succeeded and stay applied as ${undo}; call undo to revert them.` : "";
-        throw new Error(`The script failed: ${String(error.message).replace(/.?$/, ".")}${kept}`);
+        throw new Error(`The script failed: ${String(error.message).replace(/\.?$/, ".")}${kept}`);
       }
       return { ok: true, result: out.result, ...(out.logs.length ? { logs: out.logs.slice(0, 100) } : {}), ...summary, ms: out.ms, undo, ...(diff ? { dryRun: true, diff } : {}) };
     }),
