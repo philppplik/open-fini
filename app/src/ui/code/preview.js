@@ -603,6 +603,9 @@ export class PreviewPane extends Emitter {
       case "dblclick":
         this.ws.revealInCode(m.id);
         break;
+      case "textSel":
+        this.ws.revealTextSelection(m.a, m.b); // untrusted points: validated by engine/web/text-map.js
+        break;
       case "textEdit":
         this.ws.applyTextEdit(m.id, m.text, false);
         break;

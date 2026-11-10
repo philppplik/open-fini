@@ -6,7 +6,7 @@
 //   "reveal"|"dropProbe"|"dropEnd"|"textEditStart"|"spacing"|"measure"|"measureBox"|"probe" , ... }
 // Frame → parent messages: { of:1, type: "ready"|"console"|"pick"|"hover"|"context"|"computed"|"scroll"|"navigate"|
 //   "external"|"textEdit"|"htmlEdit"|"moveDrop"|"dropTarget"|"key"|"dblclick"|"submit"|"measureInfo"|"measureBox"|
-//   "measureExit"|"measureCopied"|"measureOpt"|"probe" , ... }
+//   "measureExit"|"measureCopied"|"measureOpt"|"probe"|"textSel" , ... }
 // "probe" answers the assistant's questions about the rendered page and performs simple interactions (click, type,
 // …) with the self-contained `probeKit` of ui/code/probe.js, passed in as `pageProbe`. It never evaluates code.
 // The measure tool (section "measure tool" below) draws its overlay in the frame; its geometry and unit code is the
@@ -693,6 +693,51 @@ export function bridgeMain(kit, pageProbe) {
     e.preventDefault();
     post({ type: "key", key: key, code: e.code, ctrl: e.ctrlKey, meta: e.metaKey, shift: e.shiftKey, alt: e.altKey });
   }, true);
+
+  // ---------------------------------------------------------------- text selection → code
+  // A non-empty text selection (live preview, or while editing text inline) is reported as two points that the host
+  // maps to the exact source range (engine/web/text-map.js) and selects in the editor.
+  var selTimer = 0;
+  var lastSel = "";
+  function textPoint(node, offset) {
+    if (!node || isOurs(node.nodeType === 1 ? node : node.parentNode)) return null;
+    if (node.nodeType === 3) {
+      var parent = node.parentNode;
+      var id = idOf(parent);
+      if (id == null) return null;
+      var index = -1;
+      if (parent.hasAttribute && parent.hasAttribute("data-of")) {
+        index = 0;
+        for (var c = parent.firstChild; c && c !== node; c = c.nextSibling) if (c.nodeType === 3) index++;
+      }
+      return { id: id, index: index, offset: offset, data: node.data };
+    }
+    if (node.nodeType !== 1) return null;
+    var child = node.childNodes[offset];
+    if (child && child.nodeType === 3) return textPoint(child, 0);
+    if (child && child.nodeType === 1 && child.hasAttribute("data-of")) return { id: Number(child.getAttribute("data-of")), edge: "start" };
+    var own = idOf(node);
+    return own == null ? null : { id: own, edge: "end" };
+  }
+  function reportSelection() {
+    var sel = window.getSelection ? getSelection() : null;
+    if (!sel || !sel.rangeCount || sel.isCollapsed) {
+      lastSel = "";
+      return;
+    }
+    if (edit && !textEl) return; // design mode selects elements, not text
+    var a = textPoint(sel.anchorNode, sel.anchorOffset);
+    var b = textPoint(sel.focusNode, sel.focusOffset);
+    if (!a || !b) return;
+    var key = JSON.stringify([a.id, a.index, a.offset, a.edge, b.id, b.index, b.offset, b.edge]);
+    if (key === lastSel) return;
+    lastSel = key;
+    post({ type: "textSel", a: a, b: b });
+  }
+  document.addEventListener("selectionchange", function () {
+    clearTimeout(selTimer);
+    selTimer = setTimeout(reportSelection, 120);
+  });
 
   // ---------------------------------------------------------------- inline text editing
   function onlyInlineChildren(el) {

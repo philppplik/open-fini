@@ -55,7 +55,7 @@ so you can decide whether OpenFini fits your work — and where contributions ar
 - The canvas draws a selection, hover, margin / padding guides and drop indicators; it does not (yet) offer resize
   handles, grid / flex visual overlays or element-level drag handles for spacing.
 - Editor: syntax highlighting, completions and diagnostics come from CodeMirror's parsers — there is no language
-  server, no type checking, no Git integration, no terminal, no extensions. Emmet covers the common subset of
+  server, no type checking, no Git integration, no extensions; the terminal (desktop) runs one program per line without a shell or TTY. Emmet covers the common subset of
   abbreviations (HTML structure, attributes, numbering, CSS shorthands), not filters or custom snippets.
 - The preview resolves project files only: dynamic `import()` of computed paths and `fetch()` of project files do
   not work in it, and in the **desktop** app network requests from the preview are blocked by the Content-Security-Policy

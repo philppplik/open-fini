@@ -122,6 +122,7 @@ A tool key is a single letter pressed while the canvas has focus. Several tools 
 | Redo | `Mod+Shift+Z` | `Mod+Y` | `code.redo` |
 | Reload Preview | `Mod+Alt+R` |  | `code.reload` |
 | Show All Commands | `Mod+Shift+P` |  | `code.palette` |
+| Show Terminal | `Mod+Alt+T` |  | `code.terminal` |
 | Split View | `Mod+Alt+2` |  | `code.viewSplit` |
 | Toggle Console and Problems | `Mod+J` |  | `code.toggleBottom` |
 | Toggle Design Mode / Live Preview | `Mod+Alt+P` |  | `code.previewMode` |

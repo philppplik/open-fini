@@ -128,6 +128,20 @@ arbitrary code as you; the allow list cannot make that safe, only your approval 
 your environment variables. The Rust side trusts the folder list the page sends; a compromised web view could already
 read files through the file system plugin.
 
+## Terminal in the Code studio
+
+The Code studio's *Terminal* tab ([ADR 0025](adr/0025-code-studio-terminal.md), desktop app only) uses the same
+`cmd_run` / `cmd_kill` commands, so every rule above about the program, the shell, the folder check in Rust, the time
+limit and the output cap holds. Differences, because the person types and starts each command:
+
+- no approval dialog and the assistant's on/off switch does not apply; the allow list, deny list and deny patterns do;
+- the only root is the folder the project was opened from with *File ▸ Open Folder* in this session; `cd` cannot
+  leave it (checked in JavaScript, then canonicalized in Rust);
+- the line is split without a shell (`parseArgv`: quotes only; `| & ; < > $` and backticks are refused);
+- no AI tool, extension or page in the preview can send input to it; history stays in memory and is never saved.
+
+The same limit applies: an allowed interpreter or build tool runs arbitrary code as you.
+
 Computer use (screen and input control of the OS) is not built; see [ADR 0023](adr/0023-computer-use.md).
 
 ## Local file access for the assistant

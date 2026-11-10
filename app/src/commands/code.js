@@ -28,6 +28,9 @@ export function registerCodeCommands(app) {
   def("code.showAssets", "Show Assets", () => ws().showSide("assets"), { icon: "images" });
   def("code.problems", "Show Problems", () => ws().bottom.show("problems"), { icon: "exclamation-triangle" });
   def("code.console", "Show Console", () => ws().bottom.show("console"), { icon: "terminal" });
+  def("code.terminal", "Show Terminal", () => ws().bottom.show("terminal"), { shortcut: "Mod+Alt+T", icon: "terminal-fill" });
+  // an image opened from a project with "Edit in Pixel/Vector Studio" (ui/code/asset-edit.js); lives in the design studios
+  def("code.assetSaveBack", "Save Back to Website and Return", async (a) => (await import("../ui/code/asset-edit.js")).saveAssetBack(a, a.doc, { returnToCode: true }), { studios: ["pixel", "vector"], enabled: (a) => !!a.doc?.assetLink, icon: "box-arrow-in-left" });
   def("code.previewMode", "Toggle Design Mode / Live Preview", () => ws().preview.setMode(!ws().preview.edit), { shortcut: "Mod+Alt+P", icon: "play-circle" });
   def("code.reload", "Reload Preview", () => ws().preview.rebuild(), { shortcut: "Mod+Alt+R", icon: "arrow-repeat" });
   const lp = (fn) => () => ws().local().then(fn).catch((err) => app.toast(err.message, "danger", 6000));

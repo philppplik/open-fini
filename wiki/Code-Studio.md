@@ -21,13 +21,21 @@ The Code studio builds websites inside an OpenFini document. It combines a real 
 | Add | Elements and ready-made sections (hero, feature grid, pricing, FAQ) |
 | Style panel | Layout (flex, grid), spacing, size, position, typography, backgrounds, borders, effects |
 | Settings panel | Tag, id, classes, attributes, text |
-| Console and Problems | `console.log` output and runtime errors; HTML, CSS, JavaScript and JSON problems |
+| Console, Problems and Terminal | `console.log` output and runtime errors; HTML, CSS, JavaScript and JSON problems; a terminal for the project folder (desktop app) |
 
 Switch between **Design**, **Split** and **Code** with the toolbar buttons or `Mod+Alt+1/2/3`; `Mod+Alt+P` toggles design mode and live preview.
 
 ## The visual designer
 
-Select on the canvas or in the Navigator (`Alt`-click selects the parent). Selecting an element moves the caret to its tag and the reverse. Double-click text to edit (`Esc` cancels), drag to move, insert from the Add pane, and use the usual copy, paste, duplicate, delete and wrap shortcuts.
+Select on the canvas or in the Navigator (`Alt`-click selects the parent). Selecting an element moves the caret to its tag and the reverse. Double-click text to edit (`Esc` cancels), drag to move, insert from the Add pane, and use the usual copy, paste, duplicate, delete and wrap shortcuts. Selecting text in the live preview (or while editing text) selects exactly that text in the HTML source, character references such as `&amp;` included.
+
+### Editing assets in a design studio
+
+Right-click a PNG, JPEG or WebP image in Assets or the Explorer and choose *Edit in Pixel Studio*, or an SVG and choose *Edit in Vector Studio*. The image opens as its own document; *File ▸ Save* (`Mod+S`) writes it back into the project file in the same format, and *Save Back to Website and Return* also switches back to the Code studio. SVG is rewritten from the drawing, so comments and scripts in it are not kept.
+
+### Terminal
+
+The *Terminal* tab of the bottom panel (`Mod+Alt+T`) runs one program with its arguments per line in the folder the project was opened from (desktop app, *File ▸ Open Folder*). There is no shell: no pipes, redirects, variables or wildcards, and programs cannot read keyboard input. The allow and deny lists, time limit and output cap of *Settings ▸ Artificial intelligence ▸ Terminal* apply. Built in: `cd` (never leaves the project folder), `pwd`, `clear`, `history`, `help`. The browser version explains that the desktop app is needed. See [[Security and Privacy]].
 
 ### Classes and breakpoints
 
@@ -82,7 +90,7 @@ Source Control gives real Git inside the document ([[Git in the Code Studio]]). 
 
 ## Limits
 
-The designer edits one page at a time (no shared partials, symbols or CMS). No interactions editor, no language server, no terminal, no type checking. Details: [[Roadmap and Known Limits]].
+The designer edits one page at a time (no shared partials, symbols or CMS). No interactions editor, no language server, no type checking; the terminal is a console without a shell or TTY (no interactive programs). Details: [[Roadmap and Known Limits]].
 
 ## Vibe
 
