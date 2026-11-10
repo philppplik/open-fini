@@ -21,7 +21,7 @@ in this repository, including tests and docs. **Status**: *Closed* = lifted in t
 | A1 | Orchestrator: no per-task cancel or undo in the UI | H | S | Closed |
 | A2 | Skill packs not shown in the Skills settings panel | M | S | Closed |
 | A3 | Five Code-preview settings missing from the customization schema | M | S | Closed |
-| A4 | Engines (speech, search, RAG loaders, OCR, export formats) are hard-wired; extensions and MCP cannot add any | H | M | Closed (registry), MCP: Partial |
+| A4 | Engines (speech, search, RAG loaders, OCR) are hard-wired; extensions and MCP cannot add any | H | M | Closed (registry), MCP: Partial |
 | A5 | RAG: no PDF ingestion | H | S | Closed (text layer) |
 | A6 | RAG: no OCR for scanned pages | M | L | Partial (hook point; no engine bundled) |
 | A7 | Local speech-to-text runtime not bundled | M | L | Partial (pluggable engine; whisper.cpp not bundled) |
@@ -66,13 +66,15 @@ but never imported from a profile or changed by the assistant; the user sets the
 
 ### A4 Engine registry (H/M, Closed; MCP Partial)
 
-*Cause.* Speech input and output, web search backends, knowledge-base loaders and export formats were switch
-statements in their modules; adding one meant a core edit. *Lift.* `app/src/platform/engines.js`: one registry with
-typed kinds (`stt`, `tts`, `search`, `rag-loader`, `ocr`, `export-format`), validated descriptors, `register()` that
-returns a disposer, `list/get/pick`, change events and a privacy flag (`local`) every UI shows. Built-ins register
-themselves; extensions register through `openfini.engines.register()` (permission `vibe`, calls routed into the
-extension's sandbox with the existing RPC limits and timeouts). MCP tools can be wrapped with `mcpEngine()` (adapter
-API, documented), but there is no settings UI to map an MCP tool to an engine yet (A18).
+*Cause.* Speech input and output, web search backends and knowledge-base loaders were switch statements in their
+modules; adding one meant a core edit. *Lift.* `app/src/platform/engines.js` ([engines.md](engines.md)): one registry
+with typed kinds (`stt`, `tts`, `search`, `rag-loader`, `ocr`), validated descriptors, `register()` that returns a
+disposer, `list/get/pick`, change events and a privacy flag (`local`). Built-ins register lazily; extensions register
+through `openfini.engines.register()` (permission `vibe`, calls routed into the extension's worker with the RPC limits,
+removed when it stops). Consumers: speech input (*Local model*), *Web access ▸ Search backend*, `rag_add_source` and
+*Knowledge ▸ Add files*, the PDF loader (OCR). Not consumed yet: registered `tts` engines (spoken replies keep the
+system voices). Export formats stay outside the registry: extensions already add exporters through
+`contributes.exporters`. MCP tools can be wrapped with `mcpEngine()` in code; there is no settings UI for it (A18).
 
 ### A5 RAG PDF ingestion (H/S, Closed)
 
@@ -99,8 +101,9 @@ installed. Not done: the WebAssembly build itself (see [vibe-voice.md](vibe-voic
 
 ### A8 Local neural TTS (L/L, Partial)
 
-Same registry (`tts` kind); the system voices are the built-in engine. A Piper/ONNX runtime is not bundled for the same
-size reasons as A7.
+The registry has a `tts` kind and the system voices are registered as its built-in engine, but spoken replies do not
+switch to another engine yet (next step: a voice-engine choice in *Settings ▸ Voice*). A Piper/ONNX runtime is not
+bundled for the same size reasons as A7.
 
 ### A9 Rust relay key (H/S, Closed)
 

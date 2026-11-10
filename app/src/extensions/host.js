@@ -124,6 +124,7 @@ export class ExtensionHost extends Emitter {
       declared: new Set(),
       dynTools: new Map(),
       dynSkills: [],
+      engineOffs: new Map(), // engine id -> unregister (engines.register)
       data: null,
       crashes: 0,
       stops: [],
@@ -368,6 +369,8 @@ export class ExtensionHost extends Emitter {
     ext.panels.clear();
     ext.subs.clear();
     ext.declaredTools = null;
+    for (const off of ext.engineOffs?.values() || []) off();
+    ext.engineOffs?.clear();
   }
 
   /**
@@ -626,6 +629,25 @@ export class ExtensionHost extends Emitter {
       ext.dynSkills = [...ext.dynSkills.filter((s) => s.name !== skill.name), skill];
       app.emit("extensions:vibe");
       return null;
+    };
+    // speech, search, knowledge-base loader and OCR engines (platform/engines.js, docs/engines.md); they live as long
+    // as the background script runs and are removed with its frame
+    H["engines.register"] = async (p) => {
+      if (!ext.frame) throw new RpcError("BAD_REQUEST", "Register engines from the background script (main.js).");
+      if (ext.engineOffs.size >= 10 && !ext.engineOffs.has(p?.id)) throw new RpcError("QUOTA", "At most 10 engines.");
+      const kind = v.str(p.kind, "kind", { max: 20 });
+      const decl = { id: v.str(p.id, "id", { max: 40, re: /^[a-z0-9][a-z0-9._-]{0,39}$/ }), label: v.str(p.label ?? p.id, "label", { max: 80 }), local: p.local === true, extensions: p.extensions, mimes: p.mimes, endpoint: p.endpoint };
+      const { engines, extensionEngine } = await import("../platform/engines.js");
+      let engine;
+      try {
+        engine = extensionEngine(kind, decl, (id, args, op = "run") => ext.frame ? ext.frame.invoke("engine.run", { id, op, args }, 120_000) : Promise.reject(new Error(`The extension “${ext.name}” is not running.`)), { id: ext.id, name: ext.name });
+      } catch (err) {
+        throw new RpcError("BAD_REQUEST", err.message);
+      }
+      ext.engineOffs.get(decl.id)?.();
+      ext.engineOffs.set(decl.id, engines.register(kind, engine));
+      this.#log(ext, "info", `Registered the ${kind} engine “${decl.label}”${decl.local ? " (on this device)" : ""}`);
+      return { id: engine.id };
     };
     H["messages.post"] = (p, meta) => (this.#broadcast(ext, "message", { data: jsonSafe(p.data) }, meta?.sandbox), null);
     return H;

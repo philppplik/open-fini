@@ -12,8 +12,8 @@ intelligence ▸ Voice*. User guide: [vibe-studio.md](vibe-studio.md).
 | Speech input with the system recognizer | Built (as before, now switchable) | Browser or OS. **Chromium-based browsers (Chrome, Edge, the Windows desktop app's WebView2) send the audio to the vendor's online service.** Safari and some systems recognize on the device. |
 | Voice chat mode | Built | Composer button: listen, send when you stop talking, read the answer, listen again. |
 | Local model manager | Built | Download with approval, streaming SHA-256 check, storage in the origin-private file system, delete. |
-| Local speech-to-text runtime | **Not built** | Designed: whisper.cpp compiled to WebAssembly in a worker. Choosing *Local model* says so and dictation stays unavailable. |
-| Local neural text-to-speech | Not built | The system voices are used; a Piper/ONNX voice runtime is a possible later addition. |
+| Local speech-to-text runtime | **Pluggable, none bundled** | Any `stt` engine with `local: true` from the engine registry ([engines.md](engines.md)), for example a whisper.cpp WebAssembly build in an extension. Without one, *Local model* says so and dictation stays unavailable. |
+| Local neural text-to-speech | Not built | The system voices are used. The registry has a `tts` kind, but spoken replies do not switch to it yet. |
 
 ## Spoken replies and expressive reading
 
@@ -56,11 +56,19 @@ origin-private file system (`speech-models/`). A larger, smaller or differently 
 says why. A small JSON marker with size, hash and time is written only after a successful check; only marked models
 count as installed. Models never leave the device and are not part of exports or profiles.
 
-**Runtime (designed, not built).** The intended runtime is whisper.cpp built with Emscripten (SIMD, single thread
+## Plugging in a local recognizer
+
+Speech input with *Local model* uses the first registered `stt` engine that keeps audio on the device. Streaming
+engines get the same callbacks as the system recognizer; batch engines (`transcribe`) get one utterance recorded
+from the microphone as 16 kHz mono PCM and the chosen downloaded model as a `File` (`openModel` in
+`speech-runtime.js`). Extensions register one with `openfini.engines.register({ kind: "stt", ... })`; see
+[engines.md](engines.md).
+
+**Bundled runtime (designed, not built).** The intended runtime is whisper.cpp built with Emscripten (SIMD, single thread
 first), run in a dedicated worker that receives the model from the private file system and 16 kHz mono PCM from an
 `AudioWorklet`, and returns text segments. It is not bundled because the WebAssembly build (about 1 MB gzip) needs a
 reproducible build step and a size-budget decision, and real-time factors on low-end hardware still need measuring.
-`localRuntimeAvailable()` returns `false` and `transcribeLocal()` throws a clear message until then.
+`localRuntimeAvailable()` reports whether a local engine is registered, and `listenLocal()` throws a clear message when none is.
 
 ## Privacy
 

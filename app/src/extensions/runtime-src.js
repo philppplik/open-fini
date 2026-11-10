@@ -14,6 +14,7 @@ function runtime() {
   const pending = new Map();
   const commands = new Map();
   const tools = new Map();
+  const engineFns = new Map(); // engines.register: id -> { run, stop? }
   const events = new Map();
   const listeners = { message: new Set(), settings: new Set() };
   let seq = 0;
@@ -58,6 +59,12 @@ function runtime() {
         const fn = tools.get(p.name);
         if (typeof fn !== "function") throw new Error(`Vibe tool “${p.name}” has no handler.`);
         return (await fn(p.args)) ?? null;
+      }
+      case "engine.run": {
+        const e = engineFns.get(p.id);
+        if (!e) throw new Error(`Engine “${p.id}” has no handler.`);
+        if (p.op === "stop") return (await e.stop?.()) ?? null;
+        return (await e.run(...(p.args || []))) ?? null;
       }
       case "event":
         for (const fn of events.get(p.name) || []) try { fn(p.payload); } catch (e) { log("error", e); }
@@ -175,6 +182,15 @@ function runtime() {
         return call("vibe.registerTool", plain);
       },
       registerSkill: (def) => call("vibe.registerSkill", def),
+    },
+    engines: {
+      /** { kind: "stt"|"tts"|"search"|"rag-loader"|"ocr", id, label, local, extensions?, endpoint?, run(input, options), stop? } */
+      register(def) {
+        need(def && def.run, "run");
+        engineFns.set(def.id, { run: def.run, stop: def.stop });
+        const { run: _r, stop: _s, ...plain } = def;
+        return call("engines.register", plain);
+      },
     },
     messages: {
       post: (data) => call("messages.post", { data }),

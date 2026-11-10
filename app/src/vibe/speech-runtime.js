@@ -2,9 +2,9 @@
 // default), the system speech recognizer, and the local model manager (downloads verified chunk by chunk with SHA-256,
 // stored in the origin-private file system). Pure parts: speech.js. docs/vibe-voice.md.
 //
-// Honest status: the local speech-to-text RUNTIME (whisper.cpp compiled to WebAssembly, run in a worker) is not bundled
-// in this version. Models can be downloaded, verified, listed and deleted, and `transcribeLocal` reports that the
-// runtime is missing. See docs/vibe-voice.md ▸ Local models.
+// Honest status: no local speech-to-text engine is bundled (whisper.cpp in WebAssembly is not built here). Models can
+// be downloaded, verified, listed and deleted; `listenLocal` uses a local `stt` engine from the engine registry when an
+// extension provides one and otherwise says that none is installed. See docs/vibe-voice.md ▸ Local models.
 import { planSpeech, pickVoice, verifyStream, SPEECH_MODELS, normalizeVoice } from "./speech.js";
 
 const DIR = "speech-models";
@@ -169,9 +169,51 @@ export async function deleteModel(id) {
   await dir.removeEntry(m.file).catch(() => {});
 }
 
-/** The local runtime (whisper.cpp in WebAssembly) is not bundled in this version. */
-export const localRuntimeAvailable = () => false;
+/** A downloaded and verified model as a File (for local engines), or null. */
+export async function openModel(id) {
+  const m = SPEECH_MODELS.find((x) => x.id === id);
+  if (!m || !(await installedModels()).some((x) => x.id === id)) return null;
+  const dir = await modelDir(false);
+  return (await dir.getFileHandle(m.file)).getFile();
+}
 
-export async function transcribeLocal() {
-  throw new Error("Local speech recognition is not built into this version yet: models can be downloaded and verified, but the whisper.cpp runtime is not bundled. Use the system recognizer or type.");
+// ------------------------------------------------------------------ local recognizers (engine registry)
+// No local recognizer is bundled (whisper.cpp WebAssembly needs a reproducible build and a size decision, see
+// docs/vibe-voice.md). Any `stt` engine with `local: true` from an extension plugs in here (platform/engines.js).
+
+const localEngine = async () => {
+  const { ensureBuiltinEngines } = await import("../platform/builtin-engines.js");
+  return ensureBuiltinEngines().pick("stt", { local: true });
+};
+
+/** True when a local speech-to-text engine is registered. */
+export const localRuntimeAvailable = async () => !!(await localEngine());
+
+/**
+ * Recognizes speech with the first local engine. Streaming engines (`listen`) are used directly; batch engines
+ * (`transcribe`) get one utterance recorded from the microphone (speech-capture.js) and the chosen model.
+ * Same callbacks as listen(); returns { stop }.
+ */
+export async function listenLocal({ lang = "en-US", continuous = true, model = "", onText, onEnd, onError }) {
+  const engine = await localEngine();
+  if (!engine) throw new Error("No local speech recognizer is installed. OpenFini does not bundle one yet; an extension can add one (docs/engines.md). Downloaded models are kept for it. Use the system recognizer or type.");
+  if (engine.listen) return engine.listen({ lang, continuous, onText, onEnd, onError, model });
+  const ctl = new AbortController();
+  (async () => {
+    try {
+      const { recordUtterance, CAPTURE } = await import("./speech-capture.js");
+      const pcm = await recordUtterance({ signal: ctl.signal });
+      if (pcm.length && !ctl.signal.aborted) {
+        const file = model ? await openModel(model) : null;
+        const r = await engine.transcribe(pcm, { lang, sampleRate: CAPTURE.rate, signal: ctl.signal, model: file ? { id: model, file } : null });
+        const text = String(r?.text ?? "").trim();
+        if (text) onText?.(text, true);
+      }
+    } catch (err) {
+      if (!ctl.signal.aborted) onError?.(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      onEnd?.();
+    }
+  })();
+  return { stop: () => ctl.abort() };
 }

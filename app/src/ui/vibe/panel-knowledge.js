@@ -47,7 +47,10 @@ export function createKnowledgePanel(vs) {
   }
 
   async function add() {
-    const files = await pickFiles({ accept: ".txt,.md,.csv,.json,.html,.css,.js,.svg,.xml,.yml,.yaml" });
+    // text files, plus every type a rag-loader engine reads (PDF built in; platform/engines.js)
+    const { ensureBuiltinEngines } = await import("../../platform/builtin-engines.js");
+    const reg = ensureBuiltinEngines();
+    const files = await pickFiles({ accept: [".txt,.md,.csv,.json,.html,.css,.js,.svg,.xml,.yml,.yaml", ...reg.loaderExtensions()].join(",") });
     if (!files.length) return;
     const index = await session.knowledgeIndex();
     const emb = await embedder().catch(() => null);
@@ -55,6 +58,14 @@ export function createKnowledgePanel(vs) {
     app.status("Indexing…");
     try {
       for (const f of files) {
+        const loader = reg.pick("rag-loader", { path: f.name });
+        if (loader) {
+          const { addFiles } = await import("../../vibe/knowledge-sources.js");
+          index.removeDocument(`src:file:${f.name}`);
+          const r = await addFiles(index, [{ path: f.name, bytes: new Uint8Array(await f.arrayBuffer()) }], { prefix: "file", loaderFor: () => loader });
+          for (const s of r.skipped.slice(0, 3)) app.toast(t("{file}: {reason}", { file: s.path, reason: s.reason }), "warning", 5000);
+          continue;
+        }
         const text = await f.text();
         index.removeDocument(`file:${f.name}`);
         await index.addDocument({ id: `file:${f.name}`, title: f.name, text, meta: { size: f.size } });

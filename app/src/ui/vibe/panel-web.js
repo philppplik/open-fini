@@ -1,5 +1,6 @@
 // Settings ▸ Artificial intelligence ▸ Web access: master switch (off by default), search backend, domain lists, limits.
 import { h, empty } from "../../core/util.js";
+import { engines } from "../../platform/engines.js";
 import { t, N_ } from "../../i18n/index.js";
 import { vibeStore } from "../../vibe/store.js";
 import { DEFAULT_WEB, normalizeWeb } from "../../vibe/web-access.js";
@@ -44,7 +45,9 @@ export function createWebPanel() {
     });
     el.append(h("div.of-vcard", h("strong", t("Web access")), h("p.of-hint", t("Lets the assistant search the web, read pages and download images (tools web_search, fetch_page, scrape_page, crawl_site, http_request, download_image). Off by default. Every request asks for your approval per domain; local and private addresses are always blocked; no cookies or credentials are sent; fetched text is treated as untrusted data.")), on));
     if (!w.enabled) return;
-    const backend = h("select.of-vfield__in", BACKENDS.map(([v, l]) => h("option", { value: v, selected: v === w.searchBackend }, t(l))));
+    // plus search engines that extensions or MCP adapters registered (platform/engines.js)
+    const extra = engines.list("search").map((e) => [`engine:${e.id}`, `${e.label}${e.origin?.name ? ` (${e.origin.name})` : ""}`]);
+    const backend = h("select.of-vfield__in", BACKENDS.map(([v, l]) => h("option", { value: v, selected: v === w.searchBackend }, t(l))), extra.map(([v, l]) => h("option", { value: v, selected: v === w.searchBackend }, l)));
     backend.addEventListener("change", () => {
       save({ searchBackend: backend.value });
       render();

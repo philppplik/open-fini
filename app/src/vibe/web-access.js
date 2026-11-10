@@ -263,6 +263,7 @@ const q = (o) => Object.entries(o).filter(([, v]) => v != null && v !== "").map(
 /** The URL a search would contact (used for the approval card). */
 export function searchEndpoint(w, images, native = nativeWebAvailable()) {
   if (images) return "https://api.openverse.org/v1/images/";
+  if (String(w.searchBackend).startsWith("engine:")) return `search engine “${w.searchBackend.slice(7)}”`;
   if (w.searchBackend === "searxng") return new URL("search", `${(w.searxngUrl || "https://searx.invalid").replace(/\/+$/, "")}/`).href;
   if (w.searchBackend === "duckduckgo" && native) return "https://html.duckduckgo.com/html/"; // browser: falls back to Wikipedia
   if (w.searchBackend === "brave") return "https://api.search.brave.com/res/v1/web/search";
@@ -282,6 +283,14 @@ export async function webSearch(query, web, { fetchImpl = webFetch, signal, limi
     return res.json();
   };
   const b = w.searchBackend;
+  if (String(b).startsWith("engine:")) {
+    // a search engine from the engine registry (an extension or an MCP adapter, platform/engines.js)
+    const { engines } = await import("../platform/engines.js");
+    const e = engines.get("search", b.slice(7));
+    if (!e) throw new Error("The chosen search engine is not available (its extension may be off). Choose another backend in Settings ▸ Artificial intelligence ▸ Web access.");
+    const list = await e.search(query, { limit, signal });
+    return (Array.isArray(list) ? list : []).slice(0, limit).filter((r) => r && typeof r.url === "string" && /^https?:\/\//i.test(r.url)).map((r) => ({ title: strip(r.title).slice(0, 300), url: r.url.slice(0, 2000), snippet: strip(r.snippet).slice(0, 600) }));
+  }
   if (b === "duckduckgo") {
     // keyless HTML results page; it sends no CORS headers, so it works only through the desktop app's native GET
     if (native) {

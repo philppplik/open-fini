@@ -676,11 +676,8 @@ export function createChat(vs) {
     if (rec) return rec.stop();
     const R = await loadSpeech();
     R.stopSpeaking();
-    if (sttEngine() === "local") {
-      await R.transcribeLocal().catch((e) => app.toast(e.message, "warning", 6000));
-      return stopVoice();
-    }
-    if (sttEngine() === "off" || !R.systemSttAvailable()) {
+    const local = sttEngine() === "local";
+    if (!local && (sttEngine() === "off" || !R.systemSttAvailable())) {
       app.toast(t("Speech input is off or not available here (Settings ▸ Artificial intelligence ▸ Voice)."), "warning", 3000);
       return stopVoice();
     }
@@ -688,7 +685,9 @@ export function createChat(vs) {
     let heard = "";
     mic.classList.add("active");
     try {
-      rec = R.listen({
+      // local: a registered on-device engine (platform/engines.js); none is bundled, listenLocal says so
+      rec = await (local ? R.listenLocal : R.listen)({
+        model: voiceCfg().sttModel || "",
         lang: speechLang(),
         continuous: !auto, // voice chat: one utterance, then send
         onText: (text) => {

@@ -23,7 +23,8 @@ Legend: **Unverified** = built and unit-tested but never run in the real environ
 ## Vibe / AI
 
 - **Computer use:** design only (ADR 0023), not implemented.
-- **RAG:** no PDF or OCR ingestion.
+- **RAG:** no OCR engine is bundled; scanned PDF pages are skipped unless an extension registers an `ocr` engine ([engines.md](engines.md)).
+- **Voice:** no local speech recognizer is bundled (pluggable `stt` engine; whisper.cpp WebAssembly not built). Spoken replies do not use registered `tts` engines yet.
 - Not built from the post-1.0 batch: integrated terminal console in the Code studio, `ofini` CLI/TUI.
 
 ## Pixel studio
