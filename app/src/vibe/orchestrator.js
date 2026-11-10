@@ -119,7 +119,8 @@ export class Orchestrator {
 
   #checklist() {
     const mark = { pending: "pending", running: "active", done: "done", error: "error", cancelled: "cancelled", skipped: "cancelled" };
-    const steps = this.tasks.map((t) => ({ text: `[${t.studio}] ${t.title}${t.status === "error" ? " (failed)" : t.status === "cancelled" ? " (cancelled)" : t.status === "skipped" ? " (skipped: a dependency failed)" : ""}`, status: mark[t.status] || "pending" }));
+    // task + state let the Activity tab offer Cancel and Undo per task (ui/vibe/panel-activity.js)
+    const steps = this.tasks.map((t) => ({ text: `[${t.studio}] ${t.title}${t.status === "error" ? " (failed)" : t.status === "cancelled" ? " (cancelled)" : t.status === "skipped" ? " (skipped: a dependency failed)" : ""}${t.undone ? " (undone)" : ""}`, status: mark[t.status] || "pending", task: t.id, state: t.status, ...(t.undone ? { undone: true } : {}) }));
     if (this.o.review !== false && this.tasks.length > 1) steps.push({ text: "Review against acceptance criteria", status: this.reviewResult ? "done" : "pending" });
     try {
       this.o.onPlan?.(steps);
@@ -129,7 +130,7 @@ export class Orchestrator {
   }
 
   status() {
-    return { goal: this.goal, tasks: this.tasks.map(({ id, title, studio, status, dependsOn, agentIds, summary, error }) => ({ id, title, studio, status, dependsOn, agentIds, ...(summary ? { summary: summary.slice(0, 600) } : {}), ...(error ? { error } : {}) })), blackboard: Object.fromEntries(this.blackboard), ...(this.reviewResult ? { review: this.reviewResult } : {}) };
+    return { goal: this.goal, tasks: this.tasks.map(({ id, title, studio, status, dependsOn, agentIds, summary, error, undone }) => ({ id, title, studio, status, dependsOn, agentIds, ...(summary ? { summary: summary.slice(0, 600) } : {}), ...(error ? { error } : {}), ...(undone ? { undone: true } : {}) })), blackboard: Object.fromEntries(this.blackboard), ...(this.reviewResult ? { review: this.reviewResult } : {}) };
   }
 
   /** Plans and runs the tasks; resolves when every task is final. */
@@ -211,6 +212,15 @@ export class Orchestrator {
     const was = t.status;
     t.status = "cancelled";
     if (was === "running") for (const aid of t.agentIds) this.o.manager?.cancel(aid, "Task cancelled.");
+    this.#checklist();
+    return true;
+  }
+
+  /** Records that the user undid a task's edits (shown in the checklist and in status()). */
+  markUndone(id) {
+    const t = this.tasks.find((x) => x.id === id);
+    if (!t) return false;
+    t.undone = true;
     this.#checklist();
     return true;
   }

@@ -257,6 +257,8 @@ textarea.of-vfield__in { height: auto; padding: 8px 9px; resize: vertical; }
 .of-vplan__step.done { color: var(--of-text-dim); text-decoration: line-through; }
 .of-vplan__step.active { color: var(--of-text); font-weight: 600; }
 .of-vplan__step sl-icon { margin-top: 2px; color: var(--of-accent); }
+.of-vplan__step > span:not(.of-vplan__acts) { flex: 1; min-width: 0; }
+.of-vplan__acts { display: inline-flex; gap: 4px; flex: none; text-decoration: none; font-weight: 400; }
 
 @media (max-width: 760px) { .of-vempty__ideas { grid-template-columns: 1fr; } }
 

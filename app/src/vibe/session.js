@@ -16,7 +16,7 @@ import { vibeStore } from "./store.js";
 import { createOpenFiniTools } from "./tools/index.js";
 import { customToolDefs } from "./custom-tools.js";
 import { log } from "../core/log.js";
-import { undoRun, runSteps } from "./run-undo.js";
+import { undoRun, runSteps, undoTask, taskSteps } from "./run-undo.js";
 import { AgentManager } from "./agents.js";
 import { Orchestrator } from "./orchestrator.js";
 import { agentTools } from "./tools/agents.js";
@@ -552,5 +552,52 @@ export class VibeSession extends Emitter {
     this.app.emit("docchange", {});
     this.emit("runs", this.runs);
     return r.undone;
+  }
+
+  // ------------------------------------------------------------ plan_work tasks (Activity tab controls)
+
+  /** Cancels one task of the current plan_work job (stops its agent). Returns false when it already finished. */
+  cancelTask(id) {
+    if (!this.orch?.tasks.length) return false;
+    return this.orch.cancel(id);
+  }
+
+  /** Open documents with edits of task `id` of the latest plan_work job: [{ doc, steps }]. */
+  taskEdits(id) {
+    if (!this.orch) return [];
+    return (this.app.docs || []).map((doc) => ({ doc, steps: taskSteps(doc.history, this.orch.runId, id) })).filter((x) => x.steps > 0);
+  }
+
+  /**
+   * Undoes the edits of one finished task in every open document, under the write lock. A document where newer edits
+   * (another task, chat or the user) sit on top is left alone and named in `reasons`.
+   * @returns {Promise<{undone:number, reasons:string[]}>}
+   */
+  async undoTask(id) {
+    const o = this.orch;
+    const t = o?.tasks.find((x) => x.id === id);
+    if (!t) throw new Error(`Unknown task “${id}”.`);
+    if (!["done", "error", "cancelled"].includes(t.status)) throw new Error("Wait until the task has finished (or cancel it) before undoing it.");
+    const release = await this.hub.lock.acquire(`${this.id}:task-undo`, { label: `${this.chat.title.slice(0, 30)} · undo task` });
+    let undone = 0;
+    const reasons = [];
+    try {
+      for (const { doc } of this.taskEdits(id)) {
+        const r = undoTask(doc, o.runId, id);
+        if (r.reason) reasons.push(`${doc.name}: ${r.reason}`);
+        undone += r.undone;
+      }
+    } finally {
+      release();
+    }
+    if (undone) {
+      o.markUndone(id);
+      // the run's own record shrinks with it (and goes away when nothing of it is left)
+      for (const rec of this.runs) if (rec.run === o.runId) rec.edits = runSteps(rec.doc.history, rec.run);
+      this.runs = this.runs.filter((rec) => rec.run !== o.runId || rec.edits > 0);
+      this.app.emit("docchange", {});
+      this.emit("runs", this.runs);
+    }
+    return { undone, reasons };
   }
 }

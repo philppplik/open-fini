@@ -3155,5 +3155,10 @@
   "Pro export options": "Profi-Exportoptionen",
   "Choose quality, resolution, color, bleed, marks, page ranges and more per format, and save your own presets.": "Wähle pro Format Qualität, Auflösung, Farbe, Beschnitt, Marken, Seitenbereiche und mehr und speichere eigene Presets.",
   "Vibe remembers you": "Vibe merkt sich dich",
-  "Memory across chats, a context overview, sub-threads, voice chat, and optional access to folders you choose.": "Gedächtnis über Chats hinweg, Kontext-Übersicht, Sub-Threads, Sprach-Chat und optionaler Zugriff auf Ordner, die du freigibst."
+  "Memory across chats, a context overview, sub-threads, voice chat, and optional access to folders you choose.": "Gedächtnis über Chats hinweg, Kontext-Übersicht, Sub-Threads, Sprach-Chat und optionaler Zugriff auf Ordner, die du freigibst.",
+  "{n, plural, one {Undid # change.} other {Undid # changes.}}": "{n, plural, one {# Änderung rückgängig gemacht.} other {# Änderungen rückgängig gemacht.}}",
+  "{n, plural, one {Undo the # edit of this task} other {Undo the # edits of this task}} in {docs}": "{n, plural, one {Die # Bearbeitung dieser Aufgabe rückgängig machen} other {Die # Bearbeitungen dieser Aufgabe rückgängig machen}} in {docs}",
+  "Stop this task and skip the tasks that depend on it": "Diese Aufgabe stoppen und die von ihr abhängigen Aufgaben überspringen",
+  "This task has already finished.": "Diese Aufgabe ist bereits abgeschlossen.",
+  "Undo task": "Aufgabe rückgängig"
 }

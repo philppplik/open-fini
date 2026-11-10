@@ -117,9 +117,12 @@ export class Timeline {
     }
   }
 
+  /** A plan or plan_work checklist. Task steps (`task`, `state`) updated after their run ended (Undo task) go back to that run. */
   setPlan(steps) {
-    const run = this.#run();
-    run.plan = (steps || []).map((s) => ({ text: String(s.text ?? s), status: s.status || "todo" }));
+    const list = (steps || []).map((s) => ({ text: String(s.text ?? s), status: s.status || "todo", ...(s.task ? { task: String(s.task), state: s.state || "", undone: !!s.undone } : {}) }));
+    const ids = list.filter((s) => s.task).map((s) => s.task).join("\n");
+    const owner = !this.current && ids ? [...this.runs].reverse().find((r) => r.plan.filter((s) => s.task).map((s) => s.task).join("\n") === ids) : null;
+    (owner || this.#run()).plan = list;
     this.#changed();
   }
 

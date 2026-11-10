@@ -9,6 +9,10 @@ OpenFini?" with only the publicly stated facts about Philipp Paulik and the proj
 philipp-paulik.de and GitHub). You can write your own, import them, share them as
 `.skill.md` files or `.skillpack` bundles, and let Vibe draft one from a chat.
 
+The lazy skill packs ([vibe-orchestration.md](vibe-orchestration.md#skill-packs): `studio-guide-*` and `openfini-*`)
+are listed in the same panel under **Skill packs (load on demand)** with Use, Test, Customize and Export. Their text
+loads only when you customize or export one, or when Vibe uses it.
+
 ## Format
 
 ```markdown

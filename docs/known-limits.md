@@ -23,8 +23,6 @@ Legend: **Unverified** = built and unit-tested but never run in the real environ
 ## Vibe / AI
 
 - **Computer use:** design only (ADR 0023), not implemented.
-- **Orchestrator:** no per-task cancel or undo UI.
-- **Skills:** pack skills are not shown in the Skills settings panel.
 - **RAG:** no PDF or OCR ingestion.
 - Not built from the post-1.0 batch: integrated terminal console in the Code studio, `ofini` CLI/TUI.
 

@@ -12,6 +12,12 @@ document names), `dependsOn`, `acceptance` and `instructions`. The tasks appear 
   criteria, fixes small problems and reports PASS or FAIL.
 - `work_task { action: status | cancel | resume, id }`; `blackboard { action: get | set, key, value }`.
 - Edits are tagged per task in the document history (`tag.task`), next to the chat, run and agent tags.
+- The checklist in the Activity tab has controls per task: **Cancel** while a task is pending or running (its agent
+  stops, dependents are skipped) and **Undo task** once it is final and has edits in an open document. Undo takes the
+  write lock and reverts only that task's entries (`undoTask` in app/src/vibe/run-undo.js); a document where another
+  task, chat or the user edited afterwards is left alone and named in the warning (undo the newer work first, as with
+  *Undo this run*). Undone tasks show "(undone)" and `work_task status` reports `undone: true`. The controls apply to
+  the latest plan of the chat.
 - Fallback: without sub-agents the plan comes back in `sequential` mode; when the budget is spent tasks fail with a
   budget message and the assistant finishes the rest itself.
 

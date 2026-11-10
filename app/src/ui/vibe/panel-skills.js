@@ -4,7 +4,7 @@
 // Skill format: docs/vibe-skills.md. Parsing/validation/rendering: ai/skills.js (pure).
 import { h, empty } from "../../core/util.js";
 import { vibeStore } from "../../vibe/store.js";
-import { BUILTIN_SKILL_LIST, parseSkill, serializeSkill, validateSkill, renderSkill } from "../../ai/index.js";
+import { BUILTIN_SKILL_LIST, PACK_SKILL_LIST, hydrateSkill, parseSkill, serializeSkill, validateSkill, renderSkill } from "../../ai/index.js";
 import { TOOL_GROUPS } from "../../vibe/tools/index.js";
 import { renderMarkdown } from "./markdown.js";
 import { pickFiles } from "../code/import.js";
@@ -52,7 +52,8 @@ export function createSkillsPanel(vs) {
   }).catch(() => {});
 
   const userSkills = () => vibeStore.skills.map((s) => ({ ...parseSkill(serializeSkill(s)), files: s.files, enabled: s.enabled !== false, draft: !!s.draft, source: "user" }));
-  const allSkills = () => [...userSkills(), ...extSkills, ...BUILTIN_SKILL_LIST.map((s) => ({ ...s, source: "builtin" }))];
+  const packSkills = () => PACK_SKILL_LIST.map((s) => ({ ...s, source: "pack" }));
+  const allSkills = () => [...userSkills(), ...extSkills, ...BUILTIN_SKILL_LIST.map((s) => ({ ...s, source: "builtin" })), ...packSkills()];
 
   function matches(s) {
     if (tag && !(s.tags || []).includes(tag)) return false;
@@ -63,14 +64,14 @@ export function createSkillsPanel(vs) {
 
   function row(s) {
     const stats = vibeStore.skillStats?.[s.name];
-    const badges = [h("span.of-badge", { class: s.draft ? "draft" : s.source }, s.draft ? "draft" : s.source === "builtin" ? "built-in" : s.source === "user" ? "yours" : `extension${s.origin?.name ? `: ${s.origin.name}` : ""}`)];
+    const badges = [h("span.of-badge", { class: s.draft ? "draft" : s.source }, s.draft ? "draft" : s.source === "builtin" ? "built-in" : s.source === "pack" ? "pack: " + (s.pack === "guides" ? "studio guide" : "OpenFini knowledge") : s.source === "user" ? "yours" : `extension${s.origin?.name ? `: ${s.origin.name}` : ""}`)];
     if (s.version) badges.push(h("span.of-badge", `v${s.version}`));
     if (s.enforceTools) badges.push(h("span.of-badge", { title: "Only its allowed tools can be used while it is active" }, "restricted"));
     const meta = [stats ? `used ${stats.uses}× · last ${fmtDate(stats.last)}` : "not used yet", s.params?.length ? `args: ${s.params.map((p) => p.name + (p.required ? "" : "?")).join(", ")}` : "", s.requires?.length ? `includes ${s.requires.join(", ")}` : "", s.tags?.length ? s.tags.join(" · ") : ""].filter(Boolean).join(" · ");
     const actions = h("div.of-vskill__actions",
       h("button.of-btn", { type: "button", title: "Start this skill in the chat", onclick: () => use(s) }, "Use"),
       h("button.of-btn", { type: "button", title: "Run this skill in a new chat with the offline Demo provider", onclick: () => testRun(s) }, "Test"),
-      s.source === "user" ? h("button.of-btn", { type: "button", onclick: () => edit(s) }, "Edit") : h("button.of-btn", { type: "button", title: "Make an editable copy in “Your skills”", onclick: () => edit({ ...s, source: "user" }, true) }, "Customize"),
+      s.source === "user" ? h("button.of-btn", { type: "button", onclick: () => edit(s) }, "Edit") : h("button.of-btn", { type: "button", title: "Make an editable copy in “Your skills”", onclick: () => full(s).then((x) => x && edit({ ...x, source: "user" }, true)) }, "Customize"),
       h("button.of-btn", { type: "button", "aria-label": `Export ${s.name} as .skill.md`, title: "Export as .skill.md", onclick: () => exportOne(s) }, iconEl("download")),
     );
     if (s.source === "user") {
@@ -114,7 +115,7 @@ export function createSkillsPanel(vs) {
     el.append(lists);
     function paintLists() {
       empty(lists);
-      const groups = [["Your skills", userSkills()], ["From extensions", extSkills], ["Built in", BUILTIN_SKILL_LIST.map((s) => ({ ...s, source: "builtin" }))]];
+      const groups = [["Your skills", userSkills()], ["From extensions", extSkills], ["Built in", BUILTIN_SKILL_LIST.map((s) => ({ ...s, source: "builtin" }))], ["Skill packs (load on demand)", packSkills()]];
       for (const [title, list] of groups) {
         const shown = list.filter(matches);
         if (!shown.length && title !== "Your skills") continue;
@@ -158,8 +159,19 @@ export function createSkillsPanel(vs) {
       if (err?.name !== "AbortError") app.toast(err.message || "Could not save the file.", "danger", 3000);
     }
   }
-  function exportOne(s) {
-    const text = serializeSkill(s);
+  /** Pack skills carry only their catalog row until their pack is loaded (ai/skills.js hydrateSkill). */
+  async function full(s) {
+    try {
+      return await hydrateSkill(s);
+    } catch (err) {
+      app.toast(err.message, "danger", 4000);
+      return null;
+    }
+  }
+  async function exportOne(s) {
+    const f = await full(s);
+    if (!f) return;
+    const text = serializeSkill(f);
     download(`${s.name}.skill.md`, new TextEncoder().encode(text), "text/markdown", "md");
   }
   async function exportPack() {
