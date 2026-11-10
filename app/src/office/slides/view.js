@@ -121,7 +121,7 @@ export class SlidesView {
         cmd("table", "Table", "slides.insertTable"),
         cmd("bar-chart", "Chart from spreadsheet…", "slides.insertChart"),
       ] },
-      { id: "text", label: "Text", items: [this.fonts.el, this.toggles.bold, this.toggles.italic, this.toggles.underline, this.textColor.el, cmd("text-left", "Align left", "slides.alignLeft"), cmd("text-center", "Center", "slides.alignCenter"), cmd("text-right", "Align right", "slides.alignRight"), this.toggles.bullets] },
+      { id: "text", label: "Text", items: [this.fonts.el, this.toggles.bold, this.toggles.italic, this.toggles.underline, this.textColor.el, cmd("text-left", "Align left", "slides.alignLeft"), cmd("text-center", "Center", "slides.alignCenter"), cmd("text-right", "Align right", "slides.alignRight"), this.toggles.bullets, cmd("text-indent-right", "Decrease list level", "slides.levelDown"), cmd("text-indent-left", "Increase list level", "slides.levelUp")] },
       { id: "shape", label: "Shape", items: [this.fillColor.el, this.lineColor.el] },
       { id: "arrange", label: "Arrange", items: [
         cmd("front", "Bring to front", "slides.front"),
@@ -172,6 +172,7 @@ export class SlidesView {
     if (!M.slideById(deck, this.cur)) this.cur = deck.slides[Math.min(deck.slides.length - 1, Math.max(0, this.lastIndex || 0))]?.id;
     this.lastIndex = M.slideIndex(deck, this.cur);
     for (const id of [...this.sel]) if (!this.slide.elements.some((e) => e.id === id)) this.sel.delete(id);
+    this.watchSources();
     if (this.editing) return; // the text being typed is the source of truth until it is committed
     this.renderThumbs();
     this.renderStage();
@@ -593,6 +594,12 @@ export class SlidesView {
         this.finishEditing();
         const next = this.canvas.querySelector(`.of-sl-el[data-id="${CSS.escape(id)}"] [data-r="${pos[0]}"][data-c="${pos[1]}"]`);
         if (next) this.editText(id, next);
+      } else if (ev.key === "Tab" && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+        // Tab / Shift+Tab: list level of the paragraphs in the selection
+        ev.preventDefault();
+        const r = SlidesView.selectionOffsets(target) || { start: 0, end: 0 };
+        this.finishEditing();
+        this.changeLevel(id, r, ev.shiftKey ? -1 : 1);
       } else if ((ev.ctrlKey || ev.metaKey) && ["b", "i", "u"].includes(ev.key.toLowerCase())) {
         ev.preventDefault();
         const r = this.editing?.cell ? null : SlidesView.selectionOffsets(target);
@@ -668,6 +675,15 @@ export class SlidesView {
       patch = { [key]: !cur };
     }
     this.commit("Format Text", M.formatText(this.deck, this.slide.id, id, r.start, r.end, patch));
+    this.editText(id);
+    if (this.editing) SlidesView.selectOffsets(this.editing.node, r.start, r.end);
+  }
+
+  /** Raises (+1) or lowers (-1) the list level of the paragraphs in characters r of a text box, then resumes editing. */
+  changeLevel(id, r, delta) {
+    const e = this.slide.elements.find((x) => x.id === id);
+    if (!e || typeof e.text !== "string") return;
+    this.commit(delta > 0 ? "Increase List Level" : "Decrease List Level", M.setLevels(this.deck, this.slide.id, id, r.start, r.end, { delta }));
     this.editText(id);
     if (this.editing) SlidesView.selectOffsets(this.editing.node, r.start, r.end);
   }
@@ -891,16 +907,26 @@ export class SlidesView {
   footerDialog() {
     const f = this.deck.master.footer;
     const text = h("sl-input", { label: t("Footer text"), value: f.text, maxlength: 300 });
-    const date = h("sl-input", { label: t("Date"), value: f.date, placeholder: t("Any text, for example 5 November 2026"), maxlength: 80 });
+    const auto = h("sl-checkbox", { checked: f.autoDate }, t("Date that updates automatically"));
+    const now = new Date();
+    const fmt = h("select.of-oinput", { "aria-label": t("Date format") }, M.DATE_FORMATS.map((k) => h("option", { value: k }, M.footerDate({ dateFormat: k }, now))));
+    fmt.value = f.dateFormat || "long";
+    const date = h("sl-input", { label: t("Fixed date"), value: f.date, placeholder: t("Any text, for example 5 November 2026"), maxlength: 80 });
+    const sync = () => {
+      fmt.disabled = !auto.checked;
+      date.disabled = auto.checked;
+    };
+    auto.addEventListener("sl-change", sync);
+    sync();
     const number = h("sl-checkbox", { checked: f.number }, t("Slide number"));
     const skip = h("sl-checkbox", { checked: f.skipTitle }, t("Don’t show on title slides"));
     openDialog({
       title: t("Header and footer"),
-      body: h("div.of-oform", text, date, number, skip),
+      body: h("div.of-oform", text, auto, h("label.of-ofield", h("span", t("Date format")), fmt), date, number, skip),
       width: 440,
       buttons: [
         { label: t("Cancel"), onClick: (c) => c() },
-        { label: t("Apply to all"), variant: "primary", onClick: (c) => (c(), this.commit("Header and Footer", M.setFooter(this.deck, { text: text.value, date: date.value, number: number.checked, skipTitle: skip.checked }))) },
+        { label: t("Apply to all"), variant: "primary", onClick: (c) => (c(), this.commit("Header and Footer", M.setFooter(this.deck, { text: text.value, date: date.value, autoDate: auto.checked, dateFormat: fmt.value, number: number.checked, skipTitle: skip.checked }))) },
       ],
     });
   }
@@ -958,7 +984,34 @@ export class SlidesView {
   deactivate() {
     this.finishEditing();
   }
+  /**
+   * Linked charts follow their spreadsheet: while a chart's source document is open, every change there re-reads the
+   * chart data (debounced, one coalesced undo step; skipped while text is being edited). Called on every refresh.
+   */
+  watchSources() {
+    this.watched ||= new Map(); // spreadsheet document → unsubscribe
+    const names = new Set(this.deck.slides.flatMap((s) => s.elements.filter((e) => e.type === "chart" && e.source).map((e) => e.source.doc)));
+    const docs = new Set((this.app.docs || []).filter((d) => d.office?.kind === "sheet" && names.has(d.name)));
+    for (const [d, off] of this.watched) if (!docs.has(d)) {
+      off?.();
+      this.watched.delete(d);
+    }
+    for (const d of docs) if (!this.watched.has(d)) this.watched.set(d, d.office.on?.("change", () => this.scheduleChartRefresh()));
+  }
+  scheduleChartRefresh() {
+    clearTimeout(this.chartTimer);
+    this.chartTimer = setTimeout(async () => {
+      if (this.editing) return this.scheduleChartRefresh();
+      const { refreshDeckCharts } = await import("./sheet-link.js");
+      const r = await refreshDeckCharts(this.app, this.deck);
+      const data = (d) => JSON.stringify(d.slides.map((s) => s.elements.filter((e) => e.type === "chart").map((e) => e.chart.data)));
+      if (r.updated && data(r.deck) !== data(this.deck)) this.commit("Refresh Chart Data", r.deck, { coalesce: "slides-chart-refresh" });
+    }, 400);
+  }
+
   destroy() {
+    clearTimeout(this.chartTimer);
+    for (const off of this.watched?.values() || []) off?.();
     this.offChange?.();
     this.ro?.disconnect();
     this.ribbon.destroy?.();

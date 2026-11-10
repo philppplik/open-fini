@@ -11,14 +11,17 @@
 //               notes: string, transition: { type: "none"|"fade"|"slide", duration: s }, hidden?: true,
 //               hideMaster?: true (no master graphics; the footer stays) }
 //   Element = { id, z (fractional key), type: "text"|"shape"|"image"|"table"|"chart", x, y, w, h, rot (degrees), ph?,
-//               text?: string ("\n" separates paragraphs), style?: TextStyle, spans?: Span[],
+//               text?: string ("\n" separates paragraphs), style?: TextStyle, spans?: Span[], levels?: number[]
+//               (list level 0-8 per paragraph; missing = 0),
 //               shape?: "rect"|"roundRect"|"ellipse"|"triangle"|"diamond"|"arrow"|"line", fill?, stroke?, strokeWidth?,
 //               media? (image), rows?: string[][] (table), flipH?, flipV?,
 //               chart? (engine/layout/chart-data.js definition with a data snapshot), source?: { doc, sheet, range } }
 //   TextStyle = { font?, size (pt), color?, bold?, italic?, underline?, align: "left"|"center"|"right"|"justify",
 //               valign: "top"|"middle"|"bottom", bullets? }
-//   Span    = { start, end (UTF-16 offsets into `text`), bold?, italic?, underline?, color? }: mixed formatting inside
-//               one text box; a span value overrides the element's TextStyle for those characters
+//   Span    = { start, end (UTF-16 offsets into `text`), bold?, italic?, underline?, color?, font?, size? (pt) }: mixed
+//               formatting inside one text box; a span value overrides the element's TextStyle for those characters
+//   Footer  = { text, date (fixed text), autoDate (bool: today's date, formatted when shown), dateFormat: "short" |
+//               "long" | "full", number, skipTitle }; footer boxes carry `field: "date" | "slidenum"` for the writers
 // The master and each layout are edited like slides through pseudo slide ids ("@master", "@layout:<id>"): slideById
 // and updateSlide accept them, so every element operation below works on them too.
 // Element order in `elements` is the z-order (back to front); `z` and `ord` mirror the array order as fractional keys
@@ -26,6 +29,7 @@
 // or font means "from the theme".
 import { keyBetween, isKey } from "../../collab/fractional.js";
 import { normalizeChart } from "../../engine/layout/chart-data.js";
+import { localeTag } from "../../i18n/index.js";
 
 export const SLIDES_VERSION = 1;
 export const SIZES = { "16:9": { w: 960, h: 540 }, "4:3": { w: 960, h: 720 }, "16:10": { w: 960, h: 600 } };
@@ -57,7 +61,9 @@ export const PH_ROLES = ["title", "subtitle", "body", "body2"];
 export const CHART_KINDS = ["column", "bar", "line", "area", "pie", "donut", "stacked-column", "scatter"];
 export const MASTER_ID = "@master";
 export const LAYOUT_PREFIX = "@layout:";
-export const SPAN_KEYS = ["bold", "italic", "underline", "color"];
+export const SPAN_KEYS = ["bold", "italic", "underline", "color", "font", "size"];
+export const MAX_LEVEL = 8;
+export const DATE_FORMATS = ["short", "long", "full"];
 export const TRANSITIONS = ["none", "fade", "slide"];
 
 const PH_STYLE = {
@@ -135,6 +141,8 @@ export function normElement(e) {
     out.strokeWidth = clamp(num(e.strokeWidth, type === "shape" ? 2 : 0), 0, 100);
     const spans = normSpans(e.spans, out.text.length);
     if (spans.length) out.spans = spans;
+    const levels = normLevels(e.levels, out.text);
+    if (levels.length) out.levels = levels;
   }
   if (type === "shape") out.shape = SHAPES.includes(e.shape) ? e.shape : "rect";
   if (type === "image") out.media = String(e.media || "");
@@ -178,7 +186,7 @@ export function normMaster(m = {}) {
       const { ph, ...rest } = normElement({ ...e, ph: undefined });
       return rest;
     }), "z"),
-    footer: { text: typeof f.text === "string" ? f.text.slice(0, 300) : "", date: typeof f.date === "string" ? f.date.slice(0, 80) : "", number: !!f.number, skipTitle: f.skipTitle !== false },
+    footer: { text: typeof f.text === "string" ? f.text.slice(0, 300) : "", date: typeof f.date === "string" ? f.date.slice(0, 80) : "", autoDate: !!f.autoDate, dateFormat: DATE_FORMATS.includes(f.dateFormat) ? f.dateFormat : "long", number: !!f.number, skipTitle: f.skipTitle !== false },
   };
 }
 
@@ -446,7 +454,9 @@ export function updateElements(deck, slideId, ids, patch) {
       // new text: formatting follows the characters; whole-box formatting replaces the same keys inside the box
       if (p.spans === undefined && typeof p.text === "string" && e.spans) spans = remapSpans(e.spans, e.text, p.text);
       if (p.spans === undefined && p.style && spans) spans = clearSpanKeys(spans, Object.keys(p.style));
-      return normElement({ ...e, ...p, spans, style: p.style ? { ...e.style, ...p.style } : e.style });
+      // list levels follow their paragraphs
+      const levels = p.levels !== undefined ? p.levels : typeof p.text === "string" && e.levels ? remapLevels(e.levels, e.text, p.text) : e.levels;
+      return normElement({ ...e, ...p, spans, levels, style: p.style ? { ...e.style, ...p.style } : e.style });
     }),
   );
 }
@@ -567,7 +577,7 @@ export function setFooter(deck, patch) {
  * not part of the slide and cannot be selected. Pseudo slides show only the footer (the master) or the master
  * (layouts) for context.
  */
-export function masterElements(deck, slide) {
+export function masterElements(deck, slide, now = new Date()) {
   const m = deck.master || normMaster();
   const { w: W, h: H } = deck.size;
   const out = [];
@@ -577,23 +587,39 @@ export function masterElements(deck, slide) {
   if (f.skipTitle && slide.layout === "title" && slide.id !== MASTER_ID) return out;
   const n = slide.id === MASTER_ID ? "#" : String(slideIndex(deck, slide.id) + 1);
   const y = Math.round(H - H * 0.075), h = Math.round(H * 0.06);
-  const box = (id, text, x, w, align) => out.push({ ...normElement({ type: "text", id, x: Math.round(x), y, w: Math.round(w), h, text, style: { size: 12, align, valign: "middle" } }), id, master: true });
-  if (f.date) box("@f-date", f.date, W * 0.04, W * 0.24, "left");
+  const box = (id, text, x, w, align, extra = {}) => out.push({ ...normElement({ type: "text", id, x: Math.round(x), y, w: Math.round(w), h, text, style: { size: 12, align, valign: "middle" } }), id, master: true, ...extra });
+  if (f.autoDate) box("@f-date", footerDate(f, now), W * 0.04, W * 0.24, "left", { field: "date", dateFormat: f.dateFormat || "long" });
+  else if (f.date) box("@f-date", f.date, W * 0.04, W * 0.24, "left");
   if (f.text) box("@f-text", f.text, W * 0.3, W * 0.4, "center");
-  if (f.number) box("@f-num", n, W * 0.76, W * 0.2, "right");
+  if (f.number) box("@f-num", n, W * 0.76, W * 0.2, "right", { field: "slidenum" });
   return out;
 }
 
 /** Everything drawn for a slide, back to front: master elements, then the slide's own elements. */
-export const renderElements = (deck, slide) => [...masterElements(deck, slide), ...slide.elements];
+export const renderElements = (deck, slide, now) => [...masterElements(deck, slide, now), ...slide.elements];
+
+/** The footer's automatic date as text, in the app's language ("short" 11/10/2026, "long" November 10, 2026, "full" with the weekday). */
+export function footerDate(footer, now = new Date(), locale = localeTag()) {
+  const style = { short: "short", long: "long", full: "full" }[footer?.dateFormat] || "long";
+  try {
+    return new Intl.DateTimeFormat(locale, { dateStyle: style }).format(now);
+  } catch {
+    return now.toISOString().slice(0, 10);
+  }
+}
 
 // ---------------------------------------------------------------- mixed formatting (spans)
 
 const fmtKey = (f) => SPAN_KEYS.map((k) => (f[k] === undefined ? "" : String(f[k]))).join("|");
+const fontName = (v) => (typeof v === "string" && v.trim() ? v.trim().slice(0, 80) : null);
+const ptSize = (v) => (Number.isFinite(+v) && v !== null && v !== "" && +v > 0 ? clamp(Math.round(+v * 2) / 2, 4, 400) : null);
+/** A span format value of key k, or null when invalid. */
+const fmtValue = (k, v) => (k === "color" ? color(v) : k === "font" ? fontName(v) : k === "size" ? ptSize(v) : typeof v === "boolean" ? v : null);
 const cleanFmt = (f) => {
   const o = {};
   for (const k of SPAN_KEYS) {
-    if (k === "color" ? color(f?.[k]) : typeof f?.[k] === "boolean") o[k] = k === "color" ? color(f[k]) : f[k];
+    const v = fmtValue(k, f?.[k]);
+    if (v !== null) o[k] = v;
   }
   return o;
 };
@@ -641,7 +667,7 @@ export function formatSpans(e, start, end, patch) {
     const f = { ...(a[i] || {}) };
     for (const k of SPAN_KEYS) if (k in patch) {
       if (patch[k] === null || patch[k] === undefined) delete f[k];
-      else f[k] = k === "color" ? color(patch[k]) : !!patch[k];
+      else f[k] = ["color", "font", "size"].includes(k) ? fmtValue(k, patch[k]) : !!patch[k];
       if (f[k] === null) delete f[k];
     }
     a[i] = f;
@@ -655,6 +681,61 @@ export function formatText(deck, slideId, elementId, start, end, patch) {
   const e = s?.elements.find((x) => x.id === elementId);
   if (!e || typeof e.text !== "string") return deck;
   return updateElements(deck, slideId, [elementId], { spans: formatSpans(e, start, end, patch) });
+}
+
+// ---------------------------------------------------------------- list levels
+
+/** Valid levels for a text: one 0..8 integer per paragraph, trailing zeros dropped ([] = all level 0). */
+export function normLevels(levels, text) {
+  if (!Array.isArray(levels) || !levels.length) return [];
+  const n = String(text || "").split("\n").length;
+  const out = Array.from({ length: Math.min(n, levels.length) }, (_, i) => clamp(Math.round(num(levels[i])), 0, MAX_LEVEL));
+  while (out.length && !out[out.length - 1]) out.pop();
+  return out;
+}
+
+/** The list level of every paragraph of an element (0 when not set). */
+export const paragraphLevels = (e) => String(e.text || "").split("\n").map((_, i) => e.levels?.[i] || 0);
+
+/** Paragraph index of a character offset. */
+const paraAt = (text, offset) => text.slice(0, Math.max(0, offset)).split("\n").length - 1;
+
+/** Moves levels along with an edit from oldText to newText (new paragraphs take the level of the one they split from). */
+export function remapLevels(levels, oldText, newText) {
+  if (!levels?.length) return levels;
+  // line diff: unchanged lines keep their level; changed or split lines take the level of the first changed line,
+  // inserted lines the level of the line before them (Enter at the end of a line)
+  const A = oldText.split("\n"), B = newText.split("\n");
+  const old = paragraphLevels({ text: oldText, levels });
+  let i = 0;
+  while (i < A.length && i < B.length && A[i] === B[i]) i++;
+  let j = 0;
+  while (j < A.length - i && j < B.length - i && A[A.length - 1 - j] === B[B.length - 1 - j]) j++;
+  const changed = A.length - i - j;
+  const fill = changed > 0 ? old[i] : old[Math.max(0, i - 1)];
+  const mid = Array.from({ length: B.length - i - j }, () => fill);
+  return normLevels([...old.slice(0, i), ...mid, ...old.slice(A.length - j)], newText);
+}
+
+/**
+ * Changes the list level of the paragraphs touched by characters [start, end] of a text element: `delta` +1 / -1, or
+ * `level` sets it. One deck operation.
+ */
+export function setLevels(deck, slideId, elementId, start, end, { delta = 0, level = null } = {}) {
+  const s = slideById(deck, slideId);
+  const e = s?.elements.find((x) => x.id === elementId);
+  if (!e || typeof e.text !== "string") return deck;
+  const lv = paragraphLevels(e);
+  const a = paraAt(e.text, start), b = paraAt(e.text, Math.max(start, end));
+  for (let i = a; i <= b && i < lv.length; i++) lv[i] = clamp(level === null ? lv[i] + delta : level, 0, MAX_LEVEL);
+  return updateElements(deck, slideId, [elementId], { levels: lv });
+}
+
+/** Text with leading tabs per line → { text without them, levels } (Vibe and pasted outlines). */
+export function textWithLevels(raw) {
+  const lines = String(raw ?? "").split("\n");
+  const levels = lines.map((l) => Math.min(MAX_LEVEL, /^\t*/.exec(l)[0].length));
+  return { text: lines.map((l) => l.replace(/^\t+/, "")).join("\n"), levels: levels.some(Boolean) ? levels : [] };
 }
 
 /** Moves spans along with an edit from oldText to newText (typed characters take the format before them). */
@@ -717,16 +798,22 @@ export function chartRows(chart) {
   return [["", ...chart.data.series.map((s) => s.name)], ...chart.data.categories.map((c, i) => [c, ...chart.data.series.map((s) => fmt(s.values[i]))])];
 }
 
+/** Chart types the PowerPoint and OpenDocument writers keep as real charts (the others become tables of their data). */
+export const NATIVE_CHARTS = ["column", "stacked-column", "percent-column", "bar", "stacked-bar", "line", "area", "stacked-area", "scatter", "pie", "donut", "radar"];
+
 /**
  * The deck as the PowerPoint and OpenDocument writers see it: master graphics and footers become elements of each
- * slide, charts become tables of their data (a native chart part is not written). Pure; the editor keeps the deck.
+ * slide (footer boxes keep their `field`), charts stay charts with the theme's look (`slideChart`) unless their type
+ * has no native equivalent (big number, progress, sparkline), which become tables of their data. Pure; the editor
+ * keeps the deck.
  */
-export function exportDeck(deck) {
+export function exportDeck(deck, now = new Date()) {
   const slides = deck.slides.map((s) => ({
     ...s,
-    elements: renderElements(deck, s).map((e) => {
+    elements: renderElements(deck, s, now).map((e) => {
       const { master, ...rest } = e;
       const out = master ? { ...rest, id: rest.id.replace(/^@/, "x") } : rest;
+      if (out.type === "chart" && NATIVE_CHARTS.includes(out.chart.type)) return { ...out, chart: slideChart(deck, out) };
       if (out.type === "chart") {
         const { chart, source, ...base } = out;
         return { ...base, type: "table", rows: chartRows(chart), header: true, style: normStyle({ size: 14 }), fill: null, stroke: "#9ca3af" };
@@ -812,7 +899,7 @@ export function describeDeck(deck, { full = false, limit = 60 } = {}) {
       ...(s.transition.type !== "none" ? { transition: s.transition.type } : {}),
       ...(full
         ? {
-            elements: s.elements.map((e) => ({ id: e.id, type: e.type, ...(e.ph ? { placeholder: e.ph } : {}), ...(e.shape ? { shape: e.shape } : {}), box: [Math.round(e.x), Math.round(e.y), Math.round(e.w), Math.round(e.h)], ...(e.rot ? { rot: e.rot } : {}), ...(e.text ? { text: clip(e.text, 200) } : {}), ...(e.rows ? { rows: e.rows.length, cols: e.rows[0].length } : {}), ...(e.spans ? { spans: e.spans.map((x) => ({ ...x, text: clip(e.text.slice(x.start, x.end), 40) })) } : {}), ...(e.chart ? { chart: { type: e.chart.type, title: e.chart.title, categories: e.chart.data.categories.length, series: e.chart.data.series.map((x) => x.name) }, ...(e.source ? { source: e.source } : {}) } : {}) })),
+            elements: s.elements.map((e) => ({ id: e.id, type: e.type, ...(e.ph ? { placeholder: e.ph } : {}), ...(e.shape ? { shape: e.shape } : {}), box: [Math.round(e.x), Math.round(e.y), Math.round(e.w), Math.round(e.h)], ...(e.rot ? { rot: e.rot } : {}), ...(e.text ? { text: clip(e.text, 200) } : {}), ...(e.rows ? { rows: e.rows.length, cols: e.rows[0].length } : {}), ...(e.spans ? { spans: e.spans.map((x) => ({ ...x, text: clip(e.text.slice(x.start, x.end), 40) })) } : {}), ...(e.levels ? { levels: e.levels } : {}), ...(e.chart ? { chart: { type: e.chart.type, title: e.chart.title, categories: e.chart.data.categories.length, series: e.chart.data.series.map((x) => x.name) }, ...(e.source ? { source: e.source } : {}) } : {}) })),
             notes: clip(s.notes, 300),
           }
         : { elements: s.elements.length, ...(s.notes ? { notes: clip(s.notes, 80) } : {}) }),

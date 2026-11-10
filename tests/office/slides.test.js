@@ -308,7 +308,7 @@ test("mixed formatting: spans format, follow edits and clear on whole-box format
   assert.deepEqual(M.normSpans([{ start: -5, end: 99, italic: true, evil: 1 }], 4), [{ start: 0, end: 4, italic: true }]);
 });
 
-test("PowerPoint keeps spans, layouts and master; charts export as tables", () => {
+test("PowerPoint keeps spans, layouts, master, footer and charts", () => {
   let d = M.createDeck({ template: "project" });
   const s = d.slides[1];
   const body = s.elements.find((e) => e.ph === "body");
@@ -317,8 +317,9 @@ test("PowerPoint keeps spans, layouts and master; charts export as tables", () =
   const back = readPptx(writePptx(M.exportDeck(d)), { report: new ImportReport("PowerPoint") });
   const b2 = back.slides[1].elements.find((e) => e.ph === "body");
   assert.deepEqual(b2.spans, [{ start: 0, end: 5, bold: true, italic: true }]);
-  assert.ok(back.slides[1].elements.some((e) => e.text === "Footer"));
-  assert.ok(back.slides[3].elements.some((e) => e.type === "table" && e.rows[0][1] === "Planned"), "chart became a table");
+  assert.equal(back.master.footer.text, "Footer", "footer placeholders become the deck footer");
+  assert.ok(!back.slides[1].elements.some((e) => e.text === "Footer"));
+  assert.ok(back.slides[3].elements.some((e) => e.type === "chart" && e.chart.data.series[0].name === "Planned"), "the chart stays a chart");
   const ex = M.exportDeck(d);
   assert.ok(ex.slides.every((x) => x.elements.every((e) => !e.master && !e.id.startsWith("@"))));
 });

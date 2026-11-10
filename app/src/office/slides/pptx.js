@@ -1,9 +1,10 @@
 // PowerPoint (.pptx / .ppsx / .potx) reader and writer for the Presentation app. Pure (no DOM); uses the Office
 // engine's hardened ZIP access and tolerant XML parser. Best effort by design (docs/office-slides.md ▸ Fidelity):
 // slides, text boxes and placeholders (with layout/master position inheritance), basic shapes, pictures, tables,
-// solid backgrounds and picture backgrounds, speaker notes, fade/push transitions, hidden slides and the theme's colors
-// and fonts are read; per-run formatting is reduced to one style per text box; charts, SmartArt, media, animations and
-// comments are dropped. Everything simplified or dropped is listed in the import report.
+// solid backgrounds and picture backgrounds, speaker notes, fade/push transitions, hidden slides, the theme's colors
+// and fonts, mixed run formatting (spans), list levels, charts (chart-xml.js) and footer placeholders (the deck footer
+// with its date field) are read; SmartArt, media, animations and comments are dropped. Everything simplified or
+// dropped is listed in the import report.
 //
 // Public API
 //   readPptx(bytes, { report }) → deck (normalized model, model.js)
@@ -12,6 +13,7 @@ import { readZip, writeZip, text as zipText } from "../../engine/office/zip.js";
 import { parseXml, child, children, find, findAll, attr, esc, escAttr } from "../../engine/office/xml.js";
 import { sniffImage, imageSize } from "../../engine/office/media.js";
 import { normalizeDeck, layoutOf, layoutPh, newId, spanSegments } from "./model.js";
+import { pptxChartXml, readPptxChart } from "./chart-xml.js";
 
 
 const EMU = 9525; // per px
@@ -190,8 +192,8 @@ export function readPptx(bytes, { report } = {}) {
   };
 
   const slides = [];
+  const footer = {}; // date, autoDate, dateFormat, text, number from the slides' footer placeholders (first one wins)
   const sldIds = children(find(pres, "sldIdLst"), "sldId");
-  let mixed = false;
   for (const sid of sldIds) {
     const path = presRels[attr(sid, "r:id")]?.path;
     const doc = path && xml(path);
@@ -200,7 +202,7 @@ export function readPptx(bytes, { report } = {}) {
     const masterPath = layoutPath && relOfType(layoutPath, "/slideMaster");
     const L = info(layoutPath) || { byType: {}, byIdx: {}, sizes: {} };
     const Mst = info(masterPath) || { byType: {}, byIdx: {}, sizes: {} };
-    const ctx = { scheme, rels: rels(path), mediaFor, report, L, Mst, onMixed: () => (mixed = true), bodies: 0 };
+    const ctx = { scheme, rels: rels(path), mediaFor, report, L, Mst, bodies: 0, xml, footer };
     const elements = readTree(find(doc, "spTree"), ctx, null);
     const root = doc.children.find((c) => typeof c !== "string");
     // notes
@@ -226,10 +228,10 @@ export function readPptx(bytes, { report } = {}) {
     const bg = backgroundOf(doc, path) || L.bg || Mst.bg;
     slides.push({ id: newId("s"), layout: LAYOUT_TYPE[L.type] || (elements.some((e) => e.ph === "body") ? "title-content" : elements.some((e) => e.ph === "title") ? "title-only" : "blank"), background: bg, elements, notes, transition, ...(attr(root, "show") === "0" ? { hidden: true } : {}) });
   }
-  if (mixed) report?.flattened("Mixed font sizes or typefaces inside a text box were reduced to one per box.");
   if (Object.keys(entries).some((k) => k.startsWith("ppt/comments/") || k.startsWith("ppt/comments"))) report?.dropped("PowerPoint comments were left out.");
   const core = xml("docProps/core.xml");
-  const deck = normalizeDeck({ size, theme, meta: { title: (find(core, "title") && textOfEl(find(core, "title"))) || "" }, slides, media });
+  const deck = normalizeDeck({ size, theme, meta: { title: (find(core, "title") && textOfEl(find(core, "title"))) || "" }, slides, media, master: { footer } });
+  if (Object.keys(footer).length) report?.kept("Footer, date and slide numbers (as the deck's footer)");
   report?.kept(`${deck.slides.length} slides with text, shapes, pictures, tables, backgrounds and speaker notes`);
   return deck;
 }
@@ -263,7 +265,11 @@ function readTree(tree, ctx, map) {
       } else if (n.local === "graphicFrame") {
         const tbl = find(n, "tbl");
         const xf = child(n, "xfrm");
-        if (tbl && xf) {
+        const chartRef = find(n, "graphicData") && children(find(n, "graphicData")).find((c) => c.local === "chart");
+        const chartPart = chartRef && ctx.rels[attr(chartRef, "r:id") || attr(chartRef, "id")];
+        const chart = chartPart && ctx.xml ? readPptxChart(ctx.xml(chartPart.path)) : null;
+        if (chart && xf) out.push({ type: "chart", chart, ...place(xfrmBox(xf)) });
+        else if (tbl && xf) {
           const rows = children(tbl, "tr").map((tr) => children(tr, "tc").map((tc) => readText(child(tc, "txBody"), ctx).text));
           const first = find(tbl, "rPr");
           out.push({ type: "table", rows, ...place(xfrmBox(xf)), style: { size: Number(attr(first, "sz")) / 100 || 14 }, header: attr(find(tbl, "tblPr"), "firstRow") !== "0" });
@@ -297,6 +303,19 @@ function readShape(sp, ctx, place) {
   if (ph) {
     const t = attr(ph, "type") || "body";
     if (["dt", "ftr", "sldNum", "hdr", "sldImg"].includes(t) && !find(sp, "t")) return null;
+    if (["dt", "ftr", "sldNum"].includes(t)) {
+      // footer placeholders become the deck's footer (date field or fixed date, footer text, slide numbers)
+      const f = ctx.footer || {};
+      const fld = find(sp, "fld");
+      const text = readText(child(sp, "txBody"), ctx).text.trim();
+      if (t === "sldNum") f.number = true;
+      else if (t === "ftr" && !("text" in f)) f.text = text;
+      else if (t === "dt" && !("date" in f) && !f.autoDate) {
+        if (/^datetime/.test(attr(fld, "type") || "")) Object.assign(f, { autoDate: true, dateFormat: FIELD_FORMAT[attr(fld, "type")] || "long" });
+        else f.date = text;
+      }
+      return null;
+    }
     role = PH_ROLE[t] || null;
     if (role === "body" && ctx.bodies++ === 1) role = "body2";
     const idx = attr(ph, "idx");
@@ -316,7 +335,7 @@ function readShape(sp, ctx, place) {
   const strokeWidth = ln && attr(ln, "w") ? Math.max(0.5, Number(attr(ln, "w")) / EMU) : stroke ? 1 : 0;
   const tx = readText(child(sp, "txBody"), ctx, role);
   const isText = !!ph || attr(find(nv, "cNvSpPr"), "txBox") === "1" || (shape === "rect" && !fill && !stroke);
-  return { type: isText && shape === "rect" ? "text" : "shape", shape, ...(role ? { ph: role } : {}), ...place(box), fill, stroke, strokeWidth: stroke ? strokeWidth : 0, text: tx.text, ...(tx.spans ? { spans: tx.spans } : {}), style: tx.style };
+  return { type: isText && shape === "rect" ? "text" : "shape", shape, ...(role ? { ph: role } : {}), ...place(box), fill, stroke, strokeWidth: stroke ? strokeWidth : 0, text: tx.text, ...(tx.spans ? { spans: tx.spans } : {}), ...(tx.levels ? { levels: tx.levels } : {}), style: tx.style };
 }
 
 const ALIGN = { l: "left", ctr: "center", r: "right", just: "justify", dist: "justify" };
@@ -333,13 +352,13 @@ function readText(body, ctx, role = null) {
   let bullets = role === "body" || role === "body2";
   let algn = null;
   const sig = new Set();
-  const sizes = new Set();
+  const levels = [];
   for (const p of children(body, "p")) {
     const pPr = child(p, "pPr");
     if (algn === null && attr(pPr, "algn")) algn = attr(pPr, "algn");
     if (child(pPr, "buChar") || child(pPr, "buAutoNum")) bullets = true;
     if (child(pPr, "buNone") && paras.length === 0) bullets = false;
-    if (Number(attr(pPr, "lvl")) > 0) ctx.report?.flattened("Indented list levels were flattened to one level.");
+    levels.push(Math.max(0, Math.min(8, Number(attr(pPr, "lvl")) || 0)));
     let s = "";
     for (const r of children(p)) {
       if (r.local === "r" || r.local === "fld") {
@@ -349,8 +368,7 @@ function readText(body, ctx, role = null) {
         if (piece && rPr) pieces.push([offset + s.length, piece.length, rPr]);
         s += piece;
         if (rPr) {
-          sig.add([attr(rPr, "sz"), attr(rPr, "b"), attr(rPr, "i"), attr(rPr, "u"), colorIn(child(rPr, "solidFill"), ctx.scheme)].join("|"));
-          sizes.add(`${attr(rPr, "sz")}|${attr(child(rPr, "latin"), "typeface")}`);
+          sig.add([attr(rPr, "sz"), attr(rPr, "b"), attr(rPr, "i"), attr(rPr, "u"), colorIn(child(rPr, "solidFill"), ctx.scheme), attr(child(rPr, "latin"), "typeface")].join("|"));
         }
         if (!style && rPr) style = rPr;
       } else if (r.local === "br") s += "\n";
@@ -359,11 +377,14 @@ function readText(body, ctx, role = null) {
     paras.push(s);
     offset += s.length + 1;
   }
-  if (sizes.size > 1) ctx.onMixed?.();
   const inherited = role === "title" ? ctx.Mst?.sizes.title : role ? ctx.Mst?.sizes.body : ctx.Mst?.sizes.other;
   const sz = Number(attr(style, "sz")) / 100 || inherited || (role === "title" ? 40 : role ? 22 : 18);
-  // runs that differ from the box's style in bold, italic, underline or color become spans
-  const look = (rPr) => ({ bold: attr(rPr, "b") === "1", italic: attr(rPr, "i") === "1", underline: !!attr(rPr, "u") && attr(rPr, "u") !== "none", color: colorIn(child(rPr, "solidFill"), ctx.scheme) });
+  // runs that differ from the box's style in bold, italic, underline, color, typeface or size become spans
+  const typeface = (rPr) => {
+    const f = attr(child(rPr, "latin"), "typeface");
+    return f && !f.startsWith("+") ? f : null;
+  };
+  const look = (rPr) => ({ bold: attr(rPr, "b") === "1", italic: attr(rPr, "i") === "1", underline: !!attr(rPr, "u") && attr(rPr, "u") !== "none", color: colorIn(child(rPr, "solidFill"), ctx.scheme), font: typeface(rPr), size: Number(attr(rPr, "sz")) / 100 ? Math.round((Number(attr(rPr, "sz")) / 100) * scale * 2) / 2 : null });
   if (sig.size > 1) {
     // the box's style is the formatting that covers the most characters
     const count = new Map();
@@ -374,12 +395,13 @@ function readText(body, ctx, role = null) {
   const spans = [];
   if (sig.size > 1) for (const [start, len, rPr] of pieces) {
     const l = look(rPr);
-    const diff = Object.fromEntries(Object.entries(l).filter(([k, v]) => v !== base[k] && !(k === "color" && !v)));
+    const diff = Object.fromEntries(Object.entries(l).filter(([k, v]) => v !== base[k] && !(["color", "font", "size"].includes(k) && !v)));
     if (Object.keys(diff).length) spans.push({ start, end: start + len, ...diff });
   }
   return {
     text: paras.join("\n"),
     ...(spans.length ? { spans } : {}),
+    ...(levels.some(Boolean) ? { levels } : {}),
     style: {
 
       size: Math.round(sz * scale * 2) / 2,
@@ -422,24 +444,41 @@ function runProps(st, tag = "a:rPr") {
   return `<${tag} lang="en-US" sz="${Math.round(st.size * 100)}"${st.bold ? ' b="1"' : ""}${st.italic ? ' i="1"' : ""}${st.underline ? ' u="sng"' : ""} dirty="0">${st.color ? `<a:solidFill><a:srgbClr val="${hex(st.color)}"/></a:solidFill>` : ""}${st.font ? `<a:latin typeface="${escAttr(st.font)}"/>` : ""}</${tag}>`;
 }
 const ALGN_OUT = { left: "l", center: "ctr", right: "r", justify: "just" };
-function txBody(text, st, tag = "p:txBody", spans = null) {
+const BULLET_CHARS = ["•", "–", "»"];
+const FIELD_TYPE = { short: "datetime1", long: "datetime4", full: "datetime2" };
+const FIELD_FORMAT = { datetime1: "short", datetime4: "long", datetime2: "full", datetime3: "long", datetime: "long" };
+let fieldSeq = 0;
+const fieldId = () => `{6F0B${String(++fieldSeq).padStart(4, "0")}-0000-4000-8000-000000000000}`;
+function txBody(text, st, tag = "p:txBody", spans = null, { levels = null, field = null, dateFormat = "long" } = {}) {
   const all = String(text ?? "");
   const paras = all.split("\n");
-  const bu = st.bullets ? '<a:buFont typeface="Arial"/><a:buChar char="•"/>' : "<a:buNone/>";
   let at = 0;
   const runs = (t) => {
     const start = at;
     at += t.length + 1;
     if (!t) return "";
+    if (field) return `<a:fld id="${fieldId()}" type="${field === "slidenum" ? "slidenum" : FIELD_TYPE[dateFormat] || "datetime4"}">${runProps(st)}<a:t>${esc(t)}</a:t></a:fld>`;
     if (!spans?.length) return `<a:r>${runProps(st)}<a:t>${esc(t)}</a:t></a:r>`;
     return spanSegments(all, spans, start, start + t.length).map((s) => `<a:r>${runProps({ ...st, ...s.fmt })}<a:t>${esc(s.text)}</a:t></a:r>`).join("");
   };
-  const ps = paras.map((t) => `<a:p><a:pPr algn="${ALGN_OUT[st.align] || "l"}"${st.bullets ? ' marL="342900" indent="-342900"' : ' marL="0" indent="0"'}>${bu}</a:pPr>${runs(t)}${runProps(st, "a:endParaRPr")}</a:p>`).join("");
+  const ps = paras.map((t, i) => {
+    const lvl = levels?.[i] || 0;
+    const marL = (st.bullets ? 342900 : 0) + lvl * 457200;
+    const bu = st.bullets ? `<a:buFont typeface="Arial"/><a:buChar char="${BULLET_CHARS[lvl % BULLET_CHARS.length]}"/>` : "<a:buNone/>";
+    return `<a:p><a:pPr${lvl ? ` lvl="${lvl}"` : ""} algn="${ALGN_OUT[st.align] || "l"}" marL="${marL}" indent="${st.bullets ? -342900 : 0}">${bu}</a:pPr>${runs(t)}${runProps(st, "a:endParaRPr")}</a:p>`;
+  }).join("");
   return `<${tag}><a:bodyPr wrap="square" lIns="91440" tIns="45720" rIns="91440" bIns="45720" anchor="${{ top: "t", middle: "ctr", bottom: "b" }[st.valign] || "t"}"><a:noAutofit/></a:bodyPr><a:lstStyle/>${ps}</${tag}>`;
 }
 
-function shapeXml(e, n, relFor) {
+const FOOTER_PH = { "xf-date": '<p:ph type="dt" sz="half" idx="10"/>', "xf-text": '<p:ph type="ftr" sz="quarter" idx="11"/>', "xf-num": '<p:ph type="sldNum" sz="quarter" idx="12"/>' };
+
+function shapeXml(e, n, relFor, chartFor = () => null) {
   const name = escAttr(`${e.ph ? e.ph : e.type} ${n}`);
+  if (e.type === "chart") {
+    const rid = chartFor(e);
+    if (!rid) return "";
+    return `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="${n}" name="${escAttr(`Chart ${n}`)}"${e.chart.title ? ` descr="${escAttr(e.chart.title)}"` : ""}/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr>${xfrm(e, "p:xfrm")}<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" r:id="${rid}"/></a:graphicData></a:graphic></p:graphicFrame>`;
+  }
   if (e.type === "image") {
     const rid = relFor(e.media);
     if (!rid) return "";
@@ -453,11 +492,11 @@ function shapeXml(e, n, relFor) {
     const cell = (t) => `<a:tc>${txBody(t, { ...e.style, bullets: false }, "a:txBody")}<a:tcPr>${ln("lnL")}${ln("lnR")}${ln("lnT")}${ln("lnB")}${e.fill ? `<a:solidFill><a:srgbClr val="${hex(e.fill)}"/></a:solidFill>` : ""}</a:tcPr></a:tc>`;
     return `<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="${n}" name="${name}"/><p:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr>${xfrm(e, "p:xfrm")}<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table"><a:tbl><a:tblPr${e.header ? ' firstRow="1"' : ""} bandRow="1"/><a:tblGrid>${`<a:gridCol w="${cw}"/>`.repeat(cols)}</a:tblGrid>${e.rows.map((r) => `<a:tr h="${rh}">${r.map(cell).join("")}</a:tr>`).join("")}</a:tbl></a:graphicData></a:graphic></p:graphicFrame>`;
   }
-  const ph = e.ph ? `<p:ph${e.ph === "title" ? ' type="title"' : e.ph === "subtitle" ? ' type="subTitle" idx="1"' : ` idx="${e.ph === "body2" ? 2 : 1}"`}/>` : "";
+  const ph = e.ph ? `<p:ph${e.ph === "title" ? ' type="title"' : e.ph === "subtitle" ? ' type="subTitle" idx="1"' : ` idx="${e.ph === "body2" ? 2 : 1}"`}/>` : FOOTER_PH[e.id] || "";
   const prst = e.type === "shape" ? PRST_OUT[e.shape] || "rect" : "rect";
   const fill = e.fill ? `<a:solidFill><a:srgbClr val="${hex(e.fill)}"/></a:solidFill>` : "<a:noFill/>";
   const line = e.stroke && e.strokeWidth ? `<a:ln w="${emu(e.strokeWidth)}"><a:solidFill><a:srgbClr val="${hex(e.stroke)}"/></a:solidFill></a:ln>` : "<a:ln><a:noFill/></a:ln>";
-  return `<p:sp><p:nvSpPr><p:cNvPr id="${n}" name="${name}"/><p:cNvSpPr${e.type === "text" && !e.ph ? ' txBox="1"' : ""}/><p:nvPr>${ph}</p:nvPr></p:nvSpPr><p:spPr>${xfrm(e)}<a:prstGeom prst="${prst}"><a:avLst/></a:prstGeom>${fill}${line}</p:spPr>${txBody(e.text, e.style, "p:txBody", e.spans)}</p:sp>`;
+  return `<p:sp><p:nvSpPr><p:cNvPr id="${n}" name="${name}"/><p:cNvSpPr${e.type === "text" && !e.ph ? ' txBox="1"' : ""}/><p:nvPr>${ph}</p:nvPr></p:nvSpPr><p:spPr>${xfrm(e)}<a:prstGeom prst="${prst}"><a:avLst/></a:prstGeom>${fill}${line}</p:spPr>${txBody(e.text, e.style, "p:txBody", e.spans, { levels: e.levels, field: e.field, dateFormat: e.dateFormat })}</p:sp>`;
 }
 
 /** Writes a deck as a PowerPoint package (.pptx). */
@@ -490,6 +529,7 @@ export function writePptx(deck, { title = "" } = {}) {
   ct.push(["/ppt/notesMasters/notesMaster1.xml", `${CT}.notesMaster+xml`]);
 
   // slides
+  let charts = 0;
   deck.slides.forEach((s, i) => {
     const n = i + 1;
     const rel = [["rId1", "slideLayout", `../slideLayouts/slideLayout${layoutIds.indexOf(s.layout) + 1 || 2}.xml`]];
@@ -504,7 +544,15 @@ export function writePptx(deck, { title = "" } = {}) {
     let bg = "";
     if (s.background?.color) bg = `<p:bg><p:bgPr><a:solidFill><a:srgbClr val="${hex(s.background.color)}"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>`;
     else if (s.background?.media && relFor(s.background.media)) bg = `<p:bg><p:bgPr><a:blipFill dpi="0" rotWithShape="1"><a:blip r:embed="${relFor(s.background.media)}"/><a:stretch><a:fillRect/></a:stretch></a:blipFill><a:effectLst/></p:bgPr></p:bg>`;
-    const shapes = s.elements.map((e, k) => shapeXml(e, k + 2, relFor)).join("");
+    const chartFor = (e) => {
+      const cn = ++charts;
+      files.push([`ppt/charts/chart${cn}.xml`, pptxChartXml(e.chart)]);
+      ct.push([`/ppt/charts/chart${cn}.xml`, "application/vnd.openxmlformats-officedocument.drawingml.chart+xml"]);
+      const id = `rId${rel.length + 2}`;
+      rel.push([id, "chart", `../charts/chart${cn}.xml`]);
+      return id;
+    };
+    const shapes = s.elements.map((e, k) => shapeXml(e, k + 2, relFor, chartFor)).join("");
     const tr = s.transition.type === "fade" ? `<p:transition spd="med"><p:fade/></p:transition>` : s.transition.type === "slide" ? `<p:transition spd="med"><p:push dir="l"/></p:transition>` : "";
     files.push([`ppt/slides/slide${n}.xml`, `${HEAD}<p:sld ${NS}${s.hidden ? ' show="0"' : ""}><p:cSld>${bg}<p:spTree>${GRP}${shapes}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>${tr}</p:sld>`]);
     if (s.notes) {

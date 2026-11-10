@@ -10,7 +10,8 @@
 import { readZip, writeZip, text as zipText } from "../../engine/office/zip.js";
 import { parseXml, child, children, find, findAll, attr, esc, escAttr } from "../../engine/office/xml.js";
 import { sniffImage, imageSize } from "../../engine/office/media.js";
-import { normalizeDeck, newId } from "./model.js";
+import { normalizeDeck, newId, spanSegments } from "./model.js";
+import { odfChartXml, readOdfChart } from "./chart-xml.js";
 
 const UNIT = { cm: 96 / 2.54, mm: 96 / 25.4, in: 96, pt: 96 / 72, pc: 16, px: 1 };
 const len = (v, d = 0) => {
@@ -136,22 +137,25 @@ export function readOdp(bytes, { report, flat = false } = {}) {
       return s;
     };
     let pstyle = null;
-    const walk = (n) => {
+    const levels = [];
+    const walk = (n, depth) => {
       for (const c of children(n)) {
         if (c.name === "text:p" || c.name === "text:h") {
           pstyle ||= attr(c, "text:style-name");
           paras.push(inline(c));
+          levels.push(Math.max(0, Math.min(8, depth - 1)));
         } else if (c.name === "text:list") {
           list = true;
-          walk(c);
-        } else if (c.name === "text:list-item" || c.name === "text:list-header") walk(c);
+          walk(c, depth + 1);
+        } else if (c.name === "text:list-item" || c.name === "text:list-header") walk(c, depth);
       }
     };
-    walk(el);
+    walk(el, 0);
     const pp = props("paragraph", pstyle, "style:paragraph-properties");
     const tp = { ...ctx.text, ...props("paragraph", pstyle, "style:text-properties"), ...props("text", first, "style:text-properties") };
     return {
       text: paras.join("\n"),
+      ...(levels.some(Boolean) ? { levels } : {}),
       style: {
         size: ptOf(prop(tp, "fo:font-size")) || ctx.size,
         color: hexColor(prop(tp, "fo:color")),
@@ -210,9 +214,14 @@ export function readOdp(bytes, { report, flat = false } = {}) {
           const tb = child(el, "draw:text-box");
           const img = child(el, "draw:image");
           const tbl = child(el, "table:table");
-          if (tb) {
+          const obj = child(el, "draw:object");
+          const objPath = obj && String(attr(obj, "xlink:href") || "").replace(/^\.\//, "").replace(/\/$/, "");
+          const objXml = objPath && zipText(entries, `${objPath}/content.xml`);
+          const chart = objXml ? readOdfChart(parseXml(objXml)) : null;
+          if (chart) out.push({ type: "chart", chart, ...box });
+          else if (tb) {
             const t = textOf(tb, ctx);
-            out.push({ type: "text", ...(role ? { ph: role } : {}), ...box, ...paint(ctx.graphic, false), text: t.text, style: { ...t.style, bullets: t.style.bullets || role === "body" || role === "body2" } });
+            out.push({ type: "text", ...(role ? { ph: role } : {}), ...box, ...paint(ctx.graphic, false), text: t.text, ...(t.levels ? { levels: t.levels } : {}), style: { ...t.style, bullets: t.style.bullets || role === "body" || role === "body2" } });
           } else if (img) {
             const id = mediaFor(img);
             if (id) out.push({ type: "image", media: id, ...box });
@@ -291,10 +300,33 @@ export function writeOdp(deck, { title = "" } = {}) {
   const textProps = (st) => `<style:text-properties fo:font-size="${st.size}pt"${st.color ? ` fo:color="${st.color}"` : ""}${st.font ? ` fo:font-family="${escAttr(st.font)}"` : ""} fo:font-weight="${st.bold ? "bold" : "normal"}" fo:font-style="${st.italic ? "italic" : "normal"}" style:text-underline-style="${st.underline ? "solid" : "none"}"/>`;
   const paras = (e) => {
     const st = e.style;
+    const all = String(e.text ?? "");
     const P = style("paragraph", `<style:paragraph-properties fo:text-align="${TALIGN[st.align] || "start"}"/>${textProps(st)}`);
     const T = style("text", textProps(st));
-    const ps = String(e.text ?? "").split("\n").map((line) => `<text:p text:style-name="${P}">${line ? `<text:span text:style-name="${T}">${esc(line)}</text:span>` : ""}</text:p>`);
-    return st.bullets ? `<text:list text:style-name="L1">${ps.map((p) => `<text:list-item>${p}</text:list-item>`).join("")}</text:list>` : ps.join("");
+    const indented = new Map(); // level → paragraph style with a left margin (text without bullets)
+    const fmtStyles = new Map();
+    const spanStyle = (fmt) => {
+      const key = JSON.stringify(fmt);
+      if (!fmtStyles.has(key)) fmtStyles.set(key, style("text", textProps({ ...st, ...fmt })));
+      return fmtStyles.get(key);
+    };
+    const field = (text) => (e.field === "slidenum" ? `<text:page-number>${esc(text)}</text:page-number>` : `<text:date>${esc(text)}</text:date>`);
+    let at = 0;
+    const ps = all.split("\n").map((line, i) => {
+      const start = at;
+      at += line.length + 1;
+      const lvl = e.levels?.[i] || 0;
+      let ps = P;
+      if (lvl && !st.bullets) {
+        if (!indented.has(lvl)) indented.set(lvl, style("paragraph", `<style:paragraph-properties fo:text-align="${TALIGN[st.align] || "start"}" fo:margin-left="${(lvl * 1.27).toFixed(2)}cm"/>${textProps(st)}`));
+        ps = indented.get(lvl);
+      }
+      const body = !line ? "" : e.field ? `<text:span text:style-name="${T}">${field(line)}</text:span>` : e.spans?.length ? spanSegments(all, e.spans, start, start + line.length).map((s) => `<text:span text:style-name="${Object.keys(s.fmt).length ? spanStyle(s.fmt) : T}">${esc(s.text)}</text:span>`).join("") : `<text:span text:style-name="${T}">${esc(line)}</text:span>`;
+      const p = `<text:p text:style-name="${ps}">${body}</text:p>`;
+      // a bulleted paragraph at level n is an item of a list nested n deep
+      return st.bullets ? `<text:list text:style-name="L1">${"<text:list-item><text:list>".repeat(lvl)}<text:list-item>${p}</text:list-item>${"</text:list></text:list-item>".repeat(lvl)}</text:list>` : p;
+    });
+    return ps.join("");
   };
   const placement = (e) => {
     if (!e.rot) return `svg:x="${cm(e.x)}" svg:y="${cm(e.y)}" svg:width="${cm(e.w)}" svg:height="${cm(e.h)}"`;
@@ -307,7 +339,13 @@ export function writeOdp(deck, { title = "" } = {}) {
   const graphic = (e, extra = "") => style("graphic", `<style:graphic-properties draw:fill="${e.fill ? "solid" : "none"}"${e.fill ? ` draw:fill-color="${e.fill}"` : ""} draw:stroke="${e.stroke && e.strokeWidth ? "solid" : "none"}"${e.stroke ? ` svg:stroke-color="${e.stroke}" svg:stroke-width="${cm(e.strokeWidth)}"` : ""} draw:textarea-vertical-align="${e.style?.valign || "top"}" draw:auto-grow-height="false" fo:padding="0.125cm"${extra}/>`);
   const CLASS = { title: "title", subtitle: "subtitle", body: "outline", body2: "outline" };
 
+  const objects = []; // embedded chart objects: [path, content.xml]
   const element = (e) => {
+    if (e.type === "chart") {
+      const path = `Object ${objects.length + 1}`;
+      objects.push([path, odfChartXml(e.chart, e)]);
+      return `<draw:frame draw:style-name="${graphic({ fill: null, stroke: null })}" ${placement(e)}><draw:object xlink:href="./${path}" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad"/>${e.chart.title ? `<svg:title>${esc(e.chart.title)}</svg:title>` : ""}</draw:frame>`;
+    }
     if (e.type === "image") {
       if (!pics[e.media]) return "";
       return `<draw:frame draw:style-name="${graphic({ ...e, fill: null, stroke: null })}" ${placement(e)}><draw:image xlink:href="${pics[e.media]}" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad"/></draw:frame>`;
@@ -342,12 +380,12 @@ export function writeOdp(deck, { title = "" } = {}) {
     const notes = s.notes ? `<presentation:notes><draw:frame presentation:class="notes" svg:x="2cm" svg:y="14cm" svg:width="17cm" svg:height="12cm"><draw:text-box>${paras({ text: s.notes, style: { size: 12, align: "left", bullets: false } })}</draw:text-box></draw:frame></presentation:notes>` : "";
     return `<draw:page draw:name="page${i + 1}" draw:style-name="${dp}" draw:master-page-name="Default">${s.elements.map(element).join("")}${notes}</draw:page>`;
   });
-  const listStyle = `<text:list-style style:name="L1"><text:list-level-style-bullet text:level="1" text:bullet-char="•"><style:list-level-properties text:space-before="0cm" text:min-label-width="0.6cm"/></text:list-level-style-bullet></text:list-style>`;
+  const listStyle = `<text:list-style style:name="L1">${Array.from({ length: 9 }, (_, i) => `<text:list-level-style-bullet text:level="${i + 1}" text:bullet-char="${["•", "–", "»"][i % 3]}"><style:list-level-properties text:space-before="${(i * 1.27).toFixed(2)}cm" text:min-label-width="0.6cm"/></text:list-level-style-bullet>`).join("")}</text:list-style>`;
   const contentXml = `${HEAD}<office:document-content ${NS}><office:automatic-styles>${auto.join("")}${listStyle}</office:automatic-styles><office:body><office:presentation>${pages.join("")}</office:presentation></office:body></office:document-content>`;
   const stylesXml = `${HEAD}<office:document-styles ${NS}><office:styles>${fillImages.join("")}<style:default-style style:family="graphic"><style:graphic-properties svg:stroke-color="#3465a4" draw:fill-color="#729fcf"/><style:text-properties fo:font-family="${escAttr(t.body)}" fo:font-size="18pt" fo:color="${t.text}"/></style:default-style></office:styles><office:automatic-styles><style:page-layout style:name="PM1"><style:page-layout-properties fo:margin-top="0cm" fo:margin-bottom="0cm" fo:margin-left="0cm" fo:margin-right="0cm" fo:page-width="${cm(deck.size.w)}" fo:page-height="${cm(deck.size.h)}" style:print-orientation="${deck.size.w >= deck.size.h ? "landscape" : "portrait"}"/></style:page-layout><style:style style:name="Mdp1" style:family="drawing-page"><style:drawing-page-properties draw:fill="solid" draw:fill-color="${t.bg}"/></style:style></office:automatic-styles><office:master-styles><style:master-page style:name="Default" style:page-layout-name="PM1" draw:style-name="Mdp1"/></office:master-styles></office:document-styles>`;
   const themeJson = JSON.stringify({ id: t.id, name: t.name, bg: t.bg, text: t.text, accent: t.accent, accent2: t.accent2, heading: t.heading, body: t.body });
   const metaXml = `${HEAD}<office:document-meta ${NS}><office:meta><meta:generator>OpenFini</meta:generator><dc:title>${esc(deck.meta?.title || title || "")}</dc:title><meta:user-defined meta:name="OpenFini theme">${esc(themeJson)}</meta:user-defined></office:meta></office:document-meta>`;
-  const manifest = `${HEAD}<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.3"><manifest:file-entry manifest:full-path="/" manifest:version="1.3" manifest:media-type="application/vnd.oasis.opendocument.presentation"/><manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/><manifest:file-entry manifest:full-path="styles.xml" manifest:media-type="text/xml"/><manifest:file-entry manifest:full-path="meta.xml" manifest:media-type="text/xml"/>${Object.entries(pics).map(([id, p]) => `<manifest:file-entry manifest:full-path="${p}" manifest:media-type="${deck.media[id].mime}"/>`).join("")}</manifest:manifest>`;
+  const manifest = `${HEAD}<manifest:manifest xmlns:manifest="urn:oasis:names:tc:opendocument:xmlns:manifest:1.0" manifest:version="1.3"><manifest:file-entry manifest:full-path="/" manifest:version="1.3" manifest:media-type="application/vnd.oasis.opendocument.presentation"/><manifest:file-entry manifest:full-path="content.xml" manifest:media-type="text/xml"/><manifest:file-entry manifest:full-path="styles.xml" manifest:media-type="text/xml"/><manifest:file-entry manifest:full-path="meta.xml" manifest:media-type="text/xml"/>${Object.entries(pics).map(([id, p]) => `<manifest:file-entry manifest:full-path="${p}" manifest:media-type="${deck.media[id].mime}"/>`).join("")}${objects.map(([p]) => `<manifest:file-entry manifest:full-path="${p}/" manifest:media-type="application/vnd.oasis.opendocument.chart"/><manifest:file-entry manifest:full-path="${p}/content.xml" manifest:media-type="text/xml"/>`).join("")}</manifest:manifest>`;
   return writeZip([
     ["mimetype", "application/vnd.oasis.opendocument.presentation", { store: true }],
     ["content.xml", contentXml],
@@ -355,5 +393,6 @@ export function writeOdp(deck, { title = "" } = {}) {
     ["meta.xml", metaXml],
     ["META-INF/manifest.xml", manifest],
     ...Object.entries(pics).map(([id, p]) => [p, deck.media[id].bytes]),
+    ...objects.map(([p, xml]) => [`${p}/content.xml`, xml]),
   ]);
 }

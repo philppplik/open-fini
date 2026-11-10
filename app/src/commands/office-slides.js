@@ -58,6 +58,16 @@ export function registerSlidesCommands(app) {
   }, { enabled: (a) => on(a) && String(a.officeUI.cur).startsWith(M.LAYOUT_PREFIX) });
   def("slides.hideMasterGraphics", "Hide Master Graphics", deckOp("Hide Master Graphics", (d, s) => M.updateSlide(d, s.id, { hideMaster: !s.hideMaster })), { checked: (a) => on(a) && !!a.officeUI.slide.hideMaster, enabled: (a) => on(a) && !M.isPseudo(a.officeUI.cur) });
 
+  // ---- list levels (Tab / Shift+Tab while editing; these change whole selected text boxes)
+  const levelOp = (label, delta) => () => {
+    const view = v();
+    let d = view.deck;
+    for (const e of view.selected.filter((x) => typeof x.text === "string")) d = M.setLevels(d, view.slide.id, e.id, 0, e.text.length, { delta });
+    if (d !== view.deck) view.commit(label, d);
+  };
+  def("slides.levelUp", "Increase List Level", levelOp("Increase List Level", 1), { icon: "text-indent-left", enabled: hasSel });
+  def("slides.levelDown", "Decrease List Level", levelOp("Decrease List Level", -1), { icon: "text-indent-right", enabled: hasSel });
+
   // ---- inserting
   def("slides.insertText", "Text Box", () => v().insertText(), { icon: "fonts" });
   def("slides.insertShape", "Shape", (a, o) => v().insertShape(o?.shape || "rect"), { icon: "square" });
