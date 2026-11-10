@@ -43,13 +43,14 @@ import { utilityTools } from "./utility.js";
 import { terminalTools } from "./terminal.js";
 import { localFileTools } from "./local-files.js";
 import { scriptTools } from "./script.js";
+import { designAssistTools } from "./design-assist.js";
 
 /**
  * @param {import("../../core/app.js").App} app
  * @param {object} ctx session context: { images, knowledge, memory, skills, ask, plan, customTools }
  */
 export function createOpenFiniTools(app, ctx = {}) {
-  return withVerifyHints([...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...latexTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...officeSuiteTools(app, ctx), ...officeSheetTools(app, ctx), ...officeSheetDepthTools(app, ctx), ...slidesTools(app, ctx), ...officeBoardTools(app, ctx), ...officeSemanticTools(app, ctx), ...officeDesignTools(app, ctx), ...formatTools(app, ctx), ...exportTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...commentTools(app, ctx), ...vscodeTools(app, ctx), ...routingTools(app, ctx), ...webAccessTools(app, ctx), ...colorTools(app, ctx), ...pixelEditTools(app, ctx), ...knowledgeTools(app, ctx), ...utilityTools(app, ctx), ...terminalTools(app, ctx), ...localFileTools(app, ctx), ...scriptTools(app, ctx)]);
+  return withVerifyHints([...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...latexTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...officeSuiteTools(app, ctx), ...officeSheetTools(app, ctx), ...officeSheetDepthTools(app, ctx), ...slidesTools(app, ctx), ...officeBoardTools(app, ctx), ...officeSemanticTools(app, ctx), ...officeDesignTools(app, ctx), ...formatTools(app, ctx), ...exportTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...commentTools(app, ctx), ...vscodeTools(app, ctx), ...routingTools(app, ctx), ...webAccessTools(app, ctx), ...colorTools(app, ctx), ...pixelEditTools(app, ctx), ...knowledgeTools(app, ctx), ...utilityTools(app, ctx), ...terminalTools(app, ctx), ...localFileTools(app, ctx), ...scriptTools(app, ctx), ...designAssistTools(app, ctx)]);
 }
 
 /** Tools grouped for the UI. */
@@ -88,6 +89,7 @@ export const TOOL_GROUPS = {
   Assistant: ["search_knowledge", "remember", "recall_memory", "forget_memory", "use_skill", "create_skill", "ask_user", "update_plan", "create_tool"],
   "Power tools": ["run_plan", "query_layers", "describe_page", "describe_selection", "apply_to_many", "evaluate", "screenshot_layers", "compare_screenshots", "grid_layout", "distribute_layers", "snap_layers", "make_component"],
   "Scripting and checks": ["run_script", "find_tools", "checkpoint", "restore_checkpoint", "visual_diff", "measure_layers", "find_replace"],
+  "Design checks and assets": ["lint_design", "fix_design_issues", "generate_asset", "make_palette", "extract_palette", "type_scale", "column_grid", "list_merge_fields", "data_merge"],
   Agents: ["spawn_agent", "wait_agent", "list_agents", "cancel_agent", "plan_work", "work_task", "blackboard"],
   Attachments: ["list_attachments", "open_attachment"],
   Comments: ["list_comments", "get_comment_context", "add_comment", "reply_comment", "resolve_comment"],
@@ -125,6 +127,7 @@ export const VERIFY_WITH = {
   Assistant: "the returned result",
   "Power tools": "describe_page or screenshot_layers",
   "Scripting and checks": "checkpoint (action diff), visual_diff or describe_page",
+  "Design checks and assets": "lint_design, describe_page or screenshot",
   Agents: "work_task or list_agents",
   Attachments: "list_attachments",
   Comments: "list_comments",

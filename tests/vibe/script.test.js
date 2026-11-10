@@ -142,7 +142,7 @@ test("measure: gaps, overlaps, alignment, spacing, contrast", async () => {
 
   const { run } = setup();
   const bg = await run("add_shape", { type: "rect", x: 0, y: 0, w: 400, h: 200, fill: "#222222" });
-  const t = await run("add_text", { text: "Hello", x: 20, y: 20, fontSize: 16, fill: "#333333" });
+  const t = await run("add_text", { text: "Hello", x: 20, y: 20, fontSize: 16, color: "#333333" });
   const r = await run("measure_layers", { ids: [bg.id, t.id] });
   assert.equal(r.contrast[0].backdrop, bg.id);
   assert.equal(r.contrast[0].passes, false);
