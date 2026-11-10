@@ -64,6 +64,9 @@ the palette. Overrides are `{ commandId: [chord, chord] }`; an empty list means 
 * `settings` holds only keys of the schema in `app/src/customize/schema.js`. **Never** included: API keys, tokens,
   passwords, the AI switch, app lock, offline mode, protected mode, Git identity, tour progress, recent commands,
   documents. A file that contains such a key (or anything that looks like a secret) is **rejected**.
+* Schema rows marked `userOnly` change what leaves the device (`codePreviewLan` opens the local preview to the
+  network, `latexRemoteUrl` sends LaTeX sources to a server). They are validated and shown by `get_settings`, but
+  never exported, never imported (skipped with a warning) and never changed by `set_setting`; set them in Settings.
 * Import is strict (`validateProfile`): size limit 512 KB, valid JSON, format and version (newer versions are refused),
   every value checked against its type and range, `__proto__` keys refused, unknown non-secret keys ignored with a
   warning. Nothing is applied before you see the **preview** (setting, current value, new value) and choose

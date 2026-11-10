@@ -190,6 +190,12 @@ export const SETTINGS = [
   { key: "codeMeasurePpi", section: "code", type: "integer", min: 20, max: 1000, label: "Measure tool pixels per inch (96 = CSS reference)", check: int(20, 1000) },
   { key: "codeMeasureDpr", section: "code", type: "boolean", label: "Measure tool counts device pixels", check: bool },
   { key: "codeViewportSizes", section: "code", type: "json", label: "Saved preview sizes", check: (v) => Array.isArray(v) && v.length <= 12 && v.every((s) => s && typeof s.name === "string" && Number.isFinite(s.w) && Number.isFinite(s.h)) },
+  { key: "codePreviewPort", section: "code", type: "integer", min: 0, max: 65535, label: "Local preview server port (0 = 5520 or any free port; otherwise 1024 to 65535)", check: (v) => v === 0 || (Number.isInteger(v) && v >= 1024 && v <= 65535) },
+  { key: "codePreviewSpa", section: "code", type: "boolean", label: "Local preview: single-page app fallback", check: bool },
+  // userOnly: these change what leaves the device, so profiles never carry them and the assistant cannot set them
+  { key: "codePreviewLan", section: "code", type: "boolean", label: "Local preview: allow other devices in the network", userOnly: true, check: bool },
+  { key: "latexEngine", section: "code", type: "enum", options: ["auto", "latexmk", "pdflatex", "xelatex", "lualatex", "tectonic"], label: "TeX engine of the desktop app", check: oneOf("auto", "latexmk", "pdflatex", "xelatex", "lualatex", "tectonic") },
+  { key: "latexRemoteUrl", section: "code", type: "string", label: "Remote LaTeX compile service (web version; empty = none)", userOnly: true, check: (v) => v === "" || (typeof v === "string" && v.length <= 500 && /^(https:\/\/[^\s/?#]+|http:\/\/(?:localhost|127\.0\.0\.1)(?::\d{1,5})?)(?:[/?#]\S*)?$/i.test(v)) },
   // structured customization
   { key: "shortcuts", section: "keyboard", type: "json", label: "Keyboard shortcut overrides", check: (v) => validateOverrides(v).ok && isObj(v) },
   { key: "shortcutPreset", section: "keyboard", type: "string", label: "Shortcut preset", check: (v) => typeof v === "string" && /^[a-z]{1,16}$/.test(v) },
@@ -207,15 +213,21 @@ export const SETTINGS = [
 
 const BY_KEY = new Map(SETTINGS.map((s) => [s.key, s]));
 export const SETTING_KEYS = SETTINGS.map((s) => s.key);
+/** Keys a profile may carry and the assistant may change (everything except `userOnly` rows). */
+export const PORTABLE_KEYS = SETTINGS.filter((s) => !s.userOnly).map((s) => s.key);
 export const getSettingDef = (key) => BY_KEY.get(key) || null;
-export const isPortableKey = (key) => BY_KEY.has(key);
+export const isPortableKey = (key) => BY_KEY.has(key) && !BY_KEY.get(key).userOnly;
 /** Keys that must never travel in a profile or be set by the assistant, even if someone adds them to a file. */
 export const FORBIDDEN_KEY = /key|token|secret|passw|passphrase|credential|apikey|auth|aiEnabled|appLock|offlineMode|protectedMode|confirmExternal|gitEmail|gitName/i;
 
-/** Checks one value against the schema. */
-export function validateSetting(key, value) {
+/**
+ * Checks one value against the schema. `by` names who asks: "user" (Settings, the default), "profile" (import) or
+ * "assistant" (set_setting); `userOnly` settings are refused for the last two.
+ */
+export function validateSetting(key, value, { by = "user" } = {}) {
   const def = BY_KEY.get(key);
   if (!def) return { ok: false, error: FORBIDDEN_KEY.test(key) ? `“${key}” is a protected setting and cannot be changed here.` : `Unknown setting “${key}”.` };
+  if (def.userOnly && by !== "user") return { ok: false, userOnly: true, error: `“${key}” changes what leaves this device, so only you can change it (Settings ▸ Code studio).` };
   if (!def.check(value)) {
     let want = def.type;
     if (def.options) want = `one of ${def.options.join(", ")}`;
@@ -232,6 +244,7 @@ export function describeSettings(prefs, defaults, { section = "", keys = null } 
     const o = { key: s.key, section: s.section, label: s.label, type: s.type, value: prefs[s.key] === undefined ? defaults[s.key] : prefs[s.key], default: defaults[s.key] };
     if (s.options) o.options = s.options;
     if (s.min !== undefined) Object.assign(o, { min: s.min, max: s.max });
+    if (s.userOnly) o.userOnly = true;
     return o;
   });
 }

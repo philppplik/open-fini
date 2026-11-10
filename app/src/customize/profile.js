@@ -1,7 +1,7 @@
 // Profiles: export, strict import validation, preview (diff) and merge/replace. Pure (no DOM).
 // A profile (.ofprofile) is JSON: { format: "openfini-profile", version: 1, name, created, app, settings: { key: value } }
 // where every key is a portable setting of schema.js. Secrets, API keys, tokens, documents and security switches never appear.
-import { SETTINGS, SETTING_KEYS, getSettingDef, validateSetting, FORBIDDEN_KEY, migrateSurfacePrefs } from "./schema.js";
+import { SETTINGS, PORTABLE_KEYS, getSettingDef, validateSetting, FORBIDDEN_KEY, migrateSurfacePrefs } from "./schema.js";
 
 export const PROFILE_FORMAT = "openfini-profile";
 export const PROFILE_VERSION = 1;
@@ -14,7 +14,7 @@ const clone = (v) => (v === undefined ? undefined : JSON.parse(JSON.stringify(v)
 /** Builds the profile object of the given preferences (only portable keys). */
 export function buildProfile(prefs, { name = "My profile", created = new Date().toISOString(), appVersion = "" } = {}) {
   const settings = {};
-  for (const k of SETTING_KEYS) if (prefs[k] !== undefined) settings[k] = clone(prefs[k]);
+  for (const k of PORTABLE_KEYS) if (prefs[k] !== undefined) settings[k] = clone(prefs[k]);
   const p = { format: PROFILE_FORMAT, version: PROFILE_VERSION, name: String(name).slice(0, 60), created, settings };
   if (appVersion) p.app = appVersion;
   return p;
@@ -59,8 +59,9 @@ export function validateProfile(input) {
       else warnings.push(`Unknown setting “${k.slice(0, 40)}” ignored.`);
       continue;
     }
-    const r = validateSetting(k, s[k]);
-    if (!r.ok) errors.push(r.error);
+    const r = validateSetting(k, s[k], { by: "profile" });
+    if (r.userOnly) warnings.push(`“${k}” is not imported: it changes what leaves this device, so set it yourself in Settings.`);
+    else if (!r.ok) errors.push(r.error);
     else settings[k] = clone(s[k]);
   }
   if (errors.length) return { ok: false, errors, warnings, profile: null };
@@ -76,6 +77,7 @@ export function diffProfile(prefs, defaults, profile, mode = "merge") {
   const out = [];
   for (const def of SETTINGS) {
     const k = def.key;
+    if (def.userOnly) continue; // never changed by a profile, not even by "replace"
     let to;
     if (Object.prototype.hasOwnProperty.call(profile.settings, k)) to = profile.settings[k];
     else if (mode === "replace") to = defaults[k];
@@ -127,7 +129,7 @@ export function templateProfile(id, defaults) {
   const t = PROFILE_TEMPLATES.find((x) => x.id === id);
   if (!t) return null;
   const settings = {};
-  for (const k of SETTING_KEYS) if (defaults[k] !== undefined) settings[k] = clone(defaults[k]);
+  for (const k of PORTABLE_KEYS) if (defaults[k] !== undefined) settings[k] = clone(defaults[k]);
   Object.assign(settings, t.settings);
   return { format: PROFILE_FORMAT, version: PROFILE_VERSION, name: t.name, created: new Date().toISOString(), settings };
 }

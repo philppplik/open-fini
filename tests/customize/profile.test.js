@@ -160,3 +160,30 @@ test("Liquid glass (removed after 1.0) migrates to Glass in saved prefs and impo
   assert.equal(v.profile.settings.surfaceStyle, "glass");
   assert.ok(!("glassRefraction" in v.profile.settings));
 });
+
+test("Code-preview and LaTeX settings are in the schema; network-facing ones stay with the user", async () => {
+  const { PORTABLE_KEYS, isPortableKey } = await import("../../app/src/customize/schema.js");
+  for (const k of ["codePreviewPort", "codePreviewSpa", "codePreviewLan", "latexEngine", "latexRemoteUrl"]) assert.ok(SETTING_KEYS.includes(k), k);
+  assert.ok(validateSetting("codePreviewPort", 0).ok && validateSetting("codePreviewPort", 8080).ok);
+  assert.ok(!validateSetting("codePreviewPort", 80).ok && !validateSetting("codePreviewPort", 70000).ok);
+  assert.ok(validateSetting("latexEngine", "xelatex").ok && !validateSetting("latexEngine", "troff").ok);
+  assert.ok(validateSetting("latexRemoteUrl", "").ok && validateSetting("latexRemoteUrl", "https://tex.example.org/compile").ok);
+  assert.ok(validateSetting("latexRemoteUrl", "http://localhost:3000/c").ok);
+  assert.ok(!validateSetting("latexRemoteUrl", "http://tex.example.org/").ok && !validateSetting("latexRemoteUrl", "javascript:alert(1)").ok);
+  // userOnly: the user may set them, the assistant and profiles may not
+  assert.ok(validateSetting("codePreviewLan", true).ok);
+  assert.ok(!validateSetting("codePreviewLan", true, { by: "assistant" }).ok);
+  assert.ok(validateSetting("codePreviewSpa", true, { by: "assistant" }).ok);
+  assert.ok(!PORTABLE_KEYS.includes("codePreviewLan") && !PORTABLE_KEYS.includes("latexRemoteUrl") && PORTABLE_KEYS.includes("latexEngine"));
+  assert.ok(!isPortableKey("latexRemoteUrl") && isPortableKey("codePreviewPort"));
+  const p = buildProfile({ ...defaults(), codePreviewLan: true, latexRemoteUrl: "https://x.example", codePreviewPort: 6000 });
+  assert.ok(!("codePreviewLan" in p.settings) && !("latexRemoteUrl" in p.settings));
+  assert.equal(p.settings.codePreviewPort, 6000);
+  const v = validateProfile({ format: "openfini-profile", version: 1, settings: { codePreviewLan: true, latexRemoteUrl: "https://evil.example", latexEngine: "lualatex" } });
+  assert.ok(v.ok, JSON.stringify(v.errors));
+  assert.deepEqual(Object.keys(v.profile.settings), ["latexEngine"]);
+  assert.equal(v.warnings.length, 2);
+  const d = diffProfile({ codePreviewLan: true }, { ...defaults(), codePreviewLan: false }, { settings: {} }, "replace");
+  assert.ok(!d.some((x) => x.key === "codePreviewLan"));
+  assert.equal(describeSettings({}, { codePreviewLan: false }, { keys: ["codePreviewLan"] })[0].userOnly, true);
+});

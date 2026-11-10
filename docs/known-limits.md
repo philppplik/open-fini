@@ -1,6 +1,6 @@
 # Known limits and open work
 
-A single backlog of everything OpenFini does not do yet, does only partly, or has never been verified on real hardware. Compiled after 1.0.0 and the post-1.0 waves. When you close an item, delete it here and note it in `CHANGELOG.md`.
+A single backlog of everything OpenFini does not do yet, does only partly, or has never been verified on real hardware. Compiled after 1.0.0 and the post-1.0 waves. When you close an item, delete it here and note it in `CHANGELOG.md`. Causes and the extension point that lifts each AI, Vibe and platform limit: [limits-audit.md](limits-audit.md).
 
 Legend: **Unverified** = built and unit-tested but never run in the real environment. **Missing** = not built. **Partial** = built with a known gap.
 
@@ -26,7 +26,6 @@ Legend: **Unverified** = built and unit-tested but never run in the real environ
 - **Orchestrator:** no per-task cancel or undo UI.
 - **Skills:** pack skills are not shown in the Skills settings panel.
 - **RAG:** no PDF or OCR ingestion.
-- **Settings schema:** five Code-preview settings are missing from the customization schema, so they are not validated on profile import and cannot be set via `set_setting`.
 - Not built from the post-1.0 batch: integrated terminal console in the Code studio, `ofini` CLI/TUI.
 
 ## Pixel studio

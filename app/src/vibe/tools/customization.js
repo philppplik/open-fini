@@ -1,7 +1,7 @@
 // Tools for customizing OpenFini itself: settings, keyboard shortcuts and profiles.
 // Only portable settings (customize/schema.js) are reachable; security switches, API keys and tokens never are.
 import { tool, S } from "./helpers.js";
-import { SETTING_KEYS } from "../../customize/schema.js";
+import { PORTABLE_KEYS } from "../../customize/schema.js";
 import { effective, isOverridden, conflictsFor, filterEntries } from "../../customize/keymap.js";
 import { normalizeChord } from "../../customize/chords.js";
 
@@ -16,11 +16,11 @@ export function customizationTools(app) {
     }, [], (a) => ({ settings: cz().describe({ section: a.section || "", keys: a.keys || null }), sections: SECTIONS }), { readOnly: true }),
 
     tool("set_setting", "Changes one interface setting after validating it against the schema (for example uiScale 125, uiFontSize 15, density compact, uiRadius round, theme dark). Returns what changed. Use get_settings to see valid keys and values.", {
-      key: S.str("Setting key from get_settings", { enum: SETTING_KEYS }),
+      key: S.str("Setting key from get_settings (settings marked userOnly can only be changed by the user)", { enum: PORTABLE_KEYS }),
       value: { description: "New value; its type must match the setting (boolean, number, string, or JSON for structured settings)" },
     }, ["key", "value"], (a) => {
       const from = app.prefs[a.key];
-      const r = cz().set(a.key, a.value);
+      const r = cz().set(a.key, a.value, { by: "assistant" });
       if (!r.ok) throw new Error(r.error);
       return { ok: true, changes: [{ key: a.key, from, to: a.value }] };
     }),
