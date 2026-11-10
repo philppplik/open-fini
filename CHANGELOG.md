@@ -7,6 +7,8 @@ All notable changes to OpenFini are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Vibe `office_screenshot`: the assistant can see Office documents (a laid-out text page, a sheet, a slide or a whiteboard page as an image).
+- Vibe can inspect and try out the rendered website in the Code studio preview: `preview_query` (elements by CSS selector with text, position, visibility, attributes and computed CSS values), `preview_state` (page and viewport size, sideways overflow and the elements causing it, broken images, console output) and `preview_interact` (click, type, check, press, submit, hover, scroll, wait; then the console output, page state and expected elements). The probe runs inside the sandboxed preview frame and never evaluates code.
 - Vibe **design linter**: `lint_design` finds low text contrast, tiny or empty text, layers outside the page, off-grid positions, near-miss alignment, almost-equal gaps, overlapping text, images without alt text, near-duplicate colors and too many fonts; `fix_design_issues` applies the fixes in one undo step.
 - Vibe `generate_asset`: procedural vector assets without an image model (dots, grid, stripes, checker, waves, triangles, crosses, confetti, blob, wave divider, sunburst, rings, placeholder, QR code, Code 128 barcode), repeatable by seed.
 - Vibe `make_palette` (harmonies and 50-900 scales with readable text colors), `extract_palette`, `type_scale`, `column_grid`, and variable data for the assistant: `list_merge_fields` and `data_merge` (one page per record from objects or CSV). New tool group *Design checks and assets*.

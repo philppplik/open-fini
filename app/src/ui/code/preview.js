@@ -413,6 +413,28 @@ export class PreviewPane extends Emitter {
     });
   }
 
+  /**
+   * Asks the page in the preview frame a question or performs one interaction step (ui/code/probe.js).
+   * Resolves with { result } or { error }; the reply is untrusted page data, sanitize it before use.
+   * @param {"query"|"state"|"act"} op
+   * @param {object} [args]
+   */
+  probe(op, args = {}, timeoutMs = 3000) {
+    return new Promise((resolve) => {
+      if (!this.current) return resolve({ error: "The preview shows no page." });
+      const reqId = this.reqSeq++;
+      const timer = setTimeout(() => {
+        this.reqs.delete(reqId);
+        resolve({ error: "The preview did not answer (the page may still be loading)." });
+      }, timeoutMs);
+      this.reqs.set(reqId, (m) => {
+        clearTimeout(timer);
+        resolve(m.error ? { error: String(m.error).slice(0, 500) } : { result: m.result });
+      });
+      this.#post({ ...args, type: "probe", op, reqId });
+    });
+  }
+
   // ------------------------------------------------------------ measure tool
 
   get measuring() {
@@ -535,7 +557,7 @@ export class PreviewPane extends Emitter {
       }
       return;
     }
-    if (m.type === "computed" || m.type === "dropTarget" || m.type === "measureBox") {
+    if (m.type === "computed" || m.type === "dropTarget" || m.type === "measureBox" || m.type === "probe") {
       const cb = this.reqs.get(m.reqId);
       this.reqs.delete(m.reqId);
       if (typeof cb === "function") cb(m);

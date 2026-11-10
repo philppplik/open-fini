@@ -84,7 +84,7 @@ Structure (pages, margins) -> text frames (add_text with width) -> images and sh
 ## Verify
 read_table / read_chart for numbers, describe_page for overlaps, lint_design with scope document, screenshot of each page. For print: preflight_pdf. Many copies from a list (badges, certificates, price tags): write <<Field>> placeholders into one template page, then data_merge.`,
 
-  `${fm("code", "How to work in the Code studio: files, the live preview, element ids, breakpoints and checks.", "create_website, list_files, read_file, write_file, edit_file, get_page_outline, inspect_element, set_element_style, set_viewport, show_page, check_problems, screenshot", "code, website, html, css, javascript, landing page, web")}
+  `${fm("code", "How to work in the Code studio: files, the live preview, element ids, breakpoints and checks.", "create_website, list_files, read_file, write_file, edit_file, get_page_outline, inspect_element, set_element_style, set_viewport, show_page, check_problems, screenshot, preview_query, preview_state, preview_interact", "code, website, html, css, javascript, landing page, web")}
 # Code studio guide
 
 ## Start
@@ -105,9 +105,9 @@ read_table / read_chart for numbers, describe_page for overlaps, lint_design wit
 - edit_file with text that occurs twice; styling with inline style attributes; missing alt text and labels; links to files that do not exist.
 
 ## Verify
-check_problems (HTML/CSS/JS checks, missing files, console errors) after every change set, then screenshot at 1280, 768 and 375 px (set_viewport).`,
+check_problems (HTML/CSS/JS checks, missing files, console errors) after every change set. Then test the RENDERED page at 1280, 768 and 375 px (set_viewport): preview_state (sideways overflow and the elements causing it, broken images, console), preview_query for what the browser made of your CSS (selector plus the computed properties you care about), and preview_interact to try menus, tabs, dialogs and forms like a visitor (steps, then expect a selector). A picture of the preview is not available; rely on these readings.`,
 
-  `${fm("document", "How to work with Office text documents: blocks, styles, find/replace, page setup and export.", "office_describe, office_new, office_read_document, office_find, office_insert_blocks, office_replace_text, office_set_style, office_apply_format, office_insert_table, office_set_page_setup, office_export", "office document, word, letter, report, text document, docx")}
+  `${fm("document", "How to work with Office text documents: blocks, styles, find/replace, page setup and export.", "office_describe, office_screenshot, office_new, office_read_document, office_find, office_insert_blocks, office_replace_text, office_set_style, office_apply_format, office_insert_table, office_set_page_setup, office_export", "office document, word, letter, report, text document, docx")}
 # Office document guide
 
 ## Start
@@ -125,9 +125,9 @@ office_insert_blocks (markdown is the cheapest way to add structured text) -> of
 - Direct formatting where a style belongs; empty paragraphs as spacing; invented facts in business letters.
 
 ## Verify
-office_read_document (outline and styles) and office_find for placeholders such as [Name] that are still left.`,
+office_read_document (outline and styles) and office_find for placeholders such as [Name] that are still left. office_screenshot of each page you changed to see the layout (tables, columns, page breaks).`,
 
-  `${fm("sheet", "How to work with spreadsheets: ranges, formulas, formats, charts and checking computed values.", "office_describe, office_new, sheet_describe, sheet_read_range, sheet_write_range, sheet_set_formula, sheet_format, sheet_add_sheet, sheet_add_chart, sheet_format_table, sheet_define_name, sheet_set_validation, sheet_group, sheet_page_setup, sheet_pivot, sheet_add_sparkline, sheet_chart_data", "spreadsheet, sheet, excel, xlsx, formula, budget, table data, pivot, validation, dropdown, named range, sparkline, filter, unique")}
+  `${fm("sheet", "How to work with spreadsheets: ranges, formulas, formats, charts and checking computed values.", "office_describe, office_screenshot, office_new, sheet_describe, sheet_read_range, sheet_write_range, sheet_set_formula, sheet_format, sheet_add_sheet, sheet_add_chart, sheet_format_table, sheet_define_name, sheet_set_validation, sheet_group, sheet_page_setup, sheet_pivot, sheet_add_sparkline, sheet_chart_data", "spreadsheet, sheet, excel, xlsx, formula, budget, table data, pivot, validation, dropdown, named range, sparkline, filter, unique")}
 # Spreadsheet guide
 
 ## Start
@@ -146,9 +146,9 @@ Depth: sheet_format_table (header, bands, total row) -> sheet_define_name for in
 - Writing numbers as text ("1,200"), hard-coded totals instead of formulas, off-by-one ranges that skip the last row.
 
 ## Verify
-sheet_read_range on totals and a few formula cells; look for #REF!, #DIV/0!, #NAME? and #SPILL! values.`,
+sheet_read_range on totals and a few formula cells; look for #REF!, #DIV/0!, #NAME? and #SPILL! values. office_screenshot shows the sheet as the user sees it (formats, charts, column widths).`,
 
-  `${fm("slides", "How to work with presentations: layouts, placeholders, themes, notes and checking each slide.", "office_describe, office_new, slides_describe, slides_add_slide, slides_set_text, slides_add_shape, slides_add_image, slides_apply_layout, slides_apply_theme, slides_apply_design, slides_set_footer, slides_edit_master, slides_edit_layout, slides_format_text, slides_insert_chart, slides_refresh_charts, slides_set_notes, slides_reorder", "presentation, slides, deck, pptx, pitch")}
+  `${fm("slides", "How to work with presentations: layouts, placeholders, themes, notes and checking each slide.", "office_describe, office_screenshot, office_new, slides_describe, slides_add_slide, slides_set_text, slides_add_shape, slides_add_image, slides_apply_layout, slides_apply_theme, slides_apply_design, slides_set_footer, slides_edit_master, slides_edit_layout, slides_format_text, slides_insert_chart, slides_refresh_charts, slides_set_notes, slides_reorder", "presentation, slides, deck, pptx, pitch")}
 # Presentation guide
 
 ## Start
@@ -167,10 +167,10 @@ slides_apply_design (or slides_apply_theme) once -> slides_set_footer (slide num
 - More than 6 bullets or 40 words per slide; text boxes overlapping placeholders; images not from an attachment or data: URI.
 
 ## Verify
-slides_describe after the deck is built: every slide has a title, no empty placeholders, notes where promised; slides_describe slide @master shows the footer you set.`,
+slides_describe after the deck is built: every slide has a title, no empty placeholders, notes where promised; slides_describe slide @master shows the footer you set. office_screenshot of every slide: look for text that overflows its box, crowded slides and low contrast.`,
 
 
-  `${fm("board", "How to work on the whiteboard: elements, connectors, frames, arrange and checking the layout.", "office_describe, office_new, board_describe, board_add_shape, board_add_sticky, board_add_text, board_add_connector, board_update, board_arrange, board_page, board_add_table, board_edit_table, board_add_chart, board_add_plot, board_add_math, board_add_subboard, board_add_diagram, board_draw, office_board_to_document", "whiteboard, board, sticky notes, flowchart, mind map, diagram, graph, formula, table, chart")}
+  `${fm("board", "How to work on the whiteboard: elements, connectors, frames, arrange and checking the layout.", "office_describe, office_screenshot, office_new, board_describe, board_add_shape, board_add_sticky, board_add_text, board_add_connector, board_update, board_arrange, board_page, board_add_table, board_edit_table, board_add_chart, board_add_plot, board_add_math, board_add_subboard, board_add_diagram, board_draw, office_board_to_document", "whiteboard, board, sticky notes, flowchart, mind map, diagram, graph, formula, table, chart")}
 # Whiteboard guide
 
 ## Start
@@ -191,7 +191,7 @@ Frames (board_add_shape type frame) -> shapes and stickies -> board_add_connecto
 - Placing every element by hand instead of board_arrange; connectors drawn to points instead of element ids.
 
 ## Verify
-board_describe: every connector has from/to, nothing overlaps, every item has text.`,
+board_describe: every connector has from/to, nothing overlaps, every item has text. office_screenshot shows the board page as a picture.`,
 
   `${fm("vibe", "How Vibe itself works: skills, sub-agents, plan_work orchestration, blackboard, approvals and verification.", "use_skill, update_plan, plan_work, work_task, blackboard, spawn_agent, wait_agent, ask_user, search_knowledge", "multi studio, orchestrate, several files, website with logo, plan, agents, how vibe works")}
 # Vibe guide
