@@ -30,6 +30,7 @@ import { platform } from "../../platform/index.js";
 import { DocPreview, docKind } from "./docpreview.js";
 import { createDocTools } from "./doctools.js";
 import { previewPageFor } from "./page-routing.js";
+import { sourceRangeFor } from "../../engine/web/text-map.js";
 import { localSources } from "../open-folder.js";
 
 const workspaces = new WeakMap();
@@ -482,6 +483,14 @@ export class CodeWorkspace extends Emitter {
     if (this.view === "design") this.setView("split");
     const cur = this.current();
     if (cur) this.editors.openFile(cur.file, { focus: true, from: cur.el.open.start, to: cur.el.open.end });
+  }
+  /** Selects in the editor exactly the source text of a text selection made in the preview (bridge "textSel"). */
+  revealTextSelection(a, b) {
+    const file = this.page;
+    const parsed = file ? this.model.html(file) : null;
+    const r = parsed ? sourceRangeFor(parsed, a, b) : null;
+    if (!r || this.view === "design") return;
+    this.editors.openFile(file, { from: r.from, to: r.to });
   }
   pickFromPreview(id, { shift, alt } = {}) {
     if (alt) {

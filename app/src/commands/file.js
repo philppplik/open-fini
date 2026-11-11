@@ -139,6 +139,8 @@ export function registerFileCommands(app) {
     if (a.studio === "code" && a.prefs.codeFormatOnSave && a.codeUI?.built) a.codeUI.editors.format();
     a.status("Saving…");
     try {
+      // an image opened from a Code studio project is written back into that project (ui/code/asset-edit.js)
+      if (doc.assetLink && !forceDialog) return void (await (await import("../ui/code/asset-edit.js")).saveAssetBack(a, doc));
       // a document opened from a file is written back in that format while it still fits (core/source-format.js)
       if (doc.source && (await (await import("./save-source.js")).saveBySource(a, doc, forceDialog)) === "done") return;
       await writeOfini(a, doc, forceDialog);

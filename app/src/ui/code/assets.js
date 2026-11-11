@@ -9,6 +9,7 @@ import { openContextMenu } from "../context-menu/index.js";
 import { exportRaster, exportSvg } from "../../core/io.js";
 import { fileIcon, isImagePath, isFontPath } from "./util.js";
 import { pickFiles, entriesFromPicked, entriesFromDrop, importInto } from "./import.js";
+import { assetMenuItems } from "./asset-edit.js";
 
 const MEDIA = /\.(png|jpe?g|gif|webp|avif|svg|ico|bmp|woff2?|ttf|otf|mp4|webm|mp3|wav|ogg|pdf)$/i;
 
@@ -51,6 +52,7 @@ export function createAssetsPanel(ws) {
         openContextMenu(app, { kind: "asset-item", x: e.clientX, y: e.clientY, event: e, data: { path }, base: [
           { label: isFontPath(path) ? "Add @font-face rule" : "Insert into page", icon: "plus-square", run: () => insert(path) },
           { label: "Use as background of the selected element", icon: "image", run: () => background(path), disabled: !isImagePath(path) },
+          ...assetMenuItems(ws, path),
           "-",
           { label: "Copy path", icon: "link-45deg", run: () => navigator.clipboard?.writeText(path) },
           { label: "Delete", icon: "trash3", run: async () => ((await confirmDialog({ title: "Delete asset", message: `Delete “${path}”?`, ok: "Delete", danger: true })) ? web.remove(path) : null) },

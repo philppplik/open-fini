@@ -17,6 +17,7 @@ Architecture decision records (ADRs) capture the decisions that shape OpenFini a
 | [0009](https://github.com/philppplik/open-fini/blob/main/docs/adr/0009-bundled-extensions.md) | Bundled extensions are data | Packed from source into `.ofext` packages and a catalog, installed on demand through the normal consent dialog; none is enabled by default | Accepted |
 | [0010](https://github.com/philppplik/open-fini/blob/main/docs/adr/0010-collaboration-e2e-relay.md) | Collaboration through a dumb relay with end-to-end encryption | Rooms use a relay that forwards opaque encrypted frames (or a same-device channel); keys travel only in the invite's URL fragment; no accounts and no OpenFini server | Accepted |
 | [0018](https://github.com/philppplik/open-fini/blob/main/docs/adr/0018-built-in-network-services.md) | Built-in relay, FTP/FTPS and SMTP in the desktop shell | The desktop app runs the collaboration relay (plain `ws://`) and FTP/FTPS and SMTP clients in Rust with the system TLS stack and trust on first use; no Node.js needed. Browsers keep the Node relay and helper; SFTP is not built in | Accepted |
+| [0025](https://github.com/philppplik/open-fini/blob/main/docs/adr/0025-code-studio-terminal.md) | A terminal in the Code studio without a shell or PTY | The Code studio's Terminal tab runs one program with arguments per line in the project folder through the same no-shell command, allow and deny lists, time limit and output cap as the assistant's `run_command`; desktop only | Accepted |
 
 ## Write a new ADR
 

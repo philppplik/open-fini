@@ -38,7 +38,7 @@ Open it with the **Code** button in the header, **Alt+4**, *Studio ▸ Code Stud
 | **Add** | Elements and ready-made sections (hero, feature grid, pricing, FAQ, …). Click to insert after the selection or drag onto the canvas. |
 | **Style panel** (right dock) | Layout, spacing, size, position, typography, backgrounds, borders and effects of the selected element. |
 | **Settings panel** (right dock) | Tag, id, classes, attributes (link targets, image sources, form fields …), text. |
-| **Console / Problems** (bottom) | `console.log` output and runtime errors of the page; HTML, CSS, JavaScript and JSON problems with click-to-jump. |
+| **Console / Problems / Terminal** (bottom) | `console.log` output and runtime errors of the page; HTML, CSS, JavaScript and JSON problems with click-to-jump; a [terminal](#terminal) for the project folder (desktop app). |
 
 Switch between **Design**, **Split** and **Code** with the buttons in the toolbar or `Mod+Alt+1/2/3`.
 
@@ -150,6 +150,56 @@ preview frame**. By definition they agree:
 * **Breadcrumb bar** above the editor: `html › body › section.hero › h1`. Click selects the element and shows its code; hovering
   outlines it in the preview. Next to it, **Rules** lists the CSS rules whose last selector part matches the element's tag, id and
   classes (a static approximation without combinators or attributes; the preview does the exact match); each chip jumps to the rule.
+
+#### Text selection in the preview
+
+Selecting text in the **live preview**, or while editing text inline (double-click in design mode), selects **exactly that text**
+in the page's HTML in the editor (Split and Code views; in design mode a click selects elements, not text). A selection across
+elements selects the source from the first to the last character, tags in between included. The mapping is precise: a character
+reference such as `&amp;` or `&eacute;` is one character on the page and its whole reference in the source, CRLF line endings and
+the dropped first newline of `<pre>` are accounted for.
+
+How: the bridge reports the anchor and focus of the selection as `{ id, index, offset, data }` (the `data-of` id of the text's element,
+the text node's index among that element's text nodes, the offset and the node's text) or `{ id, edge }` for a position between
+elements (bridge message `textSel`, debounced). `engine/web/text-map.js` aligns the DOM text with the source text of the matching
+parsed text node (`alignText`) and returns the source range; the message is untrusted, so points are validated
+(`sanitizeTextPoint`) and a text that does not match the source exactly (a script changed it, or the page changed meanwhile)
+selects nothing. Tests: `tests/web/text-map.test.js`.
+
+#### Editing assets in a design studio
+
+Right-click an image in **Assets** or the **Explorer**: *Edit in Pixel Studio* (PNG, JPEG, WebP) or *Edit in Vector Studio* (SVG)
+opens it as its own document, linked to the project file (`ui/code/asset-edit.js`). **File ▸ Save** (`Mod+S`) in that document
+writes the image back into the project in its own format at the document's page size; *Save Back to Website and Return*
+(command `code.assetSaveBack`) also returns to the Code studio. The preview, the Assets pane and exports use the new file at once,
+and the website document is marked as changed (save it as usual). *Save As* still writes an `.ofini` copy.
+
+* Choosing the command again for a file that is already open switches to that document.
+* SVG is rewritten by the SVG exporter: comments, scripts, `<style>` rules and features the Vector studio does not model are not
+  kept, and a `<title>` is added (the opening toast says so). JPEG is encoded again (lossy).
+* GIF, BMP, AVIF and ICO are not offered (the browser cannot write them back faithfully).
+* The link is runtime state: it is not stored in documents. If the website document was closed, or the file was renamed or
+  deleted meanwhile, nothing is written and a message says so.
+
+#### Terminal
+
+The **Terminal** tab of the bottom panel (*Show Terminal*, `Mod+Alt+T`) is a console for the project folder in the **desktop app**
+(decision: [ADR 0025](adr/0025-code-studio-terminal.md); security: [security.md](security.md#terminal-in-the-code-studio)):
+
+* It works for projects opened from a folder with *File ▸ Open Folder* in this session; commands run in that folder. Otherwise the
+  tab shows *Open Folder…*. The browser version explains that the desktop app is needed.
+* **One line = one program with arguments**, no shell: `npm test`, `git status`, `npx eslint .`. Quotes group arguments; pipes,
+  redirects, `&&`, variables and wildcards are refused. Programs get no keyboard input (no prompts, REPLs or editors) and no TTY
+  (color codes are removed).
+* The **allow list, deny list and deny patterns, time limit and output cap** of *Settings ▸ Artificial intelligence ▸ Terminal*
+  apply (shells are never run). The assistant's on/off switch does not: you start every command yourself, and the assistant cannot
+  use this console.
+* Built in: `cd` (relative, `~`, never outside the project folder), `pwd`, `clear` / `cls` (or `Ctrl+L`), `history`, `help`.
+  `Up` / `Down` recall earlier lines (kept in memory only). **Stop** or `Ctrl+C` ends the running program; one program runs at a time.
+* Programs see the files on disk, not unsaved edits of the project.
+
+Code: `ui/code/terminal.js` (UI), `ui/code/terminal-model.js` (pure: line planning, history, escape removal; tests in
+`tests/ui/code-terminal.test.js`), running through `cmd_run` / `cmd_kill` (`src-tauri/src/cmd.rs`).
 
 ### Formatting
 
@@ -389,5 +439,5 @@ checks and a confirmation. Details, storage format and honest limits: [git-and-p
 ## Limitations
 
 See [roadmap.md](roadmap.md#code-studio). In short: no CMS, symbols/components, interactions editor, multi-page
-shared layouts (partials) or real-time collaboration; no stash/rebase in Source Control; no terminal or language servers; the visual designer
+shared layouts (partials) or real-time collaboration; no stash/rebase in Source Control; no language servers; the terminal is a console without a shell or TTY; the visual designer
 edits one page at a time.

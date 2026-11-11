@@ -365,6 +365,24 @@
 .of-bottom__actions { display: flex; }
 .of-bottom__actions .of-ibtn { width: 24px; height: 24px; font-size: 13px; }
 .of-bottom__body { flex: 1; min-height: 0; overflow: auto; font: 12px var(--of-mono); }
+/* Terminal tab (ui/code/terminal.js): a console without a shell */
+.of-bottom__body--term { overflow: hidden; }
+.of-cterm { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.of-cterm__notice { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font: 12px var(--of-font); color: var(--of-text-dim); border-bottom: 1px solid var(--of-border-soft); }
+.of-cterm__notice[hidden] { display: none; }
+.of-cterm__notice sl-icon { flex: none; font-size: 14px; }
+.of-cterm__notice span { flex: 1; }
+.of-cterm__log { flex: 1; min-height: 0; margin: 0; padding: 6px 12px; overflow: auto; white-space: pre-wrap; word-break: break-word; font: 12px/1.45 var(--of-mono); color: var(--of-text); -webkit-user-select: text; user-select: text; }
+.of-cterm__cmd { color: var(--of-accent); font-weight: 600; }
+.of-cterm__info { color: var(--of-text-dim); }
+.of-cterm__err { color: var(--of-danger); }
+.of-cterm__ok { color: var(--of-ok); }
+.of-cterm__line { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-top: 1px solid var(--of-border-soft); flex: none; }
+.of-cterm__cwd { max-width: 30%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--of-text-dim); font: 12px var(--of-mono); }
+.of-cterm__prompt { color: var(--of-accent); font: 600 12px var(--of-mono); }
+.of-cterm__input { flex: 1; min-width: 0; height: 26px; padding: 0 6px; border: 1px solid var(--of-border); border-radius: var(--of-radius-sm); background: var(--of-bg-input); color: var(--of-text); font: 12px var(--of-mono); }
+.of-cterm__input:focus { outline: 2px solid var(--of-accent); outline-offset: -1px; }
+.of-cterm__input:disabled { opacity: 0.55; }
 .of-console__line { display: flex; align-items: flex-start; gap: 8px; padding: 2px 12px; border-bottom: 1px solid var(--of-border-soft); }
 .of-console__line sl-icon { margin-top: 3px; font-size: 11px; color: var(--of-text-faint); flex: none; }
 .of-console__line pre { margin: 0; flex: 1; white-space: pre-wrap; word-break: break-word; font: inherit; -webkit-user-select: text; user-select: text; }

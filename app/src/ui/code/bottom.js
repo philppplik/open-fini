@@ -1,7 +1,9 @@
-// Bottom panel of the Code studio: Problems (parser and syntax diagnostics) and the preview's Console.
+// Bottom panel of the Code studio: Problems (parser and syntax diagnostics), the preview's Console and the Terminal
+// (desktop app; lazy, ./terminal.js).
 import { h, empty, frameScheduler } from "../../core/util.js";
 import { iconButton } from "../controls.js";
 import { fileIcon, lineCol } from "./util.js";
+import { t } from "../../i18n/index.js";
 
 const LEVEL_ICONS = { error: "x-circle-fill", warn: "exclamation-triangle-fill", warning: "exclamation-triangle-fill", info: "info-circle-fill", log: "chevron-right", debug: "chevron-right" };
 
@@ -13,11 +15,12 @@ export function createBottomPanel(ws) {
   const resize = h("div.of-bottom__resize", { role: "separator", "aria-orientation": "horizontal", title: "Drag to resize" });
   const el = h("div.of-bottom.collapsed", resize, h("div.of-bottom__head", tabs, actions), body);
 
-  const count = (kind) => (kind === "problems" ? ws.problemCount() : ws.consoleLines.filter((l) => l.level === "error").length);
+  let term = null; // the Terminal tab (created on first use, kept while the workspace lives)
+  const count = (kind) => (kind === "terminal" ? 0 : kind === "problems" ? ws.problemCount() : ws.consoleLines.filter((l) => l.level === "error").length);
 
   function renderTabs() {
     empty(tabs);
-    for (const [id, label] of [["problems", "Problems"], ["console", "Console"]]) {
+    for (const [id, label] of [["problems", t("Problems")], ["console", t("Console")], ["terminal", t("Terminal")]]) {
       const n = count(id);
       const b = h("button.of-bottom__tab", { type: "button", role: "tab", class: state.tab === id ? "active" : "", "aria-selected": String(state.tab === id) }, label, n ? h("span.of-badge", String(n)) : null);
       b.addEventListener("click", () => show(id));
@@ -25,11 +28,13 @@ export function createBottomPanel(ws) {
     }
     empty(actions);
     if (state.tab === "console") actions.append(iconButton({ icon: "trash3", label: "Clear console", onClick: () => ws.clearConsole() }));
+    if (state.tab === "terminal") actions.append(iconButton({ icon: "trash3", label: "Clear terminal", onClick: () => term?.clear() }));
     actions.append(iconButton({ icon: "x-lg", label: "Close panel", onClick: () => toggle(false) }));
   }
 
   function renderBody() {
     empty(body);
+    if (state.tab === "terminal") return showTerminal();
     if (state.tab === "console") {
       if (!ws.consoleLines.length) body.append(h("div.of-empty", "Output of console.log() and runtime errors from the preview appear here."));
       for (const l of ws.consoleLines.slice(-300)) body.append(consoleLine(l));
@@ -46,12 +51,19 @@ export function createBottomPanel(ws) {
       }
     }
   }
+  async function showTerminal() {
+    if (!term) term = (await import("./terminal.js")).createTerminal(ws);
+    if (state.tab !== "terminal") return;
+    body.append(term.el);
+    term.show();
+  }
   function consoleLine(l) {
     return h("div.of-console__line", { class: l.level }, h("sl-icon", { name: LEVEL_ICONS[l.level] || "chevron-right" }), h("pre", l.text), h("time", new Date(l.time).toLocaleTimeString("en-US", { hour12: false })));
   }
 
   function show(tab) {
     state.tab = tab;
+    body.classList.toggle("of-bottom__body--term", tab === "terminal");
     toggle(true);
   }
   function toggle(force) {
@@ -88,7 +100,7 @@ export function createBottomPanel(ws) {
   const refresh = frameScheduler(() => {
     if (!state.open) return;
     renderTabs();
-    renderBody();
+    if (state.tab !== "terminal") renderBody(); // the terminal keeps its own state and scroll position
   });
   ws.on("console", (line) => {
     if (!state.open) return;

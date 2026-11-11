@@ -7,6 +7,7 @@ import { openContextMenu } from "../context-menu/index.js";
 import { platform } from "../../platform/index.js";
 import { fileIcon } from "./util.js";
 import { pickFiles, entriesFromPicked, entriesFromDrop, importInto } from "./import.js";
+import { assetMenuItems } from "./asset-edit.js";
 
 export function createExplorer(ws) {
   const { app, web } = ws;
@@ -172,6 +173,7 @@ export function createExplorer(ws) {
     const file = n.type === "file";
     const items = [];
     if (file) items.push({ label: "Open", icon: "file-earmark-code", run: () => ws.openFile(n.path, { focus: true }) });
+    if (file) items.push(...assetMenuItems(ws, n.path));
     if (file && /\.html?$/i.test(n.path)) items.push({ label: "Preview this page", icon: "eye", run: () => ws.showPage(n.path) }, { label: "Set as home page", icon: "house-door", run: () => web.setEntry(n.path), disabled: n.path === web.entry });
     items.push("-");
     const dir = file ? dirname(n.path) : n.path;
