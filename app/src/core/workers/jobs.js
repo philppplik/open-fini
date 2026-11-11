@@ -61,6 +61,16 @@ const JOBS = {
     const r = extendEdges(asImage(img), inv, width, height);
     return { r, transfer: [r.data.buffer] };
   },
+  /** args: { channels: Float32Array[], rate, opts } → silence, loudness and beats of scene/analysis.js analyzeAudio */
+  async "scene.audio"({ channels, rate, opts }) {
+    const { analyzeAudio } = await import("../../scene/analysis.js");
+    return { r: analyzeAudio(channels, rate, opts) };
+  },
+  /** args: { frames: [{ t, data: RGBA }], opts } → shots of scene/analysis.js analyzeFrames */
+  async "scene.shots"({ frames, opts }) {
+    const { analyzeFrames } = await import("../../scene/analysis.js");
+    return { r: analyzeFrames(frames, opts) };
+  },
   /** args: { files: fflate zip input, level } → zip bytes */
   async "zip.compress"({ files, level = 6 }) {
     const { zipSync } = await import("../../../vendor/fflate/fflate.js");

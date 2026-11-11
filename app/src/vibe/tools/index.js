@@ -44,13 +44,15 @@ import { terminalTools } from "./terminal.js";
 import { localFileTools } from "./local-files.js";
 import { scriptTools } from "./script.js";
 import { designAssistTools } from "./design-assist.js";
+import { sceneTools } from "./scene.js";
+import { sceneUnderstandTools } from "./scene-understand.js";
 
 /**
  * @param {import("../../core/app.js").App} app
  * @param {object} ctx session context: { images, knowledge, memory, skills, ask, plan, customTools }
  */
 export function createOpenFiniTools(app, ctx = {}) {
-  return withVerifyHints([...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...latexTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...officeSuiteTools(app, ctx), ...officeSheetTools(app, ctx), ...officeSheetDepthTools(app, ctx), ...slidesTools(app, ctx), ...officeBoardTools(app, ctx), ...officeSemanticTools(app, ctx), ...officeDesignTools(app, ctx), ...formatTools(app, ctx), ...exportTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...commentTools(app, ctx), ...vscodeTools(app, ctx), ...routingTools(app, ctx), ...webAccessTools(app, ctx), ...colorTools(app, ctx), ...pixelEditTools(app, ctx), ...knowledgeTools(app, ctx), ...utilityTools(app, ctx), ...terminalTools(app, ctx), ...localFileTools(app, ctx), ...scriptTools(app, ctx), ...designAssistTools(app, ctx)]);
+  return withVerifyHints([...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...latexTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...officeSuiteTools(app, ctx), ...officeSheetTools(app, ctx), ...officeSheetDepthTools(app, ctx), ...slidesTools(app, ctx), ...officeBoardTools(app, ctx), ...officeSemanticTools(app, ctx), ...officeDesignTools(app, ctx), ...formatTools(app, ctx), ...exportTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...commentTools(app, ctx), ...vscodeTools(app, ctx), ...routingTools(app, ctx), ...webAccessTools(app, ctx), ...colorTools(app, ctx), ...pixelEditTools(app, ctx), ...knowledgeTools(app, ctx), ...utilityTools(app, ctx), ...terminalTools(app, ctx), ...localFileTools(app, ctx), ...scriptTools(app, ctx), ...designAssistTools(app, ctx), ...sceneTools(app, ctx), ...sceneUnderstandTools(app, ctx)]);
 }
 
 /** Tools grouped for the UI. */
@@ -68,6 +70,9 @@ export const TOOL_GROUPS = {
   "Office suite": ["office_formats", "office_list_documents", "office_describe", "office_new", "office_tables_to_sheet", "office_sheet_to_document", "office_document_to_slides", "office_board_to_document", "office_screenshot"],
   Presentation: ["slides_describe", "slides_add_slide", "slides_delete", "slides_set_text", "slides_add_shape", "slides_add_image", "slides_apply_layout", "slides_apply_theme", "slides_reorder", "slides_set_notes", "slides_set_transition", "slides_format_text", "slides_set_footer", "slides_edit_master", "slides_edit_layout", "slides_apply_design", "slides_insert_chart", "slides_refresh_charts"],
   Spreadsheets: ["sheet_describe", "sheet_read_range", "sheet_write_range", "sheet_set_formula", "sheet_format", "sheet_add_sheet", "sheet_add_chart", "sheet_add_rule", "sheet_format_table", "sheet_define_name", "sheet_set_validation", "sheet_paste_special", "sheet_group", "sheet_page_setup", "sheet_pivot", "sheet_add_sparkline", "sheet_chart_data"],
+  Scene: ["scene_describe", "scene_catalog", "scene_new", "scene_set_format", "scene_track", "scene_import_media", "scene_place_media", "scene_add_layer", "scene_move_clips", "scene_trim_clip", "scene_split", "scene_delete_clips", "scene_set_speed", "scene_update_clips", "scene_transition", "scene_keyframes", "scene_effect", "scene_audio", "scene_markers", "scene_cut_ranges", "scene_captions", "scene_captions_export", "scene_render_frame", "scene_show", "scene_export"],
+  "Scene understanding": ["scene_transcribe", "scene_set_transcript", "scene_transcript", "scene_detect_shots", "scene_analyze_audio", "scene_sample_frames", "scene_index_note", "scene_search"],
+  "Scene automation": ["scene_cut_transcript", "scene_remove_silences", "scene_remove_fillers", "scene_auto_captions", "scene_highlight_reel", "scene_reframe", "scene_animate_clip", "scene_title", "scene_lower_third", "scene_slideshow", "scene_beat_cuts"],
   Whiteboard: ["board_describe", "board_add_shape", "board_add_sticky", "board_add_text", "board_add_connector", "board_update", "board_delete", "board_arrange", "board_page", "board_import", "board_export", "board_add_table", "board_edit_table", "board_add_chart", "board_add_plot", "board_add_math", "board_add_subboard", "board_add_diagram", "board_draw"],
   "Imported documents": ["get_import_report", "list_pdf_pages", "describe_document_pages", "extract_pdf_text"],
   "System and files": ["get_platform_info", "list_recent_files"],
@@ -110,6 +115,9 @@ export const VERIFY_WITH = {
   "Office suite": "office_describe",
   Presentation: "slides_describe",
   Spreadsheets: "sheet_read_range",
+  Scene: "scene_describe or scene_render_frame",
+  "Scene understanding": "scene_describe or scene_search",
+  "Scene automation": "scene_describe and scene_render_frame",
   Whiteboard: "board_describe",
   "Imported documents": "get_import_report",
   "System and files": "get_platform_info",

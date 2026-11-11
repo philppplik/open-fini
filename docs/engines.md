@@ -8,7 +8,7 @@ a new engine needs no change to the core.
 
 | Kind | Method | Used by | Built in |
 | --- | --- | --- | --- |
-| `stt` | `listen(opts)` (streaming) or `transcribe(pcm, opts)` (batch) | Microphone and voice chat with *Speech input ▸ Local model* (first engine with `local: true`) | `system` (browser or OS recognizer; online in Chromium-based browsers, so `local: false`) |
+| `stt` | `listen(opts)` (streaming) or `transcribe(pcm, opts)` (batch) | Microphone and voice chat with *Speech input ▸ Local model* (first engine with `local: true`); Scene Studio transcription `scene_transcribe` (batch engines only, local first) | `system` (browser or OS recognizer; online in Chromium-based browsers, so `local: false`) |
 | `tts` | `speak(text, opts)`, `stop()` | Registry only for now; spoken replies still use the system voices directly | `system` |
 | `search` | `search(query, { limit, signal })` → `[{ title, url, snippet }]` | *Web access ▸ Search backend* lists registered engines next to the built-in backends | none (the built-in backends stay in `web-access.js`) |
 | `rag-loader` | `load(bytes, { path, signal, ocr })` → `{ text, pages?, skipped? }` | `rag_add_source` (project and folder), *Knowledge ▸ Add files* | `pdf` (text layer, lazily loaded pdf.js) |
@@ -37,6 +37,13 @@ Batch `stt` engines get one utterance: OpenFini records from the microphone (`vi
 to 16 kHz, ends after 1.2 s of silence, 30 s at most, 8 s without speech ends with no text) and passes the samples and
 the model chosen in *Settings ▸ Artificial intelligence ▸ Voice* (downloaded and SHA-256 checked there). Streaming
 `listen` engines are possible only in the app itself, not from an extension.
+
+The Scene Studio transcribes files with the same batch engines (`scene/ai-runtime.js ▸ transcribeMedia`): the
+sound of a media item is cut into chunks of at most 28 s at pauses, and each chunk is one `transcribe` call (16 kHz
+mono). An engine may return `{ words: [{ t0, t1, w }] }` or `{ segments: [{ t0, t1, text }] }` with times in seconds
+from the chunk start; with only `{ text }` the word times are estimated and the transcript is marked as such. An
+engine with `local: false` is used only after the user approves sending the sound. Details:
+[scene-studio.md](scene-studio.md#understanding-footage).
 
 ## MCP adapters
 

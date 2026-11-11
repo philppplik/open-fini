@@ -1198,7 +1198,8 @@ export function templateScene(id = "blank", { title = "" } = {}) {
 export function moveClips(m, ids, dt, dTrack = 0) {
   const src = ids.map((id) => m.clips[id]).filter((c) => c && !trackOf(m, c.track)?.locked);
   if (!src.length) return m;
-  const shift = Math.max(snapT(m, dt) - 0, -Math.min(...src.map((c) => c.start)));
+  // on the frame grid; a delta may be negative (snapT clamps at 0, so it is not used here)
+  const shift = Math.max(Math.round(num(dt) * m.fps) / m.fps, -Math.min(...src.map((c) => c.start)));
   const rows = { video: videoTracks(m), audio: audioTracks(m) };
   const rowOf = (c) => rows[trackKindFor(c.type)].findIndex((t) => t.id === c.track);
   let dr = Math.round(dTrack);

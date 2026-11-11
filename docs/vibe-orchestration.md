@@ -2,7 +2,7 @@
 
 ## plan_work
 For jobs that span several files, documents or studios, Vibe calls `plan_work { goal, tasks[] }`. Each task has
-`id`, `title`, `studio` (vector, pixel, layout, code, document, sheet, slides, board, vibe), `targets` (files or
+`id`, `title`, `studio` (vector, pixel, layout, code, document, sheet, slides, board, scene, vibe), `targets` (files or
 document names), `dependsOn`, `acceptance` and `instructions`. The tasks appear as a live checklist in the chat.
 
 - Scheduling: a task starts when its dependencies are done; tasks sharing a target are serialized; failed or

@@ -194,7 +194,7 @@ Stored as the document's project of kind `"scene"` ([file-format.md](file-format
   range:   { in, out } | null,
   comps:   { <id>: { id, name, width, height, tracks, clips, markers } },    // clips may use other comps
   media:   { <id>: { id, kind, mime, name, duration, w, h, hasAudio, bytes } },
-  analysis: { <mediaId>: { transcript, shots, silence, beats, loudness } } }
+  analysis: { <mediaId>: { transcript, shots, silence, beats, loudness, notes } } }   // source seconds; see Assistant
 
 Clip { id, track, type: video | audio | image | text | shape | solid | adjustment | comp, name,
        start, dur,                 // seconds on the timeline, on the frame grid
@@ -290,6 +290,55 @@ model ──frameState(model, t)──▶ layers ──compositor.render(ctx, �
 - `scene/view.js` owns the frame loop: one `requestAnimationFrame` loop while playing, one frame per change
   otherwise. While playing, the audio context's time is the clock.
 
+## Assistant
+
+The Vibe assistant edits scenes natively: 44 tools in three groups, each write call one undo step named
+"Vibe: …", every result readable data (ids, times, one line per clip). In the Scene Studio the compact tool list shows
+these groups; the studio guide `studio-guide-scene` explains the model to the assistant and to `plan_work` sub-agents
+(studio `scene`).
+
+| Group | Tools | What they do |
+| --- | --- | --- |
+| Scene | `scene_describe`, `scene_catalog`, `scene_new`, `scene_set_format`, `scene_track`, `scene_import_media`, `scene_place_media`, `scene_add_layer`, `scene_move_clips`, `scene_trim_clip`, `scene_split`, `scene_delete_clips`, `scene_set_speed`, `scene_update_clips`, `scene_transition`, `scene_keyframes`, `scene_effect`, `scene_audio`, `scene_markers`, `scene_cut_ranges`, `scene_captions`, `scene_captions_export`, `scene_render_frame`, `scene_show`, `scene_export` | Inspect (compact summary, full detail of chosen clips), edit tracks and clips, keyframes with easing, effects, masks and blend modes, sound (dB, pan, fades, EQ, loudness normalization), markers, captions (create, import SRT/VTT, edit, style, export), look at frames (one frame or a numbered contact sheet), export (asks first) |
+| Scene understanding | `scene_transcribe`, `scene_set_transcript`, `scene_transcript`, `scene_detect_shots`, `scene_analyze_audio`, `scene_sample_frames`, `scene_index_note`, `scene_search` | Transcript with word times, shots, silences, loudness, tempo and beats, sampled frames for the vision model, the searchable index |
+| Scene automation | `scene_cut_transcript`, `scene_remove_silences`, `scene_remove_fillers`, `scene_auto_captions`, `scene_highlight_reel`, `scene_reframe`, `scene_animate_clip`, `scene_title`, `scene_lower_third`, `scene_slideshow`, `scene_beat_cuts` | Edits driven by the analysis and motion presets; everything they create is ordinary clips and keyframes the user can edit |
+
+Skills: `rough-cut-from-transcript`, `video-captions`, `social-cutdowns`, `title-animation`, `lower-third`,
+`photo-slideshow`, `beat-synced-edit`, `video-summary`. Right-click on the viewer or the timeline ▸ **AI**: describe
+this moment, animate the selection, add captions, remove silences and filler words, make a vertical version,
+summarize the video (and a custom instruction).
+
+### Understanding footage
+
+Analysis results live in `model.analysis[<mediaId>]` in **source seconds** of that media item, so they stay valid
+after any edit: the tools map them through the clips that use the item (`ai-auto.js ▸ timelineWords`,
+`sourceRangesToTimeline`).
+
+| Analysis | How | Stored as |
+| --- | --- | --- |
+| Transcript | The sound is decoded, mixed to 16 kHz mono, cut into chunks of at most 28 s at pauses and sent to a **batch** speech engine (`stt` kind with `transcribe`, [engines.md](engines.md)); a local engine is preferred, an online one asks first. Word times come from the engine; a text-only result gets estimated word times (flagged `estimated`). Without a batch engine the tool says so: the built-in system recognizer only listens to the microphone. `scene_set_transcript` stores a transcript or subtitle file the user has. | `transcript { engine, lang, estimated, words [{ t0, t1, w }], segments [{ t0, t1, text }] }` |
+| Shots | Frames sampled at 2 to 4 per second (64 × 36 px, the media element seeks), compared in the worker pool (job `scene.shots`): 70 % RGB histogram chi-square distance, 30 % mean luma difference; a cut where the distance is a local maximum above median + 6 × MAD (at least 0.18) and at least 0.6 s after the previous one | `shots [{ t0, t1, score }]` |
+| Sound | Worker job `scene.audio` on 16 kHz channels: RMS levels per 20 ms, silences below an automatic threshold (30 % from the 15th to the 85th percentile, -60 to -20 dBFS); integrated loudness per ITU-R BS.1770 (K-weighting, 400 ms blocks, absolute and relative gates) and sample peak; spectral-flux onsets, tempo from the onset autocorrelation with a prior around 120 BPM, beats by dynamic programming | `silence [[t0, t1]]`, `loudness { integrated, peak, threshold }`, `beats { bpm, confidence, times, onsets }` |
+| Frames | `scene_sample_frames` hands the vision model a numbered contact sheet (source or timeline seconds, evenly spread or one per shot); the model writes what it sees back with `scene_index_note` | `notes [{ t0, t1, text }]` |
+
+**Search.** `scene_search` ranks transcript segments, visual notes, markers and captions (folded tokens, stop words
+for English and German, prefix matches, a bonus for the whole phrase) and returns source and timeline ranges for each
+hit; a hit that was cut out of the edit has an empty timeline list.
+
+**Timeline silences.** `scene_remove_silences` cuts only where every audible clip is silent: each audio clip with a
+silence analysis contributes its sound ranges, a clip without one counts as sound (unless `ignoreUnanalysed`, for
+music beds), muted clips and tracks are ignored.
+
+### Engineering
+
+`scene/ai-ops.js` (editing), `scene/ai-auto.js` (transcript, silences, fillers, captions, index) and
+`scene/motion.js` (presets, slideshow, beat cuts, reframe, highlight reel) are pure: `(model, args) → { model,
+result }`, unit-tested without a browser. `scene/analysis.js` holds the algorithms (also pure; the worker jobs call
+it). `scene/ai-runtime.js` is the browser side: the active scene and its media store (the workspace's, or its own
+when the scene is not mounted), exact frames and contact sheets, decoding, frame sampling, the speech engines, import
+and export. The tool definitions (`vibe/tools/scene.js`, `vibe/tools/scene-understand.js`) load with Vibe and import
+the logic on the first call.
+
 ## Files
 
 | File | Role |
@@ -304,7 +353,10 @@ model ──frameState(model, t)──▶ layers ──compositor.render(ctx, �
 | `scene/media.js`, `scene/audio.js`, `scene/frames.js` | Media store, audio engine, exact frames |
 | `scene/export.js`, `scene/mux.js`, `scene/gif.js`, `scene/export-dialog.js` | Export, containers, GIF, dialog |
 | `scene/captions.js` | SRT / VTT, captions |
-| `tests/scene/` | Model, keyframes, evaluation, effect math, containers, GIF, WAV, captions; `curves.test.js`: Bezier evaluation, tangent serialization and migration, graph operations, nesting, cycles, time remap, composition sound |
+| `scene/analysis.js`, `scene/ai-ops.js`, `scene/ai-auto.js`, `scene/motion.js` | Assistant: analysis algorithms, editing operations, transcript-driven edits, motion presets (pure) |
+| `scene/ai-runtime.js`, `scene/ai-menu.js` | Assistant: browser side of the tools; right-click ▸ AI |
+| `vibe/tools/scene.js`, `vibe/tools/scene-understand.js`, `ai/skills-scene.js` | Tool definitions (three groups) and skills |
+| `tests/scene/` | Model, keyframes, evaluation, effect math, containers, GIF, WAV, captions, analysis, every assistant tool's logic; `curves.test.js`: Bezier evaluation, tangent serialization and migration, graph operations, nesting, cycles, time remap, composition sound |
 
 ## Limits
 
@@ -321,3 +373,10 @@ model ──frameState(model, t)──▶ layers ──compositor.render(ctx, �
 - Scenes are shared in collaboration as a copy, not edited live.
 - Not verified on real hardware: Safari, Firefox, the desktop app on all three systems, long sequences (above ten
   minutes), 4K export.
+- Assistant: transcription needs a batch speech engine (an extension such as a Whisper WebAssembly build); OpenFini
+  ships none, and the system recognizer cannot read files. Shot detection seeks the source (about one to two minutes
+  for ten minutes of video) and finds hard cuts, not slow dissolves. Beat tracking assumes a steady tempo. Reframing
+  uses a focus point or keyframed focus track the assistant chooses from sampled frames; there is no automatic face
+  or object tracking. The assistant tools are unit-tested on the model; a browser smoke test covered import, placing,
+  titles, a contact sheet and the sound analysis job in a worker. Not verified on real footage: shot detection on
+  long videos, transcription with an installed engine, export through the tool, URL import, the right-click menu.

@@ -383,6 +383,21 @@ edit is one undo step.
 | `office_insert_toc` | Generated table of contents after the title |
 | `office_track_changes` | Track changes on/off, list, accept or reject (all, by id, author or kind: insertions, deletions, format and paragraph changes, splits, joins). While tracking is on, every Vibe edit of a text document is tracked, authored *Vibe (AI)* |
 
+### Scene Studio tools
+
+Three groups (44 tools) edit and understand video in the Scene Studio; each write call is one undo step. Details,
+algorithms and limits: [scene-studio.md](scene-studio.md#assistant).
+
+| Group | Tools |
+| --- | --- |
+| Scene | `scene_describe`, `scene_catalog`, `scene_new`, `scene_set_format`, `scene_track`, `scene_import_media`, `scene_place_media`, `scene_add_layer`, `scene_move_clips`, `scene_trim_clip`, `scene_split`, `scene_delete_clips`, `scene_set_speed`, `scene_update_clips`, `scene_transition`, `scene_keyframes`, `scene_effect`, `scene_audio`, `scene_markers`, `scene_cut_ranges`, `scene_captions`, `scene_captions_export`, `scene_render_frame`, `scene_show`, `scene_export` |
+| Scene understanding | `scene_transcribe` (batch speech engine of the engine registry; asks before an online one), `scene_set_transcript`, `scene_transcript`, `scene_detect_shots`, `scene_analyze_audio`, `scene_sample_frames`, `scene_index_note`, `scene_search` |
+| Scene automation | `scene_cut_transcript`, `scene_remove_silences`, `scene_remove_fillers`, `scene_auto_captions`, `scene_highlight_reel`, `scene_reframe`, `scene_animate_clip`, `scene_title`, `scene_lower_third`, `scene_slideshow`, `scene_beat_cuts` |
+
+`scene_import_media` from a URL needs web access and asks per domain; `scene_export` always asks and opens a save
+dialog. Skills: `rough-cut-from-transcript`, `video-captions`, `social-cutdowns`, `title-animation`,
+`lower-third`, `photo-slideshow`, `beat-synced-edit`, `video-summary`.
+
 ## Permissions
 
 | Mode | Behavior |
@@ -526,6 +541,8 @@ With AI enabled, context menus get an **AI** submenu:
 - **Office**: the word processor (improve writing, fix grammar, summarize, translate, change tone), the spreadsheet
   (explain, clean up data, add a chart for the selected range), the presentation (explain, improve this slide) and the
   whiteboard (explain, tidy up).
+- **Scene Studio** (viewer and timeline; playhead and selected clips): describe this moment, animate the selection,
+  add captions, remove silences and filler words, make a vertical version, summarize the video.
 - **Custom instruction…** in every AI submenu: a prompt field, the recent custom instructions (kept on this device,
   12 at most) and what to attach: the selection, the whole document, a screenshot of the selection, or "only answer".
 

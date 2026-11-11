@@ -17,7 +17,7 @@
 //     at the end (unless review:false) and may fix what fails.
 //   - Agent ids are recorded per task (`agentIds`), and child tool calls carry `taskId` so history tags group edits.
 
-export const STUDIOS = ["vector", "pixel", "layout", "code", "document", "sheet", "slides", "board", "vibe"];
+export const STUDIOS = ["vector", "pixel", "layout", "code", "document", "sheet", "slides", "board", "scene", "vibe"];
 /** Tool sets (vibe/agents.js TOOLSETS keys or tool names) granted per studio. */
 export const STUDIO_TOOLS = {
   vector: ["design"],
@@ -28,6 +28,7 @@ export const STUDIO_TOOLS = {
   sheet: ["sheet"],
   slides: ["slides"],
   board: ["board"],
+  scene: ["scene"],
   vibe: ["knowledge"],
 };
 const MAX_TASKS = 12;
