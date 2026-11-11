@@ -6,11 +6,11 @@
 //   relayInfo(relayUrl) → Promise<info | null>          GET http(s)://<relay>/info (null when unreachable or blocked)
 //   diagnose(relayUrl, { app }) → Promise<{ ok, steps: [{ ok, text, fix? }] }>
 //   isLoopbackRelay(url)   inviteAddresses(info, relayUrl) → [{ url, label }]   joinLink(info, invite) → string | null
-//   qrSvg(text) → SVGElement      relayHelpDialog(app)
+//   qrSvg(text) → SVGElement      relayHelpDialog(app)      saveRelayProgram(app) → Promise<boolean>
 // Browser limits (stated in the UI): a page cannot scan the network for relays, cannot read a WebSocket's HTTP status,
 // and an https page cannot open ws:// to another machine; the diagnosis infers causes from what it can observe.
 import { h } from "../../core/util.js";
-import { t } from "../../i18n/index.js";
+import { t, N_ } from "../../i18n/index.js";
 import { encodeQR, qrToSvgPath } from "../../collab/qr.js";
 import { openDialog } from "../dialogs.js";
 
@@ -106,7 +106,7 @@ export async function diagnose(relayUrl, { app } = {}) {
     add(true, t("The relay answers (OpenFini relay {version}).", { version: info.version }));
     if (info.originAllowed === false) add(false, t("The relay does not accept pages from this address ({origin}).", { origin: location.origin }), t("Start the relay with --origin {origin}, or open the app the relay serves.", { origin: location.origin }));
   } else {
-    add(false, t("The relay's information page could not be read."), t("Is the relay running (npm run relay -- --lan)? Is the address and port right? On the relay computer, allow the port in the firewall for private networks. Desktop app: only localhost and https relays can be checked this way; the connection test below still works."));
+    add(false, t("The relay's information page could not be read."), t("Is the relay running (desktop app: Start a room ▸ Your network; otherwise node openfini-relay.mjs --lan)? Is the address and port right? On the relay computer, allow the port in the firewall for private networks. Desktop app: only localhost and https relays can be checked this way; the connection test below still works."));
   }
   // try a real WebSocket handshake (a browser does not reveal the HTTP status; a quick close usually means a refused origin)
   const ws = await new Promise((resolve) => {
@@ -158,14 +158,45 @@ export function qrSvg(text, label) {
   return svg;
 }
 
+// The one-file relay of the app build (scripts/relay-bundle.mjs → dist/tools/), saved by the help dialog.
+const RELAY_FILE = "openfini-relay.mjs";
+const RELAY_RELEASES = "https://github.com/philppplik/open-fini/releases/latest";
+
 const COMMANDS = [
-  { title: "This network (LAN): phones, tablets and laptops", cmd: "npm run relay -- --lan", note: "Binds every interface, serves the app, answers ws:// and wss:// on port 8787 and prints the addresses and a QR code. Other devices open https://<this computer's IP>:8787/ and accept the certificate warning once." },
-  { title: "Without the OpenFini sources (Node 20+ only)", cmd: "node relay.mjs --lan", note: "Download scripts/relay.mjs (and scripts/relay-tls.mjs for https, next to it) into any folder and run this command in that folder. “npm run relay” only works inside the OpenFini project folder (elsewhere npm reports ENOENT package.json)." },
-  { title: "This computer only", cmd: "npm run relay", note: "ws://127.0.0.1:8787/ for windows on this computer." },
-  { title: "A server on the internet (VPS) behind a TLS reverse proxy", cmd: "node scripts/relay.mjs --port 8787 --origin https://your.app.origin", note: "Keep it on 127.0.0.1 and let Caddy (relay.example.org { reverse_proxy 127.0.0.1:8787 }) or nginx (proxy_pass with Upgrade headers, see docs/collaboration.md) terminate TLS. Members use wss://relay.example.org/." },
+  { title: "This network (LAN): phones, tablets and laptops", cmd: `node ${RELAY_FILE} --lan`, note: N_("Answers ws:// and wss:// on port 8787 and prints the addresses and a QR code. Other devices open OpenFini, join with the invite code and accept the certificate warning of https://<this computer's IP>:8787/ once.") },
+  { title: "This computer only", cmd: `node ${RELAY_FILE}`, note: N_("ws://127.0.0.1:8787/ for windows on this computer.") },
+  { title: "A server on the internet (VPS) behind a TLS reverse proxy", cmd: `node ${RELAY_FILE} --port 8787 --origin https://your.app.origin`, note: N_("Keep it on 127.0.0.1 and let Caddy (reverse_proxy 127.0.0.1:8787) or nginx (proxy_pass with Upgrade headers, see docs/collaboration.md) terminate TLS. Members use wss://relay.example.org/.") },
+  { title: "Inside the OpenFini source folder (developers)", cmd: "npm run relay -- --lan", note: N_("Also serves the app to other devices. Only works in the folder that holds OpenFini's package.json: anywhere else npm stops with ENOENT … package.json. Use the one-file relay above instead.") },
 ];
 
-/** "How to start a relay": copyable commands for LAN, a single machine and a server. */
+/** The one-file relay of this app build as bytes, or null (source checkouts and dev servers do not have it). */
+export async function fetchRelayProgram() {
+  try {
+    const res = await fetch(new URL(`tools/${RELAY_FILE}`, document.baseURI));
+    return res.ok ? new Uint8Array(await res.arrayBuffer()) : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Saves the one-file relay with the platform's save dialog. Returns true when saved. `pending` lets the help dialog
+ * fetch the file when it opens, so the click still counts as the user gesture the browser's save picker needs.
+ */
+export async function saveRelayProgram(app, pending = fetchRelayProgram()) {
+  const bytes = await pending;
+  if (!bytes?.length || !new TextDecoder().decode(bytes.subarray(0, 32)).startsWith("#!/usr/bin/env node")) {
+    app.toast(t("This copy of OpenFini does not include the relay program (built apps do). Download {file} from the OpenFini releases page: {url}", { file: RELAY_FILE, url: RELAY_RELEASES }), "warning", 12000);
+    return false;
+  }
+  const { platform } = await import("../../platform/index.js");
+  const res = await platform.saveFile({ suggestedName: RELAY_FILE, bytes, mime: "text/javascript", filters: [{ name: "JavaScript module", extensions: ["mjs"] }] });
+  if (!res || res.canceled || res.cancelled) return false;
+  app.toast(t("Saved {file}. Open a terminal in that folder and run: node {file} --lan", { file: RELAY_FILE }), "success", 9000);
+  return true;
+}
+
+/** "How to start a relay": the one-file relay (save it, run one command) and copyable commands for LAN, one machine and a server. */
 export function relayHelpDialog(app) {
   const copyBtn = (text) => {
     const b = h("button.of-collab-btn", { type: "button" }, h("sl-icon", { name: "copy", "aria-hidden": "true" }), h("span", t("Copy")));
@@ -179,11 +210,22 @@ export function relayHelpDialog(app) {
     });
     return b;
   };
+  const save = h("button.of-collab-btn", { type: "button" }, h("sl-icon", { name: "download", "aria-hidden": "true" }), h("span", t("Save the relay program")));
+  const pending = fetchRelayProgram();
+  save.addEventListener("click", () => saveRelayProgram(app, pending));
   const body = h(
     "div.of-relay-help",
     h("p", t("A relay is a tiny program that forwards the room's encrypted messages. It never sees content.")),
     h("p.of-collab-note", h("sl-icon", { name: "info-circle", "aria-hidden": "true" }), t("Easiest: in the OpenFini desktop app choose Start a room ▸ Your network: start a relay on this computer. No terminal or Node.js needed.")),
-    h("p", t("The commands below run the relay with Node.js 20 or newer, for example on a server or so that browsers on phones and tablets can join (they need https).")),
+    h(
+      "section.of-collab-card",
+      h("h3", t("Without the desktop app: the one-file relay")),
+      h("ol",
+        h("li", t("Install Node.js 20 or newer from nodejs.org. Nothing else: no npm packages, no OpenFini sources.")),
+        h("li", t("Save the relay program ({file}) into any folder.", { file: RELAY_FILE }), " ", save),
+        h("li", t("Open a terminal in that folder and run the command for your case below. Keep the window open while you work together."))),
+      h("p.of-collab-hint", t("“npm run relay” only works inside the OpenFini source folder; anywhere else npm reports ENOENT … package.json. The one-file relay needs no npm at all.")),
+    ),
     ...COMMANDS.map((c) => h("section.of-collab-card", h("h3", t(c.title)), h("div.of-relay-help__cmd", h("code", c.cmd), copyBtn(c.cmd)), h("p.of-collab-hint", t(c.note)))),
     h("p.of-collab-hint", t("Browsers cannot search the network for relays. Share the address the relay prints, a join link or its QR code instead.")),
   );

@@ -56,7 +56,8 @@ Release
       A failed matrix job can be re-run on its own; uploads replace earlier files of the same name.
 - [ ] Open the **draft** release. Expect these assets: `OpenFini_<v>_x64-setup.exe`, `.msi` (stable
       releases only), `OpenFini_<v>_arm64-setup.exe`, two `.dmg`, three Linux packages for each of
-      x64 and ARM64, `OpenFini-<v>-pwa.zip` and `SHA256SUMS.txt`.
+      x64 and ARM64, `OpenFini-<v>-pwa.zip`, `openfini-relay.mjs` (the one-file collaboration relay) and
+      `SHA256SUMS.txt`.
 - [ ] Run the branded Windows installer once (wizard pages render with the sidebar and header, the
       "Windows integration" page works, finish-page checkboxes, uninstall with and without "Delete the
       application data") and open the macOS DMG (background, icon positions). See [installer.md](installer.md).

@@ -309,6 +309,9 @@ jobs:
           zip_name="OpenFini-${VERSION}-pwa.zip"
           (cd dist && zip -qr -X "../$zip_name" .)
           bash .github/scripts/upload-release-asset.sh "$RELEASE_ID" "$zip_name"
+          # the one-file collaboration relay (Node.js 20+, no install), for people without the desktop app
+          cp dist/tools/openfini-relay.mjs openfini-relay.mjs
+          bash .github/scripts/upload-release-asset.sh "$RELEASE_ID" openfini-relay.mjs
 
   checksums:
     name: Checksums and provenance

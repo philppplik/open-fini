@@ -8,7 +8,7 @@ You do not need anything on this page for a room in your own network: in the des
 
 ## Requirements
 
-Node.js 20 or newer. Inside the OpenFini repository use `npm run relay`. Without the repository, download `scripts/relay.mjs` (one file, no dependencies) into any folder and run `node relay.mjs --lan` in that folder; add `scripts/relay-tls.mjs` next to it for https/wss. Running `npm run relay` outside the project folder fails with `ENOENT … package.json`.
+Node.js 20 or newer, nothing else: no npm and no package install. Get the one-file relay with *Collaborate ▸ How to start a relay ▸ Save the relay program* (or `openfini-relay.mjs` from the release assets), then run `node openfini-relay.mjs --lan` in the folder where you saved it (https/wss and a QR code included). Inside the OpenFini repository `npm run relay` works too; running it anywhere else fails with `ENOENT … package.json`.
 
 ## Run it
 

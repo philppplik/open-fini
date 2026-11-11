@@ -46,7 +46,7 @@ export const WHATS_NEW = [
     version: "0.8.0",
     title: "Edit together, VS Code extensions, fixes",
     items: [
-      { icon: "share", title: "Edit together (beta)", text: "Share an open document with a room by right-click and edit it live with others. Run npm run relay -- --lan to reach other devices on your network." },
+      { icon: "share", title: "Edit together (beta)", text: "Share an open document with a room by right-click and edit it live with others. To reach other devices on your network, start a relay in the desktop app or with the one-file relay (Collaboration ▸ How to start a relay)." },
       { icon: "puzzle", title: "VS Code extensions", text: "Install themes, snippets and web extensions from Open VSX or a .vsix file. A compatibility badge shows what OpenFini can run." },
       { icon: "file-earmark", title: "Fixed: opening .ofini files", text: "Documents saved by 0.7.0 could not be opened. They open again." },
       { icon: "layout-split", title: "Selection pill and cleaner menus", text: "A pill at the bottom shows the active selection with quick actions. Submenus work in the glass styles, and the system right-click menu no longer appears inside the app." },

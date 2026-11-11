@@ -2,8 +2,12 @@
 // OpenFini collaboration relay: a minimal, dependency-free WebSocket server (RFC 6455) that forwards encrypted frames
 // between the members of a room. It never sees plaintext: clients encrypt and sign everything (app/src/collab/crypto.js).
 //
-//   node relay.mjs --lan                            standalone: this one file in any folder, no npm, no dependencies
-//                                                   (`npm run relay` only works inside the OpenFini project folder)
+//   node openfini-relay.mjs --lan                   standalone one-file build (dist/tools/openfini-relay.mjs, a release
+//                                                   asset, or "Save the relay program" in the app): any folder, no npm,
+//                                                   no install; QR code and https included
+//   node relay.mjs --lan                            this file alone in any folder works too (no QR code; https only
+//                                                   with relay-tls.mjs next to it). `npm run relay` only works inside
+//                                                   the OpenFini project folder (elsewhere npm reports ENOENT package.json)
 //   npm run relay                                   127.0.0.1:8787 (this device only)
 //   npm run relay -- --lan                          the whole local network: binds 0.0.0.0, serves the app itself,
 //                                                   answers http/ws AND https/wss (self-signed) on one port, prints the
@@ -41,11 +45,13 @@ const optional = async (rel) => {
     return null;
   }
 };
-const qrMod = await optional("../app/src/collab/qr.js");
-const tlsMod = await optional("./relay-tls.mjs");
+// The one-file build (scripts/relay-bundle.mjs) puts both extras and the version into this global before it runs us.
+const bundled = globalThis.__OPENFINI_RELAY__ || null;
+const qrMod = bundled?.qr || (await optional("../app/src/collab/qr.js"));
+const tlsMod = bundled?.tls || (await optional("./relay-tls.mjs"));
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const VERSION = (() => {
+const VERSION = bundled?.version || (() => {
   try {
     return JSON.parse(readFileSync(join(REPO, "package.json"), "utf8")).version || "?";
   } catch {
@@ -594,7 +600,7 @@ export async function runCli(opts, out = console) {
   if (opts.lan && opts.serveApp === true && !appDir()) {
     // standalone relay.mjs: there is no app next to it to serve; relay only
     start.serveApp = false;
-    out.log("Note: no OpenFini app found next to relay.mjs, so it only relays (open OpenFini on the other devices yourself).");
+    out.log("Note: no OpenFini app found next to the relay, so it only relays (open OpenFini on the other devices yourself: the desktop app, or the web app in a browser).");
   }
   if (opts.lan && !opts.noTls && !opts.tlsCert && !tlsMod) out.log("Note: relay-tls.mjs is not next to relay.mjs, so there is no https/wss. The desktop app works; browsers on other devices need https (put relay-tls.mjs next to relay.mjs).");
   if (opts.lan && !opts.noTls && !opts.tlsCert && tlsMod) {
@@ -636,7 +642,19 @@ export async function runCli(opts, out = console) {
   return relay;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] || "").href) {
+/** Whether this module is the program node was started with (compares real paths: macOS temp folders are symlinks). */
+function isMain() {
+  const arg = process.argv[1];
+  if (!arg) return false;
+  if (import.meta.url === pathToFileURL(arg).href) return true;
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(arg);
+  } catch {
+    return false;
+  }
+}
+
+if (isMain()) {
   let opts;
   try {
     opts = parseArgs(process.argv.slice(2));
