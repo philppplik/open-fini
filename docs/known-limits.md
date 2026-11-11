@@ -29,7 +29,7 @@ Legend: **Unverified** = built and unit-tested but never run in the real environ
 
 ## Pixel studio
 
-Missing: content-aware fill, patch tool, object eraser, horizon straighten, before/after compare, fill anti-aliasing, edge extension of rotated crop corners, "Move to position…" context entry.
+Partial: content-aware fill and the object eraser switch from patch synthesis to a smooth (blurry) fill above about 60 000 px, so large content-aware crop corners look soft (use *Extend edges*). The before/after snapshot is taken shortly after a page first shows in the Pixel studio and lives in memory only (not saved, at most 8 megapixels). Straighten Horizon only searches ±20°. Unverified in a real browser: the Patch and Object Eraser interaction, the compare divider and the corner fills (unit-tested engines only).
 
 ## Office suite
 

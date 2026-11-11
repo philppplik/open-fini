@@ -46,4 +46,37 @@ export function registerPixelImageCommands(app) {
   const px = { enabled: (a) => a.activeNode?.type === "pixel" };
   for (const [id, label, name, p] of [["removeBackground", N_("Remove Background"), "remove_background"], ["autoWhiteBalance", N_("Auto White Balance"), "auto_white_balance"], ["autoLevels", N_("Auto Levels"), "auto_levels"], ["autoContrast", N_("Auto Contrast"), "auto_contrast"], ["replaceColor", N_("Replace Foreground Color with Background Color"), "color_replace", (a) => ({ from: a.style?.primary, to: a.style?.secondary })], ["sharpen", N_("Unsharp Mask"), "sharpen"], ["denoise", N_("Reduce Noise"), "denoise"], ["vignette", N_("Vignette"), "vignette"], ["tiltShift", N_("Tilt-Shift Blur"), "tilt_shift"], ["upscale", N_("Upscale 2x"), "upscale", { factor: 2 }]]) def(`photo.${id}`, label, ne("editLayer", name, p || {}), px);
   def("select.subject", "Select Subject", ne("selectSubject"), { enabled: hasDoc });
+
+  // healing (studios/tools/heal-ops.js, lazy; the pixel work runs on the worker pool)
+  const heal = (fn, status, ...args) => async (a) => {
+    a.status(t(status));
+    try {
+      const r = await (await import("../studios/tools/heal-ops.js"))[fn](a, ...args);
+      if (typeof r === "string") a.toast(r, "warning", 6000);
+      else if (r?.applied) a.toast(t("Straightened by {angle}°.", { angle: r.angle.toFixed(1) }), "success", 2500);
+      else if (r?.applied === false) a.toast(t("The image is already level."), "success", 2500);
+    } finally {
+      a.status("");
+    }
+  };
+  def("pixel.contentAwareFill", "Content-Aware Fill", heal("contentAwareFill", N_("Filling the selection…")), { shortcut: "Shift+Backspace", enabled: (a) => hasMask(a) && a.activeNode?.type === "pixel", icon: "magic" });
+  def("doc.straightenHorizon", "Straighten Horizon", heal("straightenHorizon", N_("Looking for the horizon…")), { enabled: hasDoc, icon: "sunset" });
+
+  // before / after (ui/compare.js, lazy): the first look of each page in the Pixel studio is the "before" state
+  let compare = null;
+  const loadCompare = async () => (compare ||= await import("../ui/compare.js"));
+  const firstLook = () => {
+    if (app.studio === "pixel" && app.doc && app.page) loadCompare().then((m) => m.captureFirstLook(app));
+  };
+  for (const ev of ["doc", "page", "studio"]) app.on(ev, firstLook);
+  def("view.compare", "Compare Before / After", async (a) => {
+    const r = (await loadCompare()).toggleCompare(a);
+    if (typeof r === "string") a.toast(r, "warning", 6000);
+  }, { shortcut: "Mod+Alt+Y", enabled: hasDoc, checked: () => !!compare?.isComparing(), icon: "layout-split" });
+  def("view.compareSetBefore", "Set Current State as Before", async (a) => {
+    (await loadCompare()).setBefore(a);
+    a.toast(t("The current state is now the before state."), "success", 2000);
+  }, { enabled: hasDoc });
+
+  def("arrange.moveTo", "Move to Position…", async (a) => (await import("../studios/tools/move-to.js")).moveToDialog(a), { enabled: (a) => a.selection.some((n) => !n.locked) });
 }

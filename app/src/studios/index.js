@@ -39,7 +39,7 @@ const BUILTIN = {
       ["crop", "perspective-crop", "transform-3d"],
       ["brush", "pixel-pencil"],
       ["eraser", "magic-eraser"],
-      ["clone", "heal", "spot-heal", "redeye"],
+      ["clone", "heal", "spot-heal", "patch", "object-eraser", "redeye"],
       ["smudge", "blur", "sharpen"],
       ["dodge", "burn", "sponge"],
       ["fill", "gradient"],

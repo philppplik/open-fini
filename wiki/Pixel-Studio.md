@@ -15,7 +15,7 @@ The Pixel studio is for photo editing and painting: layers and masks, selections
 | Magic eraser | `E` (flyout) | Click to erase similar colors |
 | Brush, Pencil | `B` | `[` and `]` change the size; pressure sensitive; on a mask light colors reveal and dark colors hide |
 | Eraser | `E` | |
-| Clone, Heal, Spot heal, Red eye | `S`, `J`, `R` | `Alt`-click sets the source for clone and heal |
+| Clone, Heal, Spot heal, Patch, Object Eraser, Red eye | `S`, `J`, `R` | `Alt`-click sets the source for clone and heal; Patch: draw around a flaw, drag it to a clean spot; Object Eraser: paint over an object |
 | Smudge, Blur, Sharpen | `O` | |
 | Dodge, Burn, Sponge | `D` | Range: shadows, midtones, highlights |
 | Fill, Gradient | `F`, `G` | Respect the active selection; gradients: linear, radial, angular, reflected, diamond |
@@ -47,7 +47,7 @@ Every adjustment layer has Enabled, Opacity, Hold to compare, a mask button, Res
 
 *Document ▸ Photo Edits* has Remove Background, Auto White Balance, Auto Levels, Auto Contrast, Replace Color, Unsharp Mask,
 Reduce Noise, Vignette, Tilt-Shift Blur and Upscale 2x, and *Select ▸ Select Subject* selects the subject. None of them uses
-image generation; Vibe can call them too (`edit_pixels`, `remove_background`, `select_subject`).
+image generation; Vibe can call them too (`edit_pixels`, `remove_background`, `select_subject`, `content_aware_fill`, `patch_area`, `straighten_horizon`). *Edit ▸ Content-Aware Fill* (`Shift+Backspace`), *Document ▸ Straighten Horizon*, *View ▸ Compare Before / After* (`Mod+Alt+Y`) and *Move to Position…* in the context menu need no AI model either.
 
 ## Histogram, Levels and Curves
 

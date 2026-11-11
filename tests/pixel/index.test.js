@@ -19,7 +19,7 @@ test("index re-exports every module", () => {
     "FILTERS", "applyFilter",
     "Mask", "magicWand", "colorRange", "rectMask", "ellipseMask",
     "floodFill", "fillMask",
-    "makeBrushFalloff", "smudgeDab", "blurDab", "sharpenDab", "dodgeBurnDab", "spongeDab", "cloneDab", "healPatch", "spotHeal", "inpaintMask", "removeRedEye",
+    "makeBrushFalloff", "smudgeDab", "blurDab", "sharpenDab", "dodgeBurnDab", "spongeDab", "cloneDab", "healPatch", "spotHeal", "removeRedEye",
     "Liquify",
     "histogram", "stats", "autoLevels", "autoContrast", "autoColor", "averageColor",
     "DEVELOP", "TONEMAP",

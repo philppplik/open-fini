@@ -23,7 +23,7 @@ export class CropTool extends Tool {
     { key: "customH", label: N_("Custom H"), type: "int", min: 1, max: 99, step: 1, default: 4 },
     { key: "angle", label: N_("Straighten"), type: "angle", min: -45, max: 45, step: 0.1, default: 0 },
     { key: "overlay", label: N_("Overlay"), type: "select", default: "thirds", options: [{ value: "thirds", label: N_("Rule of thirds") }, { value: "grid", label: N_("Grid") }, { value: "golden", label: N_("Golden ratio") }, { value: "diagonal", label: N_("Diagonals") }, { value: "triangle", label: N_("Golden triangle") }, { value: "none", label: N_("None") }] },
-    { key: "corners", label: N_("Empty corners"), type: "select", default: "transparent", options: [{ value: "transparent", label: N_("Transparent") }, { value: "background", label: N_("Background color") }, { value: "fit", label: N_("Shrink to fit") }] },
+    { key: "corners", label: N_("Empty corners"), type: "select", default: "transparent", options: [{ value: "transparent", label: N_("Transparent") }, { value: "background", label: N_("Background color") }, { value: "extend", label: N_("Extend edges") }, { value: "content", label: N_("Content-aware fill") }, { value: "fit", label: N_("Shrink to fit") }] },
     { key: "deletePixels", label: N_("Delete cropped pixels"), type: "bool", default: false },
   ];
   cursor = "crosshair";

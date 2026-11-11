@@ -3,6 +3,9 @@
 // `{ r, transfer? }`: `transfer` lists buffers of `r` that move back to the caller without a copy.
 // Chosen by measurement (docs/performance.md, "Worker pool"): only work that blocks the UI thread for 100 ms or more.
 
+/** A transferred {width, height, data} as an image with a Uint8ClampedArray view (the data may arrive as any byte array). */
+const asImage = (img) => ({ width: img.width, height: img.height, data: img.data instanceof Uint8ClampedArray ? img.data : new Uint8ClampedArray(img.data.buffer, img.data.byteOffset, img.data.length) });
+
 const JOBS = {
   /** args: { img: {width, height, data}, width, height, filter } → resized image */
   async "pixel.resize"({ img, width, height, filter }) {
@@ -32,6 +35,31 @@ const JOBS = {
     const { warpMesh } = await import("../../engine/pixel/transform3d.js");
     const r = warpMesh(img, n, points, { filter });
     return { r, transfer: [r.img.data.buffer] };
+  },
+  /** args: { img, mask: Uint8Array (0..255), opts } → the image with the masked area filled from its surroundings (inpaint.js inpaintMask: Content-Aware Fill, Object Eraser, crop corners) */
+  async "pixel.inpaint"({ img, mask, opts }) {
+    const { inpaintMask } = await import("../../engine/pixel/inpaint.js");
+    const im = asImage(img);
+    inpaintMask(im, { width: im.width, height: im.height, data: mask }, opts || {});
+    return { r: im, transfer: [im.data.buffer] };
+  },
+  /** args: { img, mask, dx, dy, mode } → the image after the Patch tool's transfer (heal.js patchTransfer) */
+  async "pixel.patch"({ img, mask, dx, dy, mode }) {
+    const { patchTransfer } = await import("../../engine/pixel/heal.js");
+    const im = asImage(img);
+    patchTransfer(im, mask, dx, dy, { mode });
+    return { r: im, transfer: [im.data.buffer] };
+  },
+  /** args: { img, opts } → detectHorizon() result or null (Straighten Horizon) */
+  async "pixel.horizon"({ img, opts }) {
+    const { detectHorizon } = await import("../../engine/pixel/heal.js");
+    return { r: detectHorizon(asImage(img), opts) };
+  },
+  /** args: { img, inv, width, height } → edge-extended fill for the empty corners of a rotated crop (heal.js extendEdges) */
+  async "pixel.extend"({ img, inv, width, height }) {
+    const { extendEdges } = await import("../../engine/pixel/heal.js");
+    const r = extendEdges(asImage(img), inv, width, height);
+    return { r, transfer: [r.data.buffer] };
   },
   /** args: { files: fflate zip input, level } → zip bytes */
   async "zip.compress"({ files, level = 6 }) {

@@ -16,7 +16,7 @@ export const MENUS = [
   {
     label: "Edit",
     studios: DESIGN,
-    items: ["edit.undo", "edit.redo", "-", "edit.cut", "edit.copy", "edit.paste", "edit.pasteInPlace", "edit.duplicate", "edit.delete", "-", "edit.selectAll", "edit.deselect", "-", "collab.addCommentHere", "collab.commentMode", "comments.panel", "-", "edit.preferences"],
+    items: ["edit.undo", "edit.redo", "-", "edit.cut", "edit.copy", "edit.paste", "edit.pasteInPlace", "edit.duplicate", "edit.delete", "pixel.contentAwareFill", "-", "edit.selectAll", "edit.deselect", "-", "collab.addCommentHere", "collab.commentMode", "comments.panel", "-", "edit.preferences"],
   },
   {
     label: "Layer",
@@ -27,7 +27,7 @@ export const MENUS = [
     label: "Arrange",
     studios: DESIGN,
     items: [
-      "arrange.front", "arrange.forward", "arrange.backward", "arrange.back", "-", "arrange.group", "arrange.ungroup", "-",
+      "arrange.front", "arrange.forward", "arrange.backward", "arrange.back", "-", "arrange.group", "arrange.ungroup", "-", "arrange.moveTo",
       { label: "Align", items: ["align.left", "align.centerH", "align.right", "-", "align.top", "align.centerV", "align.bottom", "-", "distribute.h", "distribute.v"] },
       { label: "Flip & Rotate", items: ["arrange.flipH", "arrange.flipV", "-", "arrange.rotateCW", "arrange.rotateCCW"] },
     ],
@@ -52,12 +52,12 @@ export const MENUS = [
   {
     label: "Document",
     studios: DESIGN,
-    items: ["doc.crop", "doc.cropToSelection", "doc.cropToContent", "doc.trimTransparent", "doc.trimColor", "doc.revealAll", "-", "doc.resize", "doc.canvasSize", "-", "doc.addPage", "doc.deletePage", "doc.addMaster", "-", "doc.flipH", "doc.flipV", "doc.rotate90", "doc.rotate90ccw", "doc.rotate180", "doc.rotateArbitrary", "-", { label: "Photo Edits", items: ["photo.removeBackground", "photo.autoWhiteBalance", "photo.autoLevels", "photo.autoContrast", "photo.replaceColor", "-", "photo.sharpen", "photo.denoise", "photo.vignette", "photo.tiltShift", "photo.upscale"] }],
+    items: ["doc.crop", "doc.cropToSelection", "doc.cropToContent", "doc.trimTransparent", "doc.trimColor", "doc.revealAll", "-", "doc.resize", "doc.canvasSize", "-", "doc.addPage", "doc.deletePage", "doc.addMaster", "-", "doc.flipH", "doc.flipV", "doc.rotate90", "doc.rotate90ccw", "doc.rotate180", "doc.rotateArbitrary", "doc.straightenHorizon", "-", { label: "Photo Edits", items: ["photo.removeBackground", "photo.autoWhiteBalance", "photo.autoLevels", "photo.autoContrast", "photo.replaceColor", "-", "photo.sharpen", "photo.denoise", "photo.vignette", "photo.tiltShift", "photo.upscale"] }],
   },
   {
     label: "View",
     studios: DESIGN,
-    items: ["view.zoomIn", "view.zoomOut", "view.zoom100", "view.fit", "view.fitAll", "view.fitSelection", "-", "view.rulers", "view.grid", "view.guides", "view.snapping", "view.snapGrid", "view.clipContent", "-", "view.proofColors", "view.gamutWarning", "-", "view.clipShadows", "view.clipHighlights", "-", "view.theme", "view.lowPower", "-", "window.popoutStudio"],
+    items: ["view.zoomIn", "view.zoomOut", "view.zoom100", "view.fit", "view.fitAll", "view.fitSelection", "-", "view.rulers", "view.grid", "view.guides", "view.snapping", "view.snapGrid", "view.clipContent", "-", "view.proofColors", "view.gamutWarning", "-", "view.clipShadows", "view.clipHighlights", "-", "view.compare", "view.compareSetBefore", "-", "view.theme", "view.lowPower", "-", "window.popoutStudio"],
   },
   // ---- Code studio
   {

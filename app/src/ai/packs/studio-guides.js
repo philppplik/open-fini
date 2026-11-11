@@ -39,7 +39,7 @@ export const STUDIO_GUIDES = [
 ## Verify
 describe_page (problems section) after each batch, then one screenshot; screenshot_layers for details. measure_layers for exact gaps, alignment and text contrast. lint_design before you call the design finished; fix_design_issues applies its fixes. Before risky work: checkpoint save, afterwards checkpoint diff or visual_diff, restore_checkpoint to start over. Name every top-level group ("Logo", "Header").`,
 
-  `${fm("pixel", "How to work in the Pixel studio: non-destructive adjustments, selections, native photo edits and how to check them.", "get_document_info, list_layers, list_effects, get_histogram, auto_correct_suggestion, apply_adjustment, select_area, select_subject, edit_pixels, remove_background, crop_image, resize_image, add_pixel_layer, generate_image, edit_image, screenshot", "photo, pixel, image, retouch, brighten, color correct, background removal")}
+  `${fm("pixel", "How to work in the Pixel studio: non-destructive adjustments, selections, native photo edits and how to check them.", "get_document_info, list_layers, list_effects, get_histogram, auto_correct_suggestion, apply_adjustment, select_area, select_subject, edit_pixels, remove_background, content_aware_fill, patch_area, straighten_horizon, crop_image, resize_image, add_pixel_layer, generate_image, edit_image, screenshot", "photo, pixel, image, retouch, brighten, color correct, background removal")}
 # Pixel studio guide
 
 ## Start
@@ -49,6 +49,7 @@ describe_page (problems section) after each batch, then one screenshot; screensh
 ## Tool order
 - Correct: apply_adjustment with the suggested params (kind adjustment, id levels/curves/hsl/exposure); list_effects first for exact parameter shapes.
 - Select: select_area (rect, ellipse, all, clear) or select_subject; pixel tools respect the selection.
+- Remove or repair: content_aware_fill removes an object in the selection or a given rect/ellipse (grow 3-6 hides halos); patch_area replaces an area with texture from dx/dy away; straighten_horizon levels a tilted photo (detectOnly to just measure).
 - Edit: edit_pixels (native, one undo step, limited to the selection), remove_background for plain backgrounds; generate_image / edit_image only with an image model configured (they cost money; say so).
 - Geometry last: crop_image, resize_image, rotate_image, trim_edges (whole document).
 
