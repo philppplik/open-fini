@@ -1,6 +1,7 @@
 // Menubar and context menus, rendered from the command registry with Shoelace menus.
 import { h, prettyShortcut, empty } from "../core/util.js";
 import { OFFICE_MENUS } from "../studios/office.js";
+import { SCENE_MENUS } from "../studios/scene.js";
 import { t } from "../i18n/index.js";
 import { menuVisible } from "./menubar-select.js";
 
@@ -91,6 +92,7 @@ export const MENUS = [
     items: ["vibe.tabCanvas", "vibe.tabActivity", "vibe.tabModels", "vibe.tabTools", "vibe.tabSkills", "vibe.tabKnowledge", "-", "view.theme"],
   },
   ...OFFICE_MENUS,
+  ...SCENE_MENUS,
   { label: "Studio", items: [{ dynamic: "studios" }, "-", "collab.open", "collab.addComment", "collab.saveVersion", "-", "ext.manage", { label: "Extension Commands", dynamic: "extCommands" }] },
   { label: "Help", items: ["help.palette", "help.tour", "help.studioTour", "help.whatsThis", "-", "help.shortcuts", "help.whatsNew", "help.docs", "help.askOpenFini", "help.issues", "help.troubleshoot", "help.security", "-", "help.about"] },
 ];

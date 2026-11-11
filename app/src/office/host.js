@@ -79,7 +79,8 @@ export async function syncOfficeSuite(app, area = lastArea) {
     lastDoc = doc; // another document became active (tab, open, new): leave the launcher
     if (doc?.office) app.officeHome = false;
   }
-  const kind = officeKindOf(doc);
+  let kind = officeKindOf(doc);
+  if (kind === "scene") kind = null; // scene documents belong to the Scene Studio (scene/host.js), not to an Office app
   const my = ++token;
   if (!kind || app.officeHome) {
     app.officeUI?.deactivate?.();

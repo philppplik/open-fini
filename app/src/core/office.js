@@ -6,13 +6,19 @@
 //   document.json → "office"   the model without binary media, plus `kind` when it is not "document" (additive field;
 //                              absent = "document", so every file written before the suite reads unchanged)
 //   office/media/<id>.<ext>          media of a "document" (word processor) model (unchanged path)
-//   office/<kind>/media/<id>.<ext>   media of every other kind ("sheet", "slides", "board" …)
+//   office/<kind>/media/<id>.<ext>   media of every other kind ("sheet", "slides", "board", "scene" …)
 // Every model may carry `media: { <id>: { id, mime, name?, w?, h?, bytes } }`; bytes travel as archive entries.
 // Invariants: `kind` never changes for the life of a project; `set()` is the only way the model changes (callers
 // use commitOffice for undo); models are treated as immutable values (a new object per change).
 import { Emitter } from "./util.js";
 
-const EXT = { "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/svg+xml": "svg", "image/webp": "webp" };
+const EXT = { "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/svg+xml": "svg", "image/webp": "webp", "image/avif": "avif", "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov", "audio/mpeg": "mp3", "audio/wav": "wav", "audio/mp4": "m4a", "audio/ogg": "ogg", "audio/flac": "flac" };
+// Media fields an app may add (the Scene Studio: kind, duration, hasAudio); plain values only, kept as they are.
+const extra = (m) => {
+  const out = {};
+  for (const k of ["kind", "duration", "hasAudio"]) if (m[k] !== undefined && typeof m[k] !== "object") out[k] = m[k];
+  return out;
+};
 const KIND_RE = /^[a-z][a-z0-9-]{1,23}$/;
 
 /** Archive folder of an Office kind's media. */
@@ -39,7 +45,7 @@ export class OfficeProject extends Emitter {
   manifest() {
     const dir = officeMediaDir(this.kind);
     const media = {};
-    for (const [id, m] of Object.entries(this.model.media || {})) media[id] = { id, mime: m.mime, name: m.name || "", ...(m.w ? { w: m.w, h: m.h } : {}), file: `${dir}${id}.${EXT[m.mime] || "bin"}` };
+    for (const [id, m] of Object.entries(this.model.media || {})) media[id] = { id, mime: m.mime, name: m.name || "", ...(m.w ? { w: m.w, h: m.h } : {}), ...extra(m), file: `${dir}${id}.${EXT[m.mime] || "bin"}` };
     const { _raw, ...rest } = this.model;
     return this.kind === "document" ? { ...rest, media } : { ...rest, kind: this.kind, media };
   }
@@ -58,7 +64,7 @@ export class OfficeProject extends Emitter {
     const media = {};
     for (const [id, m] of Object.entries(json?.media || {})) {
       const bytes = typeof m?.file === "string" && m.file.startsWith(dir) && !m.file.includes("..") ? entries[m.file] : null;
-      if (bytes) media[id] = { id, mime: m.mime, name: m.name || "", bytes, ...(m.w ? { w: m.w, h: m.h } : {}) };
+      if (bytes) media[id] = { id, mime: m.mime, name: m.name || "", bytes, ...(m.w ? { w: m.w, h: m.h } : {}), ...extra(m) };
     }
     const { kind: _k, ...model } = json || {};
     // the model is validated by its app (word processor: engine/office/model.js normalizeDoc) when the app loads it

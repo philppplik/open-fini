@@ -112,6 +112,18 @@ export function createShell(app, root) {
   };
   for (const ev of ["studio", "doc", "docs"]) app.on(ev, syncOffice);
 
+  // Scene Studio (video editing and motion design, scene/host.js) is also loaded on first use
+  const sceneArea = h("div.of-scenearea");
+  canvasArea.append(sceneArea);
+  const syncScene = () => {
+    if (app.studio !== "scene" && !app.sceneUI) return;
+    import("../scene/host.js").then((m) => m.syncScene(app, sceneArea)).catch((err) => {
+      console.error(err);
+      app.toast(t("The Scene Studio could not be loaded: {message}", { message: err.message }), "danger", 6000);
+    });
+  };
+  for (const ev of ["studio", "doc", "docs"]) app.on(ev, syncScene);
+
   let codeModule = null;
   let mountedCode = null;
   async function syncCode() {
@@ -164,7 +176,7 @@ export function createShell(app, root) {
     undo.disabled = !app.isEnabled("edit.undo");
     redo.disabled = !app.isEnabled("edit.redo");
     exportBtn.disabled = !app.isEnabled("file.export");
-    welcome.el.classList.toggle("hidden", !!app.doc || app.studio === "vibe");
+    welcome.el.classList.toggle("hidden", !!app.doc || app.studio === "vibe" || app.studio === "scene");
     layout.classList.toggle("no-doc", !app.doc);
     layout.dataset.studio = app.studio;
     const d = app.doc;
