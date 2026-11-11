@@ -147,12 +147,70 @@ export function registerTranscriber(def) {
   registry.set(def.id, { label: def.id, local: false, available: () => true, ...def });
   return true;
 }
-export const listTranscribers = () => [...registry.values()].map((t) => ({ id: t.id, label: t.label, local: !!t.local, available: !!t.available() }));
-/** The engine with this id, or the first available one (local engines first). */
+// Batch speech engines of the platform registry (platform/engines.js, kind "stt": local recognizers, extensions,
+// MCP) transcribe 16 kHz mono sound without time stamps. To get times, the sound is cut at its pauses and every
+// piece becomes one cue; makeTranscript spreads the words inside it.
+function engineTranscriber(e) {
+  return {
+    id: e.id,
+    label: e.label || e.id,
+    local: !!e.local,
+    available: () => true,
+    async transcribe({ buffer, from = 0, to = buffer.duration, lang = "en-US", onProgress = () => {}, signal = null }) {
+      const rate = 16000;
+      const off = new OfflineAudioContext(1, Math.max(1, Math.ceil((to - from) * rate)), rate);
+      const src = off.createBufferSource();
+      src.buffer = buffer;
+      src.connect(off.destination);
+      src.start(0, from, to - from);
+      const pcm = (await off.startRendering()).getChannelData(0);
+      const pauses = detectSilence(pcm, rate, { minDur: 0.35, pad: 0.1 });
+      // pieces between pauses, merged up to 12 seconds, never longer than 25
+      const pieces = [];
+      let start = 0;
+      const total = pcm.length / rate;
+      for (const [p0, p1] of [...pauses, [total, total]]) {
+        const mid = Math.min(total, (p0 + p1) / 2);
+        if (mid - start >= 12 || p0 >= total) {
+          for (let s = start; s < mid; s += 25) pieces.push([s, Math.min(mid, s + 25)]);
+          start = mid;
+        }
+      }
+      const cues = [];
+      for (let i = 0; i < pieces.length; i++) {
+        if (signal?.aborted) throw new DOMException("Cancelled.", "AbortError");
+        const [s, t] = pieces[i];
+        if (t - s < 0.2) continue;
+        const r = await e.transcribe(pcm.subarray(Math.floor(s * rate), Math.ceil(t * rate)), { lang, sampleRate: rate, signal });
+        const text = String(r?.text || "").trim();
+        if (text) cues.push({ t0: from + s, t1: from + t, text });
+        onProgress((i + 1) / pieces.length);
+      }
+      return { cues };
+    },
+  };
+}
+
+let platformEngines = null;
+/** Loads the platform engine registry once (it is optional: the Scene Studio works without it). */
+export async function loadPlatformEngines() {
+  if (platformEngines === null) {
+    platformEngines = await import("../platform/engines.js").then(async (m) => {
+      await import("../platform/builtin-engines.js").catch(() => {});
+      return m.engines;
+    }).catch(() => false);
+  }
+  return platformEngines || null;
+}
+const batchEngines = () => (platformEngines ? platformEngines.list("stt").filter((e) => typeof e.transcribe === "function").map(engineTranscriber) : []);
+
+export const listTranscribers = () => [...batchEngines(), ...registry.values()].map((t) => ({ id: t.id, label: t.label, local: !!t.local, available: !!t.available() }));
+/** The engine with this id, or the first available one (local engines first, then batch engines, then the browser's). */
 export function pickTranscriber(id = null) {
-  if (id) return registry.get(id) || null;
-  const all = [...registry.values()].filter((t) => t.available());
-  return all.find((t) => t.local) || all[0] || null;
+  const all = [...batchEngines(), ...registry.values()];
+  if (id) return all.find((t) => t.id === id) || null;
+  const ok = all.filter((t) => t.available());
+  return ok.find((t) => t.local) || ok[0] || null;
 }
 
 const Recognition = () => globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
@@ -236,6 +294,7 @@ registerTranscriber({
 
 /** Runs a transcriber over a media item and returns a transcript (scene/analysis.js ▸ makeTranscript). */
 export async function transcribeMedia(store, mediaId, { engine = null, lang = "en-US", from, to, onProgress, signal } = {}) {
+  await loadPlatformEngines();
   const t = pickTranscriber(engine);
   if (!t || !t.available()) throw new Error("No speech recognition engine is available here. Import subtitles (.srt / .vtt) or provide the transcript with scene_set_transcript.");
   const buffer = await store.audio(mediaId);

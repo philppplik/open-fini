@@ -12,6 +12,41 @@ when-to-use: ${when}
 ---`;
 
 export const STUDIO_GUIDES = [
+  `${fm("scene", "How to work in the Scene Studio: timeline and source times, clips and tracks, keyframes, looking at frames, understanding footage and export.", "scene_describe, scene_list_options, scene_new, scene_set_sequence, scene_add_clip, scene_update_clips, scene_arrange, scene_cut_ranges, scene_set_keyframes, scene_animate, scene_effects, scene_set_transition, scene_tracks, scene_markers, scene_precompose, scene_import_media, scene_render_frame, scene_playback, scene_export, scene_analyze, scene_sample_frames, scene_annotate, scene_transcribe, scene_set_transcript, scene_get_transcript, scene_search, scene_remove_silence, scene_cut_transcript, scene_captions, scene_duck_music, scene_beat_edit, scene_slideshow, scene_reframe", "video, cut, trim, timeline, clip, edit the video, animation, keyframes, motion graphics, captions, subtitles, export video, scene studio")}
+# Scene Studio guide
+
+## Start
+1. scene_describe: frame size, frame rate, tracks, clips with ids, media, markers. No scene open: scene_new.
+2. Media comes from the scene's Media panel (the user drops files) or scene_import_media (chat attachments, a page of an open design document). You cannot read files from disk yourself.
+
+## Model
+- A scene is tracks with clips. Video tracks are listed top first and the top one is in FRONT; audio tracks below. Clips of one track never overlap: a clip placed on another overwrites it.
+- Times are seconds. TIMELINE time is the position in the sequence; SOURCE time is the position inside a media file. A clip maps them: source = sourceIn + (timeline - start) * speed. Analysis tools speak source time and report timeline positions.
+- Position x, y is the CENTER of a layer in sequence pixels (0, 0 = top left). scale 1 = natural size; scene_add_clip fits media into the frame.
+- Animatable: x, y, sx, sy (scale), rot, opacity, volume, pan and numeric effect parameters. Keyframe t is seconds from the CLIP start.
+- A video with sound is two clips (picture and audio); edit or cut both (scene_cut_ranges and the transcript tools do this for you).
+
+## Tool order
+- Build: scene_add_clip (media, text, shape, solid, adjustment), then scene_update_clips for properties.
+- Time: scene_arrange (move, trim, split, delete, duplicate, slip, speed, closeGaps); scene_cut_ranges to remove or keep ranges across all tracks.
+- Motion: scene_animate for standard moves, scene_set_keyframes for exact ones, text style anim for text, scene_set_transition at clip edges.
+- Look: scene_effects (grade, look, chroma-key, blur, glow ...), adjustment clips affect everything below, scene_precompose to treat clips as one layer.
+- Understand: scene_analyze (silence, loudness, beats, shots), scene_sample_frames then scene_annotate (what is in the picture), scene_transcribe or scene_set_transcript (what is said), scene_search over all of it.
+- Edit by meaning: scene_remove_silence, scene_cut_transcript, scene_captions, scene_duck_music, scene_beat_edit, scene_slideshow, scene_reframe.
+
+## Behavior
+- Every call is one undo step. Ids come from tool results; never guess them. After cuts, times change: read again.
+- You work on the scene even when the user looks at another studio; scene_playback with show: true brings the Scene Studio to the front.
+- scene_transcribe and scene_export ask the user every time; transcription runs in real time.
+
+## Pitfalls
+- Confusing source and timeline seconds; using keyframe times as timeline times.
+- Text too small for the frame (a 1080p headline is 80 to 140 px), text over busy footage without outline or box.
+- Linear easing on position; too many things moving at once; effects stacked until the picture breaks.
+- Captions created before the final cut.
+
+## Verify
+scene_render_frame after each significant change: one frame for layout, a contact sheet (from, to, count) for motion and cuts. scene_describe for durations and track order. Look at in-between frames of every animation, not only its end.`,
   `${fm("vector", "How to work in the Vector studio: start, tool order, coordinates, ids, undo and verification.", "get_document_info, describe_page, query_layers, run_plan, add_shape, add_text, add_path, import_svg, set_style, transform_layers, group_layers, apply_to_many, grid_layout, make_component, screenshot, screenshot_layers, run_script, find_tools, checkpoint, restore_checkpoint, visual_diff, measure_layers, find_replace, lint_design, fix_design_issues, generate_asset, make_palette, type_scale, column_grid", "vector, logo, icon, illustration, shapes, paths")}
 # Vector studio guide
 

@@ -97,7 +97,7 @@ export function sceneUnderstandTools(app) {
 
     tool("scene_annotate", "Stores notes about what is in the picture of a media item at source times (what you saw in scene_sample_frames: people, actions, places, text on screen, quality). The notes are saved with the scene and found by scene_search.", {
       media: MEDIA,
-      notes: { type: "array", items: { type: "object", properties: { t: { type: "number", description: "Source time in seconds" }, text: { type: "string" } }, required: ["t", "text"] }, minItems: 1 },
+      notes: { type: "array", description: "[{ t, text }]: what is visible at source time t", items: { type: "object", properties: { t: { type: "number", description: "Source time in seconds" }, text: { type: "string" } }, required: ["t", "text"] }, minItems: 1 },
       replace: S.bool("Replace the item's existing notes (default: add)"),
     }, ["notes"], async (a) => {
       const c = await ctx();
