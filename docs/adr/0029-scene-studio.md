@@ -42,9 +42,12 @@ Add the **Scene Studio** (`app/src/scene/`, registered in `studios/scene.js`). F
    `office/scene/media/`. This reuses undo and redo (`commitOffice`), autosave, the session, the file format's
    version rule (version 2 already means "a project of another kind") and collaboration by copy. The Office Suite
    never mounts a scene; the Scene Studio has its own host (`scene/host.js`).
-7. **A tool group for the assistant** (`vibe/tools/scene.js`, `scene-understand.js`): inspect, edit, animate,
-   render a frame to look at it, export, and understand footage (transcript, shots, silence, loudness, beats,
-   sampled frames, a searchable index).
+7. **Tool groups for the assistant** (`vibe/tools/scene.js`, `scene-understand.js`; groups Scene, Scene
+   understanding, Scene automation): inspect, edit, animate, render a frame to look at it, export, understand footage
+   (transcript through the engine registry, shots, silence, loudness, beats, sampled frames, a searchable index) and
+   edit from that understanding (cut by transcript, silences, filler words, captions, reframe, motion presets). The
+   logic is pure (`scene/ai-ops.js`, `ai-auto.js`, `motion.js`, `analysis.js`) and the analysis runs in the worker
+   pool. Analysis is stored in source seconds per media item, so it survives every edit.
 
 ## Alternatives considered
 

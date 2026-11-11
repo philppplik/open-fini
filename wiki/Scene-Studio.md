@@ -91,6 +91,22 @@ as `.srt` or `.vtt`; they are also part of the exported picture.
 current frame as PNG. The dialog only offers what your browser can encode. Chromium-based browsers and the desktop
 app on Windows export every format; other browsers may lack MP4 or sound in MP4.
 
+## Working with the assistant
+
+Vibe edits scenes with the same tools you use: it reads the timeline, cuts, trims, animates, adds titles, lower
+thirds and captions, mixes the sound and looks at rendered frames to check its work. Every change is one step in
+*Undo*. Examples of what to ask:
+
+- "Make a rough cut of this interview: keep the answers about the product, remove ums and long pauses."
+- "Add bold captions and a 9:16 version for Reels, focused on the speaker."
+- "Turn these photos into a slideshow on the beat of the song."
+- "Where in the video do they talk about pricing?"
+
+To understand footage the assistant transcribes speech (this needs a speech engine that can read files, for example
+a Whisper extension; without one it asks for a transcript or subtitle file), finds shots and silences, measures
+loudness and beats, and looks at sampled frames. What it learns forms a searchable index of the project. Right-click
+the viewer or the timeline ▸ **AI** for quick actions. Exporting always asks first.
+
 ## Limits
 
 - Export takes about as long as the video plays.
@@ -98,6 +114,8 @@ app on Windows export every format; other browsers may lack MP4 or sound in MP4.
 - The graph editor shows one clip at a time; colors are animated in Properties.
 - Scene files contain their media, so they can be large.
 - In collaboration a scene is shared as a copy.
+- The assistant cannot transcribe without a file-capable speech engine, and it frames a subject by a focus point it
+  picks from sampled frames (no automatic face tracking).
 
 ## See also
 
