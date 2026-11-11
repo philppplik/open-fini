@@ -395,14 +395,18 @@ function createWindow(app, c) {
       try {
         if (where.value === "builtin") {
           const net = await import("../../platform/native-net.js");
-          builtinRelay = await net.relay.start({ lan: true });
+          // reachable from the internet through a tunnel: require a relay key, so it is not an open forwarder
+          const wantKey = tunnelBox.checked;
+          const running = await net.relay.status().catch(() => null);
+          if (running && running.keyed !== wantKey) await net.relay.stop();
+          builtinRelay = await net.relay.start({ lan: true, key: wantKey ? net.newRelayKey() : null });
           await c.createRoom({ relay: builtinRelay.local, defaultRole: role.value });
           // the invite carries this computer's network address, not localhost
           if (builtinRelay.addresses[0]) c.session.setInviteRelay(builtinRelay.addresses[0]);
           if (tunnelBox.checked) {
             const tun = await (await import("./network.js")).startTunnel(app, builtinRelay.port);
             if (tun) {
-              c.session.setInviteRelay(tun.url);
+              c.session.setInviteRelay(net.withRelayKey(tun.url, builtinRelay.local));
               app.toast(t("Public relay address: {url}. Anyone with the invite code can join from the internet. Stop the room to close the tunnel.", { url: tun.url }), "warning", 15000);
             }
           }

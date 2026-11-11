@@ -99,8 +99,24 @@ async function job(cmd, args, { onProgress, signal } = {}) {
   }
 }
 
+/** A fresh relay key: 22 characters of base64url (128 random bits), the format the built-in relay accepts. */
+export function newRelayKey() {
+  const b = crypto.getRandomValues(new Uint8Array(16));
+  return btoa(String.fromCharCode(...b)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/** `url` with the relay key of `keyedUrl` (`?key=`), or `url` unchanged when `keyedUrl` has none. */
+export function withRelayKey(url, keyedUrl) {
+  const key = /[?&]key=([A-Za-z0-9_-]+)/.exec(String(keyedUrl || ""))?.[1];
+  if (!key) return url;
+  const u = new URL(url);
+  u.searchParams.set("key", key);
+  return u.href;
+}
+
 export const relay = {
-  start: ({ lan = true, port = null } = {}) => invokeNet("relay_start", { lan, port }),
+  // key: optional relay key; members then need ?key=<key> (status.local and status.addresses carry it)
+  start: ({ lan = true, port = null, key = null } = {}) => invokeNet("relay_start", { lan, port, key }),
   stop: () => invokeNet("relay_stop"),
   status: () => (nativeNetAvailable() ? invokeNet("relay_status") : Promise.resolve(null)),
 };

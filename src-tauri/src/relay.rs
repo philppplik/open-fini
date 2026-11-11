@@ -89,6 +89,8 @@ pub fn valid_id(s: &str) -> bool {
 pub struct Request {
     pub method: String,
     pub path: String,
+    /// The query string without "?" ("" when there is none).
+    pub query: String,
     pub headers: HashMap<String, String>,
 }
 
@@ -103,7 +105,9 @@ pub fn parse_request(head: &str) -> Option<Request> {
     let mut lines = head.split("\r\n");
     let mut first = lines.next()?.split(' ');
     let method = first.next()?.to_string();
-    let path = first.next()?.split('?').next()?.to_string();
+    let target = first.next()?;
+    let (path, query) = target.split_once('?').unwrap_or((target, ""));
+    let (path, query) = (path.to_string(), query.to_string());
     if !first.next()?.starts_with("HTTP/1.") {
         return None;
     }
@@ -115,8 +119,35 @@ pub fn parse_request(head: &str) -> Option<Request> {
     Some(Request {
         method,
         path,
+        query,
         headers,
     })
+}
+
+/// Shortest relay key accepted (the app generates 22 characters of base64url, 128 bits).
+pub const MIN_KEY: usize = 16;
+
+/// A relay key is 16 to 128 characters of base64url (what the app generates and what fits a URL without escaping).
+pub fn valid_key(k: &str) -> bool {
+    (MIN_KEY..=128).contains(&k.len())
+        && k.bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+}
+
+/// Compares in time that depends only on the lengths, so the key cannot be guessed byte by byte.
+fn same(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+}
+
+/// Same rule as the Node relay's `--auth-token`: the WebSocket address must carry `?key=<key>`.
+pub fn key_ok(query: &str, key: &str) -> bool {
+    query
+        .split('&')
+        .filter_map(|p| p.split_once('='))
+        .any(|(k, v)| k == "key" && !v.is_empty() && same(v.as_bytes(), key.as_bytes()))
 }
 
 /// Token bucket (messages or bytes per second).
@@ -255,6 +286,8 @@ struct Shared {
     next: AtomicU64,
     port: u16,
     lan: bool,
+    /// Relay key every WebSocket must present (`?key=`); None = open relay (trusted LAN).
+    key: Option<String>,
 }
 
 impl Shared {
@@ -302,6 +335,7 @@ fn info(shared: &Shared, origin: Option<&str>) -> Value {
         "servesApp": false,
         "appUrls": [],
         "originAllowed": origin_allowed(origin),
+        "auth": shared.key.is_some(),
     })
 }
 
@@ -400,6 +434,11 @@ fn handle(shared: Arc<Shared>, mut stream: TcpStream, ip: IpAddr) {
         Some(k) if wire::ws_key_valid(k) => k.to_string(),
         _ => return respond(&mut stream, "400 Bad Request", &[], b""),
     };
+    if let Some(k) = shared.key.as_deref() {
+        if !key_ok(&req.query, k) {
+            return respond(&mut stream, "401 Unauthorized", &[], b"");
+        }
+    }
     if !origin_allowed(origin.as_deref()) {
         return respond(&mut stream, "403 Forbidden", &[], b"");
     }
@@ -663,12 +702,19 @@ pub struct RelayStatus {
     addresses: Vec<String>,
     rooms: usize,
     connections: usize,
+    /// True when members need the relay key (it is part of `local` and `addresses`).
+    keyed: bool,
 }
 
 fn status(s: &Shared) -> RelayStatus {
+    let q = s
+        .key
+        .as_deref()
+        .map(|k| format!("?key={k}"))
+        .unwrap_or_default();
     let addresses = if s.lan {
         lan_ip()
-            .map(|ip| format!("ws://{ip}:{}/", s.port))
+            .map(|ip| format!("ws://{ip}:{}/{q}", s.port))
             .into_iter()
             .collect()
     } else {
@@ -677,21 +723,31 @@ fn status(s: &Shared) -> RelayStatus {
     RelayStatus {
         port: s.port,
         lan: s.lan,
-        local: format!("ws://127.0.0.1:{}/", s.port),
+        local: format!("ws://127.0.0.1:{}/{q}", s.port),
         addresses,
         rooms: lock(&s.hub).rooms.len(),
         connections: lock(&s.conns).len(),
+        keyed: s.key.is_some(),
     }
 }
 
 /// Starts the relay (or returns the running one). `lan` binds every interface so other computers
 /// in the network can join; otherwise only this computer. Port 8787 when free, else any free port.
+/// `key` (16 to 128 base64url characters) makes every member present `?key=<key>`; a running relay
+/// with a different key setting is restarted by the caller (stop, then start).
 #[tauri::command]
 pub fn relay_start(
     state: tauri::State<'_, Relay>,
     lan: Option<bool>,
     port: Option<u16>,
+    key: Option<String>,
 ) -> Result<RelayStatus, String> {
+    let key = key.filter(|k| !k.is_empty());
+    if let Some(k) = key.as_deref() {
+        if !valid_key(k) {
+            return Err("The relay key must be 16 to 128 letters, digits, \"-\" or \"_\".".into());
+        }
+    }
     let mut slot = lock(&state.0);
     if let Some(s) = slot.as_ref() {
         return Ok(status(s));
@@ -710,6 +766,7 @@ pub fn relay_start(
         next: AtomicU64::new(1),
         port,
         lan,
+        key,
     });
     let s = Arc::clone(&shared);
     thread::Builder::new()
@@ -750,6 +807,23 @@ mod tests {
         assert!(!origin_allowed(Some("https://evil.example")));
         assert!(!origin_allowed(Some("http://localhost.evil.example")));
         assert!(!origin_allowed(Some("garbage")));
+    }
+
+    #[test]
+    fn relay_key() {
+        let k = "abcdefghijklmnopqrstuv";
+        assert!(valid_key(k));
+        assert!(!valid_key("short"));
+        assert!(!valid_key("abcdefghijklmnop qrst"));
+        assert!(key_ok("key=abcdefghijklmnopqrstuv", k));
+        assert!(key_ok("x=1&key=abcdefghijklmnopqrstuv", k));
+        assert!(!key_ok("key=abcdefghijklmnopqrstuw", k));
+        assert!(!key_ok("key=", k));
+        assert!(!key_ok("", k));
+        assert!(!key_ok("keys=abcdefghijklmnopqrstuv", k));
+        let r = parse_request("GET /?key=abc HTTP/1.1\r\n\r\n").unwrap();
+        assert_eq!(r.path, "/");
+        assert_eq!(r.query, "key=abc");
     }
 
     #[test]
