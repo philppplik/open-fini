@@ -33,3 +33,6 @@ desktop.ini
 # Test artifacts
 coverage/
 test-results/
+
+# Local Claude Code settings and agent worktrees
+.claude/
