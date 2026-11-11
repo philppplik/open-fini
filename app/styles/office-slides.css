@@ -39,7 +39,16 @@
 .of-sl-txt.is-editing { overflow: visible; outline: none; cursor: text; user-select: text; }
 .of-sl-p { min-height: 1lh; }
 .of-sl-p.is-bullet { position: relative; padding-left: 1.1em; }
-.of-sl-p.is-bullet::before { content: "•"; position: absolute; left: 0; }
+.of-sl-p.is-bullet::before { content: "•"; position: absolute; left: var(--of-sl-lead, 0); }
+/* list levels: 1.4em per level (render.js LEVEL_INDENT), bullets • – » by level (render.js BULLETS) */
+.of-sl-p[data-lvl="1"] { --of-sl-lead: 1.4em; } .of-sl-p[data-lvl="2"] { --of-sl-lead: 2.8em; }
+.of-sl-p[data-lvl="3"] { --of-sl-lead: 4.2em; } .of-sl-p[data-lvl="4"] { --of-sl-lead: 5.6em; }
+.of-sl-p[data-lvl="5"] { --of-sl-lead: 7em; } .of-sl-p[data-lvl="6"] { --of-sl-lead: 8.4em; }
+.of-sl-p[data-lvl="7"] { --of-sl-lead: 9.8em; } .of-sl-p[data-lvl="8"] { --of-sl-lead: 11.2em; }
+.of-sl-p[data-lvl] { padding-left: var(--of-sl-lead); }
+.of-sl-p.is-bullet[data-lvl] { padding-left: calc(var(--of-sl-lead) + 1.1em); }
+.of-sl-p.is-bullet[data-bu="1"]::before { content: "–"; }
+.of-sl-p.is-bullet[data-bu="2"]::before { content: "»"; }
 .of-sl-hint { opacity: 0.45; }
 .of-sl-el.is-master { pointer-events: none; }
 .of-sl-canvas .of-sl-el.is-master:hover { outline: none; }

@@ -4,7 +4,7 @@
 import { h } from "../../core/util.js";
 import { t } from "../../i18n/index.js";
 import * as M from "./model.js";
-import { TEXT_PAD, LINE_HEIGHT, chartItems } from "./render.js";
+import { TEXT_PAD, LINE_HEIGHT, BULLETS, chartItems } from "./render.js";
 import { measure } from "../../core/fonts.js";
 import { displayListToSVG } from "../../engine/backends/svg.js";
 
@@ -49,22 +49,27 @@ export function textNode(deck, e, { hints = false } = {}) {
     },
   });
   if (empty && hints && e.ph) el.append(h("div.of-sl-p.of-sl-hint", t(M.placeholderHint(e.ph))));
-  else el.append(...paragraphs(e.text, look.bullets, e.spans));
+  else el.append(...paragraphs(e.text, look.bullets, e.spans, e.levels));
   return el;
 }
 
-/** Paragraph divs; with spans, formatted pieces become <span>s (offsets count the "\n" between paragraphs). */
-export function paragraphs(text, bullets, spans = null) {
+/**
+ * Paragraph divs; with spans, formatted pieces become <span>s (offsets count the "\n" between paragraphs). List levels
+ * indent a paragraph by render.js ▸ LEVEL_INDENT em each (data-lvl and data-bu in office-slides.css).
+ */
+export function paragraphs(text, bullets, spans = null, levels = null) {
   let at = 0;
-  return String(text || "").split("\n").map((p) => {
+  return String(text || "").split("\n").map((p, i) => {
     const start = at;
     at += p.length + 1;
+    const lvl = levels?.[i] || 0;
     const cls = `div.of-sl-p${bullets && p.trim() ? ".is-bullet" : ""}`;
-    if (!p || !spans?.length) return h(cls, p || "​");
-    return h(cls, ...M.spanSegments(text, spans, start, start + p.length).map((s) => (Object.keys(s.fmt).length ? h("span", { style: spanCss(s.fmt) }, s.text) : s.text)));
+    const attrs = lvl ? { "data-lvl": String(lvl), "data-bu": String(lvl % BULLETS.length) } : {};
+    if (!p || !spans?.length) return h(cls, attrs, p || "​");
+    return h(cls, attrs, ...M.spanSegments(text, spans, start, start + p.length).map((s) => (Object.keys(s.fmt).length ? h("span", { style: spanCss(s.fmt) }, s.text) : s.text)));
   });
 }
-const spanCss = (f) => ({ fontWeight: f.bold === undefined ? null : f.bold ? "700" : "400", fontStyle: f.italic === undefined ? null : f.italic ? "italic" : "normal", textDecoration: f.underline === undefined ? null : f.underline ? "underline" : "none", color: f.color || null });
+const spanCss = (f) => ({ fontWeight: f.bold === undefined ? null : f.bold ? "700" : "400", fontStyle: f.italic === undefined ? null : f.italic ? "italic" : "normal", textDecoration: f.underline === undefined ? null : f.underline ? "underline" : "none", color: f.color || null, fontFamily: f.font ? `"${f.font}", sans-serif` : null, fontSize: f.size ? `${f.size * M.PT}px` : null });
 
 /** A chart element as inline SVG (same display list as the PDF and PNG export). */
 function chartNode(deck, e) {

@@ -23,9 +23,10 @@ function fidelityNotes(model, format) {
     const bad = Object.values(model.media || {}).filter((m) => m.mime === "image/webp" || (format === "pptx" && m.mime === "image/svg+xml"));
     if (bad.length) notes.push(format === "pptx" ? "WebP and SVG pictures may not show in older PowerPoint versions." : "WebP pictures may not show in older Impress versions.");
     const els = model.slides.flatMap((s) => s.elements);
-    if (els.some((e) => e.type === "chart")) notes.push("Charts are saved as tables of their data.");
-    if (model.master?.elements.length || model.master?.footer.number || model.master?.footer.text || model.master?.footer.date) notes.push("Master graphics, footers and slide numbers are saved as shapes on each slide.");
-    if (format === "odp" && els.some((e) => e.spans?.length)) notes.push("Mixed formatting inside a text box is saved as the box's main formatting.");
+    if (els.some((e) => e.type === "chart" && !M.NATIVE_CHARTS.includes(e.chart.type))) notes.push("Big number, progress and sparkline charts are saved as tables of their data.");
+    if (els.some((e) => e.type === "chart")) notes.push("Charts keep their data as cached values, without an embedded workbook.");
+    if (model.master?.elements.length) notes.push("Master graphics are saved as shapes on each slide.");
+    if (format === "odp" && (model.master?.footer.number || model.master?.footer.text || model.master?.footer.date || model.master?.footer.autoDate)) notes.push("Footers and slide numbers are saved as text boxes with fields on each slide.");
   }
   return notes;
 }

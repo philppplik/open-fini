@@ -207,6 +207,7 @@ export function mountBoard(host, doc, app) {
     const ctx = scene.getContext("2d");
     const { dpr } = size;
     const m = model();
+    rctx.board = m; // sub-board cards preview their page
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = m.background || "#ffffff";
     ctx.fillRect(0, 0, scene.width, scene.height);
@@ -1018,7 +1019,7 @@ export function mountBoard(host, doc, app) {
       setSelection([]);
       return;
     }
-    const patch = el.type === "frame" ? { name: text || "Frame" } : { text };
+    const patch = el.type === "frame" ? { name: text || t("Frame") } : { text };
     if (el.type === "text") Object.assign(patch, M.textBox(text, el.fontSize, (s, sz) => measureText(s, sz, el.font)));
     if ((el.type === "frame" ? el.name : el.text) === text && !ed.created) return invalidate(true);
     commit(ed.created ? "Add Text" : "Edit Text", M.updateElements(base, { [el.id]: patch }));

@@ -58,9 +58,13 @@ export function slidesTools(app, ctx = {}) {
       return { ok: true, deleted: ids.length, slideCount: doc.office.model.slides.length };
     }),
 
-    tool("slides_set_text", "Sets the text of a placeholder (title, subtitle, body, body2) or of an element by id. Missing placeholders are added in the layout position.", {
-      slide: slideArg, placeholder: S.str("Placeholder role", { enum: PH }), element: S.str("Element id from slides_describe (instead of placeholder)"), text: S.str("New text; \\n separates paragraphs"),
-    }, ["slide", "text"], ({ slide, placeholder, element, text }) => {
+    tool("slides_set_text", "Sets the text of a placeholder (title, subtitle, body, body2) or of an element by id. Missing placeholders are added in the layout position. Sub-bullets: start a line with one tab per list level (\\t\\t = level 2) or pass levels. Watch out: levels count paragraphs (lines), 0 = top level, at most 8.", {
+      slide: slideArg, placeholder: S.str("Placeholder role", { enum: PH }), element: S.str("Element id from slides_describe (instead of placeholder)"), text: S.str("New text; \\n separates paragraphs, leading tabs set the list level"),
+      levels: { type: "array", items: { type: "number" }, description: "List level (0-8) per paragraph, instead of leading tabs" },
+    }, ["slide", "text"], ({ slide, placeholder, element, text: raw, levels: given }) => {
+      const parsed = M.textWithLevels(raw);
+      const text = parsed.text;
+      const levels = Array.isArray(given) ? given : parsed.levels;
       const doc = deckDoc();
       let deck = doc.office.model;
       const s = slideOf(deck, slide);
@@ -70,11 +74,11 @@ export function slidesTools(app, ctx = {}) {
       if (!el) {
         const role = placeholder || "title";
         const proto = M.layoutElements(M.LAYOUTS.find((l) => l.ph.some((p) => p[0] === role))?.id || "title-content", deck.size).find((e) => e.ph === role) || { type: "text", x: 60, y: 60, w: 400, h: 80 };
-        const r = M.addElement(deck, s.id, { ...proto, ph: role, text });
+        const r = M.addElement(deck, s.id, { ...proto, ph: role, text, levels });
         commit(doc, "Set Text", r.deck);
         return { ok: true, element: r.id, added: true };
       }
-      deck = M.updateElements(deck, s.id, [el.id], { text });
+      deck = M.updateElements(deck, s.id, [el.id], { text, levels });
       commit(doc, "Set Text", deck);
       return { ok: true, element: el.id };
     }),
@@ -155,10 +159,11 @@ export function slidesTools(app, ctx = {}) {
       return { ok: true };
     }),
 
-    tool("slides_format_text", "Formats part of the text in one text box (mixed formatting): bold, italic, underline or color for the characters of `match` (or start/end offsets). Pass null-like false to remove bold/italic/underline. Watch out: match is case-sensitive and formats only the given occurrence; formatting the whole box uses slides_add_shape/slides_set_text styles instead. Verify with slides_describe (spans).", {
+    tool("slides_format_text", "Formats part of the text in one text box (mixed formatting): bold, italic, underline, color, font or size for the characters of `match` (or start/end offsets). Pass null-like false to remove bold/italic/underline. Watch out: match is case-sensitive and formats only the given occurrence; formatting the whole box uses slides_add_shape/slides_set_text styles instead. Verify with slides_describe (spans).", {
       slide: slideArg, placeholder: S.str("Placeholder role", { enum: PH }), element: S.str("Element id (instead of placeholder)"),
       match: S.str("Exact text to format"), occurrence: S.num("Which occurrence of match (1-based, default 1)"), start: S.num("Start offset (instead of match; \\n counts as one character)"), end: S.num("End offset (exclusive)"),
       bold: S.bool("Bold"), italic: S.bool("Italic"), underline: S.bool("Underline"), color: S.str("Text color #rrggbb, or none to remove"),
+      font: S.str("Font family, or none to remove"), size: S.num("Font size in points (0 removes it)"),
     }, ["slide"], ({ slide, placeholder, element, match, occurrence = 1, start, end, ...f }) => {
       const doc = deckDoc();
       const deck = doc.office.model;
@@ -177,14 +182,15 @@ export function slidesTools(app, ctx = {}) {
         b = a + String(match).length;
       }
       if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) throw new Error("Pass match, or start and end offsets with end > start.");
-      const patch = Object.fromEntries(Object.entries(f).filter(([, v]) => v !== undefined).map(([k, v]) => [k, k === "color" && (v === "none" || v === "") ? null : v]));
-      if (!Object.keys(patch).length) throw new Error("Pass at least one of bold, italic, underline or color.");
+      const patch = Object.fromEntries(Object.entries(f).filter(([, v]) => v !== undefined).map(([k, v]) => [k, ((k === "color" || k === "font") && (v === "none" || v === "")) || (k === "size" && !v) ? null : v]));
+      if (!Object.keys(patch).length) throw new Error("Pass at least one of bold, italic, underline, color, font or size.");
       commit(doc, "Format Text", M.formatText(deck, s.id, el.id, a, b, patch));
       return { ok: true, element: el.id, start: a, end: b, text: el.text.slice(a, b) };
     }),
 
-    tool("slides_set_footer", "Sets the footer of every slide (master): footer text, date text, slide numbers and whether title slides skip them. Watch out: this is deck-wide; the date is plain text (write it out); slide numbers count hidden slides too.", {
-      text: S.str("Footer text (empty to remove)"), date: S.str("Date or any short text shown at the left (empty to remove)"), number: S.bool("Show slide numbers"), skipTitle: S.bool("Leave title-layout slides without footer (default true)"),
+    tool("slides_set_footer", "Sets the footer of every slide (master): footer text, a fixed date text or an automatic date (today, a date field in PowerPoint and Impress), slide numbers and whether title slides skip them. Watch out: this is deck-wide; autoDate wins over date; slide numbers count hidden slides too.", {
+      text: S.str("Footer text (empty to remove)"), date: S.str("Fixed date or any short text shown at the left (empty to remove)"),
+      autoDate: S.bool("Show today's date, updated automatically"), dateFormat: S.str("Format of the automatic date", { enum: M.DATE_FORMATS }), number: S.bool("Show slide numbers"), skipTitle: S.bool("Leave title-layout slides without footer (default true)"),
     }, [], (a = {}) => {
       const doc = deckDoc();
       const patch = Object.fromEntries(Object.entries(a).filter(([, v]) => v !== undefined));
@@ -242,7 +248,7 @@ export function slidesTools(app, ctx = {}) {
       return { ok: true, theme: doc.office.model.theme.id };
     }),
 
-    tool("slides_insert_chart", "Inserts a chart built from a range of an OPEN spreadsheet (first row: series names, first column: categories; computed values). The slide keeps a snapshot; slides_refresh_charts updates it. Watch out: name the spreadsheet exactly as office_list_documents shows it; check the range with sheet_describe first; ranges over 500 rows or 40 columns are cut.", {
+    tool("slides_insert_chart", "Inserts a chart built from a range of an OPEN spreadsheet (first row: series names, first column: categories; computed values). The slide keeps a copy of the data that follows the spreadsheet while both are open; slides_refresh_charts updates it on demand. PowerPoint and OpenDocument exports write it as a real chart. Watch out: name the spreadsheet exactly as office_list_documents shows it; check the range with sheet_describe first; ranges over 500 rows or 40 columns are cut.", {
       slide: slideArg, spreadsheet: S.str("Name of the open spreadsheet document"), range: S.str("A1 range, e.g. A1:C6 (default: the used range)"), sheet: S.str("Sheet name (default: active sheet)"),
       type: S.str("Chart type", { enum: M.CHART_KINDS }), title: S.str("Chart title"), ...box,
     }, ["slide", "spreadsheet"], async (a) => {

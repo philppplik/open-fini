@@ -18,11 +18,12 @@ guide: [wiki ▸ Presentation App](../wiki/Presentation-App.md).
 | Editor UI | `app/src/office/slides/view.js` |
 | Slide show and presenter view | `app/src/office/slides/present.js` |
 | Charts from spreadsheet ranges (lazy) | `app/src/office/slides/sheet-link.js` |
+| Native chart parts (PowerPoint `c:chartSpace`, OpenDocument chart objects) | `app/src/office/slides/chart-xml.js` |
 | Commands and context menus | `app/src/commands/office-slides.js` (registered when the app first loads) |
 | Menus | `app/src/studios/office.js` (`officeKinds: ["slides"]`) |
 | Vibe tools | `app/src/vibe/tools/office-slides.js` (group **Presentation**) |
 | Styles | `app/styles/office-slides.css` (linked at runtime by `view.js`) |
-| Tests | `tests/office/slides.test.js` |
+| Tests | `tests/office/slides.test.js`, `tests/office/slides-depth.test.js` |
 
 Everything is lazy. Start-up only gains the five menu rows; the commands, the context-menu providers and the stylesheet
 are added the first time a deck is shown.
@@ -33,12 +34,13 @@ Plain JSON, immutable values; every change is one `commitOffice` step (undo, his
 
 ```
 Deck    { version: 1, size: { w, h } (px, 96 per inch; 960 × 540 = 16:9), theme, meta: { title }, slides[], media{},
-          master: { elements[], footer: { text, date, number, skipTitle } }, layouts: { <layout id>: [[role, x, y, w, h]] } }
+          master: { elements[], footer: { text, date, autoDate, dateFormat, number, skipTitle } },
+          layouts: { <layout id>: [[role, x, y, w, h]] } }
 Slide   { id, ord, layout, background: null | { color } | { media }, elements[], notes, transition: { type, duration },
           hidden?, hideMaster? }
 Element { id, z, type: text | shape | image | table | chart, x, y, w, h, rot, ph?, text?, style?, spans?, shape?, fill?,
-          stroke?, strokeWidth?, media?, rows?, chart?, source?, flipH?, flipV? }
-Span    { start, end, bold?, italic?, underline?, color? }   offsets into text; overrides the element style there
+          stroke?, strokeWidth?, media?, rows?, chart?, source?, flipH?, flipV?, levels? }
+Span    { start, end, bold?, italic?, underline?, color?, font?, size? }   offsets into text; overrides the element style
 ```
 
 * **Layouts** (`title`, `title-content`, `section`, `two-content`, `title-only`, `blank`) are placeholder boxes as
@@ -46,7 +48,9 @@ Span    { start, end, bold?, italic?, underline?, color? }   offsets into text; 
   their text; other elements stay. `deck.layouts` holds the layouts the user edited (`layoutPh(deck, id)` returns the
   edited or built-in boxes); editing a layout re-applies it to every slide that uses it, `resetLayout` restores it.
 * **Master**: `master.elements` are drawn behind every slide (unless the slide sets `hideMaster`); `master.footer` adds
-  date (left), footer text (center) and slide number (right) boxes, optionally not on `title` layout slides.
+  date (left), footer text (center) and slide number (right) boxes, optionally not on `title` layout slides. With
+  `autoDate` the date is today's date in the app's language (`dateFormat` short, long or full, `footerDate`); the
+  date and number boxes carry `field: "date" | "slidenum"`, which the writers turn into fields.
   `masterElements(deck, slide)` / `renderElements(deck, slide)` produce these render-only elements (ids start with `@`,
   `master: true`) for the DOM, PDF and PNG renderers; they are never part of `slide.elements`.
 * **Pseudo slides**: `slideById(deck, "@master")` and `slideById(deck, "@layout:<id>")` return the master and a layout
@@ -59,14 +63,19 @@ Span    { start, end, bold?, italic?, underline?, color? }   offsets into text; 
   (accent bars, bands, circles, a frame) and footer settings; the templates of the same name use them and
   `applyDesign` puts one on an existing deck.
 * **Text** is one string per element (`\n` between paragraphs) with a base style per element (font, size in points,
-  color, bold, italic, underline, alignment, vertical alignment, bullets). `spans` add mixed bold, italic, underline
-  and color inside the box (`formatText`, `formatSpans`). Spans follow text edits (`remapSpans`: typed characters take
-  the format before them) and formatting the whole box clears the same keys from its spans.
+  color, bold, italic, underline, alignment, vertical alignment, bullets). `spans` add mixed bold, italic, underline,
+  color, typeface and size inside the box (`formatText`, `formatSpans`). Spans follow text edits (`remapSpans`: typed
+  characters take the format before them) and formatting the whole box clears the same keys from its spans. A line
+  with larger text is as tall as that text.
+* **List levels**: `levels[i]` is the level (0-8) of paragraph `i`; each level indents by 1.4 em and the bullet
+  cycles •, –, ». Levels follow text edits (`remapLevels`: a new paragraph takes the level of the one it was split
+  from), `setLevels` changes the paragraphs of a character range and `textWithLevels` reads leading tabs.
 * **Charts** (`type: "chart"`) store a chart definition with a data snapshot (`engine/layout/chart-data.js`, the same
   renderer the spreadsheet and the Layout studio use) and `source: { doc, sheet, range }`. `sheet-link.js` reads the
   range from an open spreadsheet the way the spreadsheet reads its own charts (computed values, header row = series,
-  first column = categories); the deck does not depend on the spreadsheet at run time. Theme fonts, text color and
-  accents style the chart.
+  first column = categories); the deck does not depend on the spreadsheet at run time. While the editor shows the
+  deck and the spreadsheet is open, every change there refreshes the linked charts (debounced, one coalesced undo
+  step). Theme fonts, text color and accents style the chart.
 * **Order**: the array order is the order; `ord` (slides) and `z` (elements) mirror it as fractional keys
   (`collab/fractional.js`), maintained by `fixOrder` in every operation.
 
@@ -74,9 +83,9 @@ Span    { start, end, bold?, italic?, underline?, color? }   offsets into text; 
 
 | Format | Read | Write | Notes |
 | --- | --- | --- | --- |
-| `.pptx`, `.ppsx` | yes | yes | Save in the original format (lossy flag: PowerPoint features the model lacks are not written back) |
+| `.pptx`, `.ppsx` | yes | yes | Save in the original format (lossy flag: PowerPoint features the model lacks are not written back); charts are real chart parts |
 | `.potx` | yes (as new) | | |
-| `.odp` | yes | yes | The theme is kept in a `meta.xml` user field for OpenFini round trips |
+| `.odp` | yes | yes | The theme is kept in a `meta.xml` user field for OpenFini round trips; charts are embedded chart objects |
 | `.fodp` | yes | | flat XML |
 | `.otp` | yes (as new) | | |
 | PDF | | yes | vector shapes and text, hidden slides left out |
@@ -86,15 +95,24 @@ Span    { start, end, bold?, italic?, underline?, color? }   offsets into text; 
 Read: slides, size, theme colors and fonts, text boxes and placeholders (positions inherited from layout and master when
 the slide has none), basic shapes (rectangle, rounded rectangle, ellipse, triangle, diamond, arrow, line), pictures,
 tables (text), solid and picture backgrounds (slide, layout or master), speaker notes, fade and push-style transitions,
-hidden slides, group contents (ungrouped), and bold, italic, underline and color runs inside a text box (as spans; the
-formatting that covers most characters becomes the box style). The import report lists what was simplified (mixed
-font sizes or typefaces, list levels, custom shapes, gradients, cropping, groups) and dropped (charts, SmartArt,
-embedded objects, media, animations, comments, EMF/WMF pictures).
+hidden slides, group contents (ungrouped), bold, italic, underline, color, typeface and size runs inside a text box (as
+spans; the formatting that covers most characters becomes the box style), list levels (`lvl`, nested `text:list`),
+charts (PowerPoint chart parts and OpenDocument chart objects: type, title, categories, series names and cached
+values) and PowerPoint footer placeholders (the deck footer: footer text, slide numbers, fixed date or date field).
+The import report lists what was simplified (custom shapes, gradients, cropping, groups) and dropped (SmartArt,
+embedded objects other than charts, media, animations, comments, EMF/WMF pictures).
 
 Write: a minimal valid package (one master, six layouts with the deck's edited boxes, theme, notes master, notes slides,
 media), so PowerPoint, Impress, Keynote and Google Slides open it. `exportDeck` prepares the deck first: master
-graphics, footers and slide numbers become shapes on each slide, charts become tables of their data; spans become
-PowerPoint runs (OpenDocument keeps the box's main formatting). The export notes say so. Codecs use the hardened ZIP and XML helpers of `engine/office/` (entry and
+graphics become shapes on each slide; the footer becomes `dt`, `ftr` and `sldNum` placeholders in PowerPoint (with
+`a:fld` date and slide-number fields) and text boxes with `text:date` / `text:page-number` fields in OpenDocument.
+Charts of the types column, bar (also stacked and 100 %), line, area, pie, donut, scatter and radar become real
+charts with the theme's colors and fonts (`chart-xml.js`: a `ppt/charts/chartN.xml` part with cached values, or an
+`Object N/content.xml` chart object with a local data table); big number, progress and sparkline charts become
+tables of their data. Neither carries an embedded workbook, so editing the chart data in PowerPoint asks for the
+linked file. Spans become runs (`a:r` in PowerPoint, `text:span` in OpenDocument), list levels `lvl` with an indent
+per level or nested lists. The export notes say what changed. The chart parts were checked by round trips through
+OpenFini's readers, not in every PowerPoint and Impress version. Codecs use the hardened ZIP and XML helpers of `engine/office/` (entry and
 size limits, no entity expansion, no path traversal).
 
 ## Editor
@@ -108,18 +126,22 @@ size limits, no entity expansion, no path traversal).
   from spreadsheet), text (font, size, bold, italic, underline, color, alignment, bullets), shape (fill, outline),
   arrange (z-order, align, rotate), design (themes gallery, designs, background, header and footer, edit master,
   transition), slide show.
-* Mixed formatting: select characters while editing a text box, then `Ctrl+B/I/U` or the ribbon's bold, italic,
-  underline and text color format only those characters (editing resumes with them selected). Without a character
-  selection the buttons format the whole box.
+* Mixed formatting: select characters while editing a text box, then `Ctrl+B/I/U` or the ribbon's font, size, bold,
+  italic, underline and text color format only those characters (editing resumes with them selected). Without a
+  character selection the buttons format the whole box.
+* List levels: `Tab` / `Shift+Tab` while editing raise or lower the level of the paragraphs in the selection; the
+  ribbon's *Increase / Decrease list level* change every paragraph of the selected boxes.
 * **Themes…** opens a gallery with a preview card per theme, a live preview of the first slide and fields to fine-tune
   the four colors and the heading and body fonts.
 * **Edit master** (Design ▸ Edit master, View menu) shows the slide master or one layout with a banner; master shapes,
   pictures and text appear on every slide, layout placeholders can be moved and resized and slides follow. *Reset
   Layout* restores the built-in boxes, *Close Master View* returns to the slides. *Slide ▸ Hide Master Graphics* turns
   them off for one slide.
-* **Header and footer…** sets footer text, a date text and slide numbers for the whole deck.
-* **Chart from spreadsheet…** picks an open spreadsheet, a range and a chart type; *Insert ▸ Refresh Chart Data*
-  re-reads every chart whose spreadsheet is open.
+* **Header and footer…** sets footer text, a date (fixed text, or *Date that updates automatically* in a short, long
+  or full format), slide numbers and *Don’t show on title slides* for the whole deck.
+* **Chart from spreadsheet…** picks an open spreadsheet, a range and a chart type; the chart follows the spreadsheet
+  while both are open, and *Insert ▸ Refresh Chart Data* re-reads every chart whose spreadsheet is open (for example
+  after reopening it).
 * Speaker notes below the canvas (typing coalesces into one undo step per slide).
 * Comments: `commentAnchor()` names the selected element (`obj:<slide>/<element>`) or the slide (`slide:<id>`);
   `revealAnchor` jumps there.
@@ -142,8 +164,8 @@ and show as "Picture not available" for others until the document is shared as a
 
 Tools (group **Presentation**): `slides_describe`, `slides_add_slide`, `slides_delete`, `slides_set_text`,
 `slides_add_shape`, `slides_add_image` (attachment or data URI), `slides_apply_layout`, `slides_apply_theme`,
-`slides_reorder`, `slides_set_notes`, `slides_set_transition`, `slides_format_text` (mixed formatting by matched text or
-offsets), `slides_set_footer`, `slides_edit_master` (add/remove/clear master graphics, hide/show them per slide),
+`slides_reorder`, `slides_set_notes`, `slides_set_transition`, `slides_format_text` (mixed formatting, including font
+and size, by matched text or offsets), `slides_set_footer` (with `autoDate` and `dateFormat`), `slides_edit_master` (add/remove/clear master graphics, hide/show them per slide),
 `slides_edit_layout` (move or resize a layout placeholder, or reset), `slides_apply_design`, `slides_insert_chart` (from
 an open spreadsheet range) and `slides_refresh_charts`. `slides_describe` with slide `@master` returns the master,
 footer and edited layouts. Slides are numbered from 1 or addressed by id; each call is one undoable step. New decks:
@@ -151,11 +173,11 @@ footer and edited layouts. Slides are numbered from 1 or addressed by id; each c
 
 ## Known limits
 
-* Mixed formatting covers bold, italic, underline and color; font and size are per box. No multi-level lists, no text
-  autofit.
-* Charts are snapshots (refresh by hand) and are written to PowerPoint and OpenDocument as tables of their data; no
-  SmartArt, animations, audio or video.
-* One master per deck; layouts can be edited but not added. Footers have no automatic date field (the date is text).
+* No text autofit; numbered lists are not modeled (bullets only).
+* Charts in PowerPoint and OpenDocument files carry no embedded workbook; linked charts follow their spreadsheet only
+  while both are open. No SmartArt, animations, audio or video.
+* One master per deck (a model with a master per slide group would touch every renderer and codec); layouts can be
+  edited but not added.
 
 * Picture cropping, gradients and custom geometry are simplified on import.
 * PDF text uses the standard PDF fonts (like every PDF export in OpenFini).

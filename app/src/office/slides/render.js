@@ -15,6 +15,7 @@ import { renderChart } from "../../engine/layout/chart-render.js";
 export const TEXT_PAD = { x: 9.6, y: 4.8 };
 export const LINE_HEIGHT = 1.2;
 export const BULLET_INDENT = 1.1; // em
+export const LEVEL_INDENT = 1.4; // em per list level
 
 const mul = (A, B) => [A[0] * B[0] + A[2] * B[1], A[1] * B[0] + A[3] * B[1], A[0] * B[2] + A[2] * B[3], A[1] * B[2] + A[3] * B[3], A[0] * B[4] + A[2] * B[5] + A[4], A[1] * B[4] + A[3] * B[5] + A[5]];
 
@@ -30,75 +31,85 @@ export function elementMatrix(e) {
 const solid = (color, alpha = 1) => (color ? { type: "solid", color, alpha } : null);
 const strokeOf = (color, width) => (color && width ? { paint: solid(color), width, cap: "butt", join: "miter", miterLimit: 4, dash: null, dashOffset: 0 } : null);
 
-/** Wraps an element's text into lines inside its box (greedy, words longer than a line break by characters). */
+/** Bullet characters by list level (all in the PDF standard fonts' character set). */
+export const BULLETS = ["•", "–", "»"];
+
+/** Font of a span format over the box look (mixed bold, italic, typeface and size). */
+const fontOf = (look, f = {}) => ({ family: f.font || look.font, size: (f.size ?? look.size) * M.PT, weight: (f.bold ?? look.bold) ? 700 : 400, style: (f.italic ?? look.italic) ? "italic" : "normal" });
+
+/**
+ * Wraps an element's text into lines inside its box (greedy, words longer than a line break by characters). Lines
+ * carry their source offset, list level and bullet position; mixed sizes give a line the height of its largest text.
+ */
 export function layoutText(deck, e, measureFn, box = { w: e.w, h: e.h }) {
   const look = M.textLook(deck, e);
   const size = look.size * M.PT;
-  const font = { family: look.font, size, weight: look.bold ? 700 : 400, style: look.italic ? "italic" : "normal" };
-  const indent = look.bullets ? size * BULLET_INDENT : 0;
-  const maxW = Math.max(1, box.w - TEXT_PAD.x * 2 - indent);
+  const font = fontOf(look);
+  const text = String(e.text || "");
+  const spans = e.spans?.length && e.spans.some((s) => s.font || s.size || s.bold !== undefined || s.italic !== undefined) ? e.spans : null;
+  const widthOf = (a, b) => (spans ? M.spanSegments(text, spans, a, b).reduce((w, s) => w + measureFn(fontOf(look, s.fmt), s.text), 0) : measureFn(font, text.slice(a, b)));
+  const sizeOf = (a, b) => (spans ? M.spanSegments(text, spans, a, Math.max(b, a + 1)).reduce((m, s) => Math.max(m, (s.fmt.size ?? look.size) * M.PT), size) : size);
+  const levels = M.paragraphLevels(e);
   const lines = [];
   let paraStart = 0;
-  for (const para of String(e.text || "").split("\n")) {
-    const lineFrom = lines.length;
-    const words = para.split(/(\s+)/);
-    let cur = "";
+  text.split("\n").forEach((para, pi) => {
+    const level = levels[pi] || 0;
+    const lead = level * size * LEVEL_INDENT;
+    const indent = lead + (look.bullets ? size * BULLET_INDENT : 0);
+    const maxW = Math.max(1, box.w - TEXT_PAD.x * 2 - indent);
+    const end = paraStart + para.length;
     let first = true;
-    const push = (text) => {
-      lines.push({ text, bullet: look.bullets && first && para.trim() !== "", width: measureFn(font, text) });
+    const push = (a, b) => {
+      while (b > a && /\s/.test(text[b - 1])) b--;
+      lines.push({ text: text.slice(a, b), start: a, width: widthOf(a, b), size: sizeOf(a, b), bullet: look.bullets && first && para.trim() !== "", level, indent, lead, maxW });
       first = false;
     };
-    for (const w of words) {
-      const tryLine = cur + w;
-      if (!cur || measureFn(font, tryLine.trimEnd()) <= maxW) {
-        if (!cur && measureFn(font, w) > maxW && w.trim()) {
-          let part = "";
-          for (const ch of w) {
-            if (part && measureFn(font, part + ch) > maxW) {
-              push(part);
-              part = "";
-            }
-            part += ch;
+    let a = paraStart, b = paraStart; // current line [a, b)
+    const re = /\s+|\S+/g;
+    for (let m; (m = re.exec(para));) {
+      const ts = paraStart + m.index, te = ts + m[0].length;
+      if (a === b) {
+        if (/\S/.test(m[0]) && widthOf(ts, te) > maxW) {
+          let p = ts;
+          for (let k = ts + 1; k <= te; k++) if (k - p > 1 && widthOf(p, k) > maxW) {
+            push(p, k - 1);
+            p = k - 1;
           }
-          cur = part;
-        } else cur = tryLine;
-      } else {
-        push(cur.trimEnd());
-        cur = w.trimStart();
+          [a, b] = [p, te];
+        } else [a, b] = [ts, te];
+      } else if (widthOf(a, /\S/.test(m[0]) ? te : b) <= maxW) b = te;
+      else {
+        push(a, b);
+        if (/\S/.test(m[0])) [a, b] = [ts, te];
+        else [a, b] = [te, te];
       }
     }
-    push(cur.trimEnd());
-    // source offsets of each line (lines are trimmed pieces of the paragraph, in order) for mixed formatting
-    let at = 0;
-    for (let i = lineFrom; i < lines.length; i++) {
-      const k = lines[i].text ? para.indexOf(lines[i].text, at) : at;
-      lines[i].start = paraStart + Math.max(at, k);
-      at = Math.max(at, k) + lines[i].text.length;
-    }
-    paraStart += para.length + 1;
-  }
-  const lh = size * LINE_HEIGHT;
-  const total = lines.length * lh;
+    push(a, b);
+    paraStart = end + 1;
+  });
+  const total = lines.reduce((t, l) => t + l.size * LINE_HEIGHT, 0);
   const inner = box.h - TEXT_PAD.y * 2;
   let top = TEXT_PAD.y + (look.valign === "middle" ? (inner - total) / 2 : look.valign === "bottom" ? inner - total : 0);
   for (const l of lines) {
-    const avail = maxW;
-    const dx = look.align === "center" ? (avail - l.width) / 2 : look.align === "right" ? avail - l.width : 0;
-    l.x = TEXT_PAD.x + indent + dx;
-    l.y = top + size * 0.95; // baseline
-    l.size = size;
-    top += lh;
+    const dx = look.align === "center" ? (l.maxW - l.width) / 2 : look.align === "right" ? l.maxW - l.width : 0;
+    l.x = TEXT_PAD.x + l.indent + dx;
+    l.bx = TEXT_PAD.x + l.lead; // bullet position
+    l.y = top + l.size * 0.95; // baseline
+    top += l.size * LINE_HEIGHT;
   }
-  return { lines, font, look, indent };
+  return { lines, font, look };
 }
 
 function textRuns(deck, e, measureFn, box) {
   if (!e.text) return [];
-  const { lines, font, look, indent } = layoutText(deck, e, measureFn, box);
+  const { lines, font, look } = layoutText(deck, e, measureFn, box);
   const runs = [];
   const fill = solid(look.color);
   for (const l of lines) {
-    if (l.bullet) runs.push({ text: "•", x: l.x - indent, y: l.y, width: measureFn(font, "•"), font, fill, stroke: null, letterSpacing: 0, underline: false, strike: false });
+    if (l.bullet) {
+      const ch = BULLETS[l.level % BULLETS.length];
+      runs.push({ text: ch, x: l.bx, y: l.y, width: measureFn(font, ch), font, fill, stroke: null, letterSpacing: 0, underline: false, strike: false });
+    }
     if (!l.text) continue;
     if (!e.spans?.length) {
       runs.push({ text: l.text, x: l.x, y: l.y, width: l.width, font, fill, stroke: null, letterSpacing: 0, underline: !!look.underline, strike: false });
@@ -107,7 +118,7 @@ function textRuns(deck, e, measureFn, box) {
     let x = l.x;
     for (const seg of M.spanSegments(e.text, e.spans, l.start, l.start + l.text.length)) {
       const f = seg.fmt;
-      const sf = { ...font, weight: (f.bold ?? look.bold) ? 700 : 400, style: (f.italic ?? look.italic) ? "italic" : "normal" };
+      const sf = fontOf(look, f);
       const width = measureFn(sf, seg.text);
       runs.push({ text: seg.text, x, y: l.y, width, font: sf, fill: f.color ? solid(f.color) : fill, stroke: null, letterSpacing: 0, underline: !!(f.underline ?? look.underline), strike: false });
       x += width;

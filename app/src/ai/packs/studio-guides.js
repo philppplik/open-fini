@@ -161,7 +161,8 @@ slides_apply_design (or slides_apply_theme) once -> slides_set_footer (slide num
 - Slides are addressed by number or id from slides_describe; boxes are [x, y, w, h] in slide units as described there.
 - Placeholders: title, subtitle, body, body2; slides_set_text adds a missing placeholder in the layout position.
 - Deck-wide look belongs on the master: logos and accent bars with slides_edit_master, placeholder positions with slides_edit_layout; never copy the same shape onto every slide.
-- Charts keep a snapshot of the spreadsheet range; call slides_refresh_charts after the numbers change.
+- Sub-bullets: start a body line with a tab per level in slides_set_text ("Goal\\n\\tStep").
+- Charts follow their spreadsheet while both are open; call slides_refresh_charts after reopening the spreadsheet.
 
 ## Pitfalls
 - More than 6 bullets or 40 words per slide; text boxes overlapping placeholders; images not from an attachment or data: URI.
