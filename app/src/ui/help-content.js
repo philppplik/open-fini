@@ -37,6 +37,8 @@ export const TOOL_HELP = {
   clone: "Alt-click a source area, then paint to copy it somewhere else.",
   heal: "Like Clone Stamp, but blends texture into the surrounding light and color.",
   "spot-heal": "Click or paint over a blemish and it is repaired from the surroundings.",
+  patch: "Draw around a flaw, then drag the selection to a clean area: its texture replaces the flaw and blends in.",
+  "object-eraser": "Paint over an object or person and it is removed and filled from the surroundings.",
   redeye: "Click an eye with red-eye to restore a natural pupil.",
   smudge: "Drag to smear pixels as if the paint were wet.",
   blur: "Paint to soften an area locally.",

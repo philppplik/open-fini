@@ -18,10 +18,18 @@ import { ratioValue, resizeRect, applyRatio, rotatedCorners, fitRotatedInside, c
 /**
  * Crops the active page to `rect` (page px). `angle` rotates the crop box (degrees clockwise; content is rotated the
  * other way), `flipH/flipV` mirror the result, `corners` fills uncovered areas: "transparent", "background" (a solid layer
- * in the background color) or "fit" (the box is shrunk until no corner is empty).
+ * in the background color), "extend" (a layer that repeats the edge pixels outward), "content" (a layer filled from the
+ * image, content-aware) or "fit" (the box is shrunk until no corner is empty). "extend" and "content" with an angle
+ * need the worker pool: then the call returns a Promise of `true` or a reason string; otherwise it works synchronously.
  */
-export function cropPage(app, rect, { deletePixels = false, angle = 0, flipH = false, flipV = false, corners = "transparent" } = {}) {
-  const doc = app.doc;
+export function cropPage(app, rect, opts = {}) {
+  const geo = cropGeometry(app, rect, opts);
+  if (geo.rotated && (opts.corners === "extend" || opts.corners === "content")) return cropWithFill(app, geo, opts);
+  applyCrop(app, geo, opts, null);
+  return true;
+}
+
+function cropGeometry(app, rect, { angle = 0, flipH = false, flipV = false, corners = "transparent" }) {
   const page = app.page;
   const rotated = Math.abs(angle) > 1e-6;
   let r = { ...rect };
@@ -32,6 +40,28 @@ export function cropPage(app, rect, { deletePixels = false, angle = 0, flipH = f
   let M = rotated ? cropMatrix({ ...r, w, h: hh }, angle) : translate(-r.x, -r.y);
   if (flipH) M = mul([-1, 0, 0, 1, w, 0], M);
   if (flipV) M = mul([1, 0, 0, -1, 0, hh], M);
+  return { r, w, hh, M, rotated };
+}
+
+async function cropWithFill(app, geo, opts) {
+  const doc = app.doc, page = app.page;
+  const { cornerFill } = await import("./heal-ops.js");
+  app.status(t("Filling the corners…"));
+  let fill;
+  try {
+    fill = await cornerFill(app, geo.M, geo.w, geo.hh, opts.corners);
+  } finally {
+    app.status("");
+  }
+  if (typeof fill === "string") return fill;
+  if (app.doc !== doc || app.page !== page) return N_("The document changed while the corners were being filled.");
+  applyCrop(app, geo, opts, fill);
+  return true;
+}
+
+function applyCrop(app, { r, w, hh, M, rotated }, { deletePixels = false, flipH = false, flipV = false, corners = "transparent" }, fill) {
+  const doc = app.doc;
+  const page = app.page;
   doc.tx("Crop", () => {
     for (const n of page.root.children) doc.set(n, { m: mul(M, n.m) });
     if (deletePixels && !rotated && !flipH && !flipV) {
@@ -60,6 +90,11 @@ export function cropPage(app, rect, { deletePixels = false, angle = 0, flipH = f
       ctx.fillRect(0, 0, w, hh);
       doc.pixels.set(bgLayer.id, c);
       doc.insert(bgLayer, page.root, 0);
+    }
+    if (fill) {
+      const layer = createNode("pixel", { name: corners === "content" ? "Crop corners (content-aware)" : "Crop corners (extended edges)", w, h: hh });
+      doc.pixels.set(layer.id, fill);
+      doc.insert(layer, page.root, 0);
     }
     const g = page.guides;
     doc.set(page, { w, h: hh, guides: rotated || flipH || flipV ? { h: [], v: [] } : { h: g.h.map((v) => v - r.y), v: g.v.map((v) => v - r.x) } });
@@ -248,8 +283,30 @@ export class CropToolImpl extends Tool {
     const r = this.rect;
     if (this.#isFull() && !this.flipH && !this.flipV) return this.app.toast("Drag a crop area first.", "warning");
     const o = this.opts;
-    cropPage(this.app, r, { deletePixels: o.deletePixels, angle: this.#angle(), corners: o.corners, flipH: this.flipH, flipV: this.flipV });
-    this.app.setTool("move");
+    const app = this.app;
+    const res = cropPage(app, r, { deletePixels: o.deletePixels, angle: this.#angle(), corners: o.corners, flipH: this.flipH, flipV: this.flipV });
+    app.setTool("move");
+    Promise.resolve(res).then((x) => x !== true && app.toast(x, "warning"), (err) => app.toast(String(err?.message || err), "danger"));
+  }
+
+  /** Auto straighten: sets the angle from the detected horizon (or strongest plumb line) of the page. */
+  async autoStraighten() {
+    const app = this.app;
+    app.status(t("Looking for the horizon…"));
+    let r;
+    try {
+      r = await (await import("./heal-ops.js")).findHorizon(app);
+    } finally {
+      app.status("");
+    }
+    if (app.tool?.impl !== this && app.tool !== this) return;
+    if (typeof r === "string") return app.toast(r, "warning", 6000);
+    app.toolOptions(this.id).angle = Math.max(-45, Math.min(45, r.angle));
+    this.#refit();
+    const angle = r.angle.toFixed(1);
+    app.toast(r.kind === "horizon" ? t("Horizon found: {angle}°", { angle }) : t("Vertical edge found: {angle}°", { angle }), "success", 2500);
+    app.emit("contextbar");
+    app.requestOverlay();
   }
 
   keyDown(ev) {
@@ -287,6 +344,7 @@ export class CropToolImpl extends Tool {
     return h(
       "div.of-row.of-inline",
       toggle(N_("Straighten"), this.level, () => { this.level = !this.level; this.app.emit("contextbar"); }, t("Draw a line along something that should be level or plumb")),
+      button(N_("Auto"), () => this.autoStraighten(), { title: t("Find the horizon (or a vertical edge) and straighten automatically") }),
       button(N_("Swap"), () => this.swapOrientation()),
       toggle(N_("Flip H"), this.flipH, () => { this.flipH = !this.flipH; this.app.emit("contextbar"); }, t("Mirror the result horizontally")),
       toggle(N_("Flip V"), this.flipV, () => { this.flipV = !this.flipV; this.app.emit("contextbar"); }, t("Mirror the result vertically")),

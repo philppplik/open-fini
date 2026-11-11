@@ -2,10 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   makeBrushFalloff, brushSize, cloneDab, smudgeDab, createSmudgeState, blurDab, sharpenDab, dodgeBurnDab, spongeDab, healPatch,
-  spotHeal, inpaintMask, removeRedEye,
+  spotHeal, removeRedEye,
 } from "../../app/src/engine/pixel/retouch.js";
 import { Mask } from "../../app/src/engine/pixel/selection.js";
 import { createImage, cloneImage } from "../../app/src/engine/pixel/image.js";
+import { inpaintMask } from "../../app/src/engine/pixel/inpaint.js";
 import { solid, noise, px, setPx, maxDiff, near, rng } from "./_util.js";
 
 function chroma(p) {

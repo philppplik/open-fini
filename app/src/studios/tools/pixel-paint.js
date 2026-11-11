@@ -196,6 +196,7 @@ export const FILL_OPTIONS = [
   { key: "tolerance", label: "Tolerance", type: "int", min: 0, max: 255, step: 1, default: 32 },
   { key: "contiguous", label: "Contiguous", type: "bool", default: true },
   { key: "grow", label: "Grow", type: "int", min: 0, max: 10, step: 1, unit: "px", default: 0 },
+  { key: "antialias", label: N_("Anti-alias"), type: "bool", default: true },
 ];
 
 /** Flood-fills the active pixel layer at the event position with the foreground color. */
@@ -212,7 +213,7 @@ export function pixelFill(app, e, opts) {
   const selMask = layerSpaceMask(app, t);
   const mask = selMask ? Mask.fromAlpha(ctx2d(selMask).getImageData(0, 0, W, H)) : undefined;
   const color = t.isMask ? (brightness(app.style.primary) >= 0.5 ? "#ffffff" : "#000000") : app.style.primary;
-  const rect = floodFill(img, lx, ly, color, { tolerance: opts.tolerance, contiguous: opts.contiguous, grow: opts.grow, mask, opacity: app.brush.opacity });
+  const rect = floodFill(img, lx, ly, color, { tolerance: opts.tolerance, contiguous: opts.contiguous, antialias: opts.antialias !== false, grow: opts.grow, mask, opacity: app.brush.opacity });
   if (!rect.width) return;
   t.ctx.putImageData(img, 0, 0);
   const rb = t.ctx.getImageData(rect.x, rect.y, rect.width, rect.height);

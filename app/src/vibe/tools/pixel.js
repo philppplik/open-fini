@@ -102,7 +102,7 @@ export function pixelTools(app, ctx) {
     tool("crop_image", "Crops the active page to a rectangle in page pixels, or to an aspect ratio around the center, optionally rotated by an angle (straighten). All layers move together as one undoable step. Without deleteCropped nothing is destroyed: content outside the new page can be brought back with trim/reveal.", {
       x: S.num("Left"), y: S.num("Top"), w: S.num("Width"), h: S.num("Height"),
       ratio: S.str("Aspect ratio such as 16:9, 1:1, 4:3 (used instead of w/h: the largest centered box)"), angle: S.num("Rotation of the crop box in degrees, clockwise, -45..45 (straighten)", { minimum: -45, maximum: 45 }),
-      corners: S.str("Empty corners after a rotation", { enum: ["transparent", "background", "fit"] }), deleteCropped: S.bool("Delete the pixels outside the crop (default false)"),
+      corners: S.str("Empty corners after a rotation: transparent, background color, extend (repeat the edge pixels), content (content-aware fill) or fit (shrink the box)", { enum: ["transparent", "background", "extend", "content", "fit"] }), deleteCropped: S.bool("Delete the pixels outside the crop (default false)"),
     }, [], async (a) => {
       requireDoc(app);
       const { cropPage } = await import("../../studios/tools/pixel-crop-impl.js");
@@ -115,7 +115,8 @@ export function pixelTools(app, ctx) {
       else if (ratio) r = applyRatio({ x: 0, y: 0, w: p.w, h: p.h }, ratio, p);
       else if (a.angle) r = largestInscribed(p.w, p.h, a.angle, p.w / p.h);
       else return { ok: false, error: "Give w and h, or a ratio, or an angle." };
-      cropPage(app, r, { angle: a.angle || 0, corners: a.corners || (a.angle ? "fit" : "transparent"), deletePixels: !!a.deleteCropped });
+      const done = await cropPage(app, r, { angle: a.angle || 0, corners: a.corners || (a.angle ? "fit" : "transparent"), deletePixels: !!a.deleteCropped });
+      if (done !== true) return { ok: false, error: done };
       return { ok: true, page: { w: app.page.w, h: app.page.h } };
     }),
 

@@ -97,6 +97,7 @@ function canvasEditItems(ctx) {
     "arrange.group", "arrange.ungroup", "-",
     { label: "Arrange", items: ["arrange.front", "arrange.forward", "arrange.backward", "arrange.back"] },
     { label: "Align", items: ["align.left", "align.centerH", "align.right", "-", "align.top", "align.centerV", "align.bottom"] },
+    "arrange.moveTo",
     "-", "shape.convert", "shape.expandStroke", "-", "arrange.lock", "arrange.hide",
   ];
   if (ctx.kind === "layers-row") items.push("-", "layer.addMask", "layer.rasterize", "layer.mergeDown");

@@ -93,6 +93,7 @@ A tool key is a single letter pressed while the canvas has focus. Several tools 
 
 | Command | Shortcut | Alternative | Id |
 | --- | --- | --- | --- |
+| Content-Aware Fill | `Shift+Backspace` |  | `pixel.contentAwareFill` |
 | Fill with Background | `Mod+Backspace` |  | `pixel.fillBackground` |
 | Fill with Foreground | `Alt+Backspace` |  | `pixel.fillForeground` |
 
@@ -194,6 +195,7 @@ A tool key is a single letter pressed while the canvas has focus. Several tools 
 | --- | --- | --- | --- |
 | 200% | `Mod+2` |  | `view.zoom200` |
 | Actual Size (100%) | `Mod+1` |  | `view.zoom100` |
+| Compare Before / After | `Mod+Alt+Y` |  | `view.compare` |
 | Fit All Pages | `Mod+Alt+0` |  | `view.fitAll` |
 | Fit Page | `Mod+0` |  | `view.fit` |
 | Grid | `Mod+'` |  | `view.grid` |

@@ -62,13 +62,15 @@ Divide**, **Trace Image to Vector…**.
 | Marquee (rect / ellipse) | `M` | Shift / Alt / Shift+Alt combine with the existing selection. |
 | Lasso (freehand / polygonal) | `L` | Polygonal: click points, click the first point or `Enter` to close, `Backspace` removes a point. |
 | Magic wand / Color range | `W` | Tolerance, contiguous, sample the layer or all layers; Color Range adds softness, sample size and invert. |
-| Crop | `C` | 8 handles; ratios free / original / 1:1 / 4:3 / 3:2 / 16:9 / 5:4 / custom W:H (`X` swaps portrait and landscape); **straighten** by dragging outside the box, with the angle field (+-45 degrees) or the *Straighten* level line; guides cycle with `O` (thirds, grid, golden ratio, diagonals, golden triangle); flip H / V; empty corners transparent, background color or *shrink to fit*; *Delete cropped pixels* off keeps the content outside the page (Reveal All brings it back). `Enter` applies, `Esc` cancels. All layers move together, one history step. |
+| Crop | `C` | 8 handles; ratios free / original / 1:1 / 4:3 / 3:2 / 16:9 / 5:4 / custom W:H (`X` swaps portrait and landscape); **straighten** by dragging outside the box, with the angle field (+-45 degrees) or the *Straighten* level line; guides cycle with `O` (thirds, grid, golden ratio, diagonals, golden triangle); flip H / V; **Auto** finds the horizon (or the strongest plumb line) and sets the angle; empty corners transparent, background color, *extend edges* (a bottom layer that repeats the edge pixels outward), *content-aware fill* (a bottom layer filled from the image; large corners fall back to a smooth fill) or *shrink to fit*; *Delete cropped pixels* off keeps the content outside the page (Reveal All brings it back). `Enter` applies, `Esc` cancels. All layers move together, one history step. |
 | Perspective crop | `C` (flyout) | Drag four corners onto a tilted rectangle, `Enter` flattens and straightens it (bicubic homography warp). Destructive: the page becomes one layer (undo restores it). |
 | 3D Transform | crop flyout | Tilts the active pixel layer (or only the selected pixels) around X/Y/Z with a perspective distance, skews it, or bends it with corner-pin / 2-4 cell warp-grid handles (drag inside to move). Live preview; `Enter` / pill **Apply** resamples (bicubic, bilinear or nearest) on the worker pool as one undo step, `Escape` cancels. Vibe: `transform_layer_3d`. The original stays visible under the preview until you apply. |
 | Magic eraser | `E` (flyout) | Click to erase pixels of a similar color (tolerance, contiguous, opacity); respects the selection. |
 | Brush / Pencil | `B` | `[` and `]` change the size. Pressure-sensitive. Painting on a mask: light colors reveal, dark colors hide. |
 | Eraser | `E` | |
 | Clone / Heal / Spot heal / Red eye | `S`, `J`, `R` | Alt-click sets the source for clone and heal. |
+| Patch | `J` (flyout) | Draw around a flaw (or use the selection), then drag from inside the selection: *Source* fills the selection with the texture where you drop it, *Destination* copies the selection there. *Match the surroundings* blends the light and color of the border into the copied texture (membrane interpolation); *Copy exactly* moves the pixels. One undo step, worker pool. |
+| Object Eraser | `J` (flyout) | Paint over an object; on release it is filled from the surroundings (patch synthesis for areas up to about 60 000 px, a smooth fill above). *Grow* hides halos. One undo step, worker pool. |
 | Smudge / Blur / Sharpen | `O` | |
 | Dodge / Burn / Sponge | `D` | Range (shadows / midtones / highlights). |
 | Fill / Gradient | `F`, `G` | Respect the active selection. Gradient types: linear, radial, angular, reflected, diamond. |
@@ -76,7 +78,16 @@ Divide**, **Trace Image to Vector…**.
 | Color picker | `I` | Click = foreground, Alt-click = background. |
 
 Colors: `X` swaps foreground and background, `D` resets them. **Alt+Backspace** fills the selection with
-the foreground color, **Mod+Backspace** with the background color.
+the foreground color, **Mod+Backspace** with the background color, **Shift+Backspace** (*Edit ▸ Content-Aware Fill*)
+with texture from the surroundings (no AI model; `engine/pixel/inpaint.js` on the worker pool). The Fill tool has an
+*Anti-alias* option (on by default: a soft one-pixel edge).
+
+**Straighten Horizon** (*Document* menu) detects the horizon or the strongest near-vertical edge (gradient Hough
+transform within ±20°, `engine/pixel/heal.js`) and rotates the page by it, cropped so no corner is empty. **Compare
+Before / After** (*View*, `Mod+Alt+Y`) shows the page as it looked when the Pixel studio first showed it in this
+session left of a draggable divider (`Alt+Left/Right` moves it); *Set Current State as Before* retakes the snapshot.
+Snapshots are kept in memory only (up to 8 megapixels). **Move to Position…** (canvas and layer context menus,
+*Arrange* menu) places the selected layers by their top-left corner, center or bottom-right corner at page coordinates.
 
 Document menu (Pixel): **Crop** (tool), **Crop to Selection**, **Crop to Content**, **Trim Transparent Edges**, **Trim Edges of the Same Color**,
 **Reveal All**, **Resize Document** (scale layers, or resample pixel layers with Lanczos / bicubic / bilinear / nearest, plus the DPI metadata),
