@@ -19,8 +19,8 @@ export const SCENE_STUDIO = {
 /** Menus of the Scene Studio (merged into ui/menus.js MENUS). The commands register when the first scene mounts. */
 export const SCENE_MENUS = [
   { label: "Edit", studios: ["scene"], items: ["edit.undo", "edit.redo", "-", "scene.split", "scene.duplicate", "scene.delete", "scene.rippleDelete", "-", "scene.selectAll", "-", "scene.lift", "scene.extract", "-", "edit.preferences"] },
-  { label: "Clip", studios: ["scene"], items: ["scene.addText", "scene.addShape", "scene.addSolid", "scene.addAdjustment", "-", "scene.precompose", "-", "scene.fit", "scene.fill", "-", "scene.rippleTrimStart", "scene.rippleTrimEnd"] },
-  { label: "Sequence", studios: ["scene"], items: ["scene.import", "-", "scene.addVideoTrack", "scene.addAudioTrack", "-", "scene.setIn", "scene.setOut", "scene.clearRange", "-", "scene.addMarker", "-", "scene.export"] },
+  { label: "Clip", studios: ["scene"], items: ["scene.addText", "scene.addShape", "scene.addSolid", "scene.addAdjustment", "-", "scene.precompose", "scene.openComposition", "scene.timeRemap", "-", "scene.fit", "scene.fill", "-", "scene.rippleTrimStart", "scene.rippleTrimEnd"] },
+  { label: "Sequence", studios: ["scene"], items: ["scene.import", "-", "scene.addVideoTrack", "scene.addAudioTrack", "-", "scene.setIn", "scene.setOut", "scene.clearRange", "-", "scene.addMarker", "-", "scene.newComposition", "scene.mainSequence", "-", "scene.export"] },
   { label: "Playback", studios: ["scene"], items: ["scene.play", "scene.stepBack", "scene.stepForward", "scene.prevEdit", "scene.nextEdit", "scene.goStart", "scene.goEnd"] },
-  { label: "View", studios: ["scene"], items: ["scene.zoomIn", "scene.zoomOut", "scene.zoomFit", "-", "scene.toolSelect", "scene.toolRazor", "scene.toolSlip", "scene.toolHand", "scene.snap", "-", "view.theme"] },
+  { label: "View", studios: ["scene"], items: ["scene.zoomIn", "scene.zoomOut", "scene.zoomFit", "scene.graphEditor", "-", "scene.toolSelect", "scene.toolRazor", "scene.toolSlip", "scene.toolHand", "scene.snap", "-", "view.theme"] },
 ];

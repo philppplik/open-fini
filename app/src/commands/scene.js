@@ -2,6 +2,8 @@
 // Registered lazily by scene/view.js the first time a scene mounts, so nothing here is start-up code. Single-key
 // shortcuts (Space, J/K/L, I/O, C/V …) are handled by the workspace while it has focus; the commands only document
 // them, so they never collide with the shortcuts of other studios.
+import * as M from "../scene/model.js";
+
 let done = false;
 
 export function registerSceneCommands(app) {
@@ -19,6 +21,20 @@ export function registerSceneCommands(app) {
   def("scene.addSolid", "Add Solid", () => s().addSolid(), { icon: "palette" });
   def("scene.addAdjustment", "Add Adjustment Layer", () => s().addAdjustment(), { icon: "layers-half" });
   def("scene.precompose", "Pre-compose", () => s().precompose(), { icon: "collection", enabled: hasSel });
+  const oneComp = (a) => {
+    const ids = on(a) ? a.sceneUI.selection() : [];
+    return ids.length === 1 && a.sceneUI.seqModel().clips[ids[0]]?.type === "comp";
+  };
+  def("scene.openComposition", "Open Composition", () => s().openCompClip(s().selection()[0]), { enabled: oneComp });
+  def("scene.timeRemap", "Time Remapping", () => {
+    const ui = s();
+    const id = ui.selection()[0];
+    const c = ui.seqModel().clips[id];
+    ui.commitSeq("Time Remapping", M.setTimeRemap(ui.seqModel(), id, c.remap === undefined));
+  }, { enabled: oneComp });
+  def("scene.newComposition", "New Composition", () => s().newComposition(), { icon: "collection" });
+  def("scene.mainSequence", "Go to the Main Sequence", () => s().openSequence("main"), { enabled: (a) => on(a) && a.sceneUI.seq !== "main" });
+  def("scene.graphEditor", "Graph Editor", () => s().toggleGraph(), { icon: "bezier2" });
   def("scene.split", "Split at Playhead", () => s().splitAtPlayhead(), { icon: "layout-split" });
   def("scene.duplicate", "Duplicate", () => s().duplicateSelection(), { icon: "files", enabled: hasSel });
   def("scene.delete", "Delete", () => s().deleteSelection(), { icon: "trash", enabled: hasSel });

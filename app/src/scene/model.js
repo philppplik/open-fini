@@ -42,7 +42,7 @@
 // Format history (normalizeScene migrates): 1 = first release; 2 = Bezier tangents on keyframes (i, o, b), the
 // bounce and elastic easings, nested compositions, remap and collapse on composition clips, sound of compositions.
 // Every addition is optional, so a version 1 file loads unchanged and evaluates to the same frames.
-import { valueAt, isTrack, setKeyframe as kfSet, removeKeyframe as kfRemove, retime, normalizeValue, applyEasing, setTangents as kfTangents, tangentsOf, moveKeys } from "./keyframes.js";
+import { valueAt, isTrack, setKeyframe as kfSet, removeKeyframe as kfRemove, retime, normalizeValue, applyEasing, setTangents as kfTangents, tangentsOf, moveKeys, pasteKeys as kfPaste } from "./keyframes.js";
 
 export const SCENE_VERSION = 2;
 export const CLIP_TYPES = ["video", "audio", "image", "text", "shape", "solid", "adjustment", "comp"];
@@ -890,6 +890,19 @@ export function moveKeyframes(m, id, path, at, dt = 0, dv = 0) {
     const d = Math.round(num(dt) * m.fps) / m.fps;
     return moveKeys(tr, keyIndices(m, c, tr, at), d, num(dv)).track;
   });
+}
+
+/**
+ * Pastes keyframes (keyframes.js ▸ copyKeys: times relative to the first) into a clip property at timeline time
+ * `t`; a constant property becomes animated. Keyframes past the clip's end are dropped.
+ */
+export function pasteKeyframes(m, id, path, keys, t) {
+  const c = must(m, id);
+  const ref = propRef(c, path);
+  const at = clamp(snapT(m, t) - c.start, 0, c.dur);
+  const inside = (keys || []).filter((k) => k && at + k.t <= c.dur + 1e-6);
+  if (!inside.length) return m;
+  return { ...m, clips: { ...m.clips, [id]: ref.set(kfPaste(ref.get(), inside, at)) } };
 }
 
 /** The keyframes of a clip property as plain data with timeline times and effective tangents. */
