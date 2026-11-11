@@ -160,8 +160,8 @@ export function createInspector(ui) {
       };
       out.push(section("Composition",
         h("div.of-scene-insp__btns", btn("Open composition", () => ui.openCompClip(id))),
-        check("Collapse transformations", () => c.collapse, (on) => upd({ collapse: on }, "Collapse Transformations")),
-        check("Time remapping", () => c.remap !== undefined, (on) => ui.commitSeq("Time Remapping", M.setTimeRemap(ui.seqModel(), id, on))),
+        check(N_("Collapse transformations"), () => c.collapse, (on) => upd({ collapse: on }, "Collapse Transformations")),
+        check(N_("Time remapping"), () => c.remap !== undefined, (on) => ui.commitSeq("Time Remapping", M.setTimeRemap(ui.seqModel(), id, on))),
         c.remap !== undefined ? animRow(id, "Source time", "remap", (k) => k.remap, { min: 0, step: 0.04, unit: "s" }) : null));
     }
 

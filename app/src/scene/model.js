@@ -400,11 +400,23 @@ export function normalizeScene(raw) {
     comps[id] = { id, name: String(c.name || "Composition").slice(0, 120), width, height, ...normSeq(c, { width, height }) };
   }
   for (const s of [root, ...Object.values(comps)]) for (const c of Object.values(s.clips)) if (c.type === "comp" && !comps[c.comp]) delete s.clips[c.id];
-  // format 2: compositions may nest, but a composition never reaches itself; a foreign file with a cycle loses the
-  // clips that close it (in a stable order, so every collaborator repairs it the same way)
-  for (const k of Object.values(comps).sort((a, b) => (a.id < b.id ? -1 : 1))) {
-    for (const c of Object.values(k.clips).sort((a, b) => (a.id < b.id ? -1 : 1))) if (c.type === "comp" && compReaches(comps, c.comp, k.id)) delete k.clips[c.id];
-  }
+  // format 2: compositions may nest, but a composition never reaches itself. A foreign file with a cycle loses the
+  // clips that close it: depth-first from the main sequence (then the unused compositions by id), in clip order, a
+  // clip that points back into the compositions being visited is dropped (deterministic, so every collaborator
+  // repairs a file the same way)
+  const visiting = new Map(); // comp id → 1 while its clips are walked, 2 when done
+  const byOrder = (clips) => Object.values(clips).filter((c) => c.type === "comp").sort((a, b) => a.start - b.start || (a.id < b.id ? -1 : 1));
+  const walk = (id) => {
+    visiting.set(id, 1);
+    for (const c of byOrder(comps[id].clips)) {
+      const s = visiting.get(c.comp);
+      if (s === 1) delete comps[id].clips[c.id];
+      else if (!s) walk(c.comp);
+    }
+    visiting.set(id, 2);
+  };
+  for (const c of byOrder(root.clips)) if (!visiting.has(c.comp)) walk(c.comp);
+  for (const id of Object.keys(comps).sort()) if (!visiting.has(id)) walk(id);
   const analysis = {};
   for (const [id, a] of Object.entries(raw?.analysis || {})) if (media[id] && a && typeof a === "object") analysis[id] = a;
   const r = raw?.range;

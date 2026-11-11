@@ -203,23 +203,23 @@ export function createGraphEditor(ui) {
     modeSel,
     h("label", normBox, t("Normalize")),
     h("span.of-scene-strip__sep"),
-    tbtn("Linear", () => applyEasing("linear")),
-    tbtn("Easy ease (F9)", () => applyEasing("easyEase")),
-    tbtn("Hold", () => applyEasing("hold")),
+    tbtn(N_("Linear"), () => applyEasing("linear")),
+    tbtn(N_("Easy ease (F9)"), () => applyEasing("easyEase")),
+    tbtn(N_("Hold"), () => applyEasing("hold")),
     easeSel,
     h("label", brokenBox, t("Broken")),
     h("span.of-scene-strip__sep"),
-    numField("time", "Time (s)", 0.04, (v) => setNumeric({ time: v })),
-    numField("value", "Value", 0.1, (v) => setNumeric({ value: v })),
-    numField("inS", "In speed", 0.1, (v) => setNumeric({ inS: v })),
-    numField("inF", "In influence (%)", 1, (v) => setNumeric({ inF: v })),
-    numField("outS", "Out speed", 0.1, (v) => setNumeric({ outS: v })),
-    numField("outF", "Out influence (%)", 1, (v) => setNumeric({ outF: v })),
+    numField("time", N_("Time (s)"), 0.04, (v) => setNumeric({ time: v })),
+    numField("value", N_("Value"), 0.1, (v) => setNumeric({ value: v })),
+    numField("inS", N_("In speed"), 0.1, (v) => setNumeric({ inS: v })),
+    numField("inF", N_("In influence (%)"), 1, (v) => setNumeric({ inF: v })),
+    numField("outS", N_("Out speed"), 0.1, (v) => setNumeric({ outS: v })),
+    numField("outF", N_("Out influence (%)"), 1, (v) => setNumeric({ outF: v })),
     h("span.of-scene-strip__grow"),
-    tbtn("Copy keyframes (Ctrl+C)", () => copy(), "copy"),
-    tbtn("Paste keyframes at the playhead (Ctrl+V)", () => paste(), "clipboard"),
-    tbtn("Fit the selection (Shift+F)", () => api.fit(true), "arrows-angle-contract"),
-    tbtn("Fit all (F)", () => api.fit(), "aspect-ratio"));
+    tbtn(N_("Copy keyframes (Ctrl+C)"), () => copy(), "copy"),
+    tbtn(N_("Paste keyframes at the playhead (Ctrl+V)"), () => paste(), "clipboard"),
+    tbtn(N_("Fit the selection (Shift+F)"), () => api.fit(true), "arrows-angle-contract"),
+    tbtn(N_("Fit all (F)"), () => api.fit(), "aspect-ratio"));
 
   function syncFields() {
     const c = clip();
@@ -612,7 +612,7 @@ export function createGraphEditor(ui) {
       const nb = tr0.kf[target.i + (target.side === "in" ? -1 : 1)];
       const span = Math.abs(nb.t - k.t);
       const kT = c.start + k.t;
-      label = "Change Tangent";
+      label = N_("Change Tangent");
       move = (x, y, ev) => {
         const T = xt(x);
         const dtp = Math.max(1e-4, target.side === "out" ? T - kT : kT - T);
@@ -640,7 +640,7 @@ export function createGraphEditor(ui) {
         lo = Math.min(lo, trackOf(c, path).kf[i].t);
         hi = Math.max(hi, trackOf(c, path).kf[i].t);
       }
-      label = "Move Keyframes";
+      label = N_("Move Keyframes");
       let moved = sel;
       move = (x, y, ev) => {
         let dx = x - x0;
