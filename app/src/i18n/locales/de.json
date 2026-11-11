@@ -3616,5 +3616,11 @@
   "Wrap width": "Umbruchbreite",
   "Your text": "Dein Text",
   "Zoom in (+)": "Vergrößern (+)",
-  "Zoom out (-)": "Verkleinern (-)"
+  "Zoom out (-)": "Verkleinern (-)",
+  "Add captions": "Untertitel hinzufügen",
+  "Animate the selection": "Auswahl animieren",
+  "Describe this moment": "Diesen Moment beschreiben",
+  "Make a vertical version": "Hochformat-Version erstellen",
+  "Remove silences and filler words": "Pausen und Füllwörter entfernen",
+  "Summarize the video": "Video zusammenfassen"
 }

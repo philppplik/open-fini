@@ -970,6 +970,7 @@ export function mountScene(host, doc, app) {
   });
 
   import("../commands/scene.js").then((m) => m.registerSceneCommands(app)).catch(() => {});
+  import("./ai-menu.js").then((m) => m.installSceneAiMenu(stage, timeline.el)).catch(() => {});
   requestAnimationFrame(() => {
     if (M.duration(model()) > 0) timeline.fit();
     requestDraw();

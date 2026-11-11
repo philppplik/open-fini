@@ -11,10 +11,12 @@
 //   runQuickAction(app, { label, prompt, mode, extra, target, attach })   mode "apply" | "answer"
 //   canvasAiItems(app) / codeAiItems(app, getCtx) / officeAiItems(app, getCtx) / elementAiItems(app, ws)
 //   officeAppAiItems(app, kind, data)     sheet / slides / board surfaces
+//   sceneAiItems(app)                     Scene Studio viewer and timeline (playhead, selected clips)
 //   canvasTarget(app) / jumpToTarget(app, target) / chatTitle(label, target)
 import { h } from "../core/util.js";
 import { vibeStore } from "./store.js";
 import { openDialog, promptDialog, confirmDialog } from "../ui/dialogs.js";
+import { N_ } from "../i18n/index.js";
 
 export const CONTEXT_LIMIT = 12000;
 let bar = null;
@@ -389,6 +391,27 @@ export function officeAppAiItems(app, kind, data) {
   if (kind === "office-slides") items.push({ label: "Improve this slide", run: run("Improve slide", "Improve the current slide: clearer wording, better hierarchy and balanced layout.") });
   if (kind === "office-board") items.push({ label: "Tidy up", run: run("Tidy up", "Arrange the selection (or the page) neatly with board_arrange and align related elements.") });
   return items;
+}
+
+/** Menu items for the Scene Studio viewer and timeline (kind "scene-viewer" | "scene-timeline"): playhead and selection. */
+export function sceneAiItems(app) {
+  if (!app.prefs.aiEnabled) return [];
+  const ui = app.sceneUI;
+  const ids = ui?.selection?.() || [];
+  const at = ui ? Math.round(ui.state.t * 100) / 100 : 0;
+  const target = base(app, { kind: "scene", ids: ids.slice(0, 50), t: at, label: ids.length ? `${ids.length} clip${ids.length === 1 ? "" : "s"}` : `${at} s` });
+  const extra = `Scene Studio. Playhead at ${at} s${ids.length ? `; selected clip ids: ${ids.slice(0, 50).join(", ")}` : "; no clip is selected"}. Call scene_describe first.`;
+  const run = (label, prompt, mode) => () => runQuickAction(app, { label, prompt, mode, target, extra });
+  return [
+    custom(app, () => target, () => extra),
+    "-",
+    { label: N_("Describe this moment"), run: run("Describe", "Look at the frame at the playhead with scene_render_frame and describe what is seen, what moves and what could be better.", "answer") },
+    ids.length ? { label: N_("Animate the selection"), run: run("Animate", "Give the selected clips a fitting entrance and exit with scene_animate_clip and check the result with scene_render_frame.") } : null,
+    { label: N_("Add captions"), run: run("Captions", "Add captions from the transcript with scene_auto_captions (transcribe first if there is no transcript) and check them with scene_render_frame.") },
+    { label: N_("Remove silences and filler words"), run: run("Tighten", "Tighten the edit: scene_analyze_audio, then scene_remove_fillers and scene_remove_silences, each with dryRun first. Report what was removed.") },
+    { label: N_("Make a vertical version"), run: run("Vertical", "Make a 9:16 copy with scene_reframe (newDocument true) focused on the main subject (look with scene_sample_frames first), then add bold captions.") },
+    { label: N_("Summarize the video"), run: run("Summarize", "Summarize the video with chapters and time codes; follow the video-summary skill.", "answer") },
+  ].filter(Boolean);
 }
 
 /** Menu items for an element selected in the website designer. */
