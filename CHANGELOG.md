@@ -6,6 +6,8 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] — Scene Studio, code mode for Vibe, deeper tools
+
 ### Security
 - Built-in relay (desktop): a **relay key**. Rooms started with the tunnel option get a generated key (128 bits) that travels in the invite as `?key=`; WebSocket connections without it get `401` (constant-time check, same rule as the Node relay's `--auth-token`), so a tunneled relay is no longer an open forwarder.
 

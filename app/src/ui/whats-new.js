@@ -3,6 +3,19 @@
 
 export const WHATS_NEW = [
   {
+    version: "1.1.0",
+    title: "Scene Studio, code mode for Vibe, deeper tools",
+    items: [
+      { icon: "film", title: "Scene Studio", text: "A new studio for video editing and motion design: multi-track timeline, keyframes, effects, masks, audio tools, captions and export to MP4, WebM and GIF." },
+      { icon: "bezier2", title: "Graph editor and compositions", text: "Shape motion with value and speed curves, easing presets and Bezier handles. Nest compositions inside each other." },
+      { icon: "camera-reels", title: "Vibe edits video", text: "The assistant can cut, animate and caption scenes, find moments in your footage, remove silences and reframe for social formats." },
+      { icon: "terminal", title: "Code mode and power tools for Vibe", text: "Scripts that make many edits in one step, checkpoints with restore, visual checks, a design linter, generators and data merge." },
+      { icon: "magic", title: "Pixel retouching", text: "Content-aware fill, patch tool, object eraser, straighten horizon and a before/after view." },
+      { icon: "code-slash", title: "Code studio extras", text: "A terminal tab, precise selection sync between preview and code, and assets that open in Pixel or Vector and save back." },
+      { icon: "file-earmark-check", title: "Office depth and fixes", text: "Rich text boxes, tracked format changes, native slide charts and whiteboard matrices. PDFs open again in the desktop app." },
+    ],
+  },
+  {
     version: "1.0.1",
     title: "Deeper Office apps, pro export, smarter Vibe",
     items: [

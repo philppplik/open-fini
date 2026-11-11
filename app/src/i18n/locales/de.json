@@ -3622,5 +3622,19 @@
   "Describe this moment": "Diesen Moment beschreiben",
   "Make a vertical version": "Hochformat-Version erstellen",
   "Remove silences and filler words": "Pausen und Füllwörter entfernen",
-  "Summarize the video": "Video zusammenfassen"
+  "Summarize the video": "Video zusammenfassen",
+  "Scene Studio, code mode for Vibe, deeper tools": "Scene Studio, Code-Modus für Vibe, tiefere Werkzeuge",
+  "A new studio for video editing and motion design: multi-track timeline, keyframes, effects, masks, audio tools, captions and export to MP4, WebM and GIF.": "Ein neues Studio für Videoschnitt und Motion Design: Mehrspur-Timeline, Keyframes, Effekte, Masken, Audio-Werkzeuge, Untertitel und Export als MP4, WebM und GIF.",
+  "Graph editor and compositions": "Graph Editor und Kompositionen",
+  "Shape motion with value and speed curves, easing presets and Bezier handles. Nest compositions inside each other.": "Forme Bewegung mit Wert- und Geschwindigkeitskurven, Easing-Presets und Bezier-Griffen. Verschachtle Kompositionen ineinander.",
+  "Vibe edits video": "Vibe schneidet Video",
+  "The assistant can cut, animate and caption scenes, find moments in your footage, remove silences and reframe for social formats.": "Der Assistent kann Szenen schneiden, animieren und untertiteln, Momente im Material finden, Pausen entfernen und für Social-Formate neu zuschneiden.",
+  "Code mode and power tools for Vibe": "Code-Modus und Power-Tools für Vibe",
+  "Scripts that make many edits in one step, checkpoints with restore, visual checks, a design linter, generators and data merge.": "Skripte, die viele Änderungen in einem Schritt machen, Checkpoints mit Wiederherstellen, visuelle Prüfungen, ein Design-Linter, Generatoren und Daten-Merge.",
+  "Pixel retouching": "Pixel-Retusche",
+  "Content-aware fill, patch tool, object eraser, straighten horizon and a before/after view.": "Inhaltsbasiertes Füllen, Ausbessern-Werkzeug, Objekt-Radierer, Horizont begradigen und eine Vorher/Nachher-Ansicht.",
+  "Code studio extras": "Extras im Code-Studio",
+  "A terminal tab, precise selection sync between preview and code, and assets that open in Pixel or Vector and save back.": "Ein Terminal-Tab, genaue Auswahl-Synchronisierung zwischen Vorschau und Code und Assets, die sich in Pixel oder Vektor öffnen und zurückspeichern lassen.",
+  "Office depth and fixes": "Office-Tiefe und Fehlerbehebungen",
+  "Rich text boxes, tracked format changes, native slide charts and whiteboard matrices. PDFs open again in the desktop app.": "Rich-Text-Textfelder, nachverfolgte Formatänderungen, native Foliendiagramme und Whiteboard-Matrizen. PDFs öffnen wieder in der Desktop-App."
 }
