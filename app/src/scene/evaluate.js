@@ -8,8 +8,8 @@
 //           effects: [{ type, p }] (parameters resolved to numbers), fx: transition modifiers
 //           { dx, dy (frame fractions), wipe: [l, t, r, b] | null, scale, blur, dip: { color, a } | null },
 //           textAnim: { type, p, edge } | null }
-import { valueAt, ease } from "./keyframes.js";
-import { sequence, clipList, clipEnd, videoTracks } from "./model.js";
+import { valueAt, ease, isTrack } from "./keyframes.js";
+import { sequence, clipList, clipEnd, videoTracks, MAX_NESTING } from "./model.js";
 
 const NO_FX = Object.freeze({ dx: 0, dy: 0, wipe: null, scale: 1, blur: 0, dip: null, alpha: 1 });
 
@@ -89,8 +89,14 @@ export function layerAt(c, local) {
     fx,
     textAnim: c.type === "text" ? textAnimState(c.text.anim, local, c.dur) : null,
   };
-  if (c.in !== undefined) layer.time = c.in + local * c.speed;
+  if (c.in !== undefined) layer.time = sourceTime(c, local);
   return layer;
+}
+
+/** Source time of a media or composition clip at clip-local time: in + local × speed, or the time remap. */
+export function sourceTime(c, local) {
+  if (c.remap !== undefined) return Math.max(0, valueAt(c.remap, Math.max(0, Math.min(c.dur, local))));
+  return c.in + local * c.speed;
 }
 
 /**
@@ -139,4 +145,58 @@ export function audibleAt(model, t, { seq = "main" } = {}) {
   const m = sequence(model, seq);
   const muted = new Set(m.tracks.filter((k) => k.muted).map((k) => k.id));
   return clipList(m).filter((c) => (c.type === "audio" || c.type === "comp") && !muted.has(c.track) && t >= c.start && t < clipEnd(c));
+}
+
+/**
+ * The sound of a sequence as flat voices, compositions resolved (their sound passes through): one voice per audio
+ * clip that is heard, in the time of sequence `seq`:
+ *   { id, media, start, dur, in, speed, effects, gain(local) → number, pan(local) → -1..1, animated }
+ * `id` is the path of clip ids ("comp clip/inner clip"), `local` is seconds since the voice's start. A composition
+ * clip's speed multiplies, its trim cuts, its volume, fades and pan apply on top. Composition clips with time
+ * remapping are silent (their picture is remapped; the sound would need resampling). Pure (unit-tested).
+ */
+export function flattenAudio(model, { seq = "main", depth = 0 } = {}) {
+  const m = sequence(model, seq);
+  const muted = new Set(m.tracks.filter((k) => k.muted).map((k) => k.id));
+  const out = [];
+  for (const c of clipList(m)) {
+    if (c.muted || muted.has(c.track)) continue;
+    if (c.type === "audio") {
+      out.push({
+        id: c.id,
+        media: c.media,
+        start: c.start,
+        dur: c.dur,
+        in: c.in,
+        speed: c.speed,
+        effects: c.effects,
+        gain: (l) => gainAt(c, l),
+        pan: (l) => Math.max(-1, Math.min(1, valueAt(c.pan, Math.max(0, Math.min(c.dur, l))))),
+        animated: isTrack(c.volume) || isTrack(c.pan) || !!c.fadeIn || !!c.fadeOut,
+      });
+    } else if (c.type === "comp" && c.remap === undefined && depth < MAX_NESTING && model.comps?.[c.comp]) {
+      for (const v of flattenAudio(model, { seq: c.comp, depth: depth + 1 })) {
+        // the voice in composition time [v.start, v.start + v.dur) seen through the clip's window [in, in + dur·speed)
+        const a = Math.max(v.start, c.in);
+        const b = Math.min(v.start + v.dur, c.in + c.dur * c.speed);
+        if (b - a <= 1e-6) continue;
+        const head = a - v.start; // composition seconds cut from the voice's start
+        const start = c.start + (a - c.in) / c.speed;
+        const speed = v.speed * c.speed;
+        out.push({
+          id: `${c.id}/${v.id}`,
+          media: v.media,
+          start,
+          dur: (b - a) / c.speed,
+          in: v.in + head * v.speed,
+          speed,
+          effects: v.effects,
+          gain: (l) => v.gain(head + l * c.speed) * gainAt(c, start - c.start + l),
+          pan: (l) => Math.max(-1, Math.min(1, v.pan(head + l * c.speed) + valueAt(c.pan, Math.max(0, Math.min(c.dur, start - c.start + l))))),
+          animated: v.animated || isTrack(c.volume) || isTrack(c.pan) || !!c.fadeIn || !!c.fadeOut || c.volume !== 1 || c.pan !== 0,
+        });
+      }
+    }
+  }
+  return out;
 }

@@ -7,23 +7,26 @@
 // Invariant: sources are captured as bitmaps per clip before drawing, so two clips of the same media item at
 // different times (picture in picture, a dissolve into the same file) each get their own frame.
 import { frameState } from "./evaluate.js";
-import { sequence } from "./model.js";
+import { sequence, MAX_NESTING } from "./model.js";
 import { createCompositor, makeCanvas } from "./render.js";
 
-// Collects every media layer of the frame (through pre-compositions) as { clip id → { media, time } }.
+// A clip at a source time: a composition used twice at different times shows the same clip at two times.
+const keyOf = (clipId, time) => `${clipId}@${Math.round((time ?? 0) * 1e5)}`;
+
+// Collects every media layer of the frame (through nested compositions) as { key → { media, time } }.
 function wanted(model, t, seq, out = new Map(), depth = 0) {
   for (const layer of frameState(model, t, { seq }).layers) {
     const c = layer.clip;
-    if (c.type === "video" || c.type === "image") out.set(c.id, { media: c.media, time: layer.time ?? 0 });
-    else if (c.type === "comp" && depth < 4 && model.comps[c.comp]) wanted(model, layer.time, c.comp, out, depth + 1);
+    if (c.type === "video" || c.type === "image") out.set(keyOf(c.id, layer.time), { media: c.media, time: layer.time ?? 0 });
+    else if (c.type === "comp" && depth < MAX_NESTING && model.comps[c.comp]) wanted(model, layer.time, c.comp, out, depth + 1);
   }
   return out;
 }
 
 export function createExactRenderer(store) {
-  const frames = new Map(); // clip id → bitmap for the frame being drawn
+  const frames = new Map(); // keyOf(clip id, time) → bitmap for the frame being drawn
   const owned = new Set();
-  const comp = createCompositor({ provider: { source: (_media, _time, clip) => frames.get(clip?.id) || null } });
+  const comp = createCompositor({ provider: { source: (_media, time, clip) => frames.get(keyOf(clip?.id, time)) || null } });
   let canvas = null;
   return {
     get canvas() {
