@@ -2,8 +2,9 @@
 // clips (thumbnails, waveforms, keyframes, transitions), markers, the In / Out range and the playhead.
 //
 //   createTimeline(ui) → { el, draw(), fit(), reveal(t), destroy() }
-// `ui` is the workspace (scene/view.js): model(), commit(label, next), state { t, sel, tool, snap, zoom, scrollX },
-// select(ids, { add }), seek(t), store, requestDraw().
+// `ui` is the workspace (scene/view.js): seqModel() (the sequence on the timeline: the root or an opened
+// composition), commitSeq(label, next), state { t, sel, tool, snap, zoom, scrollX }, select(ids, { add }), seek(t),
+// store, requestDraw(), placeComp(id, { start, track }).
 // Gestures (select tool): drag a clip to move the selection (other tracks of the same kind included), drag an edge
 // to trim (Alt = ripple), drag empty space for a marquee, drag the ruler to scrub. Razor: click to cut (Shift = all
 // tracks). Slip: drag a clip to move its source. Wheel = scroll, Ctrl / Alt + wheel = zoom around the pointer.
@@ -35,7 +36,7 @@ export function createTimeline(ui) {
   let H = 0;
   let dpr = 1;
 
-  const model = () => draft || ui.model();
+  const model = () => draft || ui.seqModel();
   const x2t = (x) => (x + S.scrollX) / S.zoom;
   const t2x = (time) => time * S.zoom - S.scrollX;
 
@@ -63,7 +64,7 @@ export function createTimeline(ui) {
     heads.replaceChildren(
       h("div.of-scene-tl__corner", { style: `height:${RULER}px` }),
       ...m.tracks.map((tk) => {
-        const set = (patch, label) => ui.commit(label, M.updateTrack(ui.model(), tk.id, patch));
+        const set = (patch, label) => ui.commitSeq(label, M.updateTrack(ui.seqModel(), tk.id, patch));
         const name = h("span.of-scene-tl__hname", { title: t("Double-click to rename") }, tk.name);
         name.addEventListener("dblclick", async () => {
           const v = await ui.prompt(t("Track name"), tk.name);
@@ -138,7 +139,8 @@ export function createTimeline(ui) {
     ctx.font = "600 11px system-ui, sans-serif";
     ctx.textBaseline = "middle";
     const label = c.type === "text" ? c.text.text.replace(/\n/g, " ") : c.name;
-    ctx.fillText(`${label}${c.speed && c.speed !== 1 ? `  ${Math.round(c.speed * 100)} %` : ""}${c.effects.length ? "  fx" : ""}`, Math.max(x, 0) + 6, y + 8);
+    const speed = c.remap !== undefined ? `  ${t("Remap")}` : c.speed && c.speed !== 1 ? `  ${Math.round(c.speed * 100)} %` : "";
+    ctx.fillText(`${c.type === "comp" ? "▣ " : ""}${label}${speed}${c.collapse ? "  ✲" : ""}${c.effects.length ? "  fx" : ""}`, Math.max(x, 0) + 6, y + 8);
     // transitions and fades
     ctx.fillStyle = "rgba(255,255,255,0.35)";
     const wedge = (dur, atStart) => {
@@ -328,7 +330,7 @@ export function createTimeline(ui) {
     ui.focus();
     const [x0, y0] = point(e);
     const start = hit(x0, y0);
-    const m0 = ui.model();
+    const m0 = ui.seqModel();
     canvas.setPointerCapture(e.pointerId);
     let move = null;
     let label = "";
@@ -342,7 +344,7 @@ export function createTimeline(ui) {
         draft = null;
         guide = null;
         marquee = null;
-        if (ev.type === "pointerup" && d && d !== m0) ui.commit(label, d);
+        if (ev.type === "pointerup" && d && d !== m0) ui.commitSeq(label, d);
         fn?.(ev);
         ui.requestDraw();
       };
@@ -374,7 +376,7 @@ export function createTimeline(ui) {
     if (start.zone === "clip" && S.tool === "razor") {
       const at = snapped(m0, x2t(x0), null);
       const r = e.shiftKey ? M.splitAll(m0, at) : M.splitClip(m0, start.clip.id, at);
-      if (r.model !== m0) ui.commit("Split Clip", r.model);
+      if (r.model !== m0) ui.commitSeq("Split Clip", r.model);
       return finish();
     }
     if (start.zone === "clip") {
@@ -462,24 +464,35 @@ export function createTimeline(ui) {
 
   // media dragged from the bin
   canvas.addEventListener("dragover", (e) => {
-    if ([...e.dataTransfer.types].includes("application/x-ofini-scene-media")) {
+    const types = [...e.dataTransfer.types];
+    if (types.includes("application/x-ofini-scene-media") || types.includes("application/x-ofini-scene-comp")) {
       e.preventDefault();
       e.dataTransfer.dropEffect = "copy";
     }
   });
   canvas.addEventListener("drop", (e) => {
+    const [x, y] = point(e);
+    const comp = e.dataTransfer.getData("application/x-ofini-scene-comp");
+    if (comp) {
+      // a composition from the bin (refused with a message when it would contain itself)
+      e.preventDefault();
+      const hh = hit(x, y);
+      const m = ui.seqModel();
+      guide = null;
+      ui.placeComp(comp, { start: snapped(m, x2t(x), null), track: hh.row && hh.row.tk.kind === "video" && !hh.row.tk.locked ? hh.row.tk.id : null });
+      return;
+    }
     const id = e.dataTransfer.getData("application/x-ofini-scene-media");
     if (!id) return;
     e.preventDefault();
-    const [x, y] = point(e);
-    const m = ui.model();
+    const m = ui.seqModel();
     const hh = hit(x, y);
     const md = m.media[id];
     const row = hh.row && hh.row.tk.kind === (md?.kind === "audio" ? "audio" : "video") && !hh.row.tk.locked ? hh.row.tk.id : null;
     try {
       const r = M.placeMedia(m, id, { start: snapped(m, x2t(x), null), track: row });
       guide = null;
-      ui.commit("Add Clip", r.model);
+      ui.commitSeq("Add Clip", r.model);
       ui.select(r.ids);
     } catch (err) {
       ui.toast(err.message);
@@ -494,7 +507,7 @@ export function createTimeline(ui) {
     draw,
     /** Zooms so the whole sequence fits. */
     fit() {
-      const d = Math.max(5, M.duration(ui.model()));
+      const d = Math.max(5, M.duration(ui.seqModel()));
       S.zoom = Math.max(2, Math.min(2000, (Math.max(200, W) - 40) / d));
       S.scrollX = 0;
       ui.requestDraw();

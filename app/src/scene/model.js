@@ -3,12 +3,13 @@
 // clips (the renderer and the timeline cache by object identity).
 //
 // Model (a sequence plus its media and pre-compositions)
-//   { version: 1, title, width, height, fps, background: "#000000",
+//   { version: 2, title, width, height, fps, background: "#000000",
 //     tracks: [{ id, kind: "video"|"audio", name, muted, hidden, locked }]   display order, top first; the LAST video
 //                                                                           track is the bottom layer of the picture
 //     clips: { <id>: Clip }, markers: [{ id, t, name, color }], range: { in, out } | null (I/O marks),
-//     comps: { <id>: { id, name, width, height, tracks, clips, markers } }   pre-compositions (same shape, no nesting
-//                                                                           of media or comps inside)
+//     comps: { <id>: { id, name, width, height, tracks, clips, markers } }   pre-compositions: the same shape as a
+//                                                    sequence; their clips may use other compositions (nesting) but
+//                                                    never themselves (cycles are refused and repaired on load)
 //     media: { <id>: { id, kind: "video"|"audio"|"image", mime, name, duration, w, h, hasAudio, bytes } },
 //     analysis: { <mediaId>: { transcript?, shots?, silence?, beats?, loudness? } }   see scene/analysis.js }
 // Clip
@@ -20,7 +21,11 @@
 //     sx, sy              scale (1 = 100 %)                           │ animatable: a constant or a keyframe track
 //     rot                 degrees clockwise                           │ (scene/keyframes.js); keyframe times are
 //     opacity             0..1                                        │ seconds from the clip start
-//     volume, pan         gain (1 = unchanged) and -1..1              ┘
+//     volume, pan         gain (1 = unchanged) and -1..1              │
+//     remap               composition clips only, optional: source    ┘
+//                         time in seconds (time remapping; replaces in + local × speed; a constant freezes a frame)
+//     collapse            composition clips: true = collapse transformations (the nested layers are drawn straight
+//                         into this sequence at its resolution, not clipped to the composition's frame); default off
 //     crop: { l, t, r, b }  fractions of the source cut away, blend: canvas blend mode,
 //     effects: [{ id, type, on, p: { <param>: animatable } }]   (scene/effects.js),
 //     mask: { shape: "rect"|"ellipse", x, y, w, h (fractions of the layer box), feather, invert } | null,
@@ -32,13 +37,19 @@
 //     color               solid color }
 // Invariants: clips of one track never overlap (placing a clip overwrites what it covers); `start` and `dur` are
 // multiples of 1 / fps; a media clip never reads past its source (`in + dur * speed <= duration`); ids are unique in
-// their sequence; the root sequence is addressed as "main", a pre-composition by its id.
-import { valueAt, isTrack, setKeyframe as kfSet, removeKeyframe as kfRemove, retime, normalizeValue } from "./keyframes.js";
+// their sequence; the root sequence is addressed as "main", a pre-composition by its id; no composition reaches
+// itself through its clips.
+// Format history (normalizeScene migrates): 1 = first release; 2 = Bezier tangents on keyframes (i, o, b), the
+// bounce and elastic easings, nested compositions, remap and collapse on composition clips, sound of compositions.
+// Every addition is optional, so a version 1 file loads unchanged and evaluates to the same frames.
+import { valueAt, isTrack, setKeyframe as kfSet, removeKeyframe as kfRemove, retime, normalizeValue, applyEasing, setTangents as kfTangents, tangentsOf, moveKeys, pasteKeys as kfPaste } from "./keyframes.js";
 
-export const SCENE_VERSION = 1;
+export const SCENE_VERSION = 2;
 export const CLIP_TYPES = ["video", "audio", "image", "text", "shape", "solid", "adjustment", "comp"];
 export const VISUAL_TYPES = ["video", "image", "text", "shape", "solid", "adjustment", "comp"];
-export const ANIMATABLE = ["x", "y", "sx", "sy", "rot", "opacity", "volume", "pan"];
+export const ANIMATABLE = ["x", "y", "sx", "sy", "rot", "opacity", "volume", "pan", "remap"];
+/** Deepest nesting of compositions that is rendered (a guard; cycles are impossible). */
+export const MAX_NESTING = 16;
 export const BLEND_MODES = ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity", "lighter"];
 export const TRANSITION_TYPES = ["fade", "dissolve", "dip-black", "dip-white", "slide-left", "slide-right", "slide-up", "slide-down", "wipe-left", "wipe-right", "wipe-up", "wipe-down", "zoom", "blur"];
 export const TEXT_ANIMS = ["none", "fade", "slide-up", "slide-down", "slide-left", "slide-right", "pop", "typewriter", "chars", "words", "blur"];
@@ -130,9 +141,87 @@ export function sequence(model, seqId = "main") {
 /** Applies `fn(sequence) → sequence` to the root or to a pre-composition and returns the new model. */
 export function inSequence(model, seqId, fn) {
   if (!seqId || seqId === "main") return fn(model);
-  const next = fn(sequence(model, seqId));
-  const { fps: _f, media: _m, comps: _c, ...comp } = next;
-  return { ...model, comps: { ...model.comps, [seqId]: comp } };
+  return commitSequence(model, seqId, fn(sequence(model, seqId)));
+}
+
+/**
+ * Writes an edited sequence (from sequence(model, seqId) and the operations below) back into the model. Media and
+ * compositions the operation added or removed (import, pre-compose inside a composition) are kept.
+ */
+export function commitSequence(model, seqId, next) {
+  if (!seqId || seqId === "main") return next;
+  const { fps: _f, media, comps, analysis: _a, version: _v, title: _t, background: _b, range: _r, ...comp } = next;
+  return { ...model, media: media || model.media, comps: { ...(comps || model.comps), [seqId]: comp } };
+}
+
+// ---------------------------------------------------------------------------------------------- compositions
+
+/** Ids of the compositions the clips of a sequence (or composition) use directly. */
+export const compRefs = (s) => [...new Set(Object.values(s?.clips || {}).filter((c) => c.type === "comp").map((c) => c.comp))];
+
+/** True when composition `compId` is `target` or uses it, directly or through nested compositions. */
+export function compReaches(comps, compId, target) {
+  const seen = new Set();
+  const stack = [compId];
+  while (stack.length) {
+    const id = stack.pop();
+    if (id === target) return true;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    stack.push(...compRefs(comps?.[id]));
+  }
+  return false;
+}
+
+/** True when placing composition `compId` into sequence `seqId` ("main" or a composition id) would make a cycle. */
+export const wouldCycle = (model, seqId, compId) => !!seqId && seqId !== "main" && compReaches(model.comps, compId, seqId);
+
+/** Where a composition is used: [{ seq, clip }] over the root and every composition. */
+export function compUsage(model, compId) {
+  const out = [];
+  for (const [seq, s] of [["main", model], ...Object.entries(model.comps || {})]) for (const c of Object.values(s.clips)) if (c.type === "comp" && c.comp === compId) out.push({ seq, clip: c.id });
+  return out;
+}
+
+/** A new, empty composition (one video and one audio track). Sizes default to the sequence's. @returns {{ model, id }} */
+export function addComp(model, { name = "Composition", width, height } = {}) {
+  const id = newId("k");
+  const comp = {
+    id,
+    name: String(name).slice(0, 120) || "Composition",
+    width: clamp(Math.round(num(width, model.width)), 16, 8192),
+    height: clamp(Math.round(num(height, model.height)), 16, 8192),
+    tracks: [track("video", 1), track("audio", 1)],
+    clips: {},
+    markers: [],
+  };
+  return { model: { ...model, comps: { ...model.comps, [id]: comp } }, id };
+}
+
+/** Renames or resizes a composition. */
+export function updateComp(model, id, patch = {}) {
+  const k = model.comps?.[id];
+  if (!k) throw new Error(`There is no composition “${id}”.`);
+  const n = { ...k };
+  if (patch.name !== undefined) n.name = String(patch.name).slice(0, 120) || k.name;
+  if (patch.width !== undefined) n.width = clamp(Math.round(num(patch.width, k.width)), 16, 8192);
+  if (patch.height !== undefined) n.height = clamp(Math.round(num(patch.height, k.height)), 16, 8192);
+  return { ...model, comps: { ...model.comps, [id]: n } };
+}
+
+/** Deletes a composition and every clip that uses it (in all sequences). */
+export function removeComp(model, id) {
+  if (!model.comps?.[id]) return model;
+  const strip = (clips) => Object.fromEntries(Object.entries(clips).filter(([, c]) => !(c.type === "comp" && c.comp === id)));
+  const { [id]: _gone, ...rest } = model.comps;
+  return { ...model, clips: strip(model.clips), comps: Object.fromEntries(Object.entries(rest).map(([k, c]) => [k, { ...c, clips: strip(c.clips) }])) };
+}
+
+/** Places a composition as a clip (its full length) in a sequence. @returns {{ model, id }} */
+export function placeComp(m, compId, { start = null, track: trackId = null } = {}) {
+  const k = m.comps?.[compId];
+  if (!k) throw new Error(`There is no composition “${compId}”.`);
+  return addClip(m, { type: "comp", comp: compId, start: start === null ? duration(m) : start, dur: duration(k) || 5, track: trackId || undefined, name: k.name });
 }
 
 export const clipList = (m) => Object.values(m.clips).sort((a, b) => a.start - b.start || (a.id < b.id ? -1 : 1));
@@ -233,7 +322,12 @@ export function normalizeClip(m, c) {
     out.speed = clamp(num(c.speed, 1), 0.05, 20);
   }
   if (type === "video" || type === "audio" || type === "image") out.media = String(c.media || "");
-  if (type === "comp") out.comp = String(c.comp || "");
+  if (type === "comp") {
+    out.comp = String(c.comp || "");
+    const remap = c.remap === undefined || c.remap === null ? undefined : normalizeValue(c.remap, undefined);
+    if (typeof remap === "number" || isTrack(remap)) out.remap = typeof remap === "number" ? Math.max(0, remap) : remap;
+    if (c.collapse) out.collapse = true;
+  }
   if (type !== "audio") {
     out.x = normalizeValue(c.x, m.width / 2);
     out.y = normalizeValue(c.y, m.height / 2);
@@ -306,6 +400,23 @@ export function normalizeScene(raw) {
     comps[id] = { id, name: String(c.name || "Composition").slice(0, 120), width, height, ...normSeq(c, { width, height }) };
   }
   for (const s of [root, ...Object.values(comps)]) for (const c of Object.values(s.clips)) if (c.type === "comp" && !comps[c.comp]) delete s.clips[c.id];
+  // format 2: compositions may nest, but a composition never reaches itself. A foreign file with a cycle loses the
+  // clips that close it: depth-first from the main sequence (then the unused compositions by id), in clip order, a
+  // clip that points back into the compositions being visited is dropped (deterministic, so every collaborator
+  // repairs a file the same way)
+  const visiting = new Map(); // comp id → 1 while its clips are walked, 2 when done
+  const byOrder = (clips) => Object.values(clips).filter((c) => c.type === "comp").sort((a, b) => a.start - b.start || (a.id < b.id ? -1 : 1));
+  const walk = (id) => {
+    visiting.set(id, 1);
+    for (const c of byOrder(comps[id].clips)) {
+      const s = visiting.get(c.comp);
+      if (s === 1) delete comps[id].clips[c.id];
+      else if (!s) walk(c.comp);
+    }
+    visiting.set(id, 2);
+  };
+  for (const c of byOrder(root.clips)) if (!visiting.has(c.comp)) walk(c.comp);
+  for (const id of Object.keys(comps).sort()) if (!visiting.has(id)) walk(id);
   const analysis = {};
   for (const [id, a] of Object.entries(raw?.analysis || {})) if (media[id] && a && typeof a === "object") analysis[id] = a;
   const r = raw?.range;
@@ -356,6 +467,7 @@ export function maxDur(m, c) {
     return d > 0 ? Math.max(1 / m.fps, (d - c.in) / c.speed) : Infinity;
   }
   if (c.type === "comp") {
+    if (c.remap !== undefined) return Infinity; // time remapping decides what is shown (it holds at the ends)
     const k = m.comps?.[c.comp];
     const d = k ? duration({ clips: k.clips }) : 0;
     return d > 0 ? Math.max(1 / m.fps, (d - c.in) / c.speed) : Infinity;
@@ -430,6 +542,7 @@ export function addClip(m, props) {
   let c = normalizeClip(m, { ...props, id: props.id && !m.clips[props.id] ? props.id : undefined });
   if (c.media !== undefined && !m.media[c.media]) throw new Error(`There is no media item “${c.media}”. Import it first.`);
   if (c.type === "comp" && !m.comps?.[c.comp]) throw new Error(`There is no composition “${c.comp}”.`);
+  if (c.type === "comp" && m.id && m.comps?.[m.id] && compReaches(m.comps, c.comp, m.id)) throw new Error(`“${m.comps[c.comp].name}” cannot be placed here: it contains this composition (a composition cannot contain itself).`);
   const kind = trackKindFor(c.type);
   let next = m;
   let tk = trackOf(m, c.track);
@@ -676,7 +789,7 @@ export function duplicateClips(m, ids, at = null) {
 // "x" | "opacity" … or "fx:<effect id>:<param>"
 function propRef(c, path) {
   if (ANIMATABLE.includes(path)) {
-    if (c[path] === undefined) throw new Error(`A ${c.type} clip has no “${path}” property.`);
+    if (c[path] === undefined && !(path === "remap" && c.type === "comp")) throw new Error(`A ${c.type} clip has no “${path}” property.`);
     return { get: () => c[path], set: (v) => ({ ...c, [path]: v }) };
   }
   const m = /^fx:([\w-]+):([\w-]+)$/.exec(path);
@@ -733,6 +846,101 @@ export function setTransition(m, id, edge, type, dur = 0.5) {
   const tr = type ? normTransition({ type, dur: Math.min(dur, c.dur) }) : null;
   if (type && !tr) throw new Error(`“${type}” is not a transition. Use one of: ${TRANSITION_TYPES.join(", ")}.`);
   return { ...m, clips: { ...m.clips, [id]: { ...c, [edge === "out" ? "tout" : "tin"]: tr } } };
+}
+
+// ---------------------------------------------------------------------------------------------- curves (graph editor, assistant)
+
+/** The animated property paths of a clip ("x", …, "fx:<effect id>:<param>"), in panel order. */
+export function animatedPaths(c) {
+  const out = ANIMATABLE.filter((k) => isTrack(c[k]));
+  for (const e of c.effects || []) for (const [k, v] of Object.entries(e.p)) if (isTrack(v)) out.push(`fx:${e.id}:${k}`);
+  return out;
+}
+
+/** Applies `fn(track, clip) → track` to one animated property of a clip. */
+export function editKeyframes(m, id, path, fn) {
+  const c = must(m, id);
+  const ref = propRef(c, path);
+  const cur = ref.get();
+  if (!isTrack(cur)) throw new Error(`“${path}” of clip “${id}” has no keyframes.`);
+  const next = fn(cur, c);
+  return next === cur ? m : { ...m, clips: { ...m.clips, [id]: ref.set(next) } };
+}
+
+// Indices of the keyframes at timeline times `at` (half a frame tolerance), or all keyframes for null.
+function keyIndices(m, c, track, at) {
+  if (at === null || at === undefined) return track.kf.map((_, i) => i);
+  const list = (Array.isArray(at) ? at : [at]).map((x) => +x - c.start);
+  const idx = track.kf.map((k, i) => (list.some((x) => Math.abs(k.t - x) < 0.5 / m.fps + 1e-6) ? i : -1)).filter((i) => i >= 0);
+  if (!idx.length) throw new Error(`No keyframe of “${c.name || c.id}” at ${list.map((x) => +(x + c.start).toFixed(3)).join(", ")} s.`);
+  return idx;
+}
+
+/**
+ * Sets the easing of keyframes of a clip property: a preset (keyframes.js ▸ EASING_PRESETS: linear, easyEase,
+ * easyEaseIn, easyEaseOut, hold, ease, easeIn, easeOut, easeInOut, back, bounce, elastic) or a cubic-bezier
+ * [x1, y1, x2, y2]. `at` = timeline time(s) of the keyframes; null = every keyframe of the property.
+ */
+export function setEasing(m, id, path, preset, { at = null } = {}) {
+  return editKeyframes(m, id, path, (tr, c) => applyEasing(tr, keyIndices(m, c, tr, at), preset));
+}
+
+/**
+ * Sets the Bezier tangents of the keyframe at timeline time `t`: { in, out: [speed (units per second), influence
+ * 0..1], broken }. Unified keyframes mirror the speed to the other side.
+ */
+export function setKeyframeTangents(m, id, path, t, tangents) {
+  return editKeyframes(m, id, path, (tr, c) => {
+    const [i] = keyIndices(m, c, tr, t);
+    return kfTangents(tr, i, tangents);
+  });
+}
+
+/** Moves the keyframes at timeline times `at` (null = all) by dt seconds (snapped to frames) and dv value units. */
+export function moveKeyframes(m, id, path, at, dt = 0, dv = 0) {
+  return editKeyframes(m, id, path, (tr, c) => {
+    const d = Math.round(num(dt) * m.fps) / m.fps;
+    return moveKeys(tr, keyIndices(m, c, tr, at), d, num(dv)).track;
+  });
+}
+
+/**
+ * Pastes keyframes (keyframes.js ▸ copyKeys: times relative to the first) into a clip property at timeline time
+ * `t`; a constant property becomes animated. Keyframes past the clip's end are dropped.
+ */
+export function pasteKeyframes(m, id, path, keys, t) {
+  const c = must(m, id);
+  const ref = propRef(c, path);
+  const at = clamp(snapT(m, t) - c.start, 0, c.dur);
+  const inside = (keys || []).filter((k) => k && at + k.t <= c.dur + 1e-6);
+  if (!inside.length) return m;
+  return { ...m, clips: { ...m.clips, [id]: ref.set(kfPaste(ref.get(), inside, at)) } };
+}
+
+/** The keyframes of a clip property as plain data with timeline times and effective tangents. */
+export function keyframesOf(m, id, path) {
+  const c = must(m, id);
+  const v = propRef(c, path).get();
+  if (!isTrack(v)) return [];
+  return v.kf.map((k, i) => {
+    const tg = tangentsOf(v, i);
+    return { t: r3(c.start + k.t), v: k.v, ...(k.e ? { e: k.e } : {}), ...(tg ? { in: tg.in && tg.in.map(r3), out: tg.out && tg.out.map(r3), ...(tg.broken ? { broken: true } : {}) } : {}) };
+  });
+}
+
+/**
+ * Turns time remapping of a composition clip on (keyframes at both ends reproduce its current timing) or off.
+ * While on, the clip's source time is the "remap" property: keyframe it for speed ramps, freezes and reverse play.
+ */
+export function setTimeRemap(m, id, on) {
+  const c = must(m, id);
+  if (c.type !== "comp") throw new Error("Time remapping is available on composition clips.");
+  if (!on) {
+    const { remap: _r, ...rest } = c;
+    return { ...m, clips: { ...m.clips, [id]: rest } };
+  }
+  if (c.remap !== undefined) return m;
+  return { ...m, clips: { ...m.clips, [id]: { ...c, remap: { kf: [{ t: 0, v: c.in }, { t: c.dur, v: c.in + c.dur * c.speed }] } } } };
 }
 
 // ---------------------------------------------------------------------------------------------- tracks, markers, media
@@ -840,37 +1048,42 @@ export function placeMedia(m, mediaId, { start = null, track: trackId = null, du
 }
 
 /**
- * Moves clips of a sequence into a new pre-composition and puts one "comp" clip in their place.
+ * Moves clips of a sequence (the root or a composition, see sequence()) into a new composition and puts one
+ * composition clip in their place, on the topmost video track they used. Their sound goes along (compositions play
+ * it). Works inside compositions too (nesting); write the result back with commitSequence.
  * @returns {{ model, id, comp }}
  */
 export function precompose(m, ids, name = "Composition") {
-  const src = ids.map((id) => m.clips[id]).filter((c) => c && c.type !== "audio");
-  if (!src.length) throw new Error("Select picture clips to pre-compose.");
+  const src = ids.map((id) => m.clips[id]).filter(Boolean);
+  if (!src.length) throw new Error("Select clips to pre-compose.");
   const start = Math.min(...src.map((c) => c.start));
   const end = Math.max(...src.map(clipEnd));
   const used = m.tracks.filter((t) => src.some((c) => c.track === t.id));
   const tmap = new Map(used.map((t) => [t.id, newId("t")]));
+  const tracks = used.map((t) => ({ ...t, id: tmap.get(t.id), locked: false, hidden: false, muted: false }));
+  if (!tracks.some((t) => t.kind === "video")) tracks.unshift(track("video", 1));
+  if (!tracks.some((t) => t.kind === "audio")) tracks.push(track("audio", 1));
   const comp = {
     id: newId("k"),
     name: String(name).slice(0, 120) || "Composition",
     width: m.width,
     height: m.height,
-    tracks: [...used.map((t) => ({ ...t, id: tmap.get(t.id), locked: false, hidden: false })), track("audio", 1)],
+    tracks,
     clips: Object.fromEntries(src.map((c) => [c.id, { ...c, track: tmap.get(c.track), start: snapT(m, c.start - start) }])),
     markers: [],
   };
   const clips = { ...m.clips };
   for (const c of src) delete clips[c.id];
   const base = { ...m, clips, comps: { ...m.comps, [comp.id]: comp } };
-  const top = used[0];
-  const r = addClip(base, { type: "comp", comp: comp.id, start, dur: end - start, track: overlapping(base, top.id, start, end).length ? undefined : top.id, name: comp.name });
+  const top = videoTracks(m).find((t) => tmap.has(t.id) && !t.locked);
+  const r = addClip(base, { type: "comp", comp: comp.id, start, dur: end - start, track: top && !overlapping(base, top.id, start, end).length ? top.id : undefined, name: comp.name });
   return { model: r.model, id: r.id, comp: comp.id };
 }
 
 // ---------------------------------------------------------------------------------------------- reading (Vibe, status bar)
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
-const brief = (v) => (isTrack(v) ? { keyframes: v.kf.map((k) => ({ t: r3(k.t), v: k.v, ...(k.e ? { e: k.e } : {}) })) } : typeof v === "number" ? r3(v) : v);
+const brief = (v) => (isTrack(v) ? { keyframes: v.kf.map((k) => ({ t: r3(k.t), v: k.v, ...(k.e ? { e: k.e } : {}), ...(k.i ? { in: k.i.map(r3) } : {}), ...(k.o ? { out: k.o.map(r3) } : {}) })) } : typeof v === "number" ? r3(v) : v);
 
 /** A compact, complete description of one clip for the assistant. */
 export function describeClip(m, c) {
@@ -878,6 +1091,8 @@ export function describeClip(m, c) {
   if (c.in !== undefined) Object.assign(o, { sourceIn: r3(c.in), speed: c.speed });
   if (c.media) o.media = c.media;
   if (c.comp) o.comp = c.comp;
+  if (c.remap !== undefined) o.remap = brief(c.remap);
+  if (c.collapse) o.collapse = true;
   if (c.type !== "audio") {
     for (const k of ["x", "y", "sx", "sy", "rot", "opacity"]) {
       const d = k === "x" ? m.width / 2 : k === "y" ? m.height / 2 : k === "rot" ? 0 : 1;
@@ -925,7 +1140,7 @@ export function describeScene(model, { seq: seqId = "main", from = 0, to = Infin
     markers: m.markers.map((k) => ({ id: k.id, t: r3(k.t), name: k.name })),
     range: seqId === "main" || !seqId ? model.range : null,
     media: Object.values(model.media).map((x) => ({ id: x.id, kind: x.kind, name: x.name, ...(x.duration ? { duration: r3(x.duration) } : {}), ...(x.w ? { w: x.w, h: x.h } : {}), analysed: Object.keys(model.analysis?.[x.id] || {}) })),
-    compositions: Object.values(model.comps).map((k) => ({ id: k.id, name: k.name, width: k.width, height: k.height, duration: r3(duration(k)) })),
+    compositions: Object.values(model.comps).map((k) => ({ id: k.id, name: k.name, width: k.width, height: k.height, duration: r3(duration(k)), ...(compRefs(k).length ? { uses: compRefs(k) } : {}) })),
   };
 }
 

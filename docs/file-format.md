@@ -99,7 +99,8 @@ an app for a kind keeps the object unchanged and saves it back as it was.
 
 
 **Scenes.** A Scene Studio document uses the same container with `"kind": "scene"` (its `studio` is `"scene"`):
-the model is described in [scene-studio.md](scene-studio.md#data-model), and each media item additionally carries
+the model (version 2: keyframe tangents and nested compositions, both optional, so version 1 files load unchanged)
+is described in [scene-studio.md](scene-studio.md#data-model), and each media item additionally carries
 `kind` (`video`, `audio`, `image`), `duration` (seconds) and `hasAudio`; its bytes are stored under
 `office/scene/media/<id>.<ext>`.
 

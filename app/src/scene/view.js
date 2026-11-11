@@ -15,9 +15,10 @@ import { h } from "../core/util.js";
 import { t } from "../i18n/index.js";
 import { commitOffice } from "../core/office.js";
 import { platform } from "../platform/index.js";
-import { promptDialog } from "../ui/dialogs.js";
+import { promptDialog, confirmDialog } from "../ui/dialogs.js";
 import * as M from "./model.js";
 import { isTrack, valueAt } from "./keyframes.js";
+import { sourceTime } from "./evaluate.js";
 import { createCompositor, textSize } from "./render.js";
 import { createMediaStore, probeMedia, mediaKind } from "./media.js";
 import { createAudioEngine } from "./audio.js";
@@ -47,6 +48,12 @@ export function mountScene(host, doc, app) {
   ensureScene(prj);
   const state = (prj.view.scene ||= { t: 0, zoom: 80, scrollX: 0, scrollY: 0, snap: true, tool: "select", loop: false });
   state.sel = new Set();
+  // open sequences: tabs (composition ids besides "main"), the breadcrumb of each tab and its playhead
+  state.seq ||= "main";
+  state.tabs ||= [];
+  state.paths ||= {};
+  state.times ||= {};
+  state.graph = false;
   let playing = false;
   let rate = 1;
   let destroyed = false;
@@ -55,12 +62,27 @@ export function mountScene(host, doc, app) {
   let dirty = true;
   let peaks = new Map(); // media id → { rate, data } | "loading"
 
-  const model = () => prj.model;
+  // The timeline edits one sequence at a time: the root ("main") or an opened composition (state.seq). `rootModel()` is
+  // the whole model (saved, undone, exported); `model()` here is the sequence on the timeline (scene/model.js ▸
+  // sequence: the composition's tracks and clips plus the shared fps, media and comps).
+  const rootModel = () => prj.model;
+  let memo = { r: null, s: null, v: null };
+  const model = () => {
+    const r = prj.model;
+    const s = state.seq || "main";
+    if (s === "main") return r;
+    if (!r.comps?.[s]) {
+      state.seq = "main";
+      return r;
+    }
+    if (memo.r !== r || memo.s !== s) memo = { r, s, v: M.sequence(r, s) };
+    return memo.v;
+  };
   const requestDraw = () => {
     dirty = true;
     if (!raf && !destroyed) raf = requestAnimationFrame(tick);
   };
-  const store = createMediaStore(model, () => requestDraw());
+  const store = createMediaStore(rootModel, () => requestDraw());
   const audio = createAudioEngine(store);
   const compositor = createCompositor({ provider: store });
 
@@ -115,6 +137,9 @@ export function mountScene(host, doc, app) {
     h("datalist", { id: "of-scene-fonts" }, ["Inter", "Arial", "Georgia", "Times New Roman", "Courier New", "Impact", "Verdana", "Trebuchet MS", "Segoe UI", "Helvetica"].map((f) => h("option", { value: f }))));
 
   const toolBtns = new Map();
+  let graph = null; // the graph editor (scene/graph.js), created on first use
+  const graphBtn = ibtn("bezier2", "Graph editor (Shift+F3)", () => api.toggleGraph(), { "aria-pressed": "false" });
+  const seqBar = h("div.of-scene-seqbar", { role: "tablist", "aria-label": t("Sequences") });
   const snapBtn = ibtn("magnet", "Snapping (S)", () => api.toggleSnap(), { "aria-pressed": String(state.snap) });
   const strip = h("div.of-scene-strip", { role: "toolbar", "aria-label": t("Timeline tools") },
     ...TOOLS.map((d) => {
@@ -130,6 +155,8 @@ export function mountScene(host, doc, app) {
     h("span.of-scene-strip__sep"),
     ibtn("plus-square", "Add video track", () => api.addTrack("video")),
     ibtn("music-note-beamed", "Add audio track", () => api.addTrack("audio")),
+    h("span.of-scene-strip__sep"),
+    graphBtn,
     h("span.of-scene-strip__grow"),
     ibtn("zoom-out", "Zoom out (-)", () => api.zoomBy(1 / 1.4)),
     ibtn("zoom-in", "Zoom in (+)", () => api.zoomBy(1.4)),
@@ -146,7 +173,14 @@ export function mountScene(host, doc, app) {
     store,
     compositor,
     audio,
-    model,
+    /** The whole scene model (what is saved and exported). */
+    model: rootModel,
+    /** The sequence on the timeline: the root, or the opened composition (scene/model.js ▸ sequence). */
+    seqModel: model,
+    /** Id of the sequence on the timeline: "main" or a composition id. */
+    get seq() {
+      return state.seq || "main";
+    },
     requestDraw,
     focus: () => {
       if (!root.contains(document.activeElement) || document.activeElement === document.body) root.focus({ preventScroll: true });
@@ -169,6 +203,92 @@ export function mountScene(host, doc, app) {
       if (!next || next === prj.model) return prj.model;
       commitOffice(doc, label, next, opts);
       return next;
+    },
+    /** Applies an edited sequence (from seqModel()) as one undo step. */
+    commitSeq(label, next, opts = {}) {
+      if (!next || next === model()) return prj.model;
+      const seq = state.seq || "main";
+      return api.commit(label, seq === "main" ? next : M.commitSequence(prj.model, seq, next), opts);
+    },
+    // --------------------------------------------------------------------------- sequences (compositions)
+    /**
+     * Shows a sequence on the timeline: "main" or a composition id. `from` = { clip } of the parent sequence when
+     * a composition is opened from its clip: the breadcrumb extends and the playhead maps into the composition.
+     */
+    openSequence(seq, { from = null } = {}) {
+      const r = rootModel();
+      if (seq !== "main" && !r.comps?.[seq]) return;
+      api.pause();
+      const cur = state.seq || "main";
+      state.times[cur] = state.t;
+      let path = state.paths[seq];
+      if (from) {
+        const c = model().clips[from.clip];
+        path = [...(state.paths[cur] || ["main"]), seq].filter((x, i, a) => a.indexOf(x) === i);
+        if (c) state.times[seq] = c.remap !== undefined || c.in !== undefined ? Math.max(0, sourceTime(c, Math.max(0, Math.min(c.dur, state.t - c.start)))) : 0;
+      }
+      if (seq !== "main" && !state.tabs.includes(seq)) state.tabs.push(seq);
+      state.paths[seq] = path || (seq === "main" ? ["main"] : ["main", seq]);
+      state.seq = seq;
+      state.sel = new Set();
+      state.t = M.snapT(r, state.times[seq] || 0);
+      renderSeqBar();
+      requestAnimationFrame(() => timeline.fit());
+      requestDraw();
+      app.emit("scenestatus");
+    },
+    /** Closes the tab of a composition (the composition stays in the project). */
+    closeSequence(seq) {
+      state.tabs = state.tabs.filter((x) => x !== seq);
+      if ((state.seq || "main") === seq) api.openSequence("main");
+      else renderSeqBar();
+    },
+    /** Opens the composition of a composition clip in its own tab (double-click on the clip). */
+    openCompClip(id) {
+      const c = model().clips[id];
+      if (c?.type === "comp") api.openSequence(c.comp, { from: { clip: id } });
+    },
+    newComposition() {
+      const r = M.addComp(rootModel(), { name: t("Composition {n}", { n: Object.keys(rootModel().comps).length + 1 }) });
+      api.commit("New Composition", r.model);
+      api.openSequence(r.id);
+    },
+    /** Places a composition at the playhead of the sequence on the timeline (refused when it would contain itself). */
+    placeComp(compId, { start = state.t, track = null } = {}) {
+      try {
+        const r = M.placeComp(model(), compId, { start, track });
+        api.commitSeq("Add Composition", r.model);
+        api.select([r.id]);
+      } catch (err) {
+        api.toast(err.message);
+      }
+    },
+    async renameComp(compId) {
+      const k = rootModel().comps[compId];
+      const v = k && (await api.prompt(t("Composition name"), k.name));
+      if (v) api.commit("Rename Composition", M.updateComp(rootModel(), compId, { name: v }));
+    },
+    async removeComp(compId) {
+      const uses = M.compUsage(rootModel(), compId).length;
+      if (uses && !(await confirmDialog({ title: "Delete composition", message: t("This composition is used by {n} clips. Delete it and those clips?", { n: uses }), ok: "Delete", danger: true }))) return;
+      api.closeSequence(compId);
+      api.commit("Delete Composition", M.removeComp(rootModel(), compId));
+    },
+    // --------------------------------------------------------------------------- graph editor
+    /** Shows or hides the graph editor (loaded on first use) in place of the timeline. */
+    async toggleGraph(on = !state.graph) {
+      state.graph = !!on;
+      graphBtn.setAttribute("aria-pressed", String(state.graph));
+      if (state.graph && !graph) {
+        const { createGraphEditor } = await import("./graph.js");
+        if (destroyed) return;
+        graph = createGraphEditor(api);
+        timeline.el.after(graph.el);
+      }
+      timeline.el.hidden = state.graph;
+      if (graph) graph.el.hidden = !state.graph;
+      if (state.graph) requestAnimationFrame(() => graph?.fit());
+      requestDraw();
     },
     select(ids, { add = false } = {}) {
       const next = add ? new Set(state.sel) : new Set();
@@ -258,18 +378,18 @@ export function mountScene(host, doc, app) {
         const s = M.splitClip(acc.model, id, state.t);
         return { model: s.model, ids: s.id ? [...acc.ids, s.id] : acc.ids };
       }, { model: m, ids: [] }) : M.splitAll(m, state.t);
-      api.commit("Split Clip", r.model);
+      api.commitSeq("Split Clip", r.model);
     },
     deleteSelection({ ripple = false } = {}) {
       const ids = api.selection();
       if (!ids.length) return;
-      api.commit(ripple ? "Ripple Delete" : "Delete Clip", M.deleteClips(model(), ids, { ripple }));
+      api.commitSeq(ripple ? "Ripple Delete" : "Delete Clip", M.deleteClips(model(), ids, { ripple }));
       api.select([]);
     },
     duplicateSelection() {
       const r = M.duplicateClips(model(), api.selection());
       if (r.ids.length) {
-        api.commit("Duplicate Clip", r.model);
+        api.commitSeq("Duplicate Clip", r.model);
         api.select(r.ids);
       }
     },
@@ -279,38 +399,40 @@ export function mountScene(host, doc, app) {
       let m = model();
       const ids = api.selection().length ? api.selection() : M.clipList(m).filter((c) => state.t > c.start && state.t < M.clipEnd(c) && !M.trackOf(m, c.track).locked).map((c) => c.id);
       for (const id of ids) m = M.trimClip(m, id, edge, state.t, { ripple: true });
-      api.commit("Ripple Trim", m);
+      api.commitSeq("Ripple Trim", m);
       if (edge === "start" && ids.length) api.seek(Math.min(...ids.map((id) => m.clips[id].start)));
     },
     setIn() {
+      if (api.seq !== "main") return api.toast(t("In and Out points belong to the main sequence."));
       const m = model();
-      api.commit("Set In Point", M.setRange(m, state.t, m.range && m.range.out > state.t ? m.range.out : M.duration(m) || state.t + 1));
+      api.commitSeq("Set In Point", M.setRange(m, state.t, m.range && m.range.out > state.t ? m.range.out : M.duration(m) || state.t + 1));
     },
     setOut() {
+      if (api.seq !== "main") return api.toast(t("In and Out points belong to the main sequence."));
       const m = model();
-      api.commit("Set Out Point", M.setRange(m, m.range && m.range.in < state.t ? m.range.in : 0, state.t));
+      api.commitSeq("Set Out Point", M.setRange(m, m.range && m.range.in < state.t ? m.range.in : 0, state.t));
     },
-    clearRange: () => api.commit("Clear In and Out", M.setRange(model(), null, null)),
+    clearRange: () => api.commitSeq("Clear In and Out", M.setRange(model(), null, null)),
     /** Removes the In / Out range: lift leaves a gap, extract closes it. */
     removeRange(extract) {
       const m = model();
       if (!m.range) return api.toast(t("Set an In and an Out point first (I and O)."));
       const { in: a, out: b } = m.range;
-      if (extract) return api.commit("Extract", M.setRange(M.cutRanges(m, [[a, b]]), null, null));
+      if (extract) return api.commitSeq("Extract", M.setRange(M.cutRanges(m, [[a, b]]), null, null));
       let next = M.splitAll(M.splitAll(m, a).model, b).model;
       next = M.deleteClips(next, Object.values(next.clips).filter((c) => c.start >= a - 1e-6 && M.clipEnd(c) <= b + 1e-6 && !M.trackOf(next, c.track).locked).map((c) => c.id));
-      api.commit("Lift", next);
+      api.commitSeq("Lift", next);
     },
     addMarker() {
-      api.commit("Add Marker", M.addMarker(model(), state.t, "").model);
+      api.commitSeq("Add Marker", M.addMarker(model(), state.t, "").model);
     },
-    addTrack: (kind) => api.commit("Add Track", M.addTrack(model(), kind).model),
+    addTrack: (kind) => api.commitSeq("Add Track", M.addTrack(model(), kind).model),
     precompose() {
       const ids = api.selection();
       if (!ids.length) return;
       try {
         const r = M.precompose(model(), ids, t("Composition"));
-        api.commit("Pre-compose", r.model);
+        api.commitSeq("Pre-compose", r.model);
         api.select([r.id]);
       } catch (err) {
         api.toast(err.message);
@@ -318,7 +440,7 @@ export function mountScene(host, doc, app) {
     },
     addClipAtPlayhead(props, label) {
       const r = M.addClip(model(), { start: state.t, dur: 5, ...props });
-      api.commit(label, r.model);
+      api.commitSeq(label, r.model);
       api.select([r.id]);
       return r.id;
     },
@@ -331,17 +453,18 @@ export function mountScene(host, doc, app) {
     addSolid: () => api.addClipAtPlayhead({ type: "solid" }, "Add Solid"),
     addAdjustment: () => api.addClipAtPlayhead({ type: "adjustment", name: "Adjustment layer" }, "Add Adjustment Layer"),
     editClip(id) {
+      if (model().clips[id]?.type === "comp") return api.openCompClip(id);
       api.select([id]);
       if (model().clips[id]?.type === "text") requestAnimationFrame(() => inspector.focusText(id));
     },
     /** Sets a property: a keyframe at the playhead when the property is animated, else the constant. */
     setProp(id, path, value) {
-      api.commit("Change Property", M.setProp(model(), id, path, value, state.t), { coalesce: `scene:${id}:${path}` });
+      api.commitSeq("Change Property", M.setProp(model(), id, path, value, state.t), { coalesce: `scene:${id}:${path}` });
     },
     setProps(id, values) {
       let m = model();
       for (const [k, v] of Object.entries(values)) m = M.setProp(m, id, k, v, state.t);
-      api.commit("Change Property", m, { coalesce: `scene:${id}:${Object.keys(values).join()}` });
+      api.commitSeq("Change Property", m, { coalesce: `scene:${id}:${Object.keys(values).join()}` });
     },
     fitClip(id, mode) {
       const m = model();
@@ -357,9 +480,11 @@ export function mountScene(host, doc, app) {
       const fx = w / m.width;
       const fy = hgt / m.height;
       const k = Math.min(fx, fy);
-      const scaleV = (v, f) => (isTrack(v) ? { kf: v.kf.map((q) => ({ ...q, v: q.v * f })) } : v * f);
+      // values and tangent speeds (value units per second) scale alike
+      const scaleV = (v, f) => (isTrack(v) ? { kf: v.kf.map((q) => ({ ...q, v: q.v * f, ...(q.i ? { i: [q.i[0] * f, q.i[1]] } : {}), ...(q.o ? { o: [q.o[0] * f, q.o[1]] } : {}) })) } : v * f);
       const clips = Object.fromEntries(Object.entries(m.clips).map(([id, c]) => [id, c.type === "audio" ? c : { ...c, x: scaleV(c.x, fx), y: scaleV(c.y, fy), sx: scaleV(c.sx, k), sy: scaleV(c.sy, k) }]));
-      api.commit("Change Sequence Size", M.normalizeScene({ ...m, width: w, height: hgt, clips }));
+      if (api.seq !== "main") return api.commitSeq("Change Composition Size", { ...m, width: Math.round(w), height: Math.round(hgt), clips });
+      api.commitSeq("Change Sequence Size", M.normalizeScene({ ...m, width: w, height: hgt, clips }));
     },
     async importDialog() {
       const files = await platform.openFiles({ accept: [{ description: "Media", extensions: ["mp4", "m4v", "mov", "webm", "mkv", "mp3", "wav", "m4a", "aac", "ogg", "flac", "png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "srt", "vtt"] }], multiple: true }).catch(() => []);
@@ -373,7 +498,7 @@ export function mountScene(host, doc, app) {
           if (/\.(srt|vtt)$/i.test(f.name)) {
             const { parseSubtitles, captionsToClips } = await import("./captions.js");
             const cues = parseSubtitles(new TextDecoder().decode(f.bytes));
-            api.commit("Import Captions", captionsToClips(model(), cues).model);
+            api.commitSeq("Import Captions", captionsToClips(model(), cues).model);
             continue;
           }
           if (!mediaKind(f.name, f.mime)) throw new Error(t("“{name}” is not a video, audio or image file.", { name: f.name }));
@@ -381,7 +506,7 @@ export function mountScene(host, doc, app) {
           const r = M.addMedia(model(), item);
           let next = r.model;
           if (place) next = M.placeMedia(next, r.id, { start: M.duration(next) }).model;
-          api.commit("Import Media", next);
+          api.commitSeq("Import Media", next);
           ids.push(r.id);
         } catch (err) {
           app.toast(t("“{name}” could not be imported: {message}", { name: f.name, message: err.message }), "danger", 6000);
@@ -393,7 +518,7 @@ export function mountScene(host, doc, app) {
     /** A frame of the sequence on a fresh canvas with exactly seeked sources (thumbnails, tools, export preview). */
     async frame(time = state.t, scale = 1, opts = {}) {
       const { renderExact } = await import("./frames.js");
-      return renderExact(store, model(), time, { scale, ...opts });
+      return renderExact(store, rootModel(), time, { scale, ...opts });
     },
     activate() {
       active = true;
@@ -408,6 +533,7 @@ export function mountScene(host, doc, app) {
       cancelAnimationFrame(raf);
       offChange();
       timeline.destroy();
+      graph?.destroy();
       ro.disconnect();
       audio.destroy();
       store.destroy();
@@ -416,20 +542,52 @@ export function mountScene(host, doc, app) {
 
   const timeline = createTimeline(api);
   const inspector = createInspector(api);
-  root.append(h("div.of-scene__top", bin, viewer, inspector.el), strip, timeline.el, live);
+  // the bottom area: sequence tabs over the timeline, or over the graph editor when it is on
+  root.append(h("div.of-scene__top", bin, viewer, inspector.el), strip, h("div.of-scene__bottom", seqBar, timeline.el), live);
   host.replaceChildren(root);
 
   function startAudio() {
-    audio.start(model(), state.t, rate).catch(() => {});
+    audio.start(rootModel(), state.t, rate, state.seq || "main").catch(() => {});
+  }
+
+  // ------------------------------------------------------------------------------------------- sequence tabs
+  // One tab per open sequence (Main plus opened compositions); the breadcrumb shows how the active one was reached.
+  let seqKey = "";
+  function renderSeqBar() {
+    const r = rootModel();
+    state.tabs = state.tabs.filter((id) => r.comps[id]);
+    const cur = state.seq || "main";
+    const path = (state.paths[cur] || ["main"]).filter((id) => id === "main" || r.comps[id]);
+    const nameOf = (id) => (id === "main" ? t("Main") : r.comps[id].name);
+    const key = [cur, ...state.tabs.map((id) => id + nameOf(id)), "|", ...path.map(nameOf)].join("\u0001");
+    if (key === seqKey) return;
+    seqKey = key;
+    seqBar.hidden = !state.tabs.length;
+    const tab = (id) => {
+      const b = h("button.of-scene-seqbar__tab", { type: "button", role: "tab", "aria-selected": String(id === cur), title: nameOf(id) }, h("sl-icon", { name: id === "main" ? "file-earmark-play" : "collection" }), h("span", nameOf(id)));
+      b.addEventListener("click", () => api.openSequence(id));
+      if (id === "main") return b;
+      const x = h("button.of-scene-seqbar__close", { type: "button", title: t("Close tab"), "aria-label": t("Close tab") }, h("sl-icon", { name: "x-lg" }));
+      x.addEventListener("click", () => api.closeSequence(id));
+      return h("span.of-scene-seqbar__item", b, x);
+    };
+    const crumbs = h("nav.of-scene-seqbar__crumbs", { "aria-label": t("Composition path") }, ...path.flatMap((id, i) => {
+      const last = i === path.length - 1;
+      const c = h(last ? "span" : "button", last ? { "aria-current": "location" } : { type: "button" }, nameOf(id));
+      if (!last) c.addEventListener("click", () => api.openSequence(id));
+      return i ? [h("i", { "aria-hidden": "true" }, "›"), c] : [c];
+    }));
+    seqBar.replaceChildren(tab("main"), ...state.tabs.map(tab), h("span.of-scene-seqbar__grow"), path.length > 1 ? crumbs : "");
   }
 
   // ------------------------------------------------------------------------------------------- bin
   let binKey = "";
   function renderBin() {
     const m = model();
-    const key = Object.values(m.media).map((x) => x.id + x.name).join("|") + "#" + Object.keys(m.comps).join();
+    const key = Object.values(m.media).map((x) => x.id + x.name).join("|") + "#" + Object.values(m.comps).map((k) => `${k.id}${k.name}${M.duration(k)}${k.id === state.seq}`).join("|");
     if (key === binKey) return;
     binKey = key;
+    renderComps(m);
     const items = Object.values(m.media);
     binList.replaceChildren(...(items.length ? items.map((x) => {
       const thumb = h("span.of-scene-bin__thumb", h("sl-icon", { name: x.kind === "audio" ? "music-note-beamed" : x.kind === "image" ? "image" : "file-earmark-play" }));
@@ -444,7 +602,7 @@ export function mountScene(host, doc, app) {
       const del = h("button.of-scene-insp__x", { type: "button", title: t("Remove from the project"), "aria-label": t("Remove from the project") }, h("sl-icon", { name: "x-lg" }));
       del.addEventListener("click", (e) => {
         e.stopPropagation();
-        api.commit("Remove Media", M.removeMedia(model(), x.id));
+        api.commit("Remove Media", M.removeMedia(rootModel(), x.id));
       });
       const el = h("div.of-scene-bin__item", { role: "listitem", draggable: "true", tabindex: "0", title: t("Drag to the timeline, or double-click to add at the playhead") },
         thumb, h("span.of-scene-bin__name", x.name), h("span.of-scene-bin__dur", x.duration ? M.timecode(m, x.duration).slice(3, 8) : ""), del);
@@ -455,7 +613,7 @@ export function mountScene(host, doc, app) {
       const place = () => {
         try {
           const r = M.placeMedia(model(), x.id, { start: state.t });
-          api.commit("Add Clip", r.model);
+          api.commitSeq("Add Clip", r.model);
           api.select(r.ids);
         } catch (err) {
           api.toast(err.message);
@@ -465,6 +623,35 @@ export function mountScene(host, doc, app) {
       el.addEventListener("keydown", (e) => e.key === "Enter" && place());
       return el;
     }) : [h("p.of-scene-bin__empty", t("Drop video, audio and image files here, or use the plus button."))]));
+  }
+
+  // the project's compositions: open (double-click), drag to the timeline, rename, delete, new
+  function renderComps(m) {
+    const list = Object.values(m.comps).sort((a, b) => a.name.localeCompare(b.name));
+    const head = h("div.of-scene-bin__head", h("h3", t("Compositions")), ibtn("plus-lg", "New composition", () => api.newComposition()));
+    compBar.replaceChildren(head, h("div.of-scene-bin__list", { role: "list", "aria-label": t("Compositions") }, ...list.map((k) => {
+      const ren = h("button.of-scene-insp__x", { type: "button", title: t("Rename"), "aria-label": t("Rename") }, h("sl-icon", { name: "pencil" }));
+      ren.addEventListener("click", (e) => {
+        e.stopPropagation();
+        api.renameComp(k.id);
+      });
+      const del = h("button.of-scene-insp__x", { type: "button", title: t("Delete composition"), "aria-label": t("Delete composition") }, h("sl-icon", { name: "x-lg" }));
+      del.addEventListener("click", (e) => {
+        e.stopPropagation();
+        api.removeComp(k.id);
+      });
+      const d = M.duration(k);
+      const el = h("div.of-scene-bin__item", { role: "listitem", draggable: "true", tabindex: "0", "aria-current": String(k.id === state.seq), title: t("Double-click to open; drag to the timeline to use it") },
+        h("span.of-scene-bin__thumb", h("sl-icon", { name: "collection" })), h("span.of-scene-bin__name", k.name), h("span.of-scene-bin__dur", d ? M.timecode(m, d).slice(3, 8) : ""), ren, del);
+      el.addEventListener("dragstart", (e) => {
+        e.dataTransfer.setData("application/x-ofini-scene-comp", k.id);
+        e.dataTransfer.effectAllowed = "copy";
+      });
+      el.addEventListener("dblclick", () => api.openSequence(k.id));
+      // Enter opens, Shift+Enter places it at the playhead
+      el.addEventListener("keydown", (e) => e.key === "Enter" && (e.shiftKey ? api.placeComp(k.id) : api.openSequence(k.id)));
+      return el;
+    })));
   }
 
   bin.addEventListener("dragover", (e) => {
@@ -663,10 +850,15 @@ export function mountScene(host, doc, app) {
     if (dirty || playing) {
       dirty = false;
       if (layoutViewer()) {
-        compositor.render(canvas.getContext("2d"), m, state.t, { scale: vscale, frame: Math.round(state.t * m.fps) });
+        const ctx = canvas.getContext("2d");
+        // compositions have no background: start from a clear canvas (the stage shows through)
+        if ((state.seq || "main") !== "main") ctx.clearRect(0, 0, canvas.width, canvas.height);
+        compositor.render(ctx, rootModel(), state.t, { seq: state.seq || "main", scale: vscale, frame: Math.round(state.t * m.fps) });
         drawOverlay();
       }
-      timeline.draw();
+      renderSeqBar();
+      if (state.graph) graph?.draw();
+      else timeline.draw();
       tc.textContent = M.timecode(m, state.t);
       total.textContent = M.timecode(m, M.duration(m));
       if (!playing) {
@@ -676,7 +868,9 @@ export function mountScene(host, doc, app) {
       const nowMs = performance.now();
       if (nowMs - lastPrune > 5000) {
         lastPrune = nowMs;
-        store.prune(new Set(Object.keys(m.clips)));
+        // clips inside compositions keep their players too
+        const r = rootModel();
+        store.prune(new Set([r, ...Object.values(r.comps)].flatMap((s) => Object.keys(s.clips))));
       }
     }
     if (playing && active) raf = requestAnimationFrame(tick);
@@ -707,6 +901,7 @@ export function mountScene(host, doc, app) {
       e.preventDefault();
       e.stopPropagation();
     };
+    if (key === "F3" && e.shiftKey) return done(), api.toggleGraph();
     if (mod) {
       if (key === "k") return done(), api.splitAtPlayhead();
       if (key === "d") return done(), api.duplicateSelection();

@@ -77,7 +77,7 @@ export const IMPLICIT = [
   { test: sceneFile, re: new RegExp(String.raw`\bN_\(\s*${STR}`, "g") },
   { test: sceneFile, re: new RegExp(String.raw`\b(?:section|row|btn)\(\s*${STR}`, "g") },
   { test: sceneFile, re: new RegExp(String.raw`\b(?:ibtn|addBtn|animRow)\(\s*(?:id|"[\w-]+")\s*,\s*${STR}`, "g") },
-  { test: sceneFile, re: /\bcommit\(([^,]*?),/g, inner: new RegExp(String.raw`(?:^\s*|[?:]\s*)${STR}`, "g") },
+  { test: sceneFile, re: /\b(?:commit(?:Seq|Draft)?|editSelected)\(([^,]*?),/g, inner: new RegExp(String.raw`(?:^\s*|[?:]\s*)${STR}`, "g") },
   { test: (p) => p === "scene/effects.js", re: new RegExp(String.raw`\b[PC]\(\s*${STR}`, "g") },
 ];
 

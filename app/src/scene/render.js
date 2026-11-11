@@ -10,9 +10,12 @@
 // that only need canvas features (opacity, blend mode, CSS filters) go straight to the target. Layers with pixel
 // effects, glow, a mask or a wipe are drawn into a scratch canvas first, processed (WebGL pass of scene/gl.js, or
 // the CPU path of scene/effects.js) and then composited. An adjustment layer processes the picture below it.
+// Compositions (nested to any depth up to MAX_NESTING) render into a canvas of their own size, which is then drawn
+// like a picture; frames of compositions without video are cached (CACHE_SIZE per compositor). A composition clip
+// with `collapse` instead draws its layers straight into the target with its transform (crisp, not clipped).
 // Invariants: render() never throws for a missing source (the layer is skipped); it restores the context state.
 import { frameState } from "./evaluate.js";
-import { layerSize, sequence } from "./model.js";
+import { layerSize, sequence, MAX_NESTING } from "./model.js";
 import { cssFilter, stageEffects, applyPixel } from "./effects.js";
 import { ease } from "./keyframes.js";
 import { createPixelPass } from "./gl.js";
@@ -182,11 +185,32 @@ function drawText(ctx, tx, anim) {
   ctx.restore();
 }
 
+// Compositions whose picture depends only on the model (no video inside, also through nesting): their rendered
+// frames can be cached. A video frame shown by the viewer may lag the requested time, so video never is.
+const staticComps = new WeakMap(); // model.comps → Map(comp id → boolean)
+function isStaticComp(comps, id, seen = new Set()) {
+  let memo = staticComps.get(comps);
+  if (!memo) staticComps.set(comps, (memo = new Map()));
+  if (memo.has(id)) return memo.get(id);
+  if (seen.has(id)) return false;
+  seen.add(id);
+  const k = comps[id];
+  const ok = !!k && Object.values(k.clips).every((c) => c.type !== "video" && (c.type !== "comp" || isStaticComp(comps, c.comp, seen)));
+  memo.set(id, ok);
+  return ok;
+}
+
+const CACHE_SIZE = 4; // rendered composition frames kept per compositor
+
 export function createCompositor({ provider }) {
   let scratch = null;
   let scratch2 = null;
   let pixelPass;
-  const compCanvas = new Map(); // comp id → canvas (pre-compositions rendered at the current scale)
+  // render cache of composition frames: key → canvas, oldest first; cleared when the compositions or media change
+  const cache = new Map();
+  let cacheComps = null;
+  let cacheMedia = null;
+  const pool = [];
   const getScratch = (which, w, h) => {
     let c = which === 1 ? scratch : scratch2;
     if (!c || c.width !== w || c.height !== h) {
@@ -196,8 +220,51 @@ export function createCompositor({ provider }) {
     }
     return c;
   };
+  const takeCanvas = (w, h) => {
+    const i = pool.findIndex((c) => c.width === w && c.height === h);
+    return i >= 0 ? pool.splice(i, 1)[0] : makeCanvas(w, h);
+  };
 
-  // The content of a layer in sequence coordinates (the context is already scaled to sequence pixels).
+  // A composition's frame at its own size (times the scale), from the cache when it is there.
+  function compFrame(model, c, layer, opts, depth) {
+    const k = model.comps[c.comp];
+    const s = opts.scale;
+    const cw = Math.max(1, Math.round(k.width * s));
+    const ch = Math.max(1, Math.round(k.height * s));
+    if (cacheComps !== model.comps || cacheMedia !== model.media) {
+      for (const cv of cache.values()) pool.push(cv);
+      cache.clear();
+      cacheComps = model.comps;
+      cacheMedia = model.media;
+    }
+    const cacheable = isStaticComp(model.comps, c.comp);
+    const key = `${c.comp}|${Math.round(layer.time * 1e5)}|${cw}x${ch}|${opts.frame || 0}|${opts.gpu === false ? 0 : 1}`;
+    if (cacheable && cache.has(key)) {
+      const hit = cache.get(key);
+      cache.delete(key);
+      cache.set(key, hit); // most recently used last
+      return hit;
+    }
+    const cv = takeCanvas(cw, ch);
+    const cctx = cv.getContext("2d");
+    cctx.setTransform(1, 0, 0, 1, 0, 0);
+    cctx.clearRect(0, 0, cw, ch);
+    const stat = { miss: false };
+    renderInto(cctx, model, layer.time, { ...opts, seq: c.comp, base: null, alpha: 1, only: null, stat }, depth + 1);
+    if (opts.stat && stat.miss) opts.stat.miss = true;
+    if (cacheable && !stat.miss) {
+      cache.set(key, cv);
+      while (cache.size > CACHE_SIZE) {
+        const oldest = cache.keys().next().value;
+        pool.push(cache.get(oldest));
+        cache.delete(oldest);
+      }
+    } else pool.push(cv); // drawn right away by the caller, then free again
+    if (pool.length > CACHE_SIZE) pool.splice(0, pool.length - CACHE_SIZE);
+    return cv;
+  }
+
+  // The content of a layer in sequence coordinates (the context is already set to sequence pixels).
   function paintContent(ctx, model, m, layer, opts, depth) {
     const c = layer.clip;
     const W = m.width;
@@ -223,22 +290,23 @@ export function createCompositor({ provider }) {
     let sh = 0;
     if (c.type === "comp") {
       const k = model.comps[c.comp];
-      if (!k || depth >= 4) return false;
-      const s = opts.scale;
-      let cv = compCanvas.get(c.comp);
-      const cw = Math.max(1, Math.round(k.width * s));
-      const ch = Math.max(1, Math.round(k.height * s));
-      if (!cv || cv.width !== cw || cv.height !== ch) compCanvas.set(c.comp, (cv = makeCanvas(cw, ch)));
-      const cctx = cv.getContext("2d");
-      cctx.setTransform(1, 0, 0, 1, 0, 0);
-      cctx.clearRect(0, 0, cw, ch);
-      renderInto(cctx, model, layer.time, { ...opts, seq: c.comp }, depth + 1);
-      src = cv;
-      sw = cw;
-      sh = ch;
+      if (!k || depth >= MAX_NESTING) return false;
+      if (c.collapse) {
+        // collapsed transformations: the nested layers go straight into this canvas with the clip's transform, at
+        // this canvas's resolution and not clipped to the composition's frame
+        const base = ctx.getTransform().translate(-k.width / 2, -k.height / 2);
+        renderInto(ctx, model, layer.time, { ...opts, seq: c.comp, base, alpha: 1, only: null, background: false }, depth + 1);
+        return true;
+      }
+      src = compFrame(model, c, layer, opts, depth);
+      sw = src.width;
+      sh = src.height;
     } else {
       src = provider.source(c.media, layer.time ?? 0, c);
-      if (!src) return false;
+      if (!src) {
+        if (opts.stat) opts.stat.miss = true;
+        return false;
+      }
       sw = src.videoWidth || src.displayWidth || src.naturalWidth || src.width;
       sh = src.videoHeight || src.displayHeight || src.naturalHeight || src.height;
       if (!sw || !sh) return false;
@@ -287,6 +355,26 @@ export function createCompositor({ provider }) {
     }
   }
 
+  // A CSS filter over a whole device-pixel canvas, in place (collapsed compositions: their layers set their own).
+  function filterInPlace(cv, filter) {
+    const tmp = getScratch(2, cv.width, cv.height);
+    const t = tmp.getContext("2d");
+    t.setTransform(1, 0, 0, 1, 0, 0);
+    t.clearRect(0, 0, tmp.width, tmp.height);
+    t.filter = filter;
+    t.drawImage(cv, 0, 0);
+    t.filter = "none";
+    const ctx = cv.getContext("2d");
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = "copy";
+    ctx.drawImage(tmp, 0, 0);
+    ctx.restore();
+  }
+
+  // Sequence pixels → device pixels of the target: the scale, or the transform of a collapsed parent.
+  const setBase = (ctx, opts) => (opts.base ? ctx.setTransform(opts.base) : ctx.setTransform(opts.scale, 0, 0, opts.scale, 0, 0));
+
   // Cuts a device-pixel canvas down to a mask (layer box coordinates) and / or a wipe rectangle (frame fractions).
   function cut(cv, m, layer, opts) {
     const ctx = cv.getContext("2d");
@@ -295,7 +383,7 @@ export function createCompositor({ provider }) {
       const k = layer.mask;
       const size = layerSize(m, layer.clip, textSize);
       ctx.save();
-      ctx.setTransform(s, 0, 0, s, 0, 0);
+      setBase(ctx, opts);
       ctx.globalCompositeOperation = k.invert ? "destination-out" : "destination-in";
       if (k.feather > 0) ctx.filter = `blur(${k.feather * s}px)`;
       ctx.translate(layer.x + layer.fx.dx * m.width, layer.y + layer.fx.dy * m.height);
@@ -313,10 +401,10 @@ export function createCompositor({ provider }) {
     if (layer.fx.wipe) {
       const [l, t, r, b] = layer.fx.wipe;
       ctx.save();
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      setBase(ctx, opts);
       ctx.globalCompositeOperation = "destination-in";
       ctx.fillStyle = "#000";
-      ctx.fillRect(l * cv.width, t * cv.height, (r - l) * cv.width, (b - t) * cv.height);
+      ctx.fillRect(l * m.width, t * m.height, (r - l) * m.width, (b - t) * m.height);
       ctx.restore();
     }
   }
@@ -325,11 +413,13 @@ export function createCompositor({ provider }) {
     const m = sequence(model, opts.seq);
     const state = frameState(model, t, { seq: opts.seq });
     const s = opts.scale;
-    const dw = Math.max(1, Math.round(m.width * s));
-    const dh = Math.max(1, Math.round(m.height * s));
+    const alpha = opts.alpha ?? 1;
+    // buffers match the target canvas (for a collapsed composition that is the parent's canvas)
+    const dw = ctx.canvas.width;
+    const dh = ctx.canvas.height;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    if (state.background && opts.background !== false) {
+    if (state.background && opts.background !== false && !opts.base) {
       ctx.fillStyle = state.background;
       ctx.fillRect(0, 0, dw, dh);
     }
@@ -339,12 +429,13 @@ export function createCompositor({ provider }) {
       const fl = cssFilter(layer.effects, s);
       const blur = layer.fx.blur > 0 ? `blur(${layer.fx.blur * s}px)` : "";
       const filter = [fl, blur].filter(Boolean).join(" ") || "none";
-      const heavy = layer.type === "adjustment" || layer.mask || layer.fx.wipe || layer.effects.some((e) => stageEffects([e], "pixel").length || stageEffects([e], "glow").length);
+      const collapse = layer.type === "comp" && !!layer.clip.collapse;
+      const heavy = collapse || layer.type === "adjustment" || layer.mask || layer.fx.wipe || layer.effects.some((e) => stageEffects([e], "pixel").length || stageEffects([e], "glow").length);
       try {
         if (!heavy) {
           ctx.save();
-          ctx.setTransform(s, 0, 0, s, 0, 0);
-          ctx.globalAlpha = layer.opacity;
+          setBase(ctx, opts);
+          ctx.globalAlpha = layer.opacity * alpha;
           ctx.globalCompositeOperation = layer.blend === "normal" ? "source-over" : layer.blend;
           ctx.filter = filter;
           paintContent(ctx, model, m, layer, opts, depth);
@@ -362,17 +453,18 @@ export function createCompositor({ provider }) {
             b.filter = "none";
           } else {
             b.save();
-            b.setTransform(s, 0, 0, s, 0, 0);
-            b.filter = filter;
+            setBase(b, opts);
+            b.filter = collapse ? "none" : filter;
             ok = paintContent(b, model, m, layer, opts, depth);
             b.restore();
+            if (ok && collapse && filter !== "none") filterInPlace(buf, filter);
           }
           if (ok) {
             process(buf, layer.effects, opts);
             cut(buf, m, layer, opts);
             ctx.save();
             ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.globalAlpha = layer.opacity;
+            ctx.globalAlpha = layer.opacity * alpha;
             ctx.globalCompositeOperation = layer.blend === "normal" ? "source-over" : layer.blend;
             ctx.drawImage(buf, 0, 0);
             ctx.restore();
@@ -383,10 +475,10 @@ export function createCompositor({ provider }) {
       }
       if (layer.fx.dip) {
         ctx.save();
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.globalAlpha = layer.fx.dip.a;
+        setBase(ctx, opts);
+        ctx.globalAlpha = layer.fx.dip.a * alpha;
         ctx.fillStyle = layer.fx.dip.color;
-        ctx.fillRect(0, 0, dw, dh);
+        ctx.fillRect(0, 0, m.width, m.height);
         ctx.restore();
       }
     }
@@ -402,7 +494,7 @@ export function createCompositor({ provider }) {
      * @returns the frame state that was drawn
      */
     render(ctx, model, t, opts = {}) {
-      return renderInto(ctx, model, t, { seq: "main", scale: 1, ...opts }, 0);
+      return renderInto(ctx, model, t, { seq: "main", scale: 1, ...opts, base: null, alpha: 1 }, 0);
     },
     /** True when pixel effects run on the GPU (after the first frame that used one). */
     get gpu() {

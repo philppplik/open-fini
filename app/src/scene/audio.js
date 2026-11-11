@@ -3,13 +3,15 @@
 // the export offline. Per audio clip: source (speed) → gate → low / high cut → equalizer → compressor → gain
 // (volume keyframes × fades) → pan → master.
 //
-//   createAudioEngine(store)  → { start(model, t, rate), stop(), time(), levels(), destroy() }
-//   renderAudio(model, store, { from, to, sampleRate }) → Promise<AudioBuffer>       (export, analysis)
+//   createAudioEngine(store)  → { start(model, t, rate, seq), stop(), time(), levels(), destroy() }
+//   renderAudio(model, store, { from, to, sampleRate, seq }) → Promise<AudioBuffer>       (export, analysis)
 //   encodeWav(buffer) → Uint8Array (16-bit PCM)      gateCurve(samples, rate, thresholdDb, release) → Float32Array
-// Limits: changing the speed changes the pitch (no time-stretch yet); pre-compositions are silent.
-import { clipList, clipEnd, duration } from "./model.js";
-import { gainAt } from "./evaluate.js";
-import { valueAt, isTrack } from "./keyframes.js";
+// What sounds is evaluate.js ▸ flattenAudio: audio clips plus the sound of compositions (nested, with the
+// composition clip's speed, trim, volume, fades and pan applied).
+// Limits: changing the speed changes the pitch (no time-stretch yet); time-remapped compositions are silent.
+import { clipEnd, duration, sequence } from "./model.js";
+import { flattenAudio } from "./evaluate.js";
+import { valueAt } from "./keyframes.js";
 import { stageEffects } from "./effects.js";
 
 const CURVE_RATE = 50; // automation points per second
@@ -92,22 +94,19 @@ function schedule(ctx, dest, clip, buffer, when, t0, rate, until) {
     }
   }
   const gain = link(ctx.createGain());
-  if (isTrack(clip.volume) || clip.fadeIn || clip.fadeOut) gain.gain.setValueCurveAtTime(curve((t) => gainAt(clip, t), a, b), at, len);
-  else gain.gain.value = gainAt(clip, a);
-  if (ctx.createStereoPanner && (isTrack(clip.pan) || clip.pan)) {
+  if (clip.animated) gain.gain.setValueCurveAtTime(curve(clip.gain, a, b), at, len);
+  else gain.gain.value = clip.gain(a);
+  if (ctx.createStereoPanner && (clip.animated || clip.pan(a))) {
     const pan = link(ctx.createStereoPanner());
-    if (isTrack(clip.pan)) pan.pan.setValueCurveAtTime(curve((t) => Math.max(-1, Math.min(1, valueAt(clip.pan, t))), a, b), at, len);
-    else pan.pan.value = clip.pan;
+    if (clip.animated) pan.pan.setValueCurveAtTime(curve(clip.pan, a, b), at, len);
+    else pan.pan.value = clip.pan(a);
   }
   node.connect(dest);
   src.start(at, Math.max(0, clip.in + a * clip.speed), Math.max(0.001, (b - a) * clip.speed));
   return src;
 }
 
-const audible = (model) => {
-  const muted = new Set(model.tracks.filter((k) => k.muted).map((k) => k.id));
-  return clipList(model).filter((c) => c.type === "audio" && !c.muted && !muted.has(c.track));
-};
+const audible = (model, seq = "main") => flattenAudio(model, { seq });
 
 export function createAudioEngine(store) {
   let ctx = null;
@@ -148,14 +147,14 @@ export function createAudioEngine(store) {
   const buf = new Float32Array(1024);
   return {
     /** Starts the sound of the timeline at time `t` (seconds). Resolves when the clips are scheduled. */
-    async start(model, t, rate = 1) {
+    async start(model, t, rate = 1, seq = "main") {
       stop();
       const my = token;
       const c = ensure();
       if (c.state === "suspended") await c.resume().catch(() => {});
       base = { when: c.currentTime + 0.06, t0: t, rate };
-      const until = duration(model);
-      await Promise.all(audible(model).filter((clip) => clipEnd(clip) > t).map(async (clip) => {
+      const until = duration(sequence(model, seq));
+      await Promise.all(audible(model, seq).filter((clip) => clipEnd(clip) > t).map(async (clip) => {
         const buffer = await store.audio(clip.media);
         if (my !== token || !buffer) return;
         // a buffer that arrives late starts where the transport is now
@@ -196,11 +195,11 @@ export function createAudioEngine(store) {
 }
 
 /** Renders the sound of [from, to) offline with the same graph as playback. */
-export async function renderAudio(model, store, { from = 0, to = duration(model), sampleRate = 48000 } = {}) {
+export async function renderAudio(model, store, { from = 0, to = duration(model), sampleRate = 48000, seq = "main" } = {}) {
   const len = Math.max(1, Math.ceil((to - from) * sampleRate));
   const Ctx = globalThis.OfflineAudioContext || globalThis.webkitOfflineAudioContext;
   const ctx = new Ctx(2, len, sampleRate);
-  for (const clip of audible(model)) {
+  for (const clip of audible(model, seq)) {
     if (clipEnd(clip) <= from || clip.start >= to) continue;
     const buffer = await store.audio(clip.media);
     if (buffer) schedule(ctx, ctx.destination, clip, buffer, 0, from, 1, to);
