@@ -377,5 +377,6 @@ the logic on the first call.
   ships none, and the system recognizer cannot read files. Shot detection seeks the source (about one to two minutes
   for ten minutes of video) and finds hard cuts, not slow dissolves. Beat tracking assumes a steady tempo. Reframing
   uses a focus point or keyframed focus track the assistant chooses from sampled frames; there is no automatic face
-  or object tracking. The assistant tools are unit-tested on the model; in the browser only a short smoke test was
-  run (frames, analysis jobs and export are not verified end to end on real footage).
+  or object tracking. The assistant tools are unit-tested on the model; a browser smoke test covered import, placing,
+  titles, a contact sheet and the sound analysis job in a worker. Not verified on real footage: shot detection on
+  long videos, transcription with an installed engine, export through the tool, URL import, the right-click menu.
