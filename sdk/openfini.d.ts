@@ -339,6 +339,17 @@ export interface OpenFiniApi {
     registerSkill(def: { name: string; description?: string; body: string }): Promise<void>;
   };
 
+  /**
+   * Needs "vibe". Engines OpenFini picks instead of a built-in one (docs/engines.md). `run` receives what the kind
+   * needs: stt (pcm: Float32Array 16 kHz mono, { lang, sampleRate, model }) -> { text }; tts (text, { lang }) -> void;
+   * search (query, { limit }) -> [{ title, url, snippet }]; rag-loader (bytes: Uint8Array, { path }) -> { text, pages?,
+   * skipped? }; ocr ({ width, height, data: RGBA }, { lang }) -> { text }. Set `local: true` only when nothing leaves
+   * the device; the app shows it. Registered engines go away when the extension stops.
+   */
+  readonly engines: {
+    register(def: { kind: "stt" | "tts" | "search" | "rag-loader" | "ocr"; id: string; label: string; local: boolean; extensions?: string[]; mimes?: string[]; endpoint?: string; run: (input: any, options: any) => unknown | Promise<unknown>; stop?: () => void }): Promise<{ id: string }>;
+  };
+
   /** Messages between the extension's background script and its panels. */
   readonly messages: {
     post(data: unknown): Promise<void>;

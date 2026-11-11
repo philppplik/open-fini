@@ -7,12 +7,14 @@
 // Public API
 //   SOURCE_CAPS                                         per-call and per-file limits
 //   isTextPath(path) → boolean                          extensions indexed as text
-//   addTextSource(index, { id, title, text, source, kind }) → Promise<{ id, chunks, chars }>
-//   addFiles(index, files, { prefix, kind, onProgress, signal, now }) → Promise<{ added, skipped, chunks, truncated }>
+//   addTextSource(index, { id, title, text, source, kind, pages }) → Promise<{ id, chunks, chars }>
+//   addFiles(index, files, { prefix, kind, onProgress, signal, now, loaderFor }) → Promise<{ added, skipped, chunks, truncated }>
+//     loaderFor(path) → a rag-loader engine (platform/engines.js) for files that are not text, e.g. PDF; null = skip
 //   listSources(index) → [{ id, title, kind, source, chunks, chars, added }]
 //   searchWithCitations(index, query, k) → { results: [{ n, source, title, line, char, chunk, score, text }], cite }
 
-export const SOURCE_CAPS = Object.freeze({ maxFiles: 300, maxFileBytes: 2 * 1024 * 1024, maxTotalBytes: 20 * 1024 * 1024, maxMillis: 60_000 });
+// maxDocumentBytes: files read by a loader engine (PDF); their extracted text counts toward maxTotalBytes
+export const SOURCE_CAPS = Object.freeze({ maxFiles: 300, maxFileBytes: 2 * 1024 * 1024, maxDocumentBytes: 50 * 1024 * 1024, maxTotalBytes: 20 * 1024 * 1024, maxMillis: 60_000 });
 
 const TEXT_EXT = /\.(txt|md|markdown|mdx|rst|adoc|html?|css|scss|less|js|mjs|cjs|jsx|ts|tsx|json|jsonc|ya?ml|toml|ini|cfg|conf|xml|svg|csv|tsv|py|rb|go|rs|java|kt|swift|c|h|cc|cpp|hpp|cs|php|sh|ps1|sql|lua|r|tex|bib|log|vue|svelte)$/i;
 export const isTextPath = (p) => TEXT_EXT.test(String(p));
@@ -34,13 +36,21 @@ export function chunkPositions(text, chunks) {
   return out;
 }
 
-export async function addTextSource(index, { id, title, text, source, kind = "text", now = Date.now() }) {
+/** Page (1-based) that contains character offset `char`, from loader page starts [{ n, char }]. */
+export function pageAt(pages, char) {
+  let n = null;
+  for (const p of pages || []) if (p.char <= char) n = p.n;
+  return n;
+}
+
+export async function addTextSource(index, { id, title, text, source, kind = "text", now = Date.now(), pages = null }) {
   const clean = String(text ?? "").replace(/\r\n?/g, "\n");
   if (!clean.trim()) throw new Error(`“${title || id}” has no text to index.`);
   const docId = `src:${id}`;
   const p = index.addDocument({ id: docId, title: title || id, text: clean, meta: { kind, source: source || id, added: now, chars: clean.length } });
   const doc = index.docs.get(docId);
   doc.meta.positions = chunkPositions(clean, doc.chunkIds.map((c) => index.chunks.get(c).text));
+  if (pages?.length) for (const pos of doc.meta.positions) pos.page = pageAt(pages, pos.char);
   try {
     await p;
   } catch {
@@ -50,7 +60,7 @@ export async function addTextSource(index, { id, title, text, source, kind = "te
 }
 
 /** Adds many { path, text } or { path, bytes } files, honoring SOURCE_CAPS. Never throws for a single bad file. */
-export async function addFiles(index, files, { prefix = "file", kind = "file", onProgress, signal, clock = Date.now } = {}) {
+export async function addFiles(index, files, { prefix = "file", kind = "file", onProgress, signal, clock = Date.now, loaderFor = null } = {}) {
   const t0 = clock();
   let total = 0;
   let chunks = 0;
@@ -64,7 +74,37 @@ export async function addFiles(index, files, { prefix = "file", kind = "file", o
       break;
     }
     if (!isTextPath(f.path)) {
-      skipped.push({ path: f.path, reason: "not a text file" });
+      const loader = f.bytes && loaderFor?.(f.path);
+      if (!loader) {
+        skipped.push({ path: f.path, reason: "not a text file" });
+        continue;
+      }
+      if (f.bytes.length > SOURCE_CAPS.maxDocumentBytes) {
+        skipped.push({ path: f.path, reason: "larger than 50 MiB" });
+        continue;
+      }
+      let doc;
+      try {
+        doc = await loader.load(f.bytes, { path: f.path, signal });
+      } catch (err) {
+        skipped.push({ path: f.path, reason: String(err?.message || err).slice(0, 200) });
+        continue;
+      }
+      const text = String(doc?.text ?? "");
+      for (const s of doc?.skipped || []) skipped.push({ path: `${f.path} p.${s.page}`, reason: s.reason });
+      if (!text.trim()) {
+        skipped.push({ path: f.path, reason: "no text found (scanned pages need an OCR engine)" });
+        continue;
+      }
+      if (total + text.length > SOURCE_CAPS.maxTotalBytes) {
+        truncated = true;
+        break;
+      }
+      total += text.length;
+      const r = await addTextSource(index, { id: `${prefix}:${f.path}`, title: f.path, text, source: f.path, kind, pages: doc.pages });
+      chunks += r.chunks;
+      added.push(f.path);
+      onProgress?.({ files: added.length, bytes: total, path: f.path });
       continue;
     }
     const size = f.bytes ? f.bytes.length : String(f.text ?? "").length;
@@ -100,7 +140,7 @@ export async function searchWithCitations(index, query, k = 5) {
   const results = hits.map((hh, i) => {
     const chunk = Number(String(hh.chunkId).split("#").pop()) || 0;
     const pos = hh.meta?.positions?.[chunk] || null;
-    return { n: i + 1, source: hh.meta?.source || hh.title, title: hh.title, line: pos?.line ?? null, char: pos?.char ?? null, chunk, score: Math.round(hh.score * 1000) / 1000, text: hh.text };
+    return { n: i + 1, source: hh.meta?.source || hh.title, title: hh.title, ...(pos?.page ? { page: pos.page } : {}), line: pos?.line ?? null, char: pos?.char ?? null, chunk, score: Math.round(hh.score * 1000) / 1000, text: hh.text };
   });
-  return { results, cite: results.map((r) => `[${r.n}] ${r.source}${r.line ? `:${r.line}` : ` (chunk ${r.chunk + 1})`}`).join("\n") };
+  return { results, cite: results.map((r) => `[${r.n}] ${r.source}${r.page ? ` p.${r.page}` : r.line ? `:${r.line}` : ` (chunk ${r.chunk + 1})`}`).join("\n") };
 }

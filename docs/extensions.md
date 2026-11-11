@@ -174,7 +174,7 @@ rejected.
 | `storage` | `storage.*`: a private key-value store (256 KB per value, 200 keys, 1 MB) |
 | `files` | `files.open` / `files.save`: always through the system file dialog |
 | `export` | `document.export`: render layers or pages to PNG, JPEG, WebP or SVG bytes |
-| `vibe` | `vibe.registerTool` / `registerSkill` and `contributes.vibeTools` / `vibeSkills` |
+| `vibe` | `vibe.registerTool` / `registerSkill`, `engines.register` and `contributes.vibeTools` / `vibeSkills` |
 | `commands` | run any OpenFini command id (`commands.execute`); your own commands need nothing |
 | `network:<origin>` | `network.fetch` to that origin (`https://host[:port]`, `https://*.host`, or `http://localhost[:port]`) |
 
@@ -229,6 +229,7 @@ return promises. Typings: [`sdk/openfini.d.ts`](../sdk/openfini.d.ts). Errors ar
 | `files.open({extensions, multiple})` / `files.save({name, data, mime})` | `files` | system dialogs |
 | `events.on("documentChanged" \| "selectionChanged" \| "studioChanged", fn)` | document events: `document.read` | returns an unsubscribe function; events are throttled |
 | `vibe.registerTool(name \| def, fn)` / `vibe.registerSkill(def)` | `vibe` | |
+| `engines.register({ kind, id, label, local, run, ... })` | `vibe` | Speech input, spoken replies, search, knowledge-base loaders and OCR; background script only, at most 10; see [engines.md](engines.md) |
 | `messages.post(data)` / `messages.onMessage(fn)` | none | between the background script and panels of the same extension |
 | `log(...)` | none | also `console.*`, shown in the manager log |
 

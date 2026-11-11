@@ -66,6 +66,7 @@ export const METHOD_PERMISSIONS = {
   "events.subscribe": "", // decided per event
   "vibe.registerTool": "vibe",
   "vibe.registerSkill": "vibe",
+  "engines.register": "vibe", // speech, search, knowledge-base loader and OCR engines (platform/engines.js)
   "messages.post": "",
   "theme.get": "",
 };

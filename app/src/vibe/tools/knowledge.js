@@ -10,10 +10,16 @@ export function knowledgeTools(app, ctx) {
     return ctx.knowledgeIndex;
   };
   const lib = () => import("../knowledge-sources.js");
+  // rag-loader engines (PDF built in, more from extensions): platform/engines.js
+  const loaders = async () => {
+    const { ensureBuiltinEngines } = await import("../../platform/builtin-engines.js");
+    const reg = ensureBuiltinEngines();
+    return (path) => reg.pick("rag-loader", { path });
+  };
   const withEmbedder = async () => index().setEmbedder(await Promise.resolve(ctx.embedder?.()).catch(() => null));
 
   return [
-    tool("rag_add_source", "Adds a source to the on-device knowledge base so rag_search can cite it: kind url (a web page, needs web access and approval), project (every text file of the open project, or the paths given), folder (a folder on disk that was opened with File ▸ Open Folder, desktop app) or text (a note you pass). Caps: 300 files, 2 MiB per file, 20 MiB and 60 s per call.", {
+    tool("rag_add_source", "Adds a source to the on-device knowledge base so rag_search can cite it: kind url (a web page, needs web access and approval), project (every text file and PDF of the open project, or the paths given; PDFs by their text layer, cited as file.pdf p.N), folder (a folder on disk that was opened with File ▸ Open Folder, desktop app) or text (a note you pass). Caps: 300 files, 2 MiB per text file, 50 MiB per PDF, 20 MiB of text and 60 s per call.", {
       kind: S.str("url, project, folder or text", { enum: ["url", "project", "folder", "text"] }),
       url: S.str("Page address (kind url)"), paths: { type: "array", items: { type: "string" }, description: "Project files to add (kind project; default all)" },
       folder: S.str("Opened folder path (kind folder)"), title: S.str("Title (kind text)"), text: S.str("Text (kind text)"),
@@ -40,8 +46,9 @@ export function knowledgeTools(app, ctx) {
         const web = app.doc?.web;
         if (!web) throw new Error("No project is open. Open a folder or website project first.");
         const want = a.paths?.length ? new Set(a.paths) : null;
-        const files = web.paths.filter((p) => (!want || want.has(p)) && web.isText?.(p) !== false).map((p) => ({ path: p, text: web.text(p) ?? "" }));
-        r = await k.addFiles(idx, files, { prefix: `project:${app.doc.name}`, kind: "project", signal: c?.signal, onProgress: (p) => c?.report?.(`${p.files} files · ${p.path}`) });
+        const loaderFor = await loaders();
+        const files = web.paths.filter((p) => (!want || want.has(p)) && (web.isText?.(p) !== false || loaderFor(p))).map((p) => (web.isText?.(p) === false ? { path: p, bytes: web.bytes(p) } : { path: p, text: web.text(p) ?? "" }));
+        r = await k.addFiles(idx, files, { prefix: `project:${app.doc.name}`, kind: "project", signal: c?.signal, loaderFor, onProgress: (p) => c?.report?.(`${p.files} files · ${p.path}`) });
       } else {
         const folders = [...(app.openedFolders || [])];
         const folder = a.folder || folders[0];
@@ -50,7 +57,7 @@ export function knowledgeTools(app, ctx) {
         if (!platform.readFolder) throw new Error("Reading folders from disk needs the desktop app; use kind project instead.");
         const k2 = k.SOURCE_CAPS;
         const read = await platform.readFolder(folder, { maxFiles: k2.maxFiles * 2, maxFileBytes: k2.maxFileBytes, maxTotalBytes: k2.maxTotalBytes, signal: c?.signal, onProgress: (p) => c?.report?.(`reading ${p.files} files`) });
-        r = await k.addFiles(idx, read.files, { prefix: "folder", kind: "folder", signal: c?.signal, onProgress: (p) => c?.report?.(`${p.files} files indexed · ${p.path}`) });
+        r = await k.addFiles(idx, read.files, { prefix: "folder", kind: "folder", signal: c?.signal, loaderFor: await loaders(), onProgress: (p) => c?.report?.(`${p.files} files indexed · ${p.path}`) });
       }
       await ctx.saveKnowledge?.();
       const st = idx.stats();

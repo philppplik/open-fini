@@ -1880,7 +1880,6 @@
   "System speech recognition": "Spracherkennung des Systems",
   "Test voice": "Stimme testen",
   "The context is nearly full. Drop large tool results or start a sub-thread for side questions.": "Der Kontext ist fast voll. Entferne große Werkzeugergebnisse oder beginne für Nebenfragen einen Unterthread.",
-  "The local recognizer runtime (whisper.cpp in WebAssembly) is not included in this version yet. You can already download and verify a model; dictation stays unavailable until the runtime ships.": "Die lokale Erkennungs-Laufzeit (whisper.cpp in WebAssembly) ist in dieser Version noch nicht enthalten. Du kannst ein Modell bereits herunterladen und prüfen; das Diktieren bleibt nicht verfügbar, bis die Laufzeit ausgeliefert wird.",
   "The main thread was deleted.": "Der Hauptthread wurde gelöscht.",
   "The most relevant ones are picked for every message; pinned memories are always included.": "Für jede Nachricht werden die passendsten ausgewählt; angeheftete Erinnerungen sind immer dabei.",
   "TIFF, animated GIF, OpenRaster, ICO and color palettes open natively. Right-click menus know where you are, and the Code editor can encode special characters.": "TIFF, animierte GIFs, OpenRaster, ICO und Farbpaletten öffnen nativ. Rechtsklick-Menüs kennen den Kontext, und der Code-Editor kann Sonderzeichen kodieren.",
@@ -3171,5 +3170,8 @@
   "The relay's network addresses could not be read. Start it with node openfini-relay.mjs --lan (How to start a relay), or type this computer's IP address into the relay address.": "Die Netzwerkadressen des Relays konnten nicht gelesen werden. Starte es mit node openfini-relay.mjs --lan (Relay starten) oder trage die IP-Adresse dieses Computers als Relay-Adresse ein.",
   "This copy of OpenFini does not include the relay program (built apps do). Download {file} from the OpenFini releases page: {url}": "Diese OpenFini-Version enthält das Relay-Programm nicht (gebaute Apps enthalten es). Lade {file} von der OpenFini-Release-Seite herunter: {url}",
   "Without the desktop app: the one-file relay": "Ohne Desktop-App: das Ein-Datei-Relay",
-  "ws://127.0.0.1:8787/ for windows on this computer.": "ws://127.0.0.1:8787/ für Fenster auf diesem Computer."
+  "ws://127.0.0.1:8787/ for windows on this computer.": "ws://127.0.0.1:8787/ für Fenster auf diesem Computer.",
+  "{file}: {reason}": "{file}: {reason}",
+  "Local recognizer: {name}. The audio stays on this device.": "Lokale Spracherkennung: {name}. Die Aufnahme bleibt auf diesem Gerät.",
+  "No local recognizer is installed. OpenFini does not bundle one yet (whisper.cpp in WebAssembly); an extension can add one. You can already download and verify a model for it; dictation stays unavailable until a recognizer is installed.": "Es ist keine lokale Spracherkennung installiert. OpenFini liefert noch keine mit (whisper.cpp in WebAssembly); eine Erweiterung kann eine hinzufügen. Du kannst schon ein Modell dafür herunterladen und prüfen lassen; Diktieren bleibt nicht verfügbar, bis eine Spracherkennung installiert ist."
 }

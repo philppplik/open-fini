@@ -77,7 +77,12 @@ export function createVoicePanel(vs) {
     });
     const card = h("div.of-vcard", h("strong", t("Speech input")), h("p.of-hint", t("Used by the microphone button and voice chat. The system recognizer is the default, as before; choose Off to hide the microphone.")), field(t("Engine"), sttSel));
     if (v.stt === "local") {
-      card.append(h("div.of-vnote.info", iconEl("info-circle"), h("span", t("The local recognizer runtime (whisper.cpp in WebAssembly) is not included in this version yet. You can already download and verify a model; dictation stays unavailable until the runtime ships."))));
+      // engines from extensions plug in through the engine registry (platform/engines.js, docs/engines.md)
+      const { ensureBuiltinEngines } = await import("../../platform/builtin-engines.js");
+      const eng = ensureBuiltinEngines().pick("stt", { local: true });
+      card.append(eng
+        ? h("div.of-vnote.info", iconEl("check-circle"), h("span", t("Local recognizer: {name}. The audio stays on this device.", { name: eng.origin?.name ? `${eng.label} (${eng.origin.name})` : eng.label })))
+        : h("div.of-vnote.info", iconEl("info-circle"), h("span", t("No local recognizer is installed. OpenFini does not bundle one yet (whisper.cpp in WebAssembly); an extension can add one. You can already download and verify a model for it; dictation stays unavailable until a recognizer is installed."))));
       const list = h("div.of-vmem__list", { role: "list" });
       for (const m of SPEECH_MODELS) {
         const have = installed.find((x) => x.id === m.id);
