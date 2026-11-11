@@ -75,8 +75,26 @@ Add the **Scene Studio** (`app/src/scene/`, registered in `studios/scene.js`). F
 - Export speed is bounded by seeking the sources (about real time for HD material).
 - Media is embedded in the `.ofini` file, so scenes are self-contained and large. Referenced media (a path on
   disk) is a planned addition for the desktop app.
-- Changing a clip's speed changes the pitch of its sound; pre-compositions are silent.
+- Changing a clip's speed changes the pitch of its sound; time-remapped compositions are silent.
 - Live collaboration shares a scene as a copy (no record-level adapter yet).
+
+## Addendum: scene format 2 (graph editor, nested compositions)
+
+- **Keyframe tangents use After Effects' model** (speed in value units per second plus influence as a fraction of
+  the neighboring segment) rather than absolute handle offsets (DaVinci) or one normalized cubic-bezier per
+  segment (CSS). Speed and influence keep their meaning when keyframes move in time and when a clip is retimed
+  (speeds are divided by the time scale), and a CSS easing maps onto them exactly, so format 1 easings and format 2
+  tangents share one evaluator (`keyframes.js ▸ segmentValue`). Tangents are optional per keyframe side: files
+  without them evaluate bit for bit as before, which is what makes the change additive.
+- **Compositions nest by reference** (`comps` stays flat; a composition clip names its composition), with cycles
+  refused on edit and repaired on load by a deterministic depth-first pass. Nesting through copies was rejected:
+  "changes show wherever it is used" is the point of a composition.
+- **The timeline edits one sequence at a time.** The workspace exposes `seqModel()` / `commitSeq()` for the
+  sequence on the timeline and keeps `model()` / `commit()` for the whole scene, so code written against the root
+  model (export, the assistant's tools) is unaffected by an open composition tab.
+- **Composition sound is flattened** into voices (`evaluate.js ▸ flattenAudio`) instead of rendering nested audio
+  graphs, so playback and the offline export keep one scheduling path. Time-remapped compositions stay silent until
+  a time-stretch exists.
 
 ## Desktop path
 

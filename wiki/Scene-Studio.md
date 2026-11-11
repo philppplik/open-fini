@@ -45,6 +45,36 @@ at the playhead. Move the playhead, change the value, and OpenFini animates betw
 keyframe, *Easing* chooses how the motion starts and ends. Text clips have ready-made animations (*Animate in* and
 *Animate out*), clips have transitions at both edges.
 
+### Graph editor
+
+`Shift+F3` (or *View ▸ Graph Editor*, or the curve button above the timeline) shows the selected clip's animation as
+curves, as in After Effects or DaVinci Resolve:
+
+- Switch between the **value graph** and the **speed graph**; *Normalize* gives every curve the full height.
+- Click a keyframe to select it, drag it in time and value (`Shift` = one direction), drag empty space to select
+  several. Double-click a curve to add a keyframe.
+- Drag the **handles** of a selected keyframe to shape the curve; hold `Alt` (or tick *Broken*) to move the two
+  sides independently.
+- **Easing:** *Linear*, *Easy ease* (`F9`, `Shift+F9` for in, `Ctrl+Shift+F9` for out), *Hold*, and ease, overshoot,
+  bounce, elastic or your own cubic-bezier under *Easing…*.
+- Type exact times, values, speeds and influences in the fields; `Ctrl+C` / `Ctrl+V` copy keyframes to the playhead;
+  `F` fits the view.
+
+## Compositions
+
+A composition is a small sequence used as one clip: an animated logo, a lower third, a group of clips with one
+effect on top.
+
+- **Pre-compose** (*Clip* menu) turns the selected clips into a composition; *New Composition* (*Sequence* menu, or
+  the plus under *Compositions* in the Media panel) starts an empty one.
+- **Double-click** a composition clip (or the composition in the Media panel) to open it in its own tab. The path
+  above the timeline (Main › Intro › Logo) leads back.
+- Drag a composition from the Media panel to the timeline to use it again; changes show everywhere it is used.
+  Compositions can contain compositions, but never themselves.
+- On a composition clip: move, trim, speed, transform, effects, masks and blend modes like any clip; its sound plays
+  along. *Time remapping* lets you keyframe which moment is shown (speed ramps, reverse, freeze frames).
+  *Collapse transformations* draws its content sharp at any size and without cutting it off at its frame.
+
 ## Effects
 
 Color grade, looks, chroma key (green screen), blur, glow, drop shadow, duotone, vignette, posterize, film grain,
@@ -64,7 +94,8 @@ app on Windows export every format; other browsers may lack MP4 or sound in MP4.
 ## Limits
 
 - Export takes about as long as the video plays.
-- Changing a clip's speed changes the pitch of its sound.
+- Changing a clip's speed changes the pitch of its sound; time-remapped compositions are silent.
+- The graph editor shows one clip at a time; colors are animated in Properties.
 - Scene files contain their media, so they can be large.
 - In collaboration a scene is shared as a copy.
 
