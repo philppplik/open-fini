@@ -292,8 +292,14 @@ export const sectionBreak = ({ columns = 1, columnGap = 36, start = "continuous"
 
 // ------------------------------------------------------------------------------------------------ text boxes
 
-export const textBox = ({ text = "", width = 180, wrap = "right", fill, border = "#808080" } = {}) => {
-  const box = { type: "textbox", text: String(text).slice(0, 5000), width: Math.max(36, Math.min(1000, Number(width) || 180)), wrap: ["left", "right", "none"].includes(wrap) ? wrap : "right" };
+/**
+ * A floating text box. Content is `paras` (paragraphs of formatted runs: bold, italic, underline, color, size, font,
+ * and an alignment per paragraph) or plain `text` (one paragraph per line).
+ */
+export const textBox = ({ text = "", paras, width = 180, wrap = "right", fill, border = "#808080" } = {}) => {
+  let content = M.normBoxParas(Array.isArray(paras) ? paras : String(text).slice(0, 5000).replace(/\r\n?/g, "\n").split("\n").map((l) => ({ runs: [{ text: l }] })));
+  if (!content.length) content = [{ runs: [] }];
+  const box = { type: "textbox", text: M.boxText(content).slice(0, 5000), paras: content, width: Math.max(36, Math.min(1000, Number(width) || 180)), wrap: ["left", "right", "none"].includes(wrap) ? wrap : "right" };
   const f = M.normColor(fill);
   const b = M.normColor(border);
   if (f) box.fill = f;
@@ -336,113 +342,22 @@ export function tocParagraphs(doc, toc, pages) {
 
 // ------------------------------------------------------------------------------------------------ tracked changes
 
-/** Splits runs at [a, b) and maps the text runs inside with fn(run) → run | null (null removes it). */
-function mapRange(runs, a, b, fn) {
-  const out = [];
-  let pos = 0;
-  for (const r of runs) {
-    const len = M.runLength(r);
-    const s = Math.max(a, pos);
-    const e = Math.min(b, pos + len);
-    if (e <= s) out.push(r);
-    else if (!M.isText(r)) {
-      const n = fn(r);
-      if (n) out.push(n);
-    } else {
-      if (s > pos) out.push({ ...r, text: r.text.slice(0, s - pos) });
-      const n = fn({ ...r, text: r.text.slice(s - pos, e - pos) });
-      if (n) out.push(n);
-      if (e < pos + len) out.push({ ...r, text: r.text.slice(e - pos) });
-    }
-    pos += len;
-  }
-  return M.mergeRuns(out);
-}
-
-/**
- * A tracked deletion of [from, to): text is marked `del` (it stays visible, struck through) except text the same
- * author inserted while tracking, which is removed. Objects (images, fields) are marked only when they are text.
- * Returns { doc, pos } where pos is the caret after a backward delete (from).
- */
-export function trackDelete(doc, from, to, author) {
-  [from, to] = M.comparePos(from, to) <= 0 ? [from, to] : [to, from];
-  const next = M.mapParagraphs(doc, from, to, (p, path) => {
-    const a = M.samePath(path, from.path) ? from.offset : 0;
-    const b = M.samePath(path, to.path) ? to.offset : Infinity;
-    return { ...p, runs: mapRange(p.runs, a, b, (r) => (r.ins === author ? null : M.isText(r) ? (r.del ? r : { ...r, del: author }) : r)) };
-  });
-  // the caret stays at `from`; own insertions removed before it do not shift it
-  return { doc: next, pos: from };
-}
-
-/** Length of the text in [a, b) that trackDelete removes outright (own insertions), to place the caret after a forward delete. */
-export function removedLength(p, a, b, author) {
-  let n = 0;
-  let pos = 0;
-  for (const r of p.runs) {
-    const len = M.runLength(r);
-    const s = Math.max(a, pos);
-    const e = Math.min(b, pos + len);
-    if (e > s && r.ins === author) n += e - s;
-    pos += len;
-  }
-  return n;
-}
-
-/** Every tracked change in reading order: { id, kind: "ins"|"del", author, path, from, to, text }. */
-export function revisions(doc) {
-  const out = [];
-  for (const { path, para } of M.paragraphs(doc)) {
-    let pos = 0;
-    for (const r of para.runs) {
-      const len = M.runLength(r);
-      for (const kind of ["ins", "del"]) {
-        if (!r[kind]) continue;
-        const last = out[out.length - 1];
-        if (last && last.kind === kind && last.author === r[kind] && M.samePath(last.path, path) && last.to === pos) {
-          last.to = pos + len;
-          last.text += M.runChar(r);
-        } else out.push({ kind, author: r[kind], path, from: pos, to: pos + len, text: M.runChar(r) });
-      }
-      pos += len;
-    }
-  }
-  return out.map((r, i) => ({ id: i + 1, ...r, text: r.text.replace(/￼/g, "").slice(0, 300) }));
-}
-
-/**
- * Accepts or rejects tracked changes. Filters: `author`, `kind` ("ins"|"del"), `ids` (from revisions()), or a range
- * { from, to } (positions) the change must overlap. Returns { doc, count }.
- */
-export function resolveRevisions(doc, { accept = true, author, kind, ids, from, to } = {}) {
-  const list = revisions(doc).filter((r) => (!author || r.author === author) && (!kind || r.kind === kind) && (!ids || ids.includes(r.id)) && (!from || (M.comparePos({ path: r.path, offset: r.to }, from) >= 0 && M.comparePos({ path: r.path, offset: r.from }, to || from) <= 0)));
-  // later changes first so earlier offsets stay valid
-  for (const r of list.slice().reverse()) {
-    const p = M.getBlock(doc, r.path);
-    const runs = mapRange(p.runs, r.from, r.to, (x) => {
-      if (!x[r.kind]) return x;
-      const drop = (r.kind === "ins") !== accept; // reject an insertion or accept a deletion: the text goes
-      if (drop) return null;
-      const { [r.kind]: _gone, ...rest } = x;
-      return rest;
-    });
-    doc = M.setBlock(doc, r.path, { ...p, runs });
-  }
-  return { doc, count: list.length };
-}
-
-export const acceptAll = (doc) => resolveRevisions(doc, { accept: true }).doc;
+export { VIBE_AUTHOR, trackDelete, removedLength, trackSplit, trackJoin, revisions, resolveRevisions, acceptAll, trackDiff } from "./track.js";
+import { revisions, acceptAll } from "./track.js";
 
 // ------------------------------------------------------------------------------------------------ export
 
 /**
- * Turns the design features into what a format can store: DOCX keeps sections, the TOC and tracked changes natively
- * (engine/office/docx.js); other formats get tracked changes accepted, the TOC as paragraphs, page-starting sections
- * as page breaks and text boxes as indented paragraphs after their paragraph. Returns { doc, notes }.
+ * Turns the design features into what a format can store: DOCX keeps sections, text boxes, wrapped images, the TOC
+ * and tracked changes natively (engine/office/docx.js); ODT keeps sections with columns, text boxes and wrapped images
+ * (engine/office/odt.js); every other format gets tracked changes accepted, the TOC as paragraphs, page-starting
+ * sections as page breaks and text boxes as indented paragraphs (with their formatting) after their paragraph.
+ * Returns { doc, notes }.
  */
 export function prepareForExport(doc, format) {
   const notes = [];
   const native = format === "docx";
+  const frames = native || format === "odt";
   if (!native && revisions(doc).length) {
     doc = acceptAll(doc);
     notes.push("Tracked changes were accepted: only Word documents store them.");
@@ -452,17 +367,17 @@ export function prepareForExport(doc, format) {
   let cols = false;
   for (const b of doc.blocks) {
     if (b.type === "toc" && !native) blocks.push(...tocParagraphs(doc, b));
-    else if (b.type === "sectionBreak" && !native) {
+    else if (b.type === "sectionBreak" && !frames) {
       if (b.columns > 1) cols = true;
       if (b.start === "page") blocks.push({ type: "pageBreak" });
-    } else if (b.type === "paragraph" && b.runs.some((r) => r.type === "textbox")) {
+    } else if (!frames && b.type === "paragraph" && b.runs.some((r) => r.type === "textbox")) {
       const tb = b.runs.filter((r) => r.type === "textbox");
       boxes += tb.length;
       blocks.push({ ...b, runs: b.runs.filter((r) => r.type !== "textbox") });
-      for (const box of tb) for (const line of box.text.split("\n")) blocks.push(M.para(line, "Normal", { props: { indentLeft: 18, indentRight: 18, spaceAfter: 2 } }));
+      for (const box of tb) for (const p of box.paras) blocks.push(M.para(p.runs.map((r) => ({ ...r })), "Normal", { props: { indentLeft: 18, indentRight: 18, spaceAfter: 2, ...(p.align ? { align: p.align } : {}) } }));
     } else blocks.push(b);
   }
   if (boxes) notes.push("Text boxes were written as indented paragraphs after their anchor paragraph.");
-  if (cols || (!native && doc.page.columns > 1 && format !== "odt")) notes.push("Multi-column sections are only kept in Word documents.");
+  if (cols || (!frames && doc.page.columns > 1)) notes.push("Multi-column sections are only kept in Word and OpenDocument files.");
   return { doc: { ...doc, blocks }, notes };
 }

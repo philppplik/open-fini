@@ -379,9 +379,9 @@ edit is one undo step.
 | `office_table_edit` | Sort by a column, total row, distribute or fit columns, set widths, insert or delete rows and columns, header on/off |
 | `office_insert_styled_table` | A styled table from rows of text in one call, optional total row |
 | `office_insert_section_break` | Section break with 1-4 columns, continuous or next page |
-| `office_insert_text_box` | Floating text box anchored to a paragraph (wrap left, right or in line, fill, border) |
+| `office_insert_text_box` | Floating text box anchored to a paragraph: plain text or formatted paragraphs (bold, italic, underline, color, size, alignment), wrap left, right or in line, fill, border |
 | `office_insert_toc` | Generated table of contents after the title |
-| `office_track_changes` | Track changes on/off, list, accept or reject (all, by id, author or kind) |
+| `office_track_changes` | Track changes on/off, list, accept or reject (all, by id, author or kind: insertions, deletions, format and paragraph changes, splits, joins). While tracking is on, every Vibe edit of a text document is tracked, authored *Vibe (AI)* |
 
 ## Permissions
 

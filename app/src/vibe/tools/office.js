@@ -55,8 +55,13 @@ export function officeTools(app) {
     return d;
   };
   const model = () => docOf().office.model;
-  const commit = (label, next) => {
+  const commit = async (label, next) => {
     const d = docOf();
+    // while Track changes is on, Vibe's edits become tracked changes authored "Vibe (AI)" (track.js ▸ trackDiff)
+    if (d.office.model.trackChanges && label !== "Page Setup") {
+      const T = await import("../../engine/office/track.js");
+      next = T.trackDiff(d.office.model, next, T.VIBE_AUTHOR);
+    }
     if (app.officeUI?.doc === d) app.officeUI.editor.commit(next, { label: `Vibe: ${label}` });
     else commitOffice(d, `Vibe: ${label}`, next);
   };
@@ -194,7 +199,7 @@ export function officeTools(app) {
       else throw new Error("Pass `markdown` or `blocks`.");
       const m = model();
       const r = insertAt({ ...m, media: { ...m.media, ...media } }, add, { position, index });
-      commit("Insert", r.doc);
+      await commit("Insert", r.doc);
       return { inserted: add.length, at: r.at };
     }),
 
@@ -205,13 +210,13 @@ export function officeTools(app) {
       caseSensitive: S.bool("Match case (default true for exact edits)"),
       wholeWord: S.bool("Whole words only"),
       all: S.bool("Replace every occurrence (default true); false replaces the first only"),
-    }, ["find", "replace"], ({ find, replace, regex = false, caseSensitive = true, wholeWord = false, all = true }) => {
+    }, ["find", "replace"], async ({ find, replace, regex = false, caseSensitive = true, wholeWord = false, all = true }) => {
       const m = model();
       let found = M.findMatches(m, find, { regex, caseSensitive, wholeWord });
       if (!found.length && !regex && find.includes("\n")) throw new Error("Matches cannot span paragraphs: replace one paragraph at a time.");
       if (!found.length) return { replaced: 0, hint: "No match. Check the exact text with office_read_document or office_find." };
       if (!all) found = found.slice(0, 1);
-      commit("Replace Text", M.replaceMatches(m, found, replace, { query: find, regex, caseSensitive }));
+      await commit("Replace Text", M.replaceMatches(m, found, replace, { query: find, regex, caseSensitive }));
       return { replaced: found.length };
     }),
 
@@ -220,7 +225,7 @@ export function officeTools(app) {
       paragraphs: { type: "array", items: { type: "number" }, description: "Block indexes to apply the style to" },
       find: S.str("Apply to every paragraph containing this text"),
       define: { type: "object", description: "Create or change the style", properties: { name: { type: "string" }, basedOn: { type: "string" }, next: { type: "string" }, outline: { type: "number", description: "Heading level 1-6 for outline/TOC" }, ...MARK_PROPS, ...PARA_PROPS } },
-    }, ["style"], ({ style, paragraphs = [], find, define }) => {
+    }, ["style"], async ({ style, paragraphs = [], find, define }) => {
       let m = model();
       const id = String(style).replace(/[^\w -]/g, "").slice(0, 60);
       if (define) {
@@ -238,7 +243,7 @@ export function officeTools(app) {
       const targets = new Set(paragraphs.filter((i) => Number.isInteger(i) && m.blocks[i]?.type === "paragraph"));
       if (find) for (const f of M.findMatches(m, find, { caseSensitive: true })) if (f.path.length === 1) targets.add(f.path[0]);
       const blocks = m.blocks.map((b, i) => (targets.has(i) ? { ...b, style: id } : b));
-      commit(define ? "Define Style" : "Apply Style", { ...m, blocks });
+      await commit(define ? "Define Style" : "Apply Style", { ...m, blocks });
       return { style: id, applied: targets.size, defined: !!define };
     }),
 
@@ -248,7 +253,7 @@ export function officeTools(app) {
       paragraphs: { type: "array", items: { type: "number" }, description: "Block indexes to format entirely" },
       marks: { type: "object", description: "Character formatting", properties: MARK_PROPS },
       paragraph: { type: "object", description: "Paragraph formatting", properties: PARA_PROPS },
-    }, [], ({ find, regex = false, paragraphs = [], marks = {}, paragraph }) => {
+    }, [], async ({ find, regex = false, paragraphs = [], marks = {}, paragraph }) => {
       let m = model();
       const mk = toMarks(marks);
       let n = 0;
@@ -272,7 +277,7 @@ export function officeTools(app) {
         m = M.setParagraphProps(m, { path, offset: 0 }, { path, offset: 0 }, paragraph);
       }
       if (!n) return { formatted: 0, hint: "Nothing matched: pass `find` (exact text) or `paragraphs` (indexes from office_read_document)." };
-      commit("Format", m);
+      await commit("Format", m);
       return { formatted: n };
     }),
 
@@ -282,7 +287,7 @@ export function officeTools(app) {
       columnWidths: { type: "array", items: { type: "number" }, description: "Column widths in points (default: equal widths across the page)" },
       borders: S.bool("Draw borders (default true)"),
       ...POSITION,
-    }, ["rows"], ({ rows, header = true, columnWidths, borders = true, position = "end", index }) => {
+    }, ["rows"], async ({ rows, header = true, columnWidths, borders = true, position = "end", index }) => {
       const m = model();
       const cols = Math.max(1, ...rows.map((r) => r.length));
       const width = m.page.width - m.page.margins.left - m.page.margins.right;
@@ -291,7 +296,7 @@ export function officeTools(app) {
       if (Array.isArray(columnWidths) && columnWidths.length === cols) t.cols = columnWidths.map((w) => Math.max(12, Number(w) || 72));
       if (!borders) t.borders = { ...t.borders, style: "none" };
       const r = insertAt(m, [t], { position, index });
-      commit("Insert Table", r.doc);
+      await commit("Insert Table", r.doc);
       return { inserted: true, at: r.at, rows: rows.length, columns: cols };
     }),
 
@@ -319,7 +324,7 @@ export function officeTools(app) {
       const { fromFieldText } = await import("../../ui/office/dialogs.js");
       if (header !== undefined) next.header = header ? fromFieldText(header, headerAlign) : [];
       if (footer !== undefined) next.footer = footer ? fromFieldText(footer, footerAlign) : [];
-      commit("Page Setup", next);
+      await commit("Page Setup", next);
       return { size: page.size, orientation: page.orientation, marginsMm: Object.fromEntries(Object.entries(page.margins).map(([k, v]) => [k, Math.round((v / 72) * 25.4)])) };
     }),
 

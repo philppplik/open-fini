@@ -271,6 +271,11 @@ export class OfficeEditor {
     let css = paraCss(p.props);
     if (p.list) css += `;margin-left:${pt(36 * ((p.list.level || 0) + 1))};text-indent:0`;
     if (css) el.style.cssText = css;
+    // tracked paragraph changes: a change bar, and the paragraph mark shown as an inserted or deleted pilcrow
+    if (p.pchg) el.classList.add("is-pchg");
+    if (p.pins) el.classList.add("is-pins");
+    if (p.pdel) el.classList.add("is-pdel");
+    if (p.pchg || p.pins || p.pdel) el.title = [p.pchg && `Paragraph formatted by ${p.pchg.author}`, p.pins && `Paragraph split by ${p.pins}`, p.pdel && `Paragraphs joined by ${p.pdel}`].filter(Boolean).join(" · ");
     for (const r of p.runs) el.append(this.#renderRun(r));
     if (!p.runs.length || p.runs[p.runs.length - 1].type === "break") el.append(h("br", { "data-ph": "" }));
     return el;
@@ -290,6 +295,9 @@ export class OfficeEditor {
       if (r.ins || r.del) {
         s.classList.add(r.del ? "of-oed__del" : "of-oed__ins");
         s.title = r.del ? `Deleted by ${r.del}` : `Inserted by ${r.ins}`;
+      } else if (r.fmt) {
+        s.classList.add("of-oed__fmt");
+        s.title = `Formatted by ${r.fmt.author}`;
       }
       s.textContent = r.text;
       return s;
@@ -301,7 +309,12 @@ export class OfficeEditor {
     }
     if (r.type === "textbox") {
       const box = h("span.of-oed__tbox", { "data-obj": "", "data-wrap": r.wrap, contenteditable: "false", title: "Text box (double-click to edit)", style: `width:${pt(r.width)};${r.fill ? `background:${r.fill};` : ""}${r.border ? `border:1px solid ${r.border};` : "border:0;"}` });
-      for (const line of r.text.split("\n")) box.append(h("span.of-oed__tbox-p", line || "\u00a0"));
+      for (const p of r.paras) {
+        const line = h("span.of-oed__tbox-p", p.align ? { style: `text-align:${p.align}` } : {});
+        for (const x of p.runs) line.append(h("span", { style: runCss(x) }, x.text));
+        if (!p.runs.length) line.append("\u00a0");
+        box.append(line);
+      }
       return box;
     }
     if (r.type === "footnote") return h("sup.of-oed__fn", { "data-obj": "", "data-fn": r.id, contenteditable: "false", title: "Footnote (double-click to edit)" }, "#");
@@ -384,6 +397,7 @@ export class OfficeEditor {
     this.el.classList.toggle("is-web", !print);
     this.el.classList.toggle("is-darkpage", !!this.app.prefs.officeDarkPage);
     for (const g of this.flow.querySelectorAll(":scope > .of-oed__gap")) g.remove();
+    this.#joinColumns();
     if (!print) {
       this.sheets.replaceChildren();
       this.pagesEl.style.cssText = `width:${Math.round((pg.width - m.left - m.right) * PX + 64)}px;transform:scale(${z})`;
@@ -404,11 +418,18 @@ export class OfficeEditor {
     // measure blocks without spacers, then push blocks that do not fit to the next page
     const kids = [...this.flow.children];
     const blockOf = (k) => this.model.blocks[Number(k.dataset.bi ?? k.firstElementChild?.dataset.bi)];
-    const tops = kids.map((k) => k.offsetTop);
-    const bottoms = kids.map((k) => k.offsetTop + k.offsetHeight);
+    let tops;
+    let bottoms;
     let shift = 0;
+    const measure = () => {
+      tops = kids.map((k) => k.offsetTop);
+      bottoms = kids.map((k) => k.offsetTop + k.offsetHeight);
+      shift = 0;
+    };
+    measure();
     let forceNext = false;
-    kids.forEach((k, i) => {
+    for (let i = 0; i < kids.length; i++) {
+      const k = kids[i];
       const T = tops[i] + shift;
       const B = bottoms[i] + shift;
       const page = Math.max(0, Math.floor(T / P));
@@ -416,6 +437,19 @@ export class OfficeEditor {
       const block = blockOf(k);
       let s = 0;
       const brk = forceNext || (block?.type === "paragraph" && block.props?.pageBreakBefore && i > 0);
+      // a multi-column section that runs past the page bottom fills its columns to the bottom and continues on the
+      // next page in a continuation box (the last part balances its columns)
+      if (!brk && k.classList.contains("of-oed__cols") && T <= start + ch - 36 && B > start + ch) {
+        const cont = this.#splitColumns(k, start + ch - T, z);
+        if (cont) {
+          k.after(h("div.of-oed__gap", { contenteditable: "false", "aria-hidden": "true", style: `height:${(page + 1) * P - (start + ch)}px` }));
+          k.nextSibling.after(cont);
+          kids.splice(i + 1, 0, cont);
+          measure();
+          forceNext = false;
+          continue;
+        }
+      }
       if (brk) s = (page + 1) * P - T;
       else if (T > start + ch) s = (page + 1) * P - T; // starts in the gap between pages
       else if (B > start + ch && T > start + 2 && B - T <= ch) s = (page + 1) * P - T; // does not fit: next page
@@ -424,7 +458,7 @@ export class OfficeEditor {
         k.before(h("div.of-oed__gap", { contenteditable: "false", "aria-hidden": "true", style: `height:${s}px` }));
         shift += s;
       }
-    });
+    }
     const end = (bottoms.length ? bottoms[bottoms.length - 1] : 0) + shift + (this.notes.hidden ? 0 : this.notes.offsetHeight + 24);
     const pages = Math.max(1, Math.floor(Math.max(0, end - 1) / P) + 1);
     this.pages = pages;
@@ -446,6 +480,44 @@ export class OfficeEditor {
     this.pagesEl.style.cssText = `width:${W}px;height:${totalH}px;transform:scale(${z})`;
     this.zoomBox.style.cssText = `width:${W * z}px;height:${totalH * z}px`;
     this.#notify("layout");
+  }
+
+  /**
+   * Fills a multi-column box to `height` (columns filled in order) and moves the blocks that land beyond its last
+   * column into a new continuation box, which is returned (null when even the first block does not fit).
+   */
+  #splitColumns(w, height, z) {
+    w.style.height = `${Math.floor(height)}px`;
+    w.style.columnFill = "auto";
+    const left = w.getBoundingClientRect().left;
+    const limit = w.clientWidth + 1;
+    const kids = [...w.children];
+    // blocks never break inside a column (office.css), so a block beyond the last column starts there
+    const j = kids.findIndex((c) => [...c.getClientRects()].some((r) => (r.right - left) / z > limit));
+    if (j <= 0) {
+      w.style.height = "";
+      w.style.columnFill = "";
+      return null;
+    }
+    const cont = h("div.of-oed__cols.of-oed__cols-cont", { style: `column-count:${w.style.columnCount};column-gap:${w.style.columnGap}` });
+    cont.append(...kids.slice(j));
+    return cont;
+  }
+
+  /** Undoes #splitColumns before a new layout: continuation boxes go back into their section's box. */
+  #joinColumns() {
+    let main = null;
+    for (const el of [...this.flow.children]) {
+      if (!el.classList.contains("of-oed__cols")) continue;
+      if (el.classList.contains("of-oed__cols-cont") && main) {
+        main.append(...el.children);
+        el.remove();
+      } else {
+        main = el;
+        el.style.height = "";
+        el.style.columnFill = "";
+      }
+    }
   }
 
   #hf(kind, page, pages) {
@@ -866,6 +938,12 @@ export class OfficeEditor {
     return this.model.trackChanges ? this.app.prefs.collabNick || this.model.meta.author || "Author" : null;
   }
 
+  /** While tracking, a formatting result becomes format and paragraph changes of the current author (track.js ▸ trackDiff). */
+  #tracked(next) {
+    const author = this.trackAuthor();
+    return author ? D.trackDiff(this.model, next, author) : next;
+  }
+
   /** Typed text is an insertion of the current author while tracking, and never inherits a neighbor's revision. */
   #trackMarks(marks) {
     const { ins: _i, del: _d, ...rest } = marks || {};
@@ -907,7 +985,8 @@ export class OfficeEditor {
       const [a, b] = this.range;
       ({ doc: m, pos } = M.deleteRange(m, a, b));
     }
-    const r = M.splitParagraph(m, pos);
+    const author = this.trackAuthor();
+    const r = author ? D.trackSplit(m, pos, author) : M.splitParagraph(m, pos);
     this.commit(r.doc, { label: "New Paragraph", sel: r.pos });
   }
 
@@ -925,12 +1004,12 @@ export class OfficeEditor {
     const text = M.paraText(p);
     const back = /Backward/.test(type);
     if (back && pos.offset === 0) {
-      const r = M.joinBackward(m, pos.path);
-      return this.commit(r.doc, { label: "Delete", sel: r.pos });
+      const r = (author && D.trackJoin(m, pos.path, author, false)) || M.joinBackward(m, pos.path);
+      return this.commit(author ? this.#tracked(r.doc) : r.doc, { label: "Delete", sel: r.pos });
     }
     if (!back && pos.offset >= text.length) {
-      const r = M.joinForward(m, pos.path);
-      return this.commit(r.doc, { label: "Delete", sel: r.pos });
+      const r = (author && D.trackJoin(m, pos.path, author, true)) || M.joinForward(m, pos.path);
+      return this.commit(author ? this.#tracked(r.doc) : r.doc, { label: "Delete", sel: r.pos });
     }
     let len;
     if (/Word/.test(type)) {
@@ -978,7 +1057,7 @@ export class OfficeEditor {
       const e = M.samePath(path, b.path) ? b.offset : Infinity;
       if (!M.rangeHasMark(p.runs, s, e, key, value === true ? undefined : value) && M.paraLength(p) && s < Math.min(e, M.paraLength(p))) all = false;
     }
-    this.commit(M.formatRange(this.model, a, b, { [key]: all ? null : value }), { label: "Format", sel: this.sel });
+    this.commit(this.#tracked(M.formatRange(this.model, a, b, { [key]: all ? null : value })), { label: "Format", sel: this.sel });
   }
 
   /** Sets marks (null removes) on the selection, or on the next typed text at a caret. */
@@ -993,33 +1072,33 @@ export class OfficeEditor {
       this.#notify("selection");
       return;
     }
-    this.commit(M.formatRange(this.model, a, b, marks), { label, sel: this.sel });
+    this.commit(this.#tracked(M.formatRange(this.model, a, b, marks)), { label, sel: this.sel });
   }
 
   setParagraph(props, label = "Paragraph") {
     const [a, b] = this.range;
-    this.commit(M.setParagraphProps(this.model, a, b, props), { label, sel: this.sel });
+    this.commit(this.#tracked(M.setParagraphProps(this.model, a, b, props)), { label, sel: this.sel });
   }
   setStyle(style) {
     const [a, b] = this.range;
-    this.commit(M.setParagraphStyle(this.model, a, b, style), { label: "Apply Style", sel: this.sel });
+    this.commit(this.#tracked(M.setParagraphStyle(this.model, a, b, style)), { label: "Apply Style", sel: this.sel });
   }
   toggleList(kind) {
     const [a, b] = this.range;
-    this.commit(M.toggleList(this.model, a, b, kind), { label: kind === "bullet" ? "Bullets" : "Numbering", sel: this.sel });
+    this.commit(this.#tracked(M.toggleList(this.model, a, b, kind)), { label: kind === "bullet" ? "Bullets" : "Numbering", sel: this.sel });
   }
   indent(delta) {
     const [a, b] = this.range;
-    this.commit(M.indentParagraphs(this.model, a, b, delta), { label: delta > 0 ? "Indent" : "Outdent", sel: this.sel });
+    this.commit(this.#tracked(M.indentParagraphs(this.model, a, b, delta)), { label: delta > 0 ? "Indent" : "Outdent", sel: this.sel });
   }
   clearFormatting() {
     const [a, b] = this.range;
     this.pending = null;
     if (this.collapsed) {
       const p = this.currentPara();
-      return this.commit(M.clearFormatting(this.model, { path: a.path, offset: 0 }, { path: a.path, offset: M.paraLength(p) }), { label: "Clear Formatting", sel: this.sel });
+      return this.commit(this.#tracked(M.clearFormatting(this.model, { path: a.path, offset: 0 }, { path: a.path, offset: M.paraLength(p) })), { label: "Clear Formatting", sel: this.sel });
     }
-    this.commit(M.clearFormatting(this.model, a, b), { label: "Clear Formatting", sel: this.sel });
+    this.commit(this.#tracked(M.clearFormatting(this.model, a, b)), { label: "Clear Formatting", sel: this.sel });
   }
 
   /** Inserts top-level blocks (tables, page breaks, rules) at the caret. */

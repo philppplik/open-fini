@@ -6,16 +6,18 @@
 // Each description ends with "Watch out": the mistakes models typically make with the tool and how to verify.
 import { tool, S } from "./helpers.js";
 
-const eng = () => Promise.all([import("../../engine/office/model.js"), import("../../engine/office/sections.js"), import("../../core/office.js")]);
+const eng = () => Promise.all([import("../../engine/office/model.js"), import("../../engine/office/sections.js"), import("../../core/office.js"), import("../../engine/office/track.js")]);
 
 export function officeSemanticTools(app) {
   async function textDoc() {
-    const [M, X, core] = await eng();
+    const [M, X, core, T] = await eng();
     const d = app.doc;
     if (!d?.office) throw new Error("The active document is not an Office document. Open or create a text document first (office_new kind document).");
     if (d.office.kind && d.office.kind !== "document") throw new Error(`The active Office document is a ${d.office.kind}; this tool works on text documents. Switch with office_list_documents.`);
     if (d.office.model._raw || d.office.model.version !== M.OFFICE_VERSION) d.office.model = M.normalizeDoc(d.office.model);
     const commit = (label, next) => {
+      // while Track changes is on, Vibe's edits become tracked changes authored "Vibe (AI)" (track.js ▸ trackDiff)
+      if (d.office.model.trackChanges) next = T.trackDiff(d.office.model, next, T.VIBE_AUTHOR);
       if (app.officeUI?.doc === d && app.officeUI.editor) app.officeUI.editor.commit(next, { label: `Vibe: ${label}` });
       else core.commitOffice(d, `Vibe: ${label}`, next);
     };

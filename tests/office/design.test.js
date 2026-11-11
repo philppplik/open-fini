@@ -80,8 +80,12 @@ test("sections, table of contents and floating objects", () => {
   assert.equal(D.tocParagraphs(d, d.blocks[1]).length, 2);
   d = M.setBlock(d, [3], { ...d.blocks[3], runs: [D.textBox({ text: "Side" }), ...d.blocks[3].runs] });
   assert.equal(D.floatingObjects(d)[0].kind, "textbox");
-  const ex = D.prepareForExport(d, "odt");
+  const ex = D.prepareForExport(d, "html");
   assert.ok(!ex.doc.blocks.some((b) => b.type === "toc" || b.type === "sectionBreak"));
+  // OpenDocument keeps sections and text boxes, but gets the TOC as paragraphs
+  const odt = D.prepareForExport(d, "odt").doc.blocks;
+  assert.ok(odt.some((b) => b.type === "sectionBreak") && !odt.some((b) => b.type === "toc"));
+  assert.ok(odt.some((b) => b.type === "paragraph" && b.runs.some((r) => r.type === "textbox")));
   assert.ok(ex.notes.some((n) => /Text boxes/.test(n)));
   assert.equal(D.prepareForExport(d, "docx").doc.blocks.filter((b) => b.type === "toc").length, 1);
   // Backspace after an atom block removes it

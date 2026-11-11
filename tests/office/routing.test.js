@@ -28,13 +28,13 @@ test("Vibe office tools edit the model as undoable steps", async () => {
   assert.equal(M.headingLevel(m, m.blocks[0]), 1);
   assert.ok(m.blocks[1].runs.find((x) => x.text === "world").b);
   assert.equal(m.blocks[2].list.id, m.blocks[3].list.id);
-  assert.deepEqual(tools.office_replace_text.run({ find: "Hello", replace: "Hi" }), { replaced: 1 });
-  tools.office_apply_format.run({ find: "Hi", marks: { color: "#ff0000", underline: true }, paragraph: { align: "center" } });
+  assert.deepEqual(await tools.office_replace_text.run({ find: "Hello", replace: "Hi" }), { replaced: 1 });
+  await tools.office_apply_format.run({ find: "Hi", marks: { color: "#ff0000", underline: true }, paragraph: { align: "center" } });
   m = doc.office.model;
   assert.equal(m.blocks[1].runs[0].color, "#ff0000");
   assert.equal(m.blocks[1].props.align, "center");
-  tools.office_insert_table.run({ rows: [["a", "b"], ["1", "2"]] });
-  tools.office_insert_table.run({ rows: [["x"]] });
+  await tools.office_insert_table.run({ rows: [["a", "b"], ["1", "2"]] });
+  await tools.office_insert_table.run({ rows: [["x"]] });
   m = doc.office.model;
   const ti = m.blocks.findIndex((b) => b.type === "table");
   assert.equal(m.blocks[ti + 1].type, "paragraph", "tables are kept apart");

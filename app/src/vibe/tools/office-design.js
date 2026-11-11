@@ -14,6 +14,8 @@ export function officeDesignTools(app) {
     if (d.office.kind && d.office.kind !== "document") throw new Error(`The active Office document is a ${d.office.kind}; this tool works on text documents. Switch with office_list_documents.`);
     if (d.office.model._raw || d.office.model.version !== M.OFFICE_VERSION) d.office.model = M.normalizeDoc(d.office.model);
     const commit = (label, next) => {
+      // while Track changes is on, Vibe's edits become tracked changes authored "Vibe (AI)" (track.js ▸ trackDiff)
+      if (d.office.model.trackChanges && !/^(Track Changes|Accept|Reject)/.test(label)) next = D.trackDiff(d.office.model, next, D.VIBE_AUTHOR);
       if (app.officeUI?.doc === d && app.officeUI.editor) app.officeUI.editor.commit(next, { label: `Vibe: ${label}` });
       else core.commitOffice(d, `Vibe: ${label}`, next);
     };
@@ -85,17 +87,20 @@ export function officeDesignTools(app) {
       return { inserted: true, at: Number.isInteger(index) ? index : m.blocks.length, ...brk, sections: D.sectionsOf(next).map((s) => ({ from: s.from, to: s.to, columns: s.columns })) };
     }),
 
-    tool("office_insert_text_box", "Adds a floating text box (sidebar, pull quote, callout) anchored at the start of the paragraph at block `index`; the paragraph text wraps around it. Watch out: text boxes hold plain text (one paragraph per line) and DOCX, ODT and the other formats receive them as indented paragraphs after the anchor; keep them short (under 60 words) and anchor them to a long body paragraph, not a heading.", {
+    tool("office_insert_text_box", "Adds a floating text box (sidebar, pull quote, callout) anchored at the start of the paragraph at block `index`; the paragraph text wraps around it. Content is plain `text` (one paragraph per line) or formatted `paragraphs`. DOCX and ODT keep it as a floating text box; other formats receive its paragraphs indented after the anchor. Watch out: keep boxes short (under 60 words) and anchor them to a long body paragraph, not a heading; verify with office_design_info (floating).", {
       index: S.num("Block index of the anchor paragraph"),
-      text: S.str("Text of the box; new lines start new paragraphs"),
+      text: S.str("Plain text of the box; new lines start new paragraphs (or use paragraphs)"),
+      paragraphs: { type: "array", description: "Formatted content instead of text: one item per paragraph", items: { type: "object", properties: { align: S.str("left, center, right or justify", { enum: ["left", "center", "right", "justify"] }), runs: { type: "array", items: { type: "object", properties: { text: S.str("Text"), bold: S.bool("Bold"), italic: S.bool("Italic"), underline: S.bool("Underline"), color: S.str("Color #rrggbb"), size: S.num("Font size in points") }, required: ["text"] } } }, required: ["runs"] } },
       wrap: S.str("right (default), left or none (inline)", { enum: ["right", "left", "none"] }),
       width: S.num("Width in points (default 180)"),
       fill: S.str("Background color, e.g. #eef4ff (default none)"),
       border: S.str("Border color (default #808080; 'none' for no border)"),
-    }, ["index", "text"], async ({ index, text, wrap = "right", width = 180, fill, border = "#808080" }) => {
+    }, ["index"], async ({ index, text = "", paragraphs, wrap = "right", width = 180, fill, border = "#808080" }) => {
       const { m, M, D, commit } = await textDoc();
       const p = blockAt(m, index, "paragraph");
-      const box = D.textBox({ text, wrap, width, fill, border: border === "none" ? null : border });
+      if (!text && !paragraphs?.length) throw new Error("Pass text or paragraphs for the box content.");
+      const paras = paragraphs?.length ? paragraphs.map((q) => ({ align: q.align, runs: (q.runs || []).map((r) => ({ text: r.text, b: r.bold, i: r.italic, u: r.underline, color: r.color, size: r.size })) })) : undefined;
+      const box = D.textBox({ text, paras, wrap, width, fill, border: border === "none" ? null : border });
       commit("Text Box", M.replaceTop(m, index, { ...p, runs: [box, ...p.runs] }));
       return { anchor: index, ...box };
     }),
@@ -117,11 +122,11 @@ export function officeDesignTools(app) {
       return { inserted: true, at, levels: toc.levels, entries: D.tocEntries(m, toc.levels).map((e) => `${"  ".repeat(e.level - 1)}${e.text}`) };
     }),
 
-    tool("office_track_changes", "Tracked changes of the active text document. action: on / off (record the user's later edits as insertions and deletions), list (every change with id, kind, author and text), accept or reject (all, or filtered by ids from list, author or kind). Watch out: Vibe's own edits are not tracked (each is an undo step instead); list before accepting so you do not accept changes the user wanted to review, and accepting or rejecting cannot be told apart from an edit after saving.", {
+    tool("office_track_changes", "Tracked changes of the active text document. action: on / off (record later edits as insertions, deletions, format changes, paragraph changes, splits and joins), list (every change with id, kind, author and text), accept or reject (all, or filtered by ids from list, author or kind). While tracking is on, Vibe's own edits are tracked too, authored Vibe (AI). Watch out: list before accepting so you do not accept changes the user wanted to review, and accepting or rejecting cannot be told apart from an edit after saving.", {
       action: S.str("on, off, list, accept or reject", { enum: ["on", "off", "list", "accept", "reject"] }),
       ids: { type: "array", items: { type: "number" }, description: "Change ids from action list (default: all)" },
       author: S.str("Only changes of this author"),
-      kind: S.str("Only insertions (ins) or deletions (del)", { enum: ["ins", "del"] }),
+      kind: S.str("Only insertions (ins), deletions (del), format changes (format), paragraph changes (paragraph), paragraph splits (split) or joins (join)", { enum: ["ins", "del", "format", "paragraph", "split", "join"] }),
     }, ["action"], async ({ action, ids, author, kind }) => {
       const { m, D, commit } = await textDoc();
       if (action === "list") return { tracking: !!m.trackChanges, changes: D.revisions(m).slice(0, 300) };
