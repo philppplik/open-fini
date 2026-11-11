@@ -16,6 +16,7 @@ export const PACK_SKILLS = [
   ["studio-guide-sheet", G, "How to work with spreadsheets: ranges, formulas, formats, charts and checking computed values."],
   ["studio-guide-slides", G, "How to work with presentations: layouts, placeholders, themes, notes and checking each slide."],
   ["studio-guide-board", G, "How to work on the whiteboard: elements, connectors, frames, arrange and checking the layout."],
+  ["studio-guide-scene", G, "How to work in the Scene Studio: timeline model, understanding footage, editing tools, motion presets and checking frames."],
   ["studio-guide-vibe", G, "How Vibe itself works: skills, sub-agents, plan_work orchestration, blackboard, approvals and verification."],
   ["openfini-overview", K, "What OpenFini is: idea, philosophy and the big picture, for questions like what is OpenFini or why does it exist."],
   ["openfini-studios", K, "What each OpenFini studio includes and when to use which."],
@@ -31,7 +32,7 @@ export const PACK_SKILLS = [
   ["openfini-licensing", K, "Licensing and credits: the MIT license, third-party components, clean-room policy and how to contribute."],
 ].map(([name, pack, description]) => ({ name, pack, description }));
 
-export const GUIDE_FOR_STUDIO = { vector: "studio-guide-vector", pixel: "studio-guide-pixel", layout: "studio-guide-layout", code: "studio-guide-code", document: "studio-guide-document", office: "studio-guide-document", sheet: "studio-guide-sheet", slides: "studio-guide-slides", board: "studio-guide-board", vibe: "studio-guide-vibe" };
+export const GUIDE_FOR_STUDIO = { vector: "studio-guide-vector", pixel: "studio-guide-pixel", layout: "studio-guide-layout", code: "studio-guide-code", document: "studio-guide-document", office: "studio-guide-document", sheet: "studio-guide-sheet", slides: "studio-guide-slides", board: "studio-guide-board", scene: "studio-guide-scene", vibe: "studio-guide-vibe" };
 
 /** @param {"guides"|"knowledge"} pack */
 export async function loadPack(pack) {

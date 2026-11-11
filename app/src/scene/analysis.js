@@ -609,8 +609,11 @@ export function fillerRanges(words, { lang = "", soft = false, extra = [], pad =
   const langs = lang && FILLERS[lang.slice(0, 2)] ? [FILLERS[lang.slice(0, 2)]] : Object.values(FILLERS);
   const list = new Set([...langs.flatMap((l) => [...l.hard, ...(soft ? l.soft : [])]), ...extra.map((x) => String(x).toLowerCase())]);
   const out = [];
-  for (const p of list) {
+  const taken = new Set(); // word indices already matched (longer phrases first; "äh" and "ah" fold alike)
+  for (const p of [...list].sort((x, y) => y.split(" ").length - x.split(" ").length)) {
     for (const hit of findPhrase(words, p)) {
+      if (taken.has(hit.i0) || taken.has(hit.i1)) continue;
+      for (let i = hit.i0; i <= hit.i1; i++) taken.add(i);
       const before = words[hit.i0 - 1];
       const after = words[hit.i1 + 1];
       out.push({ t0: r3(Math.max(before ? before.t1 : 0, hit.t0 - pad)), t1: r3(Math.min(after ? after.t0 : Infinity, hit.t1 + pad)), w: words.slice(hit.i0, hit.i1 + 1).map((w) => w.w).join(" "), i0: hit.i0, i1: hit.i1 });

@@ -195,6 +195,35 @@ Frames (board_add_shape type frame) -> shapes and stickies -> board_add_connecto
 ## Verify
 board_describe: every connector has from/to, nothing overlaps, every item has text. office_screenshot shows the board page as a picture.`,
 
+  `${fm("scene", "How to work in the Scene Studio: timeline model, understanding footage, editing tools, motion presets and checking frames.", "scene_describe, scene_catalog, scene_new, scene_set_format, scene_track, scene_import_media, scene_place_media, scene_add_layer, scene_move_clips, scene_trim_clip, scene_split, scene_delete_clips, scene_set_speed, scene_update_clips, scene_transition, scene_keyframes, scene_effect, scene_audio, scene_markers, scene_cut_ranges, scene_captions, scene_render_frame, scene_transcribe, scene_set_transcript, scene_transcript, scene_detect_shots, scene_analyze_audio, scene_sample_frames, scene_index_note, scene_search, scene_cut_transcript, scene_remove_silences, scene_remove_fillers, scene_auto_captions, scene_highlight_reel, scene_reframe, scene_animate_clip, scene_title, scene_lower_third, scene_slideshow, scene_beat_cuts, scene_export", "video, edit, cut, timeline, captions, subtitles, reel, short, motion, animation, title, lower third, slideshow, music, podcast")}
+# Scene Studio guide
+
+## Start
+1. scene_describe: format, tracks (upper video track = in front), one line per clip with id, start-end, source and what is animated, media ids with their analysis. scene_new if no scene is open; scene_import_media for attached files or URLs.
+2. Understand before you cut: scene_transcribe (speech with word times), scene_analyze_audio (silences, loudness, beats), scene_detect_shots, then scene_sample_frames (per shot or evenly) and write what you see with scene_index_note. scene_search answers where something happens.
+
+## Model
+- Times are seconds (or time codes like 1:05.5) on the frame grid. Clips on one track never overlap: placing or moving onto a clip overwrites it.
+- A video with sound is a video clip plus a linked audio clip; cuts by range (scene_cut_ranges, scene_cut_transcript, scene_remove_silences) act on all unlocked tracks, so picture and sound stay in sync. Lock a music track to keep it.
+- Analysis is stored in source seconds of each media item; the tools map it through the clips, so it stays valid after edits.
+- x, y is the layer center in sequence pixels; scale 1 = 100 %. Keyframe times are seconds from the clip start; easing leaves the key.
+
+## Tool order
+- Rough cut: transcript, then scene_cut_transcript (keep or cut by segment numbers or phrases), scene_remove_fillers, scene_remove_silences; check with scene_transcript.
+- Picture: scene_place_media, scene_add_layer, scene_update_clips, scene_transition, scene_effect (scene_catalog lists parameters), scene_keyframes or scene_animate_clip for motion.
+- Graphics: scene_title, scene_lower_third, scene_slideshow, scene_beat_cuts build editable clips with keyframes.
+- Sound: scene_audio (dB, fades, EQ, normalize to -14 LUFS for social after scene_analyze_audio).
+- Captions: scene_auto_captions from the transcript, scene_captions to edit or style, scene_captions_export for SRT/VTT.
+- Formats: scene_reframe for 9:16, 1:1 or 4:5 with a focus point (newDocument keeps the original); scene_highlight_reel for cutdowns.
+
+## Pitfalls
+- Guessing ids or times: read them from scene_describe and scene_transcript.
+- Cutting by transcript when word times are estimated: say so and check the frames around the cuts.
+- Text outside the safe area (keep 5 % from the edges), captions over lower thirds, music louder than speech.
+
+## Verify
+scene_describe after each batch (duration, clips, no gaps you did not intend); scene_render_frame at the moments that matter (several times give one contact sheet): titles, transitions, captions, framing after a reframe. scene_export only when the user asks; it needs approval.`,
+
   `${fm("vibe", "How Vibe itself works: skills, sub-agents, plan_work orchestration, blackboard, approvals and verification.", "use_skill, update_plan, plan_work, work_task, blackboard, spawn_agent, wait_agent, ask_user, search_knowledge", "multi studio, orchestrate, several files, website with logo, plan, agents, how vibe works")}
 # Vibe guide
 
