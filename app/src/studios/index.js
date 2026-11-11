@@ -11,6 +11,7 @@ import { HandTool, ZoomTool, EyedropperTool } from "./tools/nav.js";
 import { TOOL_SETS } from "./tool-sets.js";
 import { registerStudio } from "./registry.js";
 import { OFFICE_STUDIO } from "./office.js";
+import { SCENE_STUDIO } from "./scene.js";
 
 export { STUDIOS, registerStudio, listStudios, studioIds, getStudio, hasStudio, onStudioRegistered } from "./registry.js";
 import { STUDIOS } from "./registry.js";
@@ -99,6 +100,9 @@ for (const [id, def] of Object.entries(BUILTIN)) registerStudio({ ...def, ...BUI
 // Office Studio (word processor): one registration call, see studios/office.js. Not in the default header five, so
 // it starts in the "More" menu.
 registerStudio(OFFICE_STUDIO);
+
+// Scene Studio (video editing and motion design): one registration call, see studios/scene.js. Starts in "More".
+registerStudio(SCENE_STUDIO);
 
 export function registerAllTools(app) {
   for (const C of CORE_TOOLS) app.registerTool(C);

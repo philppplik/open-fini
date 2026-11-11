@@ -178,6 +178,13 @@ toolbox of its own: a chat with the *Canvas* live view, and panels for *Activity
 
 Right-click menus gain an **AI** submenu (canvas, code editor, website elements) when AI features are on.
 
+## Scene studio
+
+A video editor and motion design tool: a media bin, a viewer with transport, a properties panel and a multi-track
+timeline with keyframes, effects, transitions, captions and export to MP4, WebM, GIF, PNG frames and WAV. Its
+workspace replaces the toolbox and dock. It is registered in `studios/scene.js` and starts in the *More* menu. See
+the [Scene Studio guide](scene-studio.md).
+
 ## Office studio
 
 A page-based word processor for Word (.docx), OpenDocument (.odt), RTF, HTML, Markdown and text documents, with

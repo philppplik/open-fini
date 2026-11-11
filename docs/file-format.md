@@ -98,6 +98,11 @@ is that app's model (documented by the app), its media live under `office/<kind>
 an app for a kind keeps the object unchanged and saves it back as it was.
 
 
+**Scenes.** A Scene Studio document uses the same container with `"kind": "scene"` (its `studio` is `"scene"`):
+the model is described in [scene-studio.md](scene-studio.md#data-model), and each media item additionally carries
+`kind` (`video`, `audio`, `image`), `duration` (seconds) and `hasAudio`; its bytes are stored under
+`office/scene/media/<id>.<ext>`.
+
 A document created in or opened by the Office Studio has an `"office"` object in `document.json` (its `studio` is
 `"office"`; the design `pages` hold one empty page used for the thumbnail). It is the word-processing model of
 [`engine/office/model.js`](../app/src/engine/office/model.js), lengths in points:
