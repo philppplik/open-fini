@@ -280,7 +280,10 @@ export function sceneUnderstandTools(app) {
       // words → timeline: each word goes where its source time is on the timeline now (cut words disappear)
       const words = [];
       for (const w of tr.words) {
-        const r = onTimeline(c, md.id, w.t0, w.t1)[0];
+        // a word counts as present when its middle survived the cuts (slivers left by cut padding do not)
+        const mid = (w.t0 + w.t1) / 2;
+        if (!onTimeline(c, md.id, mid - 0.005, mid + 0.005).length) continue;
+        const r = onTimeline(c, md.id, w.t0, w.t1).sort((x, y) => y[1] - y[0] - (x[1] - x[0]))[0];
         if (r) words.push({ t0: r[0], t1: r[1], w: w.w });
       }
       words.sort((x, y) => x.t0 - y.t0);

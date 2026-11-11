@@ -28,7 +28,7 @@ when-to-use: rough cut, cut the video, remove pauses, remove silence, remove ums
 - Do not remove a filler word inside a sentence when it carries meaning; use aggressive only when the user asks.
 
 ## Verify
-scene_describe for the duration, scene_get_transcript to confirm the kept text reads well, one contact sheet with scene_render_frame.`;
+scene_describe for the duration, scene_get_transcript to confirm the kept text reads well, and a screenshot series (scene_render_frame with from, to, count) to see that no cut lands inside a gesture or a word.`;
 
 const CAPTIONS = `---
 name: scene-captions
@@ -51,7 +51,10 @@ when-to-use: captions, subtitles, add subtitles, burn in captions, srt, vtt, mak
 - Create captions AFTER the cut is final; they follow the timeline at the moment they are created. After more cuts, create them again (create replaces the old ones).
 - Two lines at most; a caption should stay on screen at least one second.
 - Contrast: white text needs an outline, a box or a shadow.
-- Captions are part of the exported picture. For a clean picture plus a subtitle file, export the file, then scene_captions action clear.`;
+- Captions are part of the exported picture. For a clean picture plus a subtitle file, export the file, then scene_captions action clear.
+
+## Verify
+Take a screenshot with scene_render_frame at the first, a middle and the last caption: every line fits the frame and reads against the picture. scene_describe: the Captions track has one clip per phrase and no gaps where someone speaks.`;
 
 const SOCIAL = `---
 name: scene-social-cutdowns
@@ -75,7 +78,10 @@ when-to-use: vertical version, reel, short, TikTok, Instagram, square video, 9:1
 ## Watch out
 - Keep text inside the middle 80 percent of the width and away from the bottom 20 percent (platform interface).
 - Filling a 16:9 picture into 9:16 shows about a third of it: check every shot.
-- One idea per clip; cut hard, start in the middle of the action.`;
+- One idea per clip; cut hard, start in the middle of the action.
+
+## Verify
+Take a screenshot per shot (scene_render_frame with from, to, count): no subject cut off, text inside the safe area. scene_describe: the duration fits the platform and the frame size is the new format.`;
 
 const TITLES = `---
 name: scene-title-animation
@@ -100,7 +106,10 @@ when-to-use: title animation, intro, opener, lower third, name tag, animated tex
 - Two typefaces at most, two sizes, one accent color taken from the footage or the brand.
 - Readability over footage: add a shadow, an outline, a box or a darkened adjustment layer (scene_add_clip type adjustment with scene_effects brightness).
 - Keep text on screen long enough to read twice.
-- A line growing from sx 0 scales from its center; move x at the same time for a line that grows from the left.`;
+- A line growing from sx 0 scales from its center; move x at the same time for a line that grows from the left.
+
+## Verify
+Take a screenshot series with scene_render_frame (from, to, count 8) over the in and the out animation: nothing jumps, overlaps or leaves the frame, and the resting frame is readable at a glance.`;
 
 const SLIDESHOW = `---
 name: scene-slideshow
@@ -122,7 +131,10 @@ when-to-use: slideshow, photo video, montage, memories video, picture story, pro
 ## Watch out
 - Portrait pictures in a landscape frame: fill crops heads. Use fit for those, over a blurred copy of the same picture on the track below (scene_effects blur 40, scale it up).
 - Do not mix many transition types; one kind, plus hard cuts.
-- The Ken Burns move alternates direction by itself; do not add zooms on top.`;
+- The Ken Burns move alternates direction by itself; do not add zooms on top.
+
+## Verify
+Take a screenshot series with scene_render_frame across the show: every picture fills or fits as intended and titles are readable. scene_describe: no gaps between the clips, the music ends with the last picture.`;
 
 const BEAT = `---
 name: scene-beat-edit
@@ -145,7 +157,10 @@ when-to-use: cut to the beat, beat sync, music video, montage to music, sync cut
 ## Watch out
 - Beat times come from the SOURCE of the music; if the music clip is trimmed or moved, scene_beat_edit accounts for it only through the clip's start and in-point.
 - Hard cuts on the beat feel tighter than dissolves; keep transitions for section changes.
-- Video clips shorter than the beat interval are trimmed to their length, leaving a gap: use longer source clips or fewer beats.`;
+- Video clips shorter than the beat interval are trimmed to their length, leaving a gap: use longer source clips or fewer beats.
+
+## Verify
+Take a screenshot series with scene_render_frame to see that every clip shows a picture, then compare clip starts in scene_describe with the beat times from scene_analyze: they must match to the frame.`;
 
 const EXPLAINER = `---
 name: scene-motion-explainer
@@ -169,6 +184,9 @@ when-to-use: explainer video, motion graphics, animated infographic, animate thi
 - Positions are the CENTER of a layer in sequence pixels; top left of the frame is 0, 0.
 - Upper video tracks are in front. Add tracks with scene_tracks when layers must overlap in time.
 - Keyframe times are seconds from the clip start, not timeline times.
-- Less is more: at most three things move at the same time.`;
+- Less is more: at most three things move at the same time.
+
+## Verify
+Take a screenshot series with scene_render_frame for each beat, including the frames between keyframes. scene_describe: every beat's clips start together and nothing is left on screen by accident.`;
 
 export const SCENE_SKILLS = [ROUGH_CUT, CAPTIONS, SOCIAL, TITLES, SLIDESHOW, BEAT, EXPLAINER];
