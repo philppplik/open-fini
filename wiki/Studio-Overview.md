@@ -12,6 +12,7 @@ OpenFini has six studios that share one document. This page compares them, expla
 | Code | Editor, visual designer, Git, publishing | Static website, Markdown or LaTeX pages | [[Code Studio]] |
 | Vibe | Chat, activity, models, tools, skills, knowledge | Anything the other studios make | [[Vibe Studio]] |
 | Office | Formatting toolbar, outline, pages | DOCX, ODT, RTF, PDF, HTML, Markdown | [[Office Studio]] |
+| Scene | Media bin, viewer, properties, timeline | MP4, WebM, GIF, PNG frames, WAV | [[Scene Studio]] |
 
 ## Switching
 

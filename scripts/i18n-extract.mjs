@@ -22,6 +22,7 @@ export const LOCALE_DIR = join(SRC, "i18n", "locales");
 
 /** Files whose static tables are translated at render time: [path test, regex with the text in group 1 (double-quoted literal)]. */
 const STR = String.raw`"((?:[^"\\\n]|\\.)*)"`;
+const sceneFile = (p) => p.startsWith("scene/") || p === "studios/scene.js";
 const slidesFile = (p) => p.startsWith("office/slides/") || p === "commands/office-slides.js";
 export const IMPLICIT = [
   { test: (p) => p === "ui/menus.js" || p === "studios/office.js", re: new RegExp(String.raw`\blabel:\s*${STR}`, "g") },
@@ -70,6 +71,14 @@ export const IMPLICIT = [
   { test: slidesFile, re: new RegExp(String.raw`\b(?:commit|deckOp|insertElement)\(\s*${STR}`, "g") },
   { test: slidesFile, re: new RegExp(String.raw`\b(?:toggleStyle|format)\([^;]*?,\s*${STR}\)`, "g") },
   { test: (p) => p === "office/slides/model.js", re: /"(Click to add [a-z]+)"/g },
+  // Scene Studio: static labels (tools, presets, templates, effects, menus), panel rows and buttons, undo-step names
+  // and the texts the pure engine marks with a local N_ (translated by the workspace, the inspector and the dialogs)
+  { test: sceneFile, re: new RegExp(String.raw`\b(?:label|description|blurb):\s*${STR}`, "g") },
+  { test: sceneFile, re: new RegExp(String.raw`\bN_\(\s*${STR}`, "g") },
+  { test: sceneFile, re: new RegExp(String.raw`\b(?:section|row|btn)\(\s*${STR}`, "g") },
+  { test: sceneFile, re: new RegExp(String.raw`\b(?:ibtn|addBtn|animRow)\(\s*(?:id|"[\w-]+")\s*,\s*${STR}`, "g") },
+  { test: sceneFile, re: /\bcommit\(([^,]*?),/g, inner: new RegExp(String.raw`(?:^\s*|[?:]\s*)${STR}`, "g") },
+  { test: (p) => p === "scene/effects.js", re: new RegExp(String.raw`\b[PC]\(\s*${STR}`, "g") },
 ];
 
 /** Implicit patterns also hit units, numbers and technical tokens that need no translation. */

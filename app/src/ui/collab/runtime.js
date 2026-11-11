@@ -695,7 +695,7 @@ class CollabController {
     restored.name = t("{name} (version {version})", { name: meta.docName || restored.name, version: meta.name });
     restored.saved = false;
     markUntrusted(app.prefs, restored);
-    app.setStudio(["pixel", "layout", "code", "office"].includes(restored.studio) ? restored.studio : "vector");
+    app.setStudio(["pixel", "layout", "code", "office", "scene"].includes(restored.studio) ? restored.studio : "vector");
     app.openDoc(restored);
     requestAnimationFrame(() => app.cv?.fitPage?.());
     if (inPlace) app.toast("This kind of document is restored as a copy.", "primary", 3500);
@@ -762,7 +762,7 @@ class CollabController {
       if (!doc.name || doc.name === "Untitled") doc.name = transfer.name.replace(/\.ofini$/i, "");
       doc.saved = false;
       markUntrusted(app.prefs, doc);
-      app.setStudio(["pixel", "layout", "code", "office"].includes(doc.studio) ? doc.studio : "vector");
+      app.setStudio(["pixel", "layout", "code", "office", "scene"].includes(doc.studio) ? doc.studio : "vector");
       app.openDoc(doc);
       requestAnimationFrame(() => app.cv?.fitPage?.());
       return doc;

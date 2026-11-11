@@ -83,7 +83,7 @@ export function registerFileCommands(app) {
       doc.saved = true;
       ofiniDocs.add(doc);
       markUntrusted(app.prefs, doc); // protected mode: website scripts stay off in the preview until enabled
-      app.setStudio(["pixel", "layout", "code", "office"].includes(doc.studio) ? doc.studio : "vector");
+      app.setStudio(["pixel", "layout", "code", "office", "scene"].includes(doc.studio) ? doc.studio : "vector");
       app.openDoc(doc);
       requestAnimationFrame(() => app.cv?.fitPage());
       addRecent({ name: file.name, bytes: file.bytes, path: file.path }).then((r) => app.emit("recents", r));
@@ -184,7 +184,7 @@ export function registerFileCommands(app) {
 
   // The export dialog (and its zip, slices, website and publish tabs) loads on first use, not at start-up.
   const exportUI = () => import("../ui/export-dialog.js");
-  def("file.export", "Export…", (a) => (a.studio === "office" && a.doc?.office ? a.run("office.export") : exportUI().then((m) => m.exportDialog(a))), { shortcut: "Mod+Shift+E", enabled: hasDoc, icon: "box-arrow-up" });
+  def("file.export", "Export…", (a) => (a.studio === "scene" && a.sceneUI ? a.run("scene.export") : a.studio === "office" && a.doc?.office ? a.run("office.export") : exportUI().then((m) => m.exportDialog(a))), { shortcut: "Mod+Shift+E", enabled: hasDoc, icon: "box-arrow-up" });
   for (const [fmt, label] of [["png", N_("Export as PNG")], ["jpeg", N_("Export as JPEG")], ["webp", N_("Export as WebP")], ["svg", N_("Export as SVG")], ["pdf", N_("Export as PDF")]]) {
     def(`file.export${fmt === "jpeg" ? "JPG" : fmt.toUpperCase()}`, label, (a) => exportUI().then((m) => m.runExport(a, { format: fmt, scope: "page", scale: 1, quality: 0.9, transparent: false, bleed: false, marks: false, rasterDpi: 200 })).catch((e) => a.toast(e.message, "danger", 6000)), { enabled: hasDoc });
   }
@@ -374,7 +374,7 @@ export function registerFileCommands(app) {
     }
     if (n) {
       app.activateDoc(app.docs[Math.min(s.active ?? 0, app.docs.length - 1)] || app.docs[0]);
-      app.setStudio(["pixel", "layout", "code", "office"].includes(app.doc.studio) ? app.doc.studio : "vector");
+      app.setStudio(["pixel", "layout", "code", "office", "scene"].includes(app.doc.studio) ? app.doc.studio : "vector");
       requestAnimationFrame(() => app.cv?.fitPage());
       app.toast("Restored your previous session.", "success", 2200);
     }

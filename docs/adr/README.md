@@ -30,4 +30,5 @@ in place and are marked as such.
 | [0023](0023-computer-use.md) | Computer use for the assistant: risks, OS permissions and a staged plan (not built; stage 1 designed) | Proposed |
 | [0024](0024-ofini-cli-and-tui.md) | An `ofini` command-line tool with an optional TUI (first headless slice built) | Proposed |
 | [0025](0025-code-studio-terminal.md) | A terminal in the Code studio without a shell or PTY (reuses the assistant's run-without-a-shell command) | Accepted |
+| [0029](0029-scene-studio.md) | Scene Studio: one pure model, frame = f(model, time), 2D compositor with a WebGL pass, WebCodecs export with own containers | Accepted |
 | [0028](0028-vibe-code-mode.md) | Code mode for the Vibe assistant: `run_script` in an isolated worker, call gate, one undo step, dry run | Accepted |
