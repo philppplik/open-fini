@@ -45,6 +45,7 @@ export const DEFAULT_SETTINGS = () => ({
   agentBudgetSteps: 80, // total sub-agent steps per request
   agentBudgetTokens: 400000, // total sub-agent tokens per request (when the provider reports usage)
   enforceSkillTools: true, // honor `enforce-tools: true` in skills
+  compactTools: false, // list only the tools for what is open; the rest through find_tools + call_tool (saves tokens)
   suggestSkills: true, // show the "Use skill X?" chip under the composer
   // model routing with fallback (ai/routing.js): routes = [{ id, name, targets:[{providerId, model, label?, enabled?, timeoutMs?}], policy:{...} }]
   routes: [],

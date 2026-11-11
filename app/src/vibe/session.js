@@ -13,7 +13,8 @@
 //   - A chat only ever has one request running; sub-agents run inside that request (agents.js).
 import { Emitter, uid } from "../core/util.js";
 import { vibeStore } from "./store.js";
-import { createOpenFiniTools } from "./tools/index.js";
+import { createOpenFiniTools, TOOL_GROUPS } from "./tools/index.js";
+import { advertisedTools } from "./script-lib.js";
 import { customToolDefs } from "./custom-tools.js";
 import { log } from "../core/log.js";
 import { undoRun, runSteps, undoTask, taskSteps } from "./run-undo.js";
@@ -148,6 +149,27 @@ export class VibeSession extends Emitter {
     return { system, tools: tools.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema })), memory: mem.selected, considered: mem.considered, skills: (this.ctx?.skills || []).map((x) => x.name), last: this.lastContext || null };
   }
 
+  /** Compact tool list (settings.compactTools): which tools are listed for the model; null lists all. */
+  #advertise(s) {
+    if (!s.compactTools) return null;
+    const d = this.app.doc;
+    const context = d?.office ? d.office.kind || "document" : d?.web && !d.pages?.[0]?.root?.children?.length ? "code" : ["vector", "pixel", "layout"].includes(d?.studio) ? d.studio : this.app.studio;
+    const listed = advertisedTools(TOOL_GROUPS, context, this.restrict ? [...this.restrict] : []);
+    const builtIn = new Set(Object.values(TOOL_GROUPS).flat());
+    // custom, MCP and extension tools are few and the user added them on purpose: always listed
+    return (t) => listed.has(t.name) || !builtIn.has(t.name);
+  }
+
+  /** Keeps the full text of a result that was cut and tells the model how to read on (read_result). */
+  #storeResult({ id, text }) {
+    const store = this.results || (this.results = new Map());
+    const key = `r${(this.resultSeq = (this.resultSeq || 0) + 1)}`;
+    store.set(key, text.slice(0, 2_000_000));
+    while (store.size > 8) store.delete(store.keys().next().value);
+    void id;
+    return `\n[The full result has ${text.length} characters and is stored as “${key}”. Read more with read_result {"id":"${key}","offset":0} or {"id":"${key}","search":"…"}.]`;
+  }
+
   #systemPrompt(ai, s, memory) {
     const app = this.app;
     const target = app.doc;
@@ -157,7 +179,7 @@ export class VibeSession extends Emitter {
       skills: this.ctx?.skills,
       memory: memory.map((m) => (m.kind === "note" ? m.text : `${m.kind}: ${m.text}`)),
       mode: s.approval,
-      extra: [s.extraInstructions, this.chat.primer].filter(Boolean).join("\n\n"),
+      extra: [s.extraInstructions, this.chat.primer, s.compactTools ? "Your tool list is compact: it shows the tools for what is open. Many more exist (other studios, Office apps, web, git, export, color, settings). When you need one, call find_tools with a query, then call_tool with its name and arguments." : ""].filter(Boolean).join("\n\n"),
       language: app.i18n?.locale(),
     });
   }
@@ -334,6 +356,7 @@ export class VibeSession extends Emitter {
         return t ? this.#policy(t, s)(input) : false;
       },
       snapshots: this.snapshots || (this.snapshots = new Map()),
+      results: this.results || (this.results = new Map()),
     };
     this.ctx = ctx;
     const base = createOpenFiniTools(app, ctx);
@@ -500,6 +523,8 @@ export class VibeSession extends Emitter {
         signal: this.abortCtl.signal,
         onEvent: emitEvent,
         approve,
+        advertise: this.#advertise(s),
+        onTruncated: (r) => this.#storeResult(r),
       });
       // a run that ends while agents still work: stop them (their result could not be reported anymore)
       this.agentMgr.cancelAll("The parent request ended.");

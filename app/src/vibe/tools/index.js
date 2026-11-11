@@ -88,7 +88,7 @@ export const TOOL_GROUPS = {
   "Text and encoding": ["encode_text", "decode_text", "transform_file_text"],
   Assistant: ["search_knowledge", "remember", "recall_memory", "forget_memory", "use_skill", "create_skill", "ask_user", "update_plan", "create_tool"],
   "Power tools": ["run_plan", "query_layers", "describe_page", "describe_selection", "apply_to_many", "evaluate", "screenshot_layers", "compare_screenshots", "grid_layout", "distribute_layers", "snap_layers", "make_component"],
-  "Scripting and checks": ["run_script", "find_tools", "checkpoint", "restore_checkpoint", "visual_diff", "measure_layers", "find_replace"],
+  "Scripting and checks": ["run_script", "find_tools", "call_tool", "read_result", "checkpoint", "restore_checkpoint", "visual_diff", "measure_layers", "find_replace"],
   "Design checks and assets": ["lint_design", "fix_design_issues", "generate_asset", "make_palette", "extract_palette", "type_scale", "column_grid", "list_merge_fields", "data_merge"],
   Agents: ["spawn_agent", "wait_agent", "list_agents", "cancel_agent", "plan_work", "work_task", "blackboard"],
   Attachments: ["list_attachments", "open_attachment"],

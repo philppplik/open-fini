@@ -205,6 +205,11 @@ export function createModelsPanel(vs) {
       field("Sub-agent budget per request (steps)", num("agentBudgetSteps", 4, 400, 80), "All sub-agents of one request share it; they are stopped when it is spent."),
       check("enforceSkillTools", "Enforce tool restrictions of skills that ask for it (enforce-tools)"),
       check("suggestSkills", "Suggest a matching skill while I type"),
+      (() => {
+        const c = h("input", { type: "checkbox", checked: s.compactTools === true });
+        c.addEventListener("change", () => vibeStore.saveSettings({ compactTools: c.checked }));
+        return h("label.of-vrow", c, h("span", "Compact tool list: send only the tools for what is open; the assistant looks up the others when it needs them (fewer tokens per request)"));
+      })(),
       usage.length ? h("p.of-hint", `Tokens this session: ${usage.map((x) => `${x.chat.title.slice(0, 24)}: ${(x.usage.input + x.usage.output).toLocaleString("en-US")}`).join(" · ")}`) : null,
       h("button.of-btn", { type: "button", onclick: () => app.toast(`Stopped ${vs.hub?.stopAll() || 0} AI task(s).`, "primary", 1500) }, iconEl("stop-fill"), "Stop all AI tasks"),
     ));

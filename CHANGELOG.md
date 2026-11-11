@@ -7,6 +7,8 @@ All notable changes to OpenFini are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Vibe **compact tool list** (Settings ▸ Artificial intelligence ▸ Models ▸ Engine, off by default): only the tools for what is open are sent with each request; the assistant finds the others with `find_tools` and runs them with the new `call_tool`, which asks exactly what the called tool would ask. More than half of the tool definitions are no longer sent.
+- Vibe `read_result`: a tool result that was cut for length keeps its full text for the chat, and the assistant can read on by offset or search instead of running the tool again.
 - Vibe `office_screenshot`: the assistant can see Office documents (a laid-out text page, a sheet, a slide or a whiteboard page as an image).
 - Vibe can inspect and try out the rendered website in the Code studio preview: `preview_query` (elements by CSS selector with text, position, visibility, attributes and computed CSS values), `preview_state` (page and viewport size, sideways overflow and the elements causing it, broken images, console output) and `preview_interact` (click, type, check, press, submit, hover, scroll, wait; then the console output, page state and expected elements). The probe runs inside the sandboxed preview frame and never evaluates code.
 - Vibe **design linter**: `lint_design` finds low text contrast, tiny or empty text, layers outside the page, off-grid positions, near-miss alignment, almost-equal gaps, overlapping text, images without alt text, near-duplicate colors and too many fonts; `fix_design_issues` applies the fixes in one undo step.
