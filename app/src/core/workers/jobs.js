@@ -4,7 +4,21 @@
 // Chosen by measurement (docs/performance.md, "Worker pool"): only work that blocks the UI thread for 100 ms or more.
 
 /** A transferred {width, height, data} as an image with a Uint8ClampedArray view (the data may arrive as any byte array). */
-const asImage = (img) => ({ width: img.width, height: img.height, data: img.data instanceof Uint8ClampedArray ? img.data : new Uint8ClampedArray(img.data.buffer, img.data.byteOffset, img.data.length) });
+// Views over the bytes (byteLength, not `length`, so a Uint16Array or Float32Array view is not cut short); an
+// ArrayBuffer is wrapped and a plain array (structured clone of a JSON image) is copied, never read as empty. The
+// result must hold width*height*4 bytes, or the job throws instead of analysing a short buffer.
+export function asImage(img) {
+  const d = img?.data;
+  let data;
+  if (d instanceof Uint8ClampedArray) data = d;
+  else if (ArrayBuffer.isView(d)) data = new Uint8ClampedArray(d.buffer, d.byteOffset, d.byteLength);
+  else if (d instanceof ArrayBuffer || (typeof SharedArrayBuffer !== "undefined" && d instanceof SharedArrayBuffer)) data = new Uint8ClampedArray(d);
+  else if (Array.isArray(d)) data = Uint8ClampedArray.from(d);
+  else throw new Error("The image has no pixel data.");
+  const need = Math.max(0, Math.floor(img.width) || 0) * Math.max(0, Math.floor(img.height) || 0) * 4;
+  if (data.length < need) throw new Error(`The image data is too short: ${data.length} bytes for ${img.width}×${img.height}.`);
+  return { width: img.width, height: img.height, data };
+}
 
 const JOBS = {
   /** args: { img: {width, height, data}, width, height, filter } → resized image */
@@ -27,7 +41,7 @@ const JOBS = {
       return { r, transfer: [r.buffer] };
     }
     const [{ applyEdit }, { resizeImage }] = await Promise.all([import("../../engine/pixel/native-edit.js"), import("../../engine/pixel/transform.js")]);
-    const r = applyEdit(name, { width: img.width, height: img.height, data: new Uint8ClampedArray(img.data.buffer, img.data.byteOffset, img.data.length) }, params, { resizeImage });
+    const r = applyEdit(name, asImage(img), params, { resizeImage });
     return { r, transfer: [r.data.buffer] };
   },
   /** args: { img, n, points, filter } → { img, x, y }: the mesh warp of engine/pixel/transform3d.js (3D Transform) */

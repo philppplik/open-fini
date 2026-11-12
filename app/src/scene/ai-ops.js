@@ -5,11 +5,12 @@
 //
 //   summary(model, opts)  compact structured description (one line per clip, or full detail for chosen clips)
 //   addLayer, placeMedia, moveClips, trimClip, split, deleteClips, setSpeed, updateClips, setTransitions,
-//   keyframes, effects, audio, markers, tracks, sequenceFormat, cutTimeline, captions, captionsText, catalog
+//   keyframes, setEasing, precompose, effects, audio, markers, tracks, sequenceFormat, cutTimeline, captions,
+//   captionsText, catalog
 // Times may be seconds or time codes ("1:23.5", "00:01:23:12"); tracks may be ids or names ("V1", "Captions").
 import * as M from "./model.js";
 import { EFFECTS } from "./effects.js";
-import { EASING_NAMES, isTrack, valueAt } from "./keyframes.js";
+import { EASING_NAMES, EASING_PRESETS, isTrack, valueAt } from "./keyframes.js";
 import { CAPTION_STYLES, captionCues, captionsToClips, formatSrt, formatVtt, parseSubtitles } from "./captions.js";
 
 const r3 = (v) => Math.round(v * 1000) / 1000;
@@ -130,6 +131,7 @@ export function catalog() {
     transitions: M.TRANSITION_TYPES,
     blendModes: M.BLEND_MODES,
     easings: [...EASING_NAMES, "[x1, y1, x2, y2] cubic bezier"],
+    easingPresets: [...EASING_PRESETS, "[x1, y1, x2, y2] cubic bezier"],
     textAnimations: M.TEXT_ANIMS,
     shapes: M.SHAPE_KINDS,
     captionStyles: Object.keys(CAPTION_STYLES),
@@ -311,6 +313,40 @@ export function keyframes(m, a) {
   }
   const n = next.clips[c.id];
   return { model: next, result: { clip: c.id, prop, value: prop.startsWith("fx:") ? describeFx(n, prop) : n[prop] } };
+}
+
+/**
+ * Sets the easing of existing keyframes of one property (model.js ▸ setEasing): a preset of EASING_PRESETS or a
+ * cubic-bezier [x1, y1, x2, y2]. `at` = key times (seconds from the clip start, or timeline seconds with timeBase
+ * "timeline"); without `at` every keyframe of the property changes.
+ */
+export function setEasing(m, a) {
+  const c = clipOf(m, a.id);
+  const prop = String(a.prop || "");
+  const e = a.easing;
+  const custom = Array.isArray(e) && e.length === 4 && e.every((x) => Number.isFinite(+x));
+  if (!custom && !EASING_PRESETS.includes(e)) throw new Error(`Unknown easing ${JSON.stringify(e)}. Use ${EASING_PRESETS.join(", ")} or [x1, y1, x2, y2].`);
+  const cur = prop.startsWith("fx:") ? describeFx(c, prop) : c[prop];
+  if (cur === undefined) throw new Error(`Clip ${c.id} has no property “${prop}”.`);
+  if (!isTrack(cur)) throw new Error(`“${prop}” of clip ${c.id} has no keyframes. Add some with scene_keyframes first.`);
+  const list = a.at === undefined || a.at === null ? null : (Array.isArray(a.at) ? a.at : [a.at]).map((t) => (a.timeBase === "timeline" ? time(m, t) : c.start + time(m, t)));
+  const next = M.setEasing(m, c.id, prop, custom ? e.map(Number) : e, { at: list });
+  const n = next.clips[c.id];
+  return { model: next, result: { clip: c.id, prop, keyframes: (prop.startsWith("fx:") ? describeFx(n, prop) : n[prop]).kf.length } };
+}
+
+/**
+ * Moves clips into a new composition (pre-compose, model.js ▸ precompose), in the main sequence or inside the
+ * composition `seq`. Returns the id of the composition clip that takes their place and the composition id.
+ */
+export function precompose(m, a) {
+  const seq = a.seq || "main";
+  const s = M.sequence(m, seq);
+  const list = [...new Set((Array.isArray(a.ids) ? a.ids : [a.ids]).filter(Boolean).map(String))];
+  if (!list.length) throw new Error("Pass at least one clip id.");
+  for (const id of list) if (!s.clips[id]) throw new Error(`There is no clip “${id}”${seq === "main" ? "" : ` in composition ${seq}`}. Call scene_describe for the current clip ids.`);
+  const r = M.precompose(s, list, a.name ? String(a.name) : "Composition");
+  return { model: M.commitSequence(m, seq, r.model), result: { id: r.id, comp: r.comp, moved: list.length } };
 }
 
 function describeFx(c, prop) {

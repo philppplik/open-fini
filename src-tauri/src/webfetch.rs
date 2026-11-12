@@ -12,7 +12,7 @@
 //! - a size cap (at most 25 MiB) and a time limit (at most 60 s) for the whole request.
 
 use std::io::{Read, Write};
-use std::net::{IpAddr, SocketAddr, TcpStream, ToSocketAddrs};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream, ToSocketAddrs};
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
@@ -141,7 +141,22 @@ pub fn is_public_ip(ip: &IpAddr) -> bool {
                 return is_public_ip(&IpAddr::V4(v4));
             }
             let s = v6.segments();
+            // addresses that carry an IPv4 address: NAT64 (64:ff9b::/96) and 6to4 (2002::/16) reach that IPv4 host
+            // through a gateway, so they are as public as the embedded address
+            let embedded = |hi: u16, lo: u16| {
+                Ipv4Addr::new((hi >> 8) as u8, hi as u8, (lo >> 8) as u8, lo as u8)
+            };
+            if s[0] == 0x64 && s[1] == 0xff9b && s[2..6] == [0, 0, 0, 0] {
+                return is_public_ip(&IpAddr::V4(embedded(s[6], s[7])));
+            }
+            if s[0] == 0x2002 {
+                return is_public_ip(&IpAddr::V4(embedded(s[1], s[2])));
+            }
             !(v6.is_unspecified()
+                || (s[0] == 0x64 && s[1] == 0xff9b && s[2] == 1) // local-use NAT64 (64:ff9b:1::/48)
+                || (s[0] == 0x2001 && s[1] == 0) // Teredo: tunnels to an obfuscated IPv4 address
+                || (s[0] == 0x100 && s[1..4] == [0, 0, 0]) // discard-only
+                || (s[0] & 0xffc0) == 0xfec0 // site local (deprecated, still routed by some stacks)
                 || v6.is_loopback()
                 || (s[0] & 0xfe00) == 0xfc00 // unique local
                 || (s[0] & 0xffc0) == 0xfe80 // link local
@@ -362,7 +377,7 @@ pub async fn web_get(request: WebGet) -> Result<WebResponse, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::net::{Ipv4Addr, Ipv6Addr};
+    use std::net::Ipv6Addr;
 
     #[test]
     fn urls_parse_and_refuse() {
@@ -424,8 +439,21 @@ mod tests {
             "::ffff:10.0.0.1",
             "2001:db8::1",
             "::127.0.0.1",
+            "64:ff9b::7f00:1",     // NAT64 of 127.0.0.1
+            "64:ff9b::a9fe:a9fe",  // NAT64 of 169.254.169.254 (cloud metadata)
+            "64:ff9b:1::a00:1",    // local-use NAT64
+            "2002:c0a8:101::1",    // 6to4 of 192.168.1.1
+            "2001:0:4136:e378::1", // Teredo
+            "fec0::1",             // site local
+            "100::1",              // discard-only
         ] {
             assert!(!is_public_ip(&ip.parse::<IpAddr>().unwrap()), "{ip}");
+        }
+        for ip in ["64:ff9b::5db8:d822", "2002:5db8:d822::1"] {
+            assert!(
+                is_public_ip(&ip.parse::<IpAddr>().unwrap()),
+                "{ip} embeds a public IPv4 address"
+            );
         }
         assert!(is_public_ip(&IpAddr::V4(Ipv4Addr::new(93, 184, 216, 34))));
         assert!(is_public_ip(&IpAddr::V6(

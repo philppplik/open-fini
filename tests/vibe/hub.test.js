@@ -72,7 +72,9 @@ test("the chat limit, the kill switch and the view's replay", async () => {
   try {
     const a = hub.active;
     const run = a.send("draw a blue rectangle and a circle");
-    await new Promise((r) => setTimeout(r, 40));
+    // wait for the first live event instead of a fixed delay (a loaded CI runner may not have started the run yet)
+    for (let i = 0; i < 200 && !a.live.length; i++) await new Promise((r) => setTimeout(r, 10));
+    assert.ok(a.running && a.live.length, "the demo run is producing live events");
     const b = hub.create();
     await assert.rejects(b.send("hi"), /already running \(limit 1/);
     // switching the view to the running chat replays its live events

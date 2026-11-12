@@ -211,7 +211,9 @@ export function createSkillsPanel(vs) {
       if (/\.(skillpack|zip)$/i.test(f.name)) {
         try {
           const { unzipSync, strFromU8 } = await import("../../../vendor/fflate/fflate.js");
-          const entries = unzipSync(new Uint8Array(await f.arrayBuffer()));
+          // only the small text entries that are used are unpacked (a zip bomb never reaches memory)
+          let n = 0;
+          const entries = unzipSync(new Uint8Array(await f.arrayBuffer()), { filter: (e) => e.originalSize <= 400_000 && /^[^/]+\/.+\.(md|txt|json|csv)$/i.test(e.name) && ++n <= 2000 });
           const dirs = new Map();
           for (const [path, bytes] of Object.entries(entries)) {
             const m = /^([^/]+)\/(.+)$/.exec(path);

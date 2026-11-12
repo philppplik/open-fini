@@ -102,6 +102,16 @@ Workers are unavailable). Jobs were picked by measurement (Node 24, synthetic da
 
 Left on the main thread: unzip on open (~35 ms for the same file), RAG indexing (~70 ms for 2 MB of text) and live
 filter layers (they need an asynchronous render pipeline first). Add a job to `jobs.js` only with a measurement.
+Jobs read image bytes through `jobs.js ▸ asImage`, which accepts any byte view, an `ArrayBuffer` or a plain array and
+throws when the data is shorter than width × height × 4 instead of analysing a short buffer.
+
+## Scene Studio memory
+
+The media store (`scene/media.js`) holds one object URL per media item (a full copy of the file), decoded images,
+one frame-reader `<video>` per item, decoded sound and waveform peaks. The viewer's prune pass (every 5 s while idle)
+releases all of that for items that left the bin, not only on closing the document, so importing and removing
+footage in a long session no longer accumulates copies. A media probe that fails or times out also releases its
+element. Undo brings an item back and it loads again on demand.
 
 ## Known limits
 

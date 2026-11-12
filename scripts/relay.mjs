@@ -662,11 +662,10 @@ if (isMain()) {
     console.error(e.message);
     process.exit(2);
   }
-  if (opts.help) {
-    process.stdout.write(HELP);
-    process.exit(0);
-  }
-  runCli(opts)
+  // --help: let Node exit by itself once the text is written. process.exit() right after write() cuts the output off
+  // when stdout is a pipe (asynchronous on macOS), which left `relay --help | less` (and a CI test) empty.
+  if (opts.help) process.stdout.write(HELP);
+  else runCli(opts)
     .then(() => {
       const stop = () => process.exit(0);
       process.on("SIGINT", stop);

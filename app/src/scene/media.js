@@ -51,6 +51,7 @@ export async function probeMedia(bytes, name, mime = "") {
   const type = mimeOf(name, mime);
   const item = { kind, mime: type, name, duration: 0, w: 0, h: 0, hasAudio: kind === "audio", bytes };
   const url = URL.createObjectURL(new Blob([bytes], { type }));
+  let el = null;
   try {
     if (kind === "image") {
       const img = new Image();
@@ -59,7 +60,7 @@ export async function probeMedia(bytes, name, mime = "") {
       item.w = img.naturalWidth || 1024;
       item.h = img.naturalHeight || 1024;
     } else {
-      const el = document.createElement(kind);
+      el = document.createElement(kind);
       el.preload = "metadata";
       el.muted = true;
       el.src = url;
@@ -76,10 +77,13 @@ export async function probeMedia(bytes, name, mime = "") {
         if (!item.w) throw new Error(`“${name}” has no picture this browser can decode.`);
         item.hasAudio = el.mozHasAudio ?? (el.audioTracks ? el.audioTracks.length > 0 : true); // refined when the sound is decoded
       }
+    }
+  } finally {
+    // also on a decode error or timeout: a probe element left with its source keeps a decoder alive
+    if (el) {
       el.removeAttribute("src");
       el.load();
     }
-  } finally {
     URL.revokeObjectURL(url);
   }
   return item;
@@ -122,7 +126,7 @@ export function createMediaStore(getModel, onReady = () => {}) {
         })
       : createImageBitmap(new Blob([md.bytes], { type: md.mime }));
     load.then((bmp) => {
-      if (dead) return bmp.close?.();
+      if (dead || images.get(id) !== "loading") return bmp.close?.(); // destroyed, or the item was pruned meanwhile
       images.set(id, bmp);
       onReady();
     }).catch(() => images.set(id, "failed"));
@@ -281,7 +285,11 @@ export function createMediaStore(getModel, onReady = () => {}) {
       rate = playRate;
       if (!on) for (const v of videos.values()) if (!v.el.paused) v.el.pause();
     },
-    /** Drops video elements of clips that no longer exist or were not drawn for a while (called by the viewer). */
+    /**
+     * Drops video elements of clips that no longer exist or were not drawn for a while (called by the viewer), and
+     * everything held for media items that left the bin: object URLs (each a full copy of the file), decoded images,
+     * frame-reader elements, decoded sound and peaks. Undo brings an item back and it loads again on demand.
+     */
     prune(liveClipIds) {
       const now = performance.now();
       for (const [key, v] of videos) {
@@ -291,6 +299,25 @@ export function createMediaStore(getModel, onReady = () => {}) {
           v.el.load();
           videos.delete(key);
         }
+      }
+      const media = getModel()?.media || {};
+      for (const id of new Set([...urls.keys(), ...images.keys(), ...exact.keys(), ...buffers.keys(), ...peakCache.keys()])) {
+        if (media[id]) continue;
+        const x = exact.get(id);
+        if (x) {
+          x.el.pause();
+          x.el.removeAttribute("src");
+          x.el.load();
+          exact.delete(id);
+        }
+        const b = images.get(id);
+        if (b && typeof b !== "string") b.close?.();
+        images.delete(id);
+        if (urls.has(id)) URL.revokeObjectURL(urls.get(id));
+        urls.delete(id);
+        buffers.delete(id);
+        peakCache.delete(id);
+        for (const k of thumbs.keys()) if (k.startsWith(`${id}@`)) thumbs.delete(k);
       }
     },
     frameAt,

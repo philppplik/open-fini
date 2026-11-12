@@ -64,3 +64,33 @@ test("the scene context lists the scene groups; plan_work and sub-agents know th
   assert.ok(STUDIOS.includes("scene"));
   for (const n of TOOLSETS[STUDIO_TOOLS.scene[0]]) assert.ok(TOOL_GROUPS.Scene.concat(TOOL_GROUPS["Scene understanding"], TOOL_GROUPS["Scene automation"]).includes(n), n);
 });
+
+test("scene_set_easing changes existing keyframes and scene_precompose nests clips, one undo step each", async () => {
+  const { app, doc, run } = sceneApp();
+  const placed = await run("scene_place_media", { media: "vid", start: 0, withAudio: false });
+  const id = placed.ids[0];
+  await run("scene_keyframes", { id, prop: "opacity", keys: [{ t: 0, v: 0 }, { t: 1, v: 1 }, { t: 2, v: 0.5 }] });
+  const before = doc.history.entries.length;
+  const r = await run("scene_set_easing", { id, prop: "opacity", easing: "hold", at: [1] });
+  assert.equal(r.keyframes, 3);
+  const kf = app.doc.office.model.clips[id].opacity.kf;
+  assert.equal(kf[1].e, "hold");
+  assert.notEqual(kf[0].e, "hold", "only the key at 1 s changes");
+  await run("scene_set_easing", { id, prop: "opacity", easing: [0.4, 0, 0.2, 1] });
+  assert.equal(doc.history.entries.length - before, 2);
+  await assert.rejects(run("scene_set_easing", { id, prop: "opacity", easing: "wobbly" }), /Unknown easing/);
+  await assert.rejects(run("scene_set_easing", { id, prop: "rot", easing: "linear" }), /no keyframes/);
+  await assert.rejects(run("scene_set_easing", { id, prop: "opacity", easing: "linear", at: [7] }), /No keyframe/);
+
+  const p = await run("scene_precompose", { ids: [id], name: "Group" });
+  const m = app.doc.office.model;
+  assert.equal(m.clips[p.id].type, "comp");
+  assert.equal(m.clips[p.id].comp, p.comp);
+  assert.ok(!m.clips[id], "the clip moved into the composition");
+  assert.ok(m.comps[p.comp].clips[id]);
+  assert.equal(m.comps[p.comp].name, "Group");
+  const inner = await run("scene_precompose", { ids: [id], seq: p.comp });
+  assert.ok(app.doc.office.model.comps[inner.comp], "pre-compose works inside a composition");
+  assert.equal(app.doc.office.model.comps[p.comp].clips[inner.id].type, "comp");
+  await assert.rejects(run("scene_precompose", { ids: ["nope"] }), /scene_describe/);
+});

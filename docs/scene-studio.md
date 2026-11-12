@@ -292,14 +292,14 @@ model ──frameState(model, t)──▶ layers ──compositor.render(ctx, �
 
 ## Assistant
 
-The Vibe assistant edits scenes natively: 44 tools in three groups, each write call one undo step named
+The Vibe assistant edits scenes natively: 46 tools in three groups, each write call one undo step named
 "Vibe: …", every result readable data (ids, times, one line per clip). In the Scene Studio the compact tool list shows
 these groups; the studio guide `studio-guide-scene` explains the model to the assistant and to `plan_work` sub-agents
 (studio `scene`).
 
 | Group | Tools | What they do |
 | --- | --- | --- |
-| Scene | `scene_describe`, `scene_catalog`, `scene_new`, `scene_set_format`, `scene_track`, `scene_import_media`, `scene_place_media`, `scene_add_layer`, `scene_move_clips`, `scene_trim_clip`, `scene_split`, `scene_delete_clips`, `scene_set_speed`, `scene_update_clips`, `scene_transition`, `scene_keyframes`, `scene_effect`, `scene_audio`, `scene_markers`, `scene_cut_ranges`, `scene_captions`, `scene_captions_export`, `scene_render_frame`, `scene_show`, `scene_export` | Inspect (compact summary, full detail of chosen clips), edit tracks and clips, keyframes with easing, effects, masks and blend modes, sound (dB, pan, fades, EQ, loudness normalization), markers, captions (create, import SRT/VTT, edit, style, export), look at frames (one frame or a numbered contact sheet), export (asks first) |
+| Scene | `scene_describe`, `scene_catalog`, `scene_new`, `scene_set_format`, `scene_track`, `scene_import_media`, `scene_place_media`, `scene_add_layer`, `scene_move_clips`, `scene_trim_clip`, `scene_split`, `scene_delete_clips`, `scene_set_speed`, `scene_update_clips`, `scene_transition`, `scene_keyframes`, `scene_set_easing`, `scene_precompose`, `scene_effect`, `scene_audio`, `scene_markers`, `scene_cut_ranges`, `scene_captions`, `scene_captions_export`, `scene_render_frame`, `scene_show`, `scene_export` | Inspect (compact summary, full detail of chosen clips), edit tracks and clips, keyframes with easing (and `scene_set_easing` for existing keys, like the graph editor), pre-compose clips into a nested composition, effects, masks and blend modes, sound (dB, pan, fades, EQ, loudness normalization), markers, captions (create, import SRT/VTT, edit, style, export), look at frames (one frame or a numbered contact sheet), export (asks first) |
 | Scene understanding | `scene_transcribe`, `scene_set_transcript`, `scene_transcript`, `scene_detect_shots`, `scene_analyze_audio`, `scene_sample_frames`, `scene_index_note`, `scene_search` | Transcript with word times, shots, silences, loudness, tempo and beats, sampled frames for the vision model, the searchable index |
 | Scene automation | `scene_cut_transcript`, `scene_remove_silences`, `scene_remove_fillers`, `scene_auto_captions`, `scene_highlight_reel`, `scene_reframe`, `scene_animate_clip`, `scene_title`, `scene_lower_third`, `scene_slideshow`, `scene_beat_cuts` | Edits driven by the analysis and motion presets; everything they create is ordinary clips and keyframes the user can edit |
 

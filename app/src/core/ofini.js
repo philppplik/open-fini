@@ -78,14 +78,21 @@ export async function saveOfini(doc) {
   return runJob("zip.compress", { files, level: 6 });
 }
 
+/** What loadOfini unpacks at most: parts, declared bytes per part and in total (docs/security.md, ZIP files). */
+export const OFINI_LIMITS = { entries: 100000, entry: 1024 * 1048576, total: 2048 * 1048576 };
+
 /** Loads a document from .ofini bytes. */
 export async function loadOfini(bytes) {
   let entries;
+  // zip bomb guard: fflate allocates what each entry header declares, so cap entries and declared sizes up front
+  let total = 0, count = 0;
+  const filter = (f) => ++count <= OFINI_LIMITS.entries && f.originalSize <= OFINI_LIMITS.entry && (total += f.originalSize) <= OFINI_LIMITS.total;
   try {
-    entries = unzipSync(bytes);
+    entries = unzipSync(bytes, { filter });
   } catch {
     throw new Error("This file is not a valid OpenFini document.");
   }
+  if (count > OFINI_LIMITS.entries || total > OFINI_LIMITS.total) throw new Error("This document unpacks to more data than OpenFini opens (2 GiB, 100 000 parts); it may be damaged or hostile.");
   if (!entries["document.json"]) throw new Error("The document is missing its content (document.json).");
   let json;
   try {

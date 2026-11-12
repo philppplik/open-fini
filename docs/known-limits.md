@@ -19,7 +19,7 @@ Legend: **Unverified** = built and unit-tested but never run in the real environ
 - Two CodeQL alerts `rust/disabled-certificate-check` in `src-tauri/src/netio.rs` (lines ~185–186) are intentional (user-opted self-signed FTPS/SMTP) and still need to be dismissed by the repo owner.
 - Built-in Rust relay is plain `ws://` only (no TLS; it requires a relay key when started with a tunnel). Use the Node relay with `--tls-cert` or a TLS proxy for browsers on other devices.
 - Wiki needs the owner's one-time "Create first page" / "Publish wiki".
-- Dependabot PR for katex 0.19.0 to 0.19.1 may still be open.
+- Dependabot alert (moderate) for the Rust crate `glib` < 0.20 (`VariantStrIter` unsoundness): it comes in through Tauri's GTK stack on Linux (gtk-rs 0.18) and cannot be updated until Tauri moves to gtk-rs 0.20; OpenFini does not call the affected iterator.
 
 ## Vibe / AI
 
@@ -30,12 +30,11 @@ Legend: **Unverified** = built and unit-tested but never run in the real environ
 
 ## Pixel studio
 
-Partial: content-aware fill and the object eraser switch from patch synthesis to a smooth (blurry) fill above about 60 000 px, so large content-aware crop corners look soft (use *Extend edges*). The before/after snapshot is taken shortly after a page first shows in the Pixel studio and lives in memory only (not saved, at most 8 megapixels). Straighten Horizon only searches ±20°. Unverified in a real browser: the Patch and Object Eraser interaction, the compare divider and the corner fills (unit-tested engines only).
+Partial: content-aware fill and the object eraser switch from patch synthesis to a smooth (blurry) fill above about 60 000 px, so large content-aware crop corners look soft (use *Extend edges*). The before/after snapshot is taken shortly after a page first shows in the Pixel studio and lives in memory only (not saved, at most 8 megapixels). Straighten Horizon searches ±30° (horizon) and ±30° from plumb (verticals). Unverified in a real browser: the Patch and Object Eraser interaction, the compare divider and the corner fills (unit-tested engines only).
 
 ## Office suite
 
 - **Sheet:** pivot tables are written to XLSX / ODS as values (their definition travels as a hidden name and refreshes only in OpenFini); ODS does not write charts or conditional formats; validation does not recheck values already in cells, formulas or fill. Spill references (`A1#`), LET / LAMBDA, INDIRECT / OFFSET, pictures, file comments, rich text in a cell and multi-range selection are missing (see [office-limits-audit.md](office-limits-audit.md)).
-- **Slides:** no chart element yet (`sheet_chart_data` supplies data only).
 - **Document, slides and board depth:** tracked in the "Roadmap: Office depth" section of `docs/office-suite.md`; check it for what the current wave has not landed.
 
 ## Performance and size budget

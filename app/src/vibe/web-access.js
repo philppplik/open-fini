@@ -37,23 +37,48 @@ export function isPrivateIPv4(host) {
   return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 192 && b === 0) || (a === 198 && (b === 18 || b === 19)) || a >= 224;
 }
 
-/** True when an IPv6 literal (without brackets) is loopback, unspecified, unique-local, link-local or maps to a private IPv4. */
-export function isPrivateIPv6(host) {
-  const h = host.toLowerCase();
-  if (!h.includes(":")) return false;
-  if (h === "::" || h === "::1") return true;
-  if (/^f[cd][0-9a-f]{2}:/.test(h) || /^fe[89ab][0-9a-f]:/.test(h) || /^ff[0-9a-f]{2}:/.test(h)) return true;
-  const mapped = /^(?:0:0:0:0:0:ffff:|::ffff:|::)(.+)$/.exec(h);
-  if (mapped) {
-    const rest = mapped[1];
-    if (rest.includes(".")) return isPrivateIPv4(rest);
-    const parts = rest.split(":");
-    if (parts.length === 2 && parts.every((p) => /^[0-9a-f]{1,4}$/.test(p))) {
-      const n = (parseInt(parts[0], 16) << 16) | parseInt(parts[1], 16);
-      return isPrivateIPv4(`${(n >>> 24) & 255}.${(n >>> 16) & 255}.${(n >>> 8) & 255}.${n & 255}`);
-    }
+/** The eight 16-bit groups of an IPv6 literal (with "::" and a dotted IPv4 tail), or null when it is not one. */
+export function ipv6Segments(host) {
+  let h = String(host).toLowerCase().replace(/%.*$/, "");
+  const tail = /^(.*:)(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
+  if (tail) {
+    const q = tail.slice(2).map(Number);
+    if (q.some((x) => x > 255)) return null;
+    h = `${tail[1]}${((q[0] << 8) | q[1]).toString(16)}:${((q[2] << 8) | q[3]).toString(16)}`;
   }
-  return false;
+  const halves = h.split("::");
+  if (halves.length > 2) return null;
+  const part = (s) => (s ? s.split(":") : []);
+  const head = part(halves[0]), rest = halves.length === 2 ? part(halves[1]) : [];
+  const fill = halves.length === 2 ? 8 - head.length - rest.length : 0;
+  if (fill < (halves.length === 2 ? 1 : 0)) return null;
+  const all = [...head, ...Array(fill).fill("0"), ...rest];
+  if (all.length !== 8 || !all.every((p) => /^[0-9a-f]{1,4}$/.test(p))) return null;
+  return all.map((p) => parseInt(p, 16));
+}
+
+/**
+ * True when an IPv6 literal (without brackets) is loopback, unspecified, unique-local, link-local, site-local,
+ * multicast, Teredo, local-use NAT64 or discard-only, or carries a private IPv4 address (IPv4-mapped or -compatible,
+ * NAT64 64:ff9b::/96, 6to4 2002::/16). Same rules as webfetch.rs ▸ is_public_ip. Unparseable literals count as private.
+ */
+export function isPrivateIPv6(host) {
+  if (!String(host).includes(":")) return false;
+  const s = ipv6Segments(host);
+  if (!s) return true;
+  const v4 = (hi, lo) => isPrivateIPv4(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
+  const zero = (from, to) => s.slice(from, to).every((x) => x === 0);
+  if (zero(0, 5) && s[5] === 0xffff) return v4(s[6], s[7]); // IPv4-mapped
+  if (zero(0, 6)) return true; // ::, ::1 and the deprecated IPv4-compatible ::a.b.c.d
+  if (s[0] === 0x64 && s[1] === 0xff9b && zero(2, 6)) return v4(s[6], s[7]); // NAT64
+  if (s[0] === 0x2002) return v4(s[1], s[2]); // 6to4
+  return (s[0] & 0xfe00) === 0xfc00 // unique local
+    || (s[0] & 0xffc0) === 0xfe80 // link local
+    || (s[0] & 0xffc0) === 0xfec0 // site local
+    || (s[0] & 0xff00) === 0xff00 // multicast
+    || (s[0] === 0x64 && s[1] === 0xff9b && s[2] === 1) // local-use NAT64
+    || (s[0] === 0x2001 && s[1] === 0) // Teredo
+    || (s[0] === 0x100 && zero(1, 4)); // discard-only
 }
 
 /**

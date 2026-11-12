@@ -5,7 +5,7 @@ import { muxMp4, muxWebm, opusHead } from "../../app/src/scene/mux.js";
 import { createGifEncoder } from "../../app/src/scene/gif.js";
 import { readGif } from "../../app/src/engine/formats/gif.js";
 import { encodeWav, gateCurve } from "../../app/src/scene/audio.js";
-import { avcCodec, defaultBitrate } from "../../app/src/scene/export.js";
+import { avcCodec, defaultBitrate, exportRange } from "../../app/src/scene/export.js";
 import * as C from "../../app/src/scene/captions.js";
 import * as M from "../../app/src/scene/model.js";
 
@@ -139,6 +139,19 @@ test("WAV header, gate curve, codec helpers", () => {
   assert.equal(avcCodec(1920, 1080, 30), "avc1.640028");
   assert.equal(avcCodec(3840, 2160, 30), "avc1.640033");
   assert.ok(defaultBitrate(1920, 1080, 30) > 4e6);
+  assert.equal(defaultBitrate(100, 100, 10, 50), defaultBitrate(100, 100, 10, 1), "quality is clamped to 1");
+  assert.ok(defaultBitrate(100, 100, 10, -3) > 0, "a negative quality never gives a negative bit rate");
+  assert.equal(defaultBitrate(100, 100, 10, NaN), defaultBitrate(100, 100, 10, 0.7));
+});
+
+test("exportRange: clamps, repairs NaN and reversed bounds, explains an empty range", () => {
+  assert.deepEqual(exportRange(10, null), { from: 0, to: 10 });
+  assert.deepEqual(exportRange(10, { in: 2, out: 50 }), { from: 2, to: 10 });
+  assert.deepEqual(exportRange(10, { in: NaN, out: 4 }), { from: 0, to: 4 });
+  assert.deepEqual(exportRange(10, { in: 6, out: 3 }), { from: 3, to: 6 }, "reversed bounds are swapped");
+  assert.throws(() => exportRange(0, null), /sequence is empty/);
+  assert.throws(() => exportRange(10, { in: 12, out: 15 }), /holds no frames; the sequence is 10 s long/);
+  assert.deepEqual(exportRange(10, { in: 12 }, "png"), { from: 10, to: 10 }, "a still clamps to the last moment");
 });
 
 test("captions: SRT and VTT in and out, words to cues, cues to clips", () => {

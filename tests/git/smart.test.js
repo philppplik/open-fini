@@ -38,6 +38,8 @@ function backendServer(root) {
         const cgi = spawn(join(execPath, "git-http-backend"), [], { env });
         const out = [];
         cgi.stdout.on("data", (c) => out.push(c));
+        // the backend may answer (and exit) before it reads the whole request body: ignore the EPIPE on its stdin
+        cgi.stdin.on("error", () => {});
         cgi.stdin.end(body);
         cgi.on("close", () => {
           const buf = Buffer.concat(out);
@@ -177,4 +179,10 @@ test("importing a zipped real repository with packfiles", { skip: !haveGit }, ()
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("importing a repository ZIP skips unsafe entry names and refuses non-ZIP data", () => {
+  const { files } = importRepoZip(zipSync({ "ok.txt": new Uint8Array([1]), "../evil.txt": new Uint8Array([2]), "/abs.txt": new Uint8Array([3]), "a/./b.txt": new Uint8Array([4]) }));
+  assert.deepEqual([...files.keys()], ["ok.txt"]);
+  assert.throws(() => importRepoZip(new Uint8Array([1, 2, 3, 4, 5, 6])), /not a ZIP/);
 });
