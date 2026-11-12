@@ -1,12 +1,15 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permissions of the OpenFini main window and its pop-out windows (popout-<n>, created at run time): the Tauri core, the custom title bar (minimize, maximize, close, drag), native open/save dialogs, files the user picked (or common user folders), opening web links, and the native clipboard for images, and the native window material (Mica, Acrylic, vibrancy).",
-  "windows": ["main", "popout-*"],
+  "description": "Permissions of the OpenFini main window, its pop-out windows (popout-<n>, created at run time) and the Collaboration window (collab, created at run time, focused instead of opened twice, placed where it was last time): the Tauri core, the custom title bar (minimize, maximize, close, drag), native open/save dialogs, files the user picked (or common user folders), opening web links, and the native clipboard for images, and the native window material (Mica, Acrylic, vibrancy).",
+  "windows": ["main", "popout-*", "collab"],
   "permissions": [
     "core:default",
     "core:webview:allow-create-webview-window",
     "core:window:allow-set-focus",
+    "core:window:allow-show",
+    "core:window:allow-unminimize",
+    "core:window:allow-available-monitors",
     "core:window:allow-set-title",
     "core:window:allow-minimize",
     "core:window:allow-maximize",

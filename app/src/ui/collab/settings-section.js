@@ -101,9 +101,8 @@ export function collabSection(app) {
         items: [
           sw("collabActivity", N_("Post my edits to the room chat"), N_("Adds short lines such as “Move · 3 layers on Page 2” to the chat, so others can follow along and jump to the change.")),
           { type: "segmented", key: "collabCursors", label: N_("Show other members' cursors"), options: [{ value: "auto", label: N_("Automatic"), text: N_("Auto") }, { value: "on", label: N_("On"), text: N_("On") }, { value: "off", label: N_("Off"), text: N_("Off") }], hint: N_("Automatic hides them in low-power mode.") },
-          sw("collabPopout", N_("Open Collaboration in its own window"), N_("On by default. While you are in a room, Collaboration opens as a separate window. Off: it opens as a panel inside this window. Browsers that block pop-ups fall back to the panel.")),
           sw("collabNotify", N_("Notify me about mentions and replies"), N_("A message and a counter in the window title when someone @mentions you or replies to you.")),
-          { type: "action", label: N_("Collaboration"), hint: N_("Create a room, join with an invite code, chat, comments and versions."), button: N_("Open…"), run: () => app.run("collab.open") },
+          { type: "action", label: N_("Collaboration"), hint: N_("Create a room, join with an invite code, chat, comments and versions. Opens in its own window."), button: N_("Open…"), run: () => app.run("collab.open") },
         ],
       },
       {

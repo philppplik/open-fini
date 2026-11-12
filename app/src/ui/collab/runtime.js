@@ -3,8 +3,9 @@
 // One controller per window, available as `app.collab` once loaded. It owns the room session (collab/session.js) and
 // connects it to the app: profile (Settings ▸ Profile and collaboration), comments stored in documents, named versions,
 // presence from the canvas / code editor / office editor, the activity feed from document edits, received files,
-// notifications (toast + title badge) and "follow". The UI lives in window.js (the floating Collaboration window) and
-// overlay.js (cursors, selection halos, carets, comment markers).
+// notifications (toast + title badge) and "follow". The room UI lives in its own OS window (remote-host.js here,
+// remote-view.js + window.js there); overlay.js and comment-ui.js draw what belongs to the document (cursors, selection
+// halos, carets, comment pins).
 //
 // Public API (used by commands/collab.js, the Vibe tools in vibe/tools/collab.js and the settings section):
 //   getCollab(app) → controller          openCollab(app, tab)   addComment(app, opts)   saveVersionDialog(app, opts)
@@ -16,7 +17,6 @@
 //     .follow(memberId|null) .jump(link) .status()
 // Invariants: invite codes and secrets are never logged or stored; every received file needs a click before it is
 // opened or saved; nothing here runs before the user opens Collaboration.
-import { h } from "../../core/util.js";
 import { t } from "../../i18n/index.js";
 import { log } from "../../core/log.js";
 import { kvGet, kvSet, kvDelete } from "../../core/storage.js";
@@ -44,55 +44,37 @@ export function getCollab(app) {
   return controller;
 }
 
-export async function openCollab(app, tab) {
+/**
+ * Opens the Collaboration window, or brings the open one to the front. It is always its own OS window (a Tauri
+ * window on the desktop, a browser popup on the web) and never part of this window: ui/collab/remote-host.js.
+ * `show`: { thread } a comment thread, { invite } an invite code for the join form, { focus: "version" } the Save version form.
+ */
+export async function openCollab(app, tab, show = {}) {
   const c = getCollab(app);
   await c.ready;
-  if (c.poppedOut && (await import("./remote-host.js")).noteIfPoppedOut(app, c)) return; // the UI lives in its own window
-  // default: its own window, but only inside a room (starting or joining a room needs the forms of the in-page window)
-  if (app.prefs.collabPopout !== false && c.session && c.session.state !== "left" && (await (await import("./remote-host.js")).popOut(app, c, { quiet: true }))) return;
-  // blocked or off: the in-page window below
-  (await import("./window.js")).showCollabWindow(app, c, tab);
+  return (await import("./remote-host.js")).openWindow(app, c, { ...show, tab });
 }
 
-/** After a room was created or joined from the in-page window: offer what to do without a document, then pop out (default). */
-export async function afterRoomStart(app, { created = false } = {}) {
-  if (created && !app.doc) await (await import("./entry.js")).offerNoDocument(app);
-  if (app.prefs.collabPopout !== false) popOutCollab(app, { quiet: true }).catch(() => {});
-}
-
-/** Moves the Collaboration UI into its own OS window (UI-only remote view; this window keeps the connection). */
-export async function popOutCollab(app, opts) {
-  const c = getCollab(app);
-  await c.ready;
-  return (await import("./remote-host.js")).popOut(app, c, opts);
-}
-
+/** "Add Comment…": the composer opens in the document, at the current selection (ui/collab/comment-ui.js). */
 export async function addComment(app, opts = {}) {
   const c = getCollab(app);
   await c.ready;
   if (!app.doc) return;
-  const w = (await import("./window.js")).showCollabWindow(app, c, "comments");
-  w.startComment(opts.anchor || c.currentAnchor(), opts.text);
+  (await c.commentUI()).composeFor(opts);
 }
 
 /**
  * "Add comment here…": builds the anchor from where the user clicked (`opts.kind/x/y/data/selection` of a context menu
  * target, or nothing: the current selection) and opens the inline composer there. Works without a room.
  */
-export async function addCommentHere(app, opts = {}) {
-  const c = getCollab(app);
-  await c.ready;
-  if (!app.doc) return;
-  const ui = await c.commentUI();
-  ui.composeFor(opts);
-}
+export const addCommentHere = addComment;
 
 export async function saveVersionDialog(app, opts = {}) {
   const c = getCollab(app);
   await c.ready;
   if (!app.doc) return;
   if (opts.name !== undefined) return c.saveVersion(app.doc, opts);
-  (await import("./window.js")).showCollabWindow(app, c, "versions").startSaveVersion();
+  return openCollab(app, "versions", { focus: "version" });
 }
 
 export async function shareDoc(app) {
@@ -110,8 +92,7 @@ export async function relayHelp(app) {
 export async function openJoin(app, code) {
   const c = getCollab(app);
   await c.ready;
-  c.prefillInvite = String(code || "").trim().slice(0, 600);
-  await openCollab(app, "people");
+  await openCollab(app, "people", { invite: String(code || "").trim().slice(0, 4000) });
 }
 
 /** Share a document with the room (`mode` "live" | "copy" | undefined = ask). Starts the room flow when needed. */
@@ -813,45 +794,5 @@ function replaceContents(target, source, label) {
   target.tx(label, () => target._do({ redo: () => apply(next), undo: () => apply(prev), structure: true, meta: true, bytes: 1024 * 1024 }));
 }
 
-// Avatars from other members are untrusted images: they are decoded and drawn again into a fresh 64 px PNG before they
-// are shown, so only plain pixels reach the page (no metadata, no unusual encodings). Until then initials are shown.
-const safeAvatars = new Map(); // received data URL → re-encoded data URL ("" when it failed)
-async function reencodeAvatar(url) {
-  try {
-    const blob = await (await fetch(url)).blob();
-    if (blob.size > LIMITS.avatarChars || !/^image\/(png|webp|jpeg)$/.test(blob.type)) throw new Error("bad avatar");
-    const bmp = await createImageBitmap(blob);
-    const c = document.createElement("canvas");
-    c.width = c.height = 64;
-    const s = Math.max(64 / bmp.width, 64 / bmp.height);
-    c.getContext("2d").drawImage(bmp, (64 - bmp.width * s) / 2, (64 - bmp.height * s) / 2, bmp.width * s, bmp.height * s);
-    bmp.close?.();
-    return c.toDataURL("image/png");
-  } catch {
-    return "";
-  }
-}
-
-/** Renders a small avatar (initials or image) for a profile. `own` marks my own avatar (already re-encoded when set). */
-export function avatarEl(profile, size = 28, { own = false, onReady } = {}) {
-  const p = profile || {};
-  const el = h("span.of-collab-avatar", { style: `--of-collab-color:${/^#[0-9a-f]{6}$/i.test(p.color || "") ? p.color : "#888888"};width:${size}px;height:${size}px;font-size:${Math.round(size * 0.4)}px`, "aria-hidden": "true" });
-  el.textContent = p.initials || "?";
-  if (p.avatar) {
-    const show = (src) => src && el.replaceChildren(h("img", { src, alt: "", draggable: "false" }));
-    if (own) show(p.avatar);
-    else if (safeAvatars.has(p.avatar)) show(safeAvatars.get(p.avatar));
-    else {
-      safeAvatars.set(p.avatar, "");
-      reencodeAvatar(p.avatar).then((src) => {
-        if (safeAvatars.size > 200) safeAvatars.clear();
-        safeAvatars.set(p.avatar, src);
-        show(src);
-        onReady?.();
-      });
-    }
-  }
-  return el;
-}
-
+export { avatarEl } from "./avatar.js";
 export { openDialog };

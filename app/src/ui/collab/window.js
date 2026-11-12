@@ -1,24 +1,25 @@
-// The Collaboration window: a floating, draggable, resizable window inside the app that stays open across studios.
-// Tabs: Chat (room chat with replies, threads, reactions, mentions, files, links and the activity feed), People
-// (status, verification words, invite code, members, roles, follow), Comments (threads of the active document) and
-// Versions (named snapshots of the active document). Comments and versions work without a room.
+// The Collaboration UI: the content of the Collaboration window, which is always its own OS window and never part of
+// the app window (docs/adr/0030-collab-native-window.md). Tabs: Chat (room chat with replies, threads, reactions,
+// mentions, files, links and the activity feed), People (start or join a room, status, verification words, invite
+// code, members, roles, follow), Comments (threads of the main window's active document) and Versions (named
+// snapshots of it). Comments and versions work without a room.
 //
-// API: showCollabWindow(app, controller, tab?) → { el, select(tab), startComment(anchor, text), startSaveVersion() }
-// Accessibility: role="dialog" (non-modal), tabs with role="tablist", new chat messages announced through an
-// aria-live log, every action is a real button, Esc in a text field cancels the reply/edit, focus stays put on updates.
+// It runs in the Collaboration window against the model of collab/remote-model.js: `c` and `app` have the shapes of
+// the collaboration controller and the app, filled from the main window's snapshots; every change is an action the
+// main window performs. Nothing here has a room connection, keys or documents.
+//
+// API: mountCollabPanel(app, c, { compact, onCompact, chrome }) → { el, select(tab), show({ tab, thread, invite, focus }) }
+// Accessibility: role="main", tabs with role="tablist", new chat messages announced through an aria-live log, every
+// action is a real button, Esc in a text field cancels the reply/edit, focus and drafts stay put on updates.
 import { h, formatBytes } from "../../core/util.js";
 import { t, N_ } from "../../i18n/index.js";
-import { platform } from "../../platform/index.js";
 import { REACTIONS, LIMITS, canDo, ROLES } from "../../collab/protocol.js";
-import { relayHost, CollabCryptoError } from "../../collab/crypto.js";
 import { checkFile } from "../../collab/files.js";
 import { filterThreads, threadTitle, threadCounts } from "../../collab/comments.js";
-import { avatarEl, colorFor } from "./runtime.js";
-import { confirmDialog, openDialog } from "../dialogs.js";
+import { avatarEl } from "./avatar.js";
+import { confirmDialog } from "../dialogs.js";
+import { layoutMode } from "./layout-mode.js";
 
-import { layoutMode, clampRect, snapRect, maximizedRect, readLayoutState } from "./layout-mode.js";
-
-const POS_KEY = "openfini.collab.window";
 // items below the tabs in the side rail (hidden in the narrow layout): they open the share flow and the settings
 const NAV_ACTIONS = [
   { id: "share", label: "Share", icon: "share", command: "collab.shareDocument" },
@@ -30,20 +31,6 @@ const TABS = [
   { id: "comments", label: "Comments", icon: "chat-quote" },
   { id: "versions", label: "Versions", icon: "clock-history" },
 ];
-
-let win = null;
-let builtinRelay = null; // status of the relay this desktop app started (platform/native-net.js), or null
-
-export function showCollabWindow(app, c, tab) {
-  if (!win) win = createWindow(app, c);
-  win.show(tab);
-  return win;
-}
-
-/** Hides the floating window (while the UI lives in a pop-out window). */
-export function hideCollabWindow() {
-  win?.hide();
-}
 
 const fmtTime =(ts) => new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 const fmtDate = (ts) => new Date(ts).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
@@ -59,7 +46,7 @@ const btn = (label, onClick, { cls = "", ic, title, variant } = {}) => {
 };
 const roleLabel = (r) => ({ host: t("Host"), editor: t("Editor"), commenter: t("Commenter"), viewer: t("Viewer") })[r] || r;
 
-function createWindow(app, c) {
+export function mountCollabPanel(app, c, { compact: startCompact = false, onCompact = () => {}, chrome = [] } = {}) {
   let tab = "chat";
   let threadRoot = null; // chat thread being shown
   let replyTo = null;
@@ -69,23 +56,17 @@ function createWindow(app, c) {
   let pendingAnchor = null;
   let showQr = false; // People ▸ join link QR code shown
 
-  // ---- layout state (per browser profile): position, size, maximized, compact density
-  let layout = readLayoutState(null);
-  try {
-    layout = readLayoutState(JSON.parse(localStorage.getItem(POS_KEY) || "null"));
-  } catch {
-    /* default position from CSS */
-  }
+  let compact = !!startCompact;
   let mode = "narrow";
-  let restoreRect = null;
+  const drafts = new Map(); // comment thread id → reply draft (kept across updates)
+  const report = (e) => app.toast(e.message, "danger", 5000);
 
-  const title = h("h2.of-collab-win__title", t("Collaboration"));
+  const title = h("h1.of-collab-win__title", t("Collaboration"));
   const pill = h("span.of-collab-pill", { role: "status" });
-  const close = btn("", () => hide(), { ic: "x-lg", title: t("Close") });
-  const compactBtn = btn("", () => setCompact(!layout.compact), { ic: "layout-sidebar-inset", title: t("Compact density") });
-  const popBtn = btn("", () => app.run("collab.popOut"), { ic: "box-arrow-up-right", title: t("Pop out into its own window") });
-  const maxBtn = btn("", () => toggleMax(), { ic: "arrows-fullscreen", title: t("Maximize") });
-  const head = h("div.of-collab-win__head", { tabIndex: 0, "aria-label": t("Collaboration window. Arrow keys move it, Shift makes the steps larger.") }, icon("people"), title, pill, compactBtn, popBtn, maxBtn, close);
+  const compactBtn = btn("", () => setCompact(!compact), { ic: "layout-sidebar-inset", title: t("Compact density") });
+  const mainBtn = btn("", () => c.focusMain(), { ic: "window", title: t("Show the main OpenFini window") });
+  // `chrome`: window buttons of a frameless desktop window (minimize, close), added by remote-view.js
+  const head = h("div.of-collab-win__head", icon("people"), title, pill, compactBtn, mainBtn, ...chrome);
   const tablist = h("div.of-collab-tabs", { role: "tablist", "aria-label": t("Collaboration sections"), "aria-orientation": "horizontal" });
   const actions = h("div.of-collab-nav__actions");
   const nav = h("nav.of-collab-nav", { "aria-label": t("Collaboration") }, tablist, actions);
@@ -93,101 +74,20 @@ function createWindow(app, c) {
   const body = h("div.of-collab-win__body");
   const main = h("div.of-collab-win__main", nav, aside, body);
   const live = h("div.of-sr-only", { "aria-live": "polite", role: "log" }); // announces new messages
-  const el = h("section.of-collab-win", { role: "dialog", "aria-modal": "false", "aria-labelledby": "of-collab-title", tabIndex: -1, "data-mode": mode }, head, main, live);
+  const el = h("section.of-collab-win.of-collab-win--native", { role: "main", "aria-labelledby": "of-collab-title", "data-mode": mode }, head, main, live);
   title.id = "of-collab-title";
   document.body.append(el);
 
-  const vp = () => ({ vw: innerWidth, vh: innerHeight });
-  const rectOf = () => {
-    const r = el.getBoundingClientRect();
-    return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) };
-  };
-  const applyRect = (r) => {
-    Object.assign(el.style, { left: `${r.x}px`, top: `${r.y}px`, width: `${r.w}px`, height: `${r.h}px`, right: "auto", bottom: "auto" });
-  };
-  const savePos = () => {
-    try {
-      const r = layout.maximized && restoreRect ? restoreRect : rectOf();
-      layout = { ...layout, ...r };
-      localStorage.setItem(POS_KEY, JSON.stringify(layout));
-    } catch {
-      /* storage blocked */
-    }
-  };
   function setCompact(on) {
-    layout.compact = !!on;
-    el.classList.toggle("is-compact", layout.compact);
-    compactBtn.setAttribute("aria-pressed", String(layout.compact));
-    savePos();
+    compact = !!on;
+    el.classList.toggle("is-compact", compact);
+    compactBtn.setAttribute("aria-pressed", String(compact));
+    onCompact(compact);
   }
-  function toggleMax() {
-    if (!layout.maximized) {
-      restoreRect = rectOf();
-      layout.maximized = true;
-      applyRect(maximizedRect(vp()));
-    } else {
-      layout.maximized = false;
-      if (restoreRect) applyRect(clampRect(restoreRect, vp()));
-      restoreRect = null;
-    }
-    el.classList.toggle("is-maximized", layout.maximized);
-    maxBtn.setAttribute("aria-pressed", String(layout.maximized));
-    maxBtn.setAttribute("aria-label", layout.maximized ? t("Restore") : t("Maximize"));
-    maxBtn.title = maxBtn.getAttribute("aria-label");
-    savePos();
-  }
-  if (layout.x !== undefined) applyRect(clampRect({ x: layout.x, y: layout.y, w: layout.w, h: layout.h }, vp()));
-  else Object.assign(el.style, { width: `${layout.w}px`, height: `${layout.h}px` });
-  el.classList.toggle("is-compact", layout.compact);
-  compactBtn.setAttribute("aria-pressed", String(layout.compact));
-  window.addEventListener("resize", () => {
-    if (el.hidden) return;
-    if (layout.maximized) applyRect(maximizedRect(vp()));
-    else if (el.style.left) applyRect(clampRect(rectOf(), vp()));
-    applyMode();
-  });
-
-  // dragging by the header (pointer) or with the arrow keys; snaps to the edges of the app window
-  head.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0 || e.target.closest("button") || layout.maximized) return;
-    const r = el.getBoundingClientRect();
-    const dx = e.clientX - r.left;
-    const dy = e.clientY - r.top;
-    head.setPointerCapture(e.pointerId);
-    const move = (ev) => {
-      applyRect({ ...rectOf(), x: Math.max(0, Math.min(innerWidth - 120, ev.clientX - dx)), y: Math.max(0, Math.min(innerHeight - 40, ev.clientY - dy)) });
-    };
-    const up = () => {
-      head.removeEventListener("pointermove", move);
-      head.removeEventListener("pointerup", up);
-      const snapped = snapRect(rectOf(), vp());
-      if (snapped.edge) applyRect(snapped.rect);
-      savePos();
-    };
-    head.addEventListener("pointermove", move);
-    head.addEventListener("pointerup", up);
-  });
-  head.addEventListener("dblclick", (e) => !e.target.closest("button") && toggleMax());
-  head.addEventListener("keydown", (e) => {
-    const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
-    if (!d || e.target !== head || layout.maximized) return;
-    e.preventDefault();
-    const step = e.shiftKey ? 64 : 16;
-    const r = rectOf();
-    applyRect(clampRect({ ...r, x: r.x + d[0] * step, y: r.y + d[1] * step }, vp()));
-    savePos();
-  });
-  let saveTimer = 0;
-  new ResizeObserver(() => {
-    if (!el.isConnected || el.hidden) return;
-    applyMode();
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(savePos, 200);
-  }).observe(el);
-  el.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !e.target.closest("textarea, input")) hide();
-    e.stopPropagation(); // typing here must not trigger canvas shortcuts
-  });
+  el.classList.toggle("is-compact", compact);
+  compactBtn.setAttribute("aria-pressed", String(compact));
+  new ResizeObserver(() => applyMode()).observe(el);
+  el.addEventListener("keydown", (e) => e.stopPropagation()); // typing here must not trigger app shortcuts
 
   /** narrow: top tabs; rail: left side rail; wide: rail plus a conversation list column (decisions in layout-mode.js). */
   function applyMode() {
@@ -249,16 +149,23 @@ function createWindow(app, c) {
     render();
   }
 
-  function show(id) {
-    el.hidden = false;
-    applyMode();
-    if (id) select(id);
-    else render();
-    if (tab === "chat") c.markRead();
-  }
-  function hide() {
-    el.hidden = true;
-    app.cv?.stage?.focus?.();
+  /** A request of the main window: show a tab, a comment thread, the join form with an invite code, or the Save version form. */
+  function show({ tab: id, thread, invite, focus } = {}) {
+    if (invite) {
+      c.prefillInvite = invite;
+      body.replaceChildren(); // the join form is built again with the code
+      return select("people");
+    }
+    if (thread) {
+      focusThread = thread;
+      commentFilter.status = "all";
+      return select("comments");
+    }
+    if (focus === "version") {
+      savingForm = true;
+      return select("versions");
+    }
+    select(id || tab);
   }
 
   // ---- status pill and badges
@@ -274,39 +181,35 @@ function createWindow(app, c) {
     }
     const unread = c.session?.chatStore.unread || 0;
     const badge = tabButtons.get("chat").querySelector(".of-collab-tab__badge");
-    badge.textContent = unread && !(tab === "chat" && !el.hidden) ? String(Math.min(99, unread)) : "";
+    badge.textContent = unread && tab !== "chat" ? String(Math.min(99, unread)) : "";
     const cb = tabButtons.get("comments").querySelector(".of-collab-tab__badge");
     cb.textContent = app.doc ? String(threadCounts(c.threads(app.doc)).open || "") : "";
   }
 
-  // ---- re-render on changes (coalesced per frame; the chat composer is kept)
+  // ---- re-render on snapshots (coalesced per frame). "chat": only the message stream changed; "all": anything else
   let queued = false;
-  const onChange = (e) => {
-    const what = e.detail;
-    if (what === "presence" && tab !== "people") return renderHead();
+  let pendingKind = null;
+  c.events.addEventListener("change", (e) => {
+    pendingKind = pendingKind === "all" || e.detail !== "chat" ? "all" : "chat";
     if (queued) return;
     queued = true;
     requestAnimationFrame(() => {
       queued = false;
-      if (el.hidden) return renderHead();
-      if (tab === "chat" && c.session && what === "chat") return renderChatList(true);
-      render();
+      const kind = pendingKind;
+      pendingKind = null;
+      if (kind === "all") return render();
+      if (tab === "chat" && c.session && chatParts) return renderChatList(true);
+      renderHead();
     });
-  };
-  c.events.addEventListener("change", onChange);
-  c.events.addEventListener("focus-thread", (e) => {
-    focusThread = e.detail;
-    commentFilter.status = "all";
-    select("comments");
   });
-  for (const ev of ["doc", "docs"]) app.on(ev, () => !el.hidden && (tab === "comments" || tab === "versions") && render());
+  document.addEventListener("visibilitychange", () => !document.hidden && tab === "chat" && c.session && (c.markRead(), renderHead()));
 
   // ================================================================ render
   let chatParts = null;
 
   /** Wide layout only: the list column next to the content (members next to Chat, threads next to Comments). */
   function renderAside() {
-    const wanted = mode === "wide" && !el.hidden && (tab === "chat" || tab === "comments");
+    const wanted = mode === "wide" && (tab === "chat" || tab === "comments");
     aside.hidden = !wanted;
     if (!wanted) return aside.replaceChildren();
     if (tab === "chat") {
@@ -327,9 +230,16 @@ function createWindow(app, c) {
   function render() {
     renderAside();
     renderHead();
-    if (tab === "chat") return c.session ? renderChat() : renderStart();
+    if (!c.session && (tab === "chat" || tab === "people")) {
+      chatParts = null;
+      // an update must not wipe what is being typed into the start and join forms
+      if (body.querySelector(".of-collab-start") && !c.prefillInvite) return;
+      return renderStart();
+    }
+    // the chat composer survives updates: only the message list is rendered again
+    if (tab === "chat") return chatParts?.root.isConnected ? renderChatList(true) : renderChat();
     chatParts = null;
-    if (tab === "people") return c.session ? renderPeople() : renderStart();
+    if (tab === "people") return renderPeople();
     if (tab === "comments") return renderComments();
     if (tab === "versions") return renderVersions();
   }
@@ -364,9 +274,10 @@ function createWindow(app, c) {
       b.disabled = true;
       diag.replaceChildren(h("li", t("Checking…")));
       try {
-        const { diagnose } = await import("./network.js");
-        const r = await diagnose(relay.value.trim(), { app });
+        const r = await c.testRelay(relay.value.trim());
         diag.replaceChildren(...r.steps.map((s) => h("li", { class: s.ok ? "is-ok" : "is-bad" }, icon(s.ok ? "check-circle" : "exclamation-triangle"), h("span", s.text, s.fix ? h("span.of-relay-diag__fix", ` ${s.fix}`) : null))));
+      } catch (ex) {
+        diag.replaceChildren(h("li.is-bad", icon("exclamation-triangle"), h("span", ex.message)));
       } finally {
         b.disabled = false;
       }
@@ -393,28 +304,11 @@ function createWindow(app, c) {
       if (!app.prefs.collabNick && nick.value.trim()) app.setPref("collabNick", nick.value.trim());
       b.disabled = true;
       try {
-        if (where.value === "builtin") {
-          const net = await import("../../platform/native-net.js");
-          // reachable from the internet through a tunnel: require a relay key, so it is not an open forwarder
-          const wantKey = tunnelBox.checked;
-          const running = await net.relay.status().catch(() => null);
-          if (running && running.keyed !== wantKey) await net.relay.stop();
-          builtinRelay = await net.relay.start({ lan: true, key: wantKey ? net.newRelayKey() : null });
-          await c.createRoom({ relay: builtinRelay.local, defaultRole: role.value });
-          // the invite carries this computer's network address, not localhost
-          if (builtinRelay.addresses[0]) c.session.setInviteRelay(builtinRelay.addresses[0]);
-          if (tunnelBox.checked) {
-            const tun = await (await import("./network.js")).startTunnel(app, builtinRelay.port);
-            if (tun) {
-              c.session.setInviteRelay(net.withRelayKey(tun.url, builtinRelay.local));
-              app.toast(t("Public relay address: {url}. Anyone with the invite code can join from the internet. Stop the room to close the tunnel.", { url: tun.url }), "warning", 15000);
-            }
-          }
-        } else await c.createRoom({ relay: where.value === "local" ? "local" : relay.value.trim(), defaultRole: role.value });
+        // the main window creates the room (desktop: it also starts the relay inside the app)
+        await c.createRoom({ where: where.value, relay: relay.value.trim(), role: role.value, tunnel: tunnelBox.checked });
         select("people");
-        import("./runtime.js").then((m) => m.afterRoomStart(app, { created: true }));
       } catch (ex) {
-        err.textContent = ex instanceof CollabCryptoError || ex.code ? ex.message : t("The room could not be created: {message}", { message: ex.message });
+        err.textContent = t("The room could not be created: {message}", { message: ex.message });
       } finally {
         b.disabled = false;
       }
@@ -430,7 +324,7 @@ function createWindow(app, c) {
       err.textContent = "";
       let host;
       try {
-        const { parseInvite } = await import("../../collab/crypto.js");
+        const { parseInvite, relayHost } = await import("../../collab/crypto.js");
         host = relayHost(parseInvite(code.value).relay);
       } catch (ex) {
         err.textContent = ex.message;
@@ -451,7 +345,6 @@ function createWindow(app, c) {
         await c.joinRoom(code.value);
         code.value = "";
         select("people");
-        import("./runtime.js").then((m) => m.afterRoomStart(app));
       } catch (ex) {
         err.textContent = ex.message;
       } finally {
@@ -484,18 +377,19 @@ function createWindow(app, c) {
     const suggest = h("ul.of-chat__suggest", { role: "listbox", hidden: true, "aria-label": t("Members") });
     const fileInput = h("input", { type: "file", hidden: true });
     const attach = btn("", () => fileInput.click(), { ic: "paperclip", title: t("Send a file (up to 25 MB)") });
-    const linkBtn = btn("", () => {
-      const l = c.selectionLink();
-      if (!l) return app.toast("Select a layer, a page or a code line first.", "neutral", 2400);
-      pendingLinks.push(l);
-      renderReplyBar();
-    }, { ic: "link-45deg", title: t("Link the current selection") });
+    const linkBtn = btn("", async () => {
+      try {
+        pendingLinks.push(await c.selectionLink());
+        renderReplyBar();
+      } catch (e) {
+        app.toast(e.message, "neutral", 3000);
+      }
+    }, { ic: "link-45deg", title: t("Link the current selection of the main window") });
     const send = btn("", () => submit(), { ic: "send", title: t("Send (Enter)"), variant: "primary" });
     const composer = h("div.of-chat__composer", replyBar, h("div.of-chat__row", input, h("div.of-chat__tools", attach, linkBtn, send)), suggest, fileInput);
-    const canChat = canDo(s.myRole, "chat");
-    if (!canChat) composer.hidden = true;
-    body.replaceChildren(h("div.of-chat", threadHead, list, files, typing, composer));
-    chatParts = { list, threadHead, typing, files, replyBar, input };
+    const root = h("div.of-chat", threadHead, list, files, typing, composer);
+    body.replaceChildren(root);
+    chatParts = { root, list, threadHead, typing, files, replyBar, input, composer };
     let pendingLinks = [];
 
     function renderReplyBar() {
@@ -625,11 +519,12 @@ function createWindow(app, c) {
     c.markRead();
   }
 
-  let announced = 0;
+  let announced = Date.now(); // messages after this time are announced to screen readers
   function renderChatList(incremental) {
     const s = c.session;
     if (!chatParts || !s) return render();
     const { list, threadHead, typing, files } = chatParts;
+    chatParts.composer.hidden = !canDo(s.myRole, "chat");
     const store = s.chatStore;
     const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
     threadHead.replaceChildren();
@@ -649,10 +544,10 @@ function createWindow(app, c) {
     files.replaceChildren(...[...c.transfers.values()].map((tr) => h("div.of-chat__progress", icon(tr.outgoing ? "upload" : "download"), h("span", tr.failed ? t("{name}: {error}", { name: tr.name, error: tr.failed }) : `${tr.name} · ${Math.round((100 * tr.done) / Math.max(1, tr.size))}%`), h("progress", { max: tr.size, value: tr.done }))));
     if (atBottom || !incremental) list.scrollTop = list.scrollHeight;
     // announce new messages from others to screen readers
-    const fresh = store.list.slice(announced).filter((m) => m.kind === "chat" && m.from !== s.id);
-    announced = store.list.length;
+    const fresh = store.list.filter((m) => m.ts > announced && m.kind === "chat" && m.from !== s.id);
+    announced = store.list.reduce((a, m) => Math.max(a, m.ts), announced);
     if (fresh.length && incremental) live.textContent = fresh.map((m) => `${m.nick}: ${m.text}`).join(". ").slice(0, 300);
-    if (!el.hidden) c.markRead();
+    if (!document.hidden) c.markRead();
     renderHead();
   }
 
@@ -741,7 +636,7 @@ function createWindow(app, c) {
       const isDoc = got.transfer.ext === "ofini";
       const confirmOpen = async (mode) => {
         const ok = await confirmDialog({ title: "Open received file", message: t("Open “{name}” from {who}? Only open files from people you trust. Website scripts in it stay off until you enable them.", { name: f.name, who: m.nick }), ok: "Open" });
-        if (ok) c.openReceived(f.fid, mode).catch((e) => app.toast(e.message, "danger", 5000));
+        if (ok) c.openReceived(f.fid, mode).catch(report);
       };
       if (isDoc) {
         acts.append(btn(t("Open"), () => confirmOpen("linked"), { title: t("Open with comments and presence linked to the room") }), btn(t("Open as copy"), () => confirmOpen("copy")));
@@ -756,9 +651,9 @@ function createWindow(app, c) {
   // ---------------------------------------------------------------- people
   /** People ▸ the relay running in this app: its address, the invite as a QR code, and Stop. */
   function builtinRelayCard(s) {
-    const r = builtinRelay;
+    const r = s.builtin;
     const box = h("div.of-collab-lan");
-    const addr = r.addresses[0];
+    const addr = r.addr;
     const parts = [
       h("p.of-collab-status", icon("share"), h("span", addr ? t("Relay running on this computer: {url}", { url: addr }) : t("Relay running on this computer (port {port}), but no network address was found. Is this computer connected to a network?", { port: r.port }))),
       h("p.of-collab-hint", t("Others join with the invite code in the OpenFini desktop app on the same network. Browsers on other devices need a relay with https: the one-file relay (node openfini-relay.mjs --lan, see How to start a relay).")),
@@ -767,26 +662,20 @@ function createWindow(app, c) {
     const qrBtn = btn(showQr ? t("Hide QR code") : t("Show QR code"), () => ((showQr = !showQr), renderPeople()), { ic: "phone" });
     qrBtn.setAttribute("aria-pressed", String(showQr));
     if (showQr) {
-      import("./network.js").then((net) => {
+      Promise.all([import("./network.js"), c.inviteCode()]).then(([net, code]) => {
         try {
-          qrBox.replaceChildren(net.qrSvg(s.shareInviteCode, t("QR code of the invite code")), h("p.of-collab-hint", t("Scan it with another device to copy the invite code. Anyone who can see this code can join the room.")));
+          qrBox.replaceChildren(net.qrSvg(code, t("QR code of the invite code")), h("p.of-collab-hint", t("Scan it with another device to copy the invite code. Anyone who can see this code can join the room.")));
         } catch {
           qrBox.replaceChildren(h("p.of-collab-hint", t("The invite code is too long for a QR code. Copy it instead.")));
         }
-      });
+      }).catch(report);
     }
     const stop = btn(t("Stop relay"), async (e, b) => {
       const ok = await confirmDialog({ title: N_("Stop relay"), message: t("Stop the relay on this computer? Everyone in the room, including you, is disconnected."), ok: N_("Stop relay"), danger: true });
       if (!ok) return;
       b.disabled = true;
-      try {
-        await c.leave(); // already confirmed above
-      } finally {
-        const net = await import("../../platform/native-net.js");
-        await net.relay.stop().catch(() => {});
-        builtinRelay = null;
-        render();
-      }
+      await c.stopRelay().catch(report);
+      b.disabled = false;
     }, { ic: "stop", variant: "danger" });
     parts.push(h("div.of-collab-actions", qrBtn, stop), qrBox);
     box.replaceChildren(...parts);
@@ -798,53 +687,44 @@ function createWindow(app, c) {
     const st = c.status();
     const words = h("p.of-collab-words", { "aria-label": t("Verification words") }, ...s.fingerprint.map((w) => h("span", w)));
     const inviteBox = h("div.of-collab-invite");
-    const showInvite = btn(t("Show invite code"), () => {
-      inviteBox.replaceChildren(h("textarea.of-collab-input", { readOnly: true, rows: 3, value: s.shareInviteCode, "aria-label": t("Invite code") }), h("p.of-collab-hint", t("Anyone with this code can join until the host changes the key. Share it privately (not in public channels). It is never saved by OpenFini.")));
+    // the invite code is fetched from the main window only on these clicks (it is not part of the snapshots)
+    const showInvite = btn(t("Show invite code"), async () => {
+      const code = await c.inviteCode().catch(report);
+      if (!code) return;
+      inviteBox.replaceChildren(h("textarea.of-collab-input", { readOnly: true, rows: 3, value: code, "aria-label": t("Invite code") }), h("p.of-collab-hint", t("Anyone with this code can join until the host changes the key. Share it privately (not in public channels). It is never saved by OpenFini.")));
     }, { ic: "eye" });
-    const copyText = async (text, done) => {
+    const copyText = async (get, done) => {
       try {
-        await navigator.clipboard.writeText(text);
+        await navigator.clipboard.writeText(await get());
         app.toast(done, "success", 2200);
       } catch {
         app.toast("Copying failed. Use “Show invite code” and copy it by hand.", "warning", 3000);
       }
     };
-    const copy = btn(t("Copy invite code"), () => copyText(s.shareInviteCode, t("Invite code copied. Share it privately.")), { ic: "copy" });
-    const leave = btn(t("Leave"), () => app.run("collab.leave"), { ic: "box-arrow-up-right", variant: "danger" });
-    const share = app.doc && canDo(s.myRole, "file-offer") ? btn(t("Share this document…"), () => c.shareFlow(app.doc).catch((e) => app.toast(e.message, "danger", 5000)), { ic: "share" }) : null;
-    // rooms across the network: the address other devices use, join link and QR code (from the relay's /info)
+    const copy = btn(t("Copy invite code"), () => copyText(c.inviteCode, t("Invite code copied. Share it privately.")), { ic: "copy" });
+    const leave = btn(t("Leave"), async () => (await confirmDialog({ title: "Leave room", message: "Leave this collaboration room? Your documents stay open on this device.", ok: "Leave" })) && c.leave().catch(report), { ic: "box-arrow-up-right", variant: "danger" });
+    const share = app.doc && canDo(s.myRole, "file-offer") ? btn(t("Share this document…"), () => c.shareFlow().catch(report), { ic: "share" }) : null;
+    // rooms across the network: the address other devices use, join link and QR code (the main window asks the relay's /info)
     const lanBox = h("div.of-collab-lan");
-    const builtinBox = builtinRelay && s.invite.relay === builtinRelay.local ? builtinRelayCard(s) : null;
-    if (s.invite.relay !== "local" && !builtinBox) {
-      import("./network.js").then(async (net) => {
-        const info = await net.relayInfo(s.invite.relay);
-        const addrs = net.inviteAddresses(info, s.invite.relay);
+    const builtinBox = s.builtin ? builtinRelayCard(s) : null;
+    if (!s.local && !builtinBox) {
+      Promise.all([import("./network.js"), c.inviteNet()]).then(([net, n]) => {
         const parts = [];
-        if (net.isLoopbackRelay(s.invite.relay) && !s.inviteRelay) parts.push(h("p.of-collab-note", icon("exclamation-triangle"), t("This invite points to localhost, which other devices cannot reach. Choose this computer's network address below.")));
-        if (addrs.length) {
-          const cur = s.inviteRelay || s.invite.relay;
-          const sel = h("select.of-collab-input", { "aria-label": t("Address for other devices") }, h("option", { value: s.invite.relay }, t("{url} (as entered)", { url: s.invite.relay })), ...addrs.map((a) => h("option", { value: a.url, selected: a.url === cur }, a.label)));
-          sel.addEventListener("change", () => {
-            try {
-              if (sel.value === s.invite.relay) s.inviteRelay = null;
-              else s.setInviteRelay(sel.value);
-              renderPeople();
-            } catch (e) {
-              app.toast(e.message, "danger", 4000);
-            }
-          });
+        if (n.loopback) parts.push(h("p.of-collab-note", icon("exclamation-triangle"), t("This invite points to localhost, which other devices cannot reach. Choose this computer's network address below.")));
+        if (n.addrs.length) {
+          const sel = h("select.of-collab-input", { "aria-label": t("Address for other devices") }, h("option", { value: n.entered }, t("{url} (as entered)", { url: n.entered })), ...n.addrs.map((a) => h("option", { value: a.url, selected: a.url === n.current }, a.label)));
+          sel.addEventListener("change", () => c.setInviteRelay(sel.value === n.entered ? "" : sel.value).then(() => renderPeople()).catch(report));
           parts.push(h("label.of-collab-field", h("span", t("Address for other devices")), sel));
-        } else if (!info && net.isLoopbackRelay(s.invite.relay)) parts.push(h("p.of-collab-hint", t("The relay's network addresses could not be read. Start it with node openfini-relay.mjs --lan (How to start a relay), or type this computer's IP address into the relay address.")));
-        const link = net.joinLink(info, s.shareInviteCode);
-        if (link) {
+        } else if (n.infoMissing) parts.push(h("p.of-collab-hint", t("The relay's network addresses could not be read. Start it with node openfini-relay.mjs --lan (How to start a relay), or type this computer's IP address into the relay address.")));
+        if (n.canLink) {
           const qrBox = h("div.of-collab-qr");
           const qrBtn = btn(showQr ? t("Hide QR code") : t("Show QR code"), () => ((showQr = !showQr), renderPeople()), { ic: "phone" });
           qrBtn.setAttribute("aria-pressed", String(showQr));
-          if (showQr) qrBox.replaceChildren(net.qrSvg(link, t("QR code of the join link")), h("p.of-collab-hint", t("Scan with a phone or tablet on the same network. Anyone who can see this code can join the room.")));
-          parts.push(h("div.of-collab-actions", btn(t("Copy join link"), () => copyText(link, t("Join link copied. It contains the room key: share it privately.")), { ic: "link-45deg" }), qrBtn), qrBox);
+          if (showQr) c.inviteLink().then((link) => qrBox.replaceChildren(net.qrSvg(link, t("QR code of the join link")), h("p.of-collab-hint", t("Scan with a phone or tablet on the same network. Anyone who can see this code can join the room.")))).catch(report);
+          parts.push(h("div.of-collab-actions", btn(t("Copy join link"), () => copyText(c.inviteLink, t("Join link copied. It contains the room key: share it privately.")), { ic: "link-45deg" }), qrBtn), qrBox);
         }
         lanBox.replaceChildren(...parts);
-      });
+      }).catch(() => {});
     }
     const status = h("section.of-collab-card",
       h("div.of-collab-status", icon(st.connected ? "shield-check" : "exclamation-triangle"), h("span", st.connected ? t("Connected to {host}, end-to-end encrypted, {n, plural, one {# member} other {# members}}.", { host: s.relayHost, n: st.members }) : t("Not connected ({state}).", { state: s.state }))),
@@ -863,7 +743,7 @@ function createWindow(app, c) {
       if (!list.length) return;
       const row = (d) => {
         const acts = d.open
-          ? [btn(d.ownedByMe ? t("Stop sharing") : t("Leave"), () => live.stop(d.doc).catch((e) => app.toast(e.message, "danger")), { ic: "x-circle" })]
+          ? [btn(d.ownedByMe ? t("Stop sharing") : t("Leave"), () => live.stop(d.doc).catch(report), { ic: "x-circle" })]
           : [btn(t("Open live"), () => live.openLive(d.doc).catch((e) => app.toast(e.message, "danger", 5000)), { variant: "primary" }), btn(t("Open copy"), () => live.openCopy(d.doc).catch((e) => app.toast(e.message, "danger", 5000)))];
         const meta = d.open ? (d.paused ? t("Live · paused · {n, plural, one {# person} other {# people}}", { n: d.people }) : t("Live · {n, plural, one {# person} other {# people}}", { n: d.people })) : t("Shared by {name}", { name: d.from });
         return h("li.of-collab-member", icon(d.kind === "text" ? "code-slash" : "file-earmark"), h("div.of-collab-member__meta", h("strong", d.name), h("span", meta)), h("div.of-collab-member__acts", ...acts));
@@ -873,7 +753,7 @@ function createWindow(app, c) {
     const rows = [];
     rows.push(memberRow({ id: s.id, profile: s.profile, presence: c.presencePayload(), online: true }, true));
     for (const m of s.members) rows.push(memberRow(m, false));
-    const filesBox = c.received.size ? h("section.of-collab-card", h("h3", t("Received files")), ...[...c.received.values()].map(({ transfer }) => h("div.of-filecard", icon("file-earmark"), h("div.of-filecard__meta", h("strong", transfer.name), h("span", formatBytes(transfer.size))), h("div.of-filecard__acts", btn(t("Open"), async () => (await confirmDialog({ title: "Open received file", message: t("Open “{name}”? Only open files from people you trust.", { name: transfer.name }), ok: "Open" })) && c.openReceived(transfer.fid, "copy").catch((e) => app.toast(e.message, "danger"))), btn(t("Save…"), () => c.saveReceived(transfer.fid)), btn("", () => c.dismissReceived(transfer.fid), { ic: "x", title: t("Dismiss") }))))) : null;
+    const filesBox = c.received.size ? h("section.of-collab-card", h("h3", t("Received files")), ...[...c.received.values()].map(({ transfer }) => h("div.of-filecard", icon("file-earmark"), h("div.of-filecard__meta", h("strong", transfer.name), h("span", formatBytes(transfer.size))), h("div.of-filecard__acts", btn(t("Open"), async () => (await confirmDialog({ title: "Open received file", message: t("Open “{name}”? Only open files from people you trust.", { name: transfer.name }), ok: "Open" })) && c.openReceived(transfer.fid, "copy").catch((e) => app.toast(e.message, "danger"))), btn(t("Save…"), () => c.saveReceived(transfer.fid).catch(report)), btn("", () => c.dismissReceived(transfer.fid), { ic: "x", title: t("Dismiss") }))))) : null;
     body.replaceChildren(h("div.of-collab-people", status, sharedBox, h("section.of-collab-card", h("h3", t("Members")), h("ul.of-collab-members", ...rows)), filesBox));
   }
 
@@ -905,7 +785,10 @@ function createWindow(app, c) {
   // ---------------------------------------------------------------- comments
   function renderComments() {
     const doc = app.doc;
-    if (!doc) return body.replaceChildren(h("p.of-collab-empty", t("Open a document to see and add comments.")));
+    if (!doc) return body.replaceChildren(h("p.of-collab-empty", t("Open a document in the main window to see and add comments.")));
+    for (const ta of body.querySelectorAll("textarea[data-thread]")) drafts.set(ta.dataset.thread, ta.value);
+    const hadFocus = document.activeElement?.dataset?.thread || null;
+    const newDraft = body.querySelector(".of-comments__new textarea")?.value;
     const threads = c.threads(doc);
     const counts = threadCounts(threads);
     const seg = h("div.of-collab-seg", { role: "group", "aria-label": t("Show") }, ...[["open", t("Open ({n})", { n: counts.open })], ["resolved", t("Resolved ({n})", { n: counts.resolved })], ["all", t("All")]].map(([v, label]) => {
@@ -915,76 +798,32 @@ function createWindow(app, c) {
     }));
     const mine = h("label.of-collab-check", h("input", { type: "checkbox", checked: commentFilter.mine }), h("span", t("Mine and mentions")));
     mine.firstChild.addEventListener("change", (e) => ((commentFilter.mine = e.target.checked), renderComments()));
-    const add = btn(t("New comment"), () => startComment(c.currentAnchor()), { ic: "plus-lg", variant: "primary" });
-    const composer = pendingAnchor ? newCommentForm(doc) : null;
+    const add = btn(t("New comment"), () => startComment(), { ic: "plus-lg", variant: "primary" });
+    const composer = pendingAnchor ? newCommentForm(doc, newDraft) : null;
     const listed = filterThreads(threads, { status: commentFilter.status, mine: commentFilter.mine ? c.myId : null });
     const items = listed.map((th) => threadCard(doc, th));
-    body.replaceChildren(h("div.of-comments", h("div.of-comments__bar", seg, mine, add), composer, items.length ? h("div.of-comments__list", ...items) : h("p.of-collab-empty", commentFilter.status === "open" ? t("No open comments. Select a layer, text or code line and choose Add Comment (Ctrl+Alt+M).") : t("Nothing here."))));
+    body.replaceChildren(h("div.of-comments", h("div.of-comments__bar", seg, mine, add), composer, items.length ? h("div.of-comments__list", ...items) : h("p.of-collab-empty", commentFilter.status === "open" ? t("No open comments. Select a layer, text or code line in the main window and choose New comment, or press Ctrl+Alt+M there.") : t("Nothing here."))));
     if (focusThread) {
       const card = body.querySelector(`[data-thread="${CSS.escape(focusThread)}"]`);
       card?.scrollIntoView({ block: "nearest" });
       card?.querySelector("textarea")?.focus();
       focusThread = null;
-    }
-    if (composer) composer.querySelector("textarea").focus();
+    } else if (hadFocus) body.querySelector(`textarea[data-thread="${CSS.escape(hadFocus)}"]`)?.focus();
+    else if (composer) composer.querySelector("textarea").focus();
   }
 
-  function anchorLabel(doc, a) {
-    switch (a.kind) {
-      case "node": {
-        const n = doc.find(a.node);
-        return n ? t("Layer “{name}”", { name: n.name || n.type }) : t("Deleted layer “{name}”", { name: a.quote || "?" });
-      }
-      case "page":
-      case "region": {
-        const p = doc.pages.find((x) => x.id === a.page);
-        return p ? t("Page “{name}”", { name: p.name || "" }) : t("Deleted page");
-      }
-      case "line":
-        return a.endLine ? t("{file}, lines {from}–{to}", { file: (a.path || "").split("/").pop(), from: a.line, to: a.endLine }) : t("{file}, line {line}", { file: (a.path || "").split("/").pop(), line: a.line });
-      case "element":
-        return t("Website element {name}", { name: a.quote || a.elem });
-      case "text":
-        return a.quote ? t("Text “{quote}”", { quote: a.quote.slice(0, 40) }) : t("Text");
-      default:
-        return t("Document");
-    }
-  }
-
-  function jumpToAnchor(doc, a) {
-    if (a.kind === "node") return c.jump({ kind: "node", doc: doc.id, id: a.node, page: a.page });
-    if (a.kind === "page" || a.kind === "region") return c.jump({ kind: "page", doc: doc.id, id: a.page, page: a.page });
-    if (a.kind === "line") return c.jump({ kind: "line", doc: doc.id, id: a.path, line: a.line });
-    if (a.kind === "element") {
-      app.setStudio("code");
-      return void setTimeout(() => app.codeUI?.selectElement?.(a.elem, { reveal: true }), 150);
-    }
-    if (a.kind === "item" && app.officeUI?.doc === doc) {
-      app.setStudio("office");
-      return void app.officeUI.revealAnchor?.(a);
-    }
-    if (a.kind === "text" && app.officeUI?.editor && app.officeUI.doc === doc) {
-      try {
-        app.setStudio("office");
-        const path = JSON.parse(a.path);
-        app.officeUI.editor.setSelection({ anchor: { path, offset: a.from || 0 }, focus: { path, offset: a.to ?? a.from ?? 0 } });
-      } catch {
-        /* the paragraph moved */
-      }
-    }
-  }
-
-  function newCommentForm(doc) {
+  function newCommentForm(doc, draft) {
     const ta = h("textarea.of-collab-input", { rows: 3, maxLength: LIMITS.commentText, placeholder: t("Add a comment… (@ to mention)"), "aria-label": t("Comment") });
-    if (pendingAnchor.text) ta.value = pendingAnchor.text;
-    const save = () => {
+    ta.value = draft ?? pendingAnchor.text ?? "";
+    const save = async () => {
+      if (!ta.value.trim()) return;
       try {
-        c.addThread(doc, pendingAnchor.anchor, ta.value);
+        await c.addThread(ta.value);
         pendingAnchor = null;
         commentFilter.status = "open";
         renderComments();
       } catch (e) {
-        app.toast(e.message, "warning", 3000);
+        app.toast(e.message, "warning", 4000);
       }
     };
     ta.addEventListener("keydown", (e) => {
@@ -995,15 +834,15 @@ function createWindow(app, c) {
         renderComments();
       }
     });
-    return h("section.of-collab-card.of-comments__new", h("div.of-comments__anchor", icon("chat-quote"), h("span", anchorLabel(doc, pendingAnchor.anchor))), ta, h("div.of-collab-actions", btn(t("Cancel"), () => ((pendingAnchor = null), renderComments())), btn(t("Comment"), save, { variant: "primary" })), h("p.of-collab-hint", t("Ctrl+Enter to post. Comments are saved in the document and shared with the room when you are in one.")));
+    return h("section.of-collab-card.of-comments__new", h("div.of-comments__anchor", icon("chat-quote"), h("span", t("On the current selection in the main window ({name})", { name: doc.name }))), ta, h("div.of-collab-actions", btn(t("Cancel"), () => ((pendingAnchor = null), renderComments())), btn(t("Comment"), save, { variant: "primary" })), h("p.of-collab-hint", t("Ctrl+Enter to post. Comments are saved in the document and shared with the room when you are in one.")));
   }
 
   function threadCard(doc, th) {
     const card = h("article.of-thread", { class: th.resolved ? "of-thread--resolved" : "", "data-thread": th.id, style: `--of-collab-color:${th.color || "#888888"}` });
-    const jump = btn(anchorLabel(doc, th.anchor), () => jumpToAnchor(doc, th.anchor), { cls: "of-collab-link", ic: "crosshair", title: t("Show where this comment is") });
-    const res = btn(th.resolved ? t("Reopen") : t("Resolve"), () => c.setResolved(doc, th.id, !th.resolved), { ic: th.resolved ? "arrow-counterclockwise" : "check2-circle" });
+    const jump = btn(th.where, () => c.jumpToThread(th.id), { cls: "of-collab-link", ic: "crosshair", title: t("Show where this comment is in the main window") });
+    const res = btn(th.resolved ? t("Reopen") : t("Resolve"), () => c.setResolved(th.id, !th.resolved), { ic: th.resolved ? "arrow-counterclockwise" : "check2-circle" });
     const head = h("div.of-thread__head", jump, res);
-    if (c.isMine(th.author) || c.session?.isHost) head.append(btn("", async () => (await confirmDialog({ title: "Delete comment thread", message: "Delete this whole thread with all replies?", ok: "Delete", danger: true })) && c.commentOp(doc, { op: "drop", threadId: th.id }), { ic: "trash3", title: t("Delete thread") }));
+    if (c.isMine(th.author) || c.session?.isHost) head.append(btn("", async () => (await confirmDialog({ title: "Delete comment thread", message: "Delete this whole thread with all replies?", ok: "Delete", danger: true })) && c.dropThread(th.id), { ic: "trash3", title: t("Delete thread") }));
     card.append(head);
     if (th.anchor.quote && th.anchor.kind !== "node" && th.anchor.kind !== "page") card.append(h("blockquote.of-thread__quote", th.anchor.quote));
     for (const m of th.messages) {
@@ -1013,22 +852,22 @@ function createWindow(app, c) {
           btn("", () => {
             const ta = h("textarea.of-collab-input", { rows: 2, value: m.text, "aria-label": t("Edit comment") });
             const p = msg.querySelector(".of-msg__text");
-            p.replaceWith(h("div", ta, h("div.of-collab-actions", btn(t("Cancel"), () => renderComments()), btn(t("Save"), () => c.commentOp(doc, { op: "edit", threadId: th.id, msgId: m.id, text: ta.value.trim() || m.text }) || renderComments(), { variant: "primary" }))));
+            p.replaceWith(h("div", ta, h("div.of-collab-actions", btn(t("Cancel"), () => renderComments()), btn(t("Save"), () => (c.editComment(th.id, m.id, ta.value.trim() || m.text), renderComments()), { variant: "primary" }))));
             ta.focus();
           }, { ic: "pencil", title: t("Edit") }),
-          btn("", () => c.commentOp(doc, { op: "delete", threadId: th.id, msgId: m.id }), { ic: "trash3", title: t("Delete") }),
+          btn("", () => c.deleteComment(th.id, m.id), { ic: "trash3", title: t("Delete") }),
         ));
       }
       card.append(msg);
     }
     if (th.resolved) card.append(h("p.of-collab-hint", t("Resolved by {name} · {date}", { name: th.resolvedBy || "?", date: th.resolvedAt ? fmtDate(th.resolvedAt) : "" })));
     const ta = h("textarea.of-collab-input", { rows: 1, maxLength: LIMITS.commentText, placeholder: t("Reply…"), "aria-label": t("Reply to this comment") });
+    ta.dataset.thread = th.id;
+    ta.value = drafts.get(th.id) || "";
     const send = () => {
-      try {
-        if (c.reply(doc, th.id, ta.value)) ta.value = "";
-      } catch (e) {
-        app.toast(e.message, "warning", 2500);
-      }
+      if (!c.reply(th.id, ta.value)) return;
+      ta.value = "";
+      drafts.delete(th.id);
     };
     ta.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
@@ -1040,9 +879,9 @@ function createWindow(app, c) {
     return card;
   }
 
-  function startComment(anchor, text) {
+  function startComment(text) {
     if (!app.doc) return;
-    pendingAnchor = { anchor, text };
+    pendingAnchor = { text };
     if (tab !== "comments") select("comments");
     else renderComments();
   }
@@ -1051,15 +890,16 @@ function createWindow(app, c) {
   let savingForm = false;
   async function renderVersions() {
     const doc = app.doc;
-    if (!doc) return body.replaceChildren(h("p.of-collab-empty", t("Open a document to see its versions.")));
+    if (!doc) return body.replaceChildren(h("p.of-collab-empty", t("Open a document in the main window to see its versions.")));
     const name = h("input.of-collab-input", { maxLength: 80, placeholder: t("Version name, e.g. “Sent to client”"), "aria-label": t("Version name") });
     const note = h("textarea.of-collab-input", { rows: 2, maxLength: 500, placeholder: t("Note (optional)"), "aria-label": t("Note") });
     const save = btn(t("Save version"), async (e, b) => {
       b.disabled = true;
       try {
-        await c.saveVersion(doc, { name: name.value.trim(), note: note.value.trim() });
+        await c.saveVersion({ name: name.value.trim(), note: note.value.trim() });
         savingForm = false;
         app.toast("Version saved on this device.", "success", 1800);
+        renderVersions();
       } catch (ex) {
         app.toast(ex.message, "danger", 4000);
       } finally {
@@ -1070,8 +910,8 @@ function createWindow(app, c) {
     const listBox = h("div.of-versions", h("p.of-collab-hint", t("Loading…")));
     body.replaceChildren(h("div.of-versions-tab", form, listBox));
     if (savingForm) name.focus();
-    const list = await c.versions.list(doc.id);
-    if (tab !== "versions" || app.doc !== doc) return;
+    const list = await c.versions.list().catch(() => []);
+    if (tab !== "versions" || app.doc?.id !== doc.id || !listBox.isConnected) return;
     if (!list.length) return listBox.replaceChildren(h("p.of-collab-empty", t("No versions yet.")));
     const s = c.session;
     listBox.replaceChildren(...list.map((v) => {
@@ -1084,7 +924,7 @@ function createWindow(app, c) {
         }
       });
       const acts = h("div.of-version__acts",
-        btn(t("Restore"), async () => (await confirmDialog({ title: "Restore version", message: t("Replace the current content with “{name}”? A snapshot of the current state is saved first, and Undo also brings it back.", { name: v.name }), ok: "Restore" })) && c.restoreVersion(v.id, { inPlace: true }).then(() => renderVersions()).catch((e) => app.toast(e.message, "danger", 4000)), { ic: "arrow-counterclockwise" }),
+        btn(t("Restore"), async () => (await confirmDialog({ title: "Restore version", message: t("Replace the current content with “{name}”? A snapshot of the current state is saved first, and Undo also brings it back.", { name: v.name }), ok: "Restore" })) && c.restoreVersion(v.id, { inPlace: true }).then(() => renderVersions()).catch(report), { ic: "arrow-counterclockwise" }),
         btn(t("Open as copy"), () => c.restoreVersion(v.id).catch((e) => app.toast(e.message, "danger", 4000)), { ic: "files" }),
       );
       if (s?.state === "open" && canDo(s.myRole, "file-offer")) acts.append(btn(t("Send to room"), () => c.sendVersion(v.id).then(() => app.toast("Version sent.", "success", 1600)).catch((e) => app.toast(e.message, "danger", 4000)), { ic: "send" }));
@@ -1092,27 +932,15 @@ function createWindow(app, c) {
         btn("", async () => {
           const { promptDialog } = await import("../dialogs.js");
           const nn = await promptDialog({ title: "Rename version", label: "Name", value: v.name });
-          if (nn != null) await c.versions.rename(v.id, nn.trim() || v.name);
+          if (nn != null) await c.versions.rename(v.id, nn.trim() || v.name).catch(report);
           renderVersions();
         }, { ic: "pencil", title: t("Rename") }),
-        btn("", async () => (await confirmDialog({ title: "Delete version", message: t("Delete the version “{name}” from this device?", { name: v.name }), ok: "Delete", danger: true })) && c.versions.remove(v.id).then(() => renderVersions()), { ic: "trash3", title: t("Delete") }),
+        btn("", async () => (await confirmDialog({ title: "Delete version", message: t("Delete the version “{name}” from this device?", { name: v.name }), ok: "Delete", danger: true })) && c.versions.remove(v.id).then(() => renderVersions()).catch(report), { ic: "trash3", title: t("Delete") }),
       );
       return h("article.of-version", img, h("div.of-version__meta", h("strong", v.name), h("span", `${fmtDate(v.ts)}${v.author ? ` · ${v.author}` : ""} · ${formatBytes(v.bytes)}`), v.auto ? h("span.of-version__badge", t("automatic")) : null, v.note ? h("p", v.note) : null), acts);
     }));
   }
 
-  return {
-    el,
-    show,
-    hide,
-    select,
-    startComment,
-    startSaveVersion() {
-      savingForm = true;
-      if (tab !== "versions") select("versions");
-      else renderVersions();
-    },
-  };
+  select("chat");
+  return { el, select, show };
 }
-
-export { openDialog, platform, colorFor };

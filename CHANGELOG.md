@@ -14,11 +14,17 @@ All notable changes to OpenFini are documented here. The format follows
 - Spreadsheet page setup: *Scaling* (actual size, fit to one page, all columns on one page width) scales the print area onto the chosen paper instead of resizing the page; paper sizes A3, A5 and Legal. Vibe `sheet_page_setup` takes `fit`.
 
 ### Changed
+- **Collaboration always opens in its own window** ([ADR 0030](docs/adr/0030-collab-native-window.md), [docs/collaboration.md](docs/collaboration.md#the-collaboration-window)): a native window in the desktop app, a popup window in the browser and the PWA. It is never drawn inside the app window any more. The window now holds everything: start or join a room, invite code and QR code, verification words, members and roles, chat with files, comments and versions (the earlier pop-out showed chat, people and comments only). Opening it again focuses the open window; it reopens where it was; closing it does not leave the room (a message offers to open it again); closing the main window closes it. The main window keeps the one room connection and the keys. Cursors, selections and comment pins stay in the document.
+- When a browser blocks the Collaboration window, a dialog says so and its button opens the window from that click. There is no fallback into the app window.
+- *Add Comment in Panel…* is now *Add Comment…* and opens the composer in the document.
 - Code studio: the image context menu in Assets and the Explorer now reads *Open in Pixel Studio* / *Open in Vector Studio*.
 - Spreadsheet data validation also checks pasted values (Paste, Paste Special) and values written by `sheet_write_range` and `sheet_paste_special`; nothing is written when a value breaks a rule.
 
 ### Fixed
 - Glass surface style: dialogs, the command palette and popovers no longer show a repeating bright stripe every 160 px (the highlight gradient was tiled by the grain layer size).
+
+### Removed
+- The floating in-app Collaboration window, the setting *Open Collaboration in its own window* (`collabPopout`) and the command *Pop Out Collaboration Window* (`collab.popOut`).
 
 ## [1.1.0] — Scene Studio, code mode for Vibe, deeper tools
 

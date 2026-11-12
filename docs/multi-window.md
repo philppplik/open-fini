@@ -17,7 +17,7 @@ Every window is a full OpenFini instance (own `App`, own memory). A pop-out is t
 | Runtime: window creation, handoff, return, recovery, prefs sync | `app/src/ui/popout.js` (lazy, loaded by `boot.js`) |
 | Commands | `app/src/commands/window.js` |
 | Menus | `File` and `View` in `ui/menus.js`; tab and studio-button providers in `ui/context-menu/providers.js` |
-| Tauri permissions | `src-tauri/capabilities/default.json` (`windows: ["main", "popout-*"]`, `core:webview:allow-create-webview-window`) |
+| Tauri permissions | `src-tauri/capabilities/default.json` (`windows: ["main", "popout-*", "collab"]`, `core:webview:allow-create-webview-window`) |
 
 ### Handoff protocol
 1. Source opens the window first (the browser needs the click's user gesture), choosing the handoff id.
@@ -37,8 +37,8 @@ Pop-outs autosave to their own key `popout-session:<windowId>` (the main window 
 - Documents are never shared live; there is no co-editing between windows.
 - Studio Vibe chats and other in-memory state are per window.
 
-## Collaboration pop-out
-`?popout=collab` is not a studio pop-out: `boot.js` hands it to `ui/collab/remote-view.js`, a UI-only remote view of the main window's room (no document handoff, no second connection or identity). It uses its own channel `openfini-collab-ui`, not the handoff protocol above. Design and limits: [ADR 0013](adr/0013-collab-popout.md), [collaboration.md](collaboration.md#pop-out-window). `popoutCollab(app)` in `ui/popout.js` opens it (560x720 window, minimum 340x320).
+## Collaboration window
+`?popout=collab` is not a studio pop-out: `boot.js` hands it to `ui/collab/remote-view.js`, the one place where the Collaboration UI is shown (it never renders inside the app window). It is a remote view of the main window's room (no document handoff, no second connection or identity) on its own channel `openfini-collab-ui`, not the handoff protocol above. `popoutCollab()` in `ui/popout.js` opens it or focuses the open one: desktop label `collab` (found again with `getByLabel`), browser window name `openfini-collab`; 560x720 by default (minimum 340x320), reopened where it was when that place is still on a screen. A blocked popup shows a dialog with a retry button. Closing the main window closes it. Design and limits: [ADR 0030](adr/0030-collab-native-window.md), [collaboration.md](collaboration.md#the-collaboration-window).
 
 ## Recent files
 Start page: **Clear recent** (confirm, then an Undo toast for 6 seconds that restores the list and the stored copies), a remove button per entry (hover or keyboard focus). File ▸ Open Recent ends with **Clear Recent**. Command `file.clearRecent`. Settings ▸ General: "Show recent files on the start page" (`showRecent`) and "Number of recent files to remember" (`recentLimit`, 0-50; 0 stores nothing; lowering trims at once). Pure list logic: `app/src/core/recents.js` (tests: `tests/core/recents.test.js`). No Vibe tool: neither feature acts on documents.

@@ -41,6 +41,8 @@ const OPEN_FILES_EVENT: &str = "openfini://open-files";
 
 /// Label of the main window (see `app.windows` in `tauri.conf.json`).
 const MAIN_WINDOW: &str = "main";
+/// Label of the Collaboration window (created by the web side: `WINDOW_LABEL` in `app/src/collab/remote-ui.js`).
+const COLLAB_WINDOW: &str = "collab";
 
 /// Files handed to the app by the OS (launch arguments, a second launch, the
 /// macOS "Open With" events) that the frontend has not picked up yet.
@@ -211,6 +213,14 @@ pub fn run() {
             fileaccess::files_audit,
             fileaccess::files_audit_clear,
         ])
+        // The Collaboration window is a remote view of the main window's room: it never outlives it.
+        .on_window_event(|window, event| {
+            if window.label() == MAIN_WINDOW && matches!(event, tauri::WindowEvent::Destroyed) {
+                if let Some(collab) = window.app_handle().get_webview_window(COLLAB_WINDOW) {
+                    let _ = collab.destroy();
+                }
+            }
+        })
         .setup(|app| {
             let args = std::env::args_os()
                 .skip(1)

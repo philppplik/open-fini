@@ -1,6 +1,6 @@
 # 0013: The Collaboration window pops out as a UI-only remote view
 
-Status: Accepted
+Status: Superseded by [0030](0030-collab-native-window.md) (the remote-view idea stays; the floating in-app window and the reduced pop-out are gone)
 
 ## Context
 

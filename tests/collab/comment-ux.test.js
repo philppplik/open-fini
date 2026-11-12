@@ -3,8 +3,7 @@ import assert from "node:assert/strict";
 import { canvasAnchor, resolvePin, moveAnchor, codeAnchor, codeRange, officeAnchor, elementAnchor, pinNumbers, stepThread, popoverPosition } from "../../app/src/collab/anchors.js";
 import { validateThread, validateMessage } from "../../app/src/collab/protocol.js";
 import { applyCommentOp, newThread } from "../../app/src/collab/comments.js";
-import { layoutMode, clampRect, snapRect, maximizedRect, readLayoutState } from "../../app/src/ui/collab/layout-mode.js";
-import { isUiMessage, validateAction, makeSnapshot, readSnapshot } from "../../app/src/collab/remote-ui.js";
+import { layoutMode } from "../../app/src/ui/collab/layout-mode.js";
 
 const author = { id: "m1m1m1m1m1m1m1m1m1m1m1", nick: "Ann", color: "#112233" };
 const thread = (anchor) => ({ id: "t1", anchor, author: author.id, nick: "Ann", color: "#112233", ts: 1, messages: [{ id: "a1", author: author.id, text: "hi", ts: 1 }] });
@@ -73,33 +72,9 @@ test("responsive layout decisions", () => {
   assert.equal(layoutMode(899), "rail");
   assert.equal(layoutMode(900), "wide");
   assert.equal(layoutMode(NaN), "narrow");
-  const r = clampRect({ x: -50, y: 900, w: 100, h: 9999 }, { vw: 1000, vh: 800 });
-  assert.deepEqual(r, { x: 0, y: 16, w: 300, h: 784 });
-  assert.equal(snapRect({ x: 5, y: 100, w: 300, h: 300 }, { vw: 1000, vh: 800 }).edge, "left");
-  assert.equal(snapRect({ x: 690, y: 100, w: 300, h: 300 }, { vw: 1000, vh: 800 }).rect.x, 700);
-  assert.equal(snapRect({ x: 200, y: 200, w: 300, h: 300 }, { vw: 1000, vh: 800 }).edge, null);
-  assert.deepEqual(maximizedRect({ vw: 1000, vh: 800 }), { x: 8, y: 8, w: 984, h: 784 });
-  assert.deepEqual(readLayoutState({ x: "a", w: 400, h: 500, dock: "evil", compact: true }), { w: 400, h: 500, maximized: false, compact: true, dock: "float" });
-  assert.equal(readLayoutState(null).dock, "float");
 });
 
-test("pop-out remote view protocol: whitelist and bounded snapshots", () => {
-  assert.equal(isUiMessage({ t: "hello", pid: "p1" }), true);
-  assert.equal(isUiMessage({ t: "evil" }), false);
-  assert.equal(isUiMessage(null), false);
-  assert.deepEqual(validateAction({ name: "chat.send", args: { text: "  hi  " } }), { ok: true, action: { name: "chat.send", args: { text: "hi" } } });
-  assert.equal(validateAction({ name: "chat.send", args: { text: "  " } }).ok, false);
-  assert.equal(validateAction({ name: "leave" }).ok, false);
-  assert.equal(validateAction({ name: "constructor" }).ok, false);
-  assert.equal(validateAction({ name: "comment.reply", args: { thread: "../x", text: "a" } }).ok, false);
-  assert.equal(validateAction({ name: "comment.resolve", args: { thread: "t1", on: false } }).action.args.on, false);
-  const s = makeSnapshot({ status: { inRoom: true, state: "open", members: 2 }, me: { id: "m1", nick: "A", color: "bad" }, members: [{ id: "m2", nick: "B", color: "#abcdef" }], chat: Array.from({ length: 500 }, (_, i) => ({ id: `c${i}`, text: "x".repeat(9000), ts: i })), unread: 3, doc: { id: "d", name: "Doc" }, threads: [], inviteCode: "SECRET" });
-  assert.equal(s.chat.length, 120);
-  assert.equal(s.chat[0].text.length, 4000);
-  assert.equal(s.me.color, "#888888");
-  assert.equal(JSON.stringify(s).includes("SECRET"), false);
-  assert.equal(readSnapshot(null), null);
-});
+// The Collaboration window's protocol and model: tests/collab/remote-ui.test.js
 
 test("new anchors travel in comment ops; reanchor is limited to the author or the host", () => {
   const anchor = canvasAnchor({ pageId: "p1", node: { id: "n1", name: "Logo" }, bounds: { x: 0, y: 0, w: 10, h: 10 }, point: { x: 5, y: 5 } });

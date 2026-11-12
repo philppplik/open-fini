@@ -112,7 +112,6 @@ const defaultPrefs = () => ({
   smtpAccount: null, // "Send by email" (desktop app): { host, port, security, user, from, pinnedCert }; the password is in the key store
   collabActivity: true, // post my edits as activity lines in the room chat
   collabCursors: "auto", // show other members' cursors: auto (off in low-power mode) | on | off
-  collabPopout: true, // the Collaboration window opens as its own window (desktop; browsers fall back to the in-page window)
   updateSkipped: "", // version the user chose to skip in the update dialog
   collabNotify: true, // toast + title badge for @mentions and replies
   collabPins: true, // show comment pins and highlights on the canvas and in the editors

@@ -1,9 +1,10 @@
-/* Collaboration: floating window, chat, comments, versions, presence marks (app/src/ui/collab/). Theme via --of-* vars. */
+/* Collaboration: the Collaboration window (its own OS window), chat, comments, versions, presence marks (app/src/ui/collab/). Theme via --of-* vars. */
 .of-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-.of-collab-win { position: fixed; right: 24px; bottom: 48px; width: 380px; height: 560px; min-width: 300px; min-height: 280px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); z-index: 900; display: flex; flex-direction: column; background: var(--of-bg-panel); color: var(--of-text); border: 1px solid var(--of-border); border-radius: var(--of-radius, 8px); box-shadow: var(--of-shadow, 0 12px 32px rgba(0, 0, 0, 0.35)); resize: both; overflow: hidden; font: 13px/1.4 var(--of-font, system-ui, sans-serif); }
+/* fills its own OS window (ui/collab/remote-view.js); it is never shown inside the app window */
+.of-collab-win { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--of-bg-panel); color: var(--of-text); overflow: hidden; font: 13px/1.4 var(--of-font, system-ui, sans-serif); }
 .of-collab-win[hidden], .of-collab-win [hidden] { display: none !important; }
-.of-collab-win__head { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; background: var(--of-bg-bar, var(--of-bg-raised)); border-bottom: 1px solid var(--of-border-soft, var(--of-border)); cursor: move; user-select: none; touch-action: none; }
+.of-collab-win__head { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; background: var(--of-bg-bar, var(--of-bg-raised)); border-bottom: 1px solid var(--of-border-soft, var(--of-border)); user-select: none; }
 .of-collab-win__title { font-size: 13px; font-weight: 600; margin: 0; }
 .of-collab-pill { margin-left: auto; font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--of-hover); color: var(--of-text-dim, var(--of-text)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
 .of-collab-pill--ok { background: color-mix(in srgb, var(--of-ok, #46a758) 18%, transparent); color: var(--of-text); }
@@ -162,9 +163,6 @@
   .of-collab-btn, .of-collab-tab { transition: background-color 0.12s, color 0.12s; }
   .of-cmarker { transition: transform 0.06s linear; }
 }
-@media (max-width: 600px) {
-  .of-collab-win { left: 8px !important; right: 8px; top: auto !important; bottom: 8px; width: auto !important; height: 70vh !important; }
-}
 
 /* ---- inline comments: pins, highlights, composer / thread popovers, comment mode (ui/collab/comment-ui.js) */
 .of-cpin { position: absolute; left: 0; top: 0; z-index: 2; pointer-events: auto; min-width: 22px; height: 22px; padding: 0 5px; border: 2px solid #fff; border-radius: 11px 11px 11px 2px; background: var(--of-collab-color, var(--of-accent)); color: #fff; font: 600 11px/18px var(--of-font, system-ui, sans-serif); text-align: center; cursor: pointer; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4); touch-action: none; }
@@ -222,25 +220,13 @@ button.of-collab-aside__row:focus-visible { outline: 2px solid var(--of-accent);
 .of-collab-win.is-compact .of-collab-tab__badge { position: absolute; margin: -14px -6px 0 0; transform: translate(10px, 0); }
 .of-collab-win.is-compact .of-collab-tab { position: relative; }
 .of-collab-win.is-compact .of-collab-card, .of-collab-win.is-compact .of-thread { padding: 6px; }
-.of-collab-win.is-maximized { resize: none; }
-@media (prefers-reduced-motion: no-preference) {
-  .of-collab-win { transition: box-shadow 0.15s; }
-}
 
-/* ---- the Collaboration window popped out into its own OS window (ui/collab/remote-view.js) */
-html.is-collab-popout #app { display: none; }
-html.is-collab-popout body { margin: 0; background: var(--of-bg-panel, #1e1e22); }
-.of-collab-win--popout { position: fixed; inset: 0; width: auto; height: auto; max-width: none; max-height: none; min-width: 0; min-height: 0; resize: none; border: 0; border-radius: 0; box-shadow: none; }
-.of-collab-win--popout .of-collab-win__head { cursor: default; }
+/* ---- the Collaboration window's page (?popout=collab, ui/collab/remote-view.js) */
+html.is-collab-window #app { display: none; }
+html.is-collab-window body { margin: 0; background: var(--of-bg-panel, #1e1e22); }
+.of-collab-win--overlay .of-collab-win__head { padding-left: 78px; } /* macOS: room for the traffic lights */
+.of-collab-winbtn { flex: none; }
 .of-remote-note { margin: 12px; padding: 10px; border-radius: var(--of-radius-sm, 4px); background: var(--of-hover); color: var(--of-text-dim, var(--of-text)); }
-.of-remote-chat { display: flex; flex-direction: column; min-height: 0; flex: 1; }
-.of-remote-chat__list { flex: 1; overflow: auto; padding: 8px 12px; display: grid; align-content: start; gap: 6px; }
-.of-remote-chat__msg { display: grid; grid-template-columns: 24px 1fr; gap: 8px; }
-.of-remote-chat__msg--system { color: var(--of-text-dim, var(--of-text)); font-style: italic; }
-.of-remote-chat__composer { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--of-border-soft, var(--of-border)); }
-.of-remote-chat__composer textarea { flex: 1; resize: none; }
-.of-remote-avatar { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--of-collab-color, #888); color: #fff; font: 600 10px/1 var(--of-font, system-ui, sans-serif); }
-.of-remote-people { padding: 8px 12px; display: grid; gap: 6px; }
 
 /* ---- Comments dock panel (ui/panels/comments.js): works without a room */
 .of-cpanel { display: flex; flex-direction: column; min-height: 0; height: 100%; }

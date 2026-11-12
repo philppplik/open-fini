@@ -7,6 +7,7 @@ Legend: **Unverified** = built and unit-tested but never run in the real environ
 ## Verification gaps (built, never run for real)
 
 - **Desktop app runs** (Tauri): native glass materials (Mica/Acrylic/vibrancy), `run_command`, preview server, TeX compile, tunnel launcher, built-in relay on a real LAN.
+- **Collaboration window** ([ADR 0030](adr/0030-collab-native-window.md)): the desktop window (creation with the label `collab`, focus instead of a second window, frameless header with drag region and buttons, remembered position on mixed-DPI monitors, closing with the main window) and real browser popups (the bridge was checked between two browser tabs only).
 - **Real devices and networks:** multi-device collab over LAN/WAN, phones and tablets, small-screen header on real small displays.
 - **Real AI models:** tool-calling behavior across providers, orchestrator (`plan_work`), OpenAI plan sign-in (preview terms), MCP OAuth against real servers.
 - **File interop:** Office files produced by Excel, PowerPoint and LibreOffice; PDF/X output against real validators (preflight, Acrobat).
