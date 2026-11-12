@@ -24,6 +24,14 @@ Composer extras: attach images and text files (paperclip), attach a picture of t
 studio), the per-chat **Tools** menu (switch tool groups off for this chat only), the model pill, the approval mode and
 the thinking effort. The assistant always knows which layers you have selected, so "make this bigger" works.
 
+
+### Start ideas
+
+The empty chat shows four idea cards from a pool of about 25 (`app/src/vibe/ideas.js`), grouped by Vector, Pixel, Layout,
+Code, Office and Scene studio plus automation and memory. The studio you came from comes first; **More ideas** rotates through
+the whole pool. Clicking a card puts its prompt into the composer so you can edit it before sending. Every idea only uses
+registered tools (a test checks the tool names).
+
 ## Layout
 
 * **Left**: chats. **Center**: the conversation and the composer. **Right**: only two panels, **Canvas** and

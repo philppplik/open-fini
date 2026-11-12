@@ -194,11 +194,15 @@
 :root[data-surface="glass"] .of-toolbox,
 :root[data-surface="glass"] .of-contextbar,
 :root[data-surface="glass"] .of-status { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--of-glass-hi) 70%, transparent); }
-:root[data-surface="glass"] .of-header { background-image: linear-gradient(to bottom, color-mix(in srgb, var(--of-glass-hi) 35%, transparent), transparent 60%); }
+:root[data-surface="glass"] .of-header { background-image: linear-gradient(to bottom, color-mix(in srgb, var(--of-glass-hi) 35%, transparent), transparent 60%); background-size: 100% 100%; background-repeat: no-repeat; }
 :root[data-surface="glass"] sl-dialog::part(panel),
 :root[data-surface="glass"] .of-palette__box,
 :root[data-surface="glass"] .of-popover {
   background-image: linear-gradient(to bottom, color-mix(in srgb, var(--of-glass-hi) 45%, transparent), transparent 18%);
+  /* the shared `background` shorthand above sizes its (grain) layer 160px; without this the highlight gradient inherited
+     that size and tiled every 160px, drawing a bright stripe across tall dialogs. Glass has no grain, so one full-size layer. */
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
 }
 
 /* ------------------------------------------------------------------ native window material (desktop app, ui/native-glass.js)

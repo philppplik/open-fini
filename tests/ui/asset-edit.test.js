@@ -13,3 +13,10 @@ test("raster images open in the Pixel studio, SVG in the Vector studio", () => {
 test("formats without a faithful round trip are not offered", () => {
   for (const p of ["anim.gif", "x.bmp", "x.avif", "favicon.ico", "index.html", "style.css", "font.woff2", "clip.mp4", "noext", "", null]) assert.equal(assetEditTarget(p), null, String(p));
 });
+
+test("the context menu offers Open in Pixel / Vector Studio for editable images only", async () => {
+  const { assetMenuItems } = await import("../../app/src/ui/code/asset-edit.js");
+  assert.deepEqual(assetMenuItems({}, "a/logo.png").map((i) => i.label), ["Open in Pixel Studio"]);
+  assert.deepEqual(assetMenuItems({}, "a/icon.svg").map((i) => i.label), ["Open in Vector Studio"]);
+  assert.deepEqual(assetMenuItems({}, "a/readme.md"), []);
+});

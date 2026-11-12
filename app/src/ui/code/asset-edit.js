@@ -6,7 +6,7 @@
 //
 // Public API
 //   assetEditTarget(path)              -> { studio, format, label } | null   (pure: which studio edits this file)
-//   assetMenuItems(ws, path)           -> context-menu items ("Edit in Pixel Studio" …), [] when not editable
+//   assetMenuItems(ws, path)           -> context-menu items ("Open in Pixel Studio" …), [] when not editable
 //   editAssetInStudio(ws, path)        opens the linked document and switches studio
 //   saveAssetBack(app, doc, {returnToCode}) -> boolean   writes the document back into its project file
 // Invariants
@@ -36,7 +36,7 @@ export function assetEditTarget(path) {
 export function assetMenuItems(ws, path) {
   const target = assetEditTarget(path);
   if (!target) return [];
-  const label = target.studio === "pixel" ? t("Edit in Pixel Studio") : t("Edit in Vector Studio");
+  const label = target.studio === "pixel" ? t("Open in Pixel Studio") : t("Open in Vector Studio");
   return [{ label, icon: target.studio === "pixel" ? "brush" : "vector-pen", run: () => editAssetInStudio(ws, path) }];
 }
 
