@@ -3,6 +3,17 @@
 
 export const WHATS_NEW = [
   {
+    version: "1.1.1",
+    title: "Deeper Scene Studio, collaboration window, hardening",
+    items: [
+      { icon: "film", title: "Scene Studio grows up", text: "Scrolling tracks, right-click menus everywhere, keyframe rows in the timeline, a stopwatch on every property, an effects browser, animation presets, behaviors, parenting, motion blur and speed ramps." },
+      { icon: "people", title: "Collaboration in its own window", text: "Collaboration now always opens in a separate window, next to your document instead of on top of it." },
+      { icon: "table", title: "Sheets travel better", text: "Names, validation, groups, page setup, sparklines and pivot definitions survive XLSX and ODS. Pivot tables refresh, and groups get an outline gutter." },
+      { icon: "lightbulb", title: "More ideas in Vibe", text: "The start page of Vibe suggests ideas for every studio, with more one click away." },
+      { icon: "shield-check", title: "Safer and steadier", text: "Stricter network and file checks, limits for ZIP files, less memory use in Scene Studio, clean glass dialogs and many small fixes." },
+    ],
+  },
+  {
     version: "1.1.0",
     title: "Scene Studio, code mode for Vibe, deeper tools",
     items: [
