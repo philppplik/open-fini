@@ -6,6 +6,8 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.1] — Deeper Scene Studio, collaboration window, hardening
+
 ### Security
 - Web access: IPv6 addresses that carry an IPv4 address are judged by it (NAT64 `64:ff9b::/96`, 6to4 `2002::/16`), and Teredo, local-use NAT64, site-local and discard-only IPv6 ranges are refused, in the page guard and in the desktop `web_get` ([docs/security.md](docs/security.md#web-access-for-the-assistant)).
 - Local file access (desktop): writes go through a fresh, exclusively created temporary file, so a symbolic link planted at the old fixed temporary name can no longer redirect a write outside the granted folder.

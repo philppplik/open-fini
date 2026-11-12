@@ -3967,5 +3967,16 @@
   "Wiggle Rotation": "Drehung zittern",
   "Wiggle scale": "Skalierung zittern",
   "Wiggle Scale": "Skalierung zittern",
-  "Yellow": "Gelb"
+  "Yellow": "Gelb",
+  "Deeper Scene Studio, collaboration window, hardening": "Tieferes Scene Studio, Fenster für Zusammenarbeit, Härtung",
+  "Scene Studio grows up": "Scene Studio wird erwachsen",
+  "Scrolling tracks, right-click menus everywhere, keyframe rows in the timeline, a stopwatch on every property, an effects browser, animation presets, behaviors, parenting, motion blur and speed ramps.": "Scrollbare Spuren, Rechtsklick-Menüs überall, Keyframe-Zeilen in der Timeline, eine Stoppuhr an jeder Eigenschaft, ein Effekt-Browser, Animations-Presets, Verhalten, Parenting, Bewegungsunschärfe und Speed Ramps.",
+  "Collaboration in its own window": "Zusammenarbeit im eigenen Fenster",
+  "Collaboration now always opens in a separate window, next to your document instead of on top of it.": "Die Zusammenarbeit öffnet sich jetzt immer in einem eigenen Fenster, neben deinem Dokument statt darüber.",
+  "Sheets travel better": "Tabellen reisen besser",
+  "Names, validation, groups, page setup, sparklines and pivot definitions survive XLSX and ODS. Pivot tables refresh, and groups get an outline gutter.": "Namen, Validierung, Gruppierungen, Seiteneinrichtung, Sparklines und Pivot-Definitionen überstehen XLSX und ODS. Pivot-Tabellen lassen sich aktualisieren, Gruppierungen bekommen eine Gliederungsleiste.",
+  "More ideas in Vibe": "Mehr Ideen in Vibe",
+  "The start page of Vibe suggests ideas for every studio, with more one click away.": "Die Startseite von Vibe schlägt Ideen für jedes Studio vor, weitere sind einen Klick entfernt.",
+  "Safer and steadier": "Sicherer und stabiler",
+  "Stricter network and file checks, limits for ZIP files, less memory use in Scene Studio, clean glass dialogs and many small fixes.": "Strengere Netzwerk- und Dateiprüfungen, Limits für ZIP-Dateien, weniger Speicherverbrauch im Scene Studio, saubere Glas-Dialoge und viele kleine Korrekturen."
 }
