@@ -397,13 +397,17 @@ pub fn files_list(
             return Err(format!("“{path}” is not a folder."));
         }
         let mut out = Vec::new();
+        let top = dir.clone();
         let mut stack = vec![(dir, 1u32)];
         let max_depth = depth.unwrap_or(1).clamp(1, 4);
         while let Some((d, level)) = stack.pop() {
-            let mut rows: Vec<_> = fs::read_dir(&d)
-                .map_err(|e| e.to_string())?
-                .flatten()
-                .collect();
+            // a subfolder that cannot be read (permissions) is skipped instead of failing the whole listing
+            let rows = match fs::read_dir(&d) {
+                Ok(r) => r,
+                Err(e) if d == top => return Err(e.to_string()),
+                Err(_) => continue,
+            };
+            let mut rows: Vec<_> = rows.flatten().collect();
             rows.sort_by_key(|e| e.file_name());
             for e in rows {
                 if out.len() >= MAX_ENTRIES {
@@ -508,17 +512,43 @@ pub fn files_write(
                 return Err("The folder does not exist. Pass createDirs to create it.".into());
             }
         }
-        let tmp = parent.join(format!(
-            ".{}.openfini-tmp",
-            target.file_name().unwrap_or_default().to_string_lossy()
-        ));
-        fs::write(&tmp, &bytes).map_err(|e| e.to_string())?;
-        fs::rename(&tmp, &target).map_err(|e| {
-            let _ = fs::remove_file(&tmp);
-            e.to_string()
-        })?;
+        write_atomic(&target, &bytes)?;
         Ok((display(&target), Some(grant.id.clone()), Some(bytes.len())))
     })
+}
+
+/// Writes `bytes` to a fresh temporary file next to `target` and renames it over `target`. The temporary file is
+/// created with `create_new` (O_EXCL), so a file or symbolic link already lying at that name (for example one planted
+/// in a cloned repository) is never followed or overwritten: a symbolic link there would otherwise redirect the write
+/// outside the granted folder.
+pub fn write_atomic(target: &Path, bytes: &[u8]) -> Result<(), String> {
+    let parent = target.parent().ok_or("Invalid path.")?;
+    let name = target.file_name().unwrap_or_default().to_string_lossy();
+    let mut last = String::new();
+    for attempt in 0..8u32 {
+        let tmp = parent.join(format!(".{name}.{:x}-{attempt}.openfini-tmp", now_ms()));
+        let mut f = match OpenOptions::new().write(true).create_new(true).open(&tmp) {
+            Ok(f) => f,
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                last = e.to_string();
+                continue;
+            }
+            Err(e) => return Err(e.to_string()),
+        };
+        let written = f.write_all(bytes).and_then(|_| f.sync_all());
+        drop(f);
+        if let Err(e) = written {
+            let _ = fs::remove_file(&tmp);
+            return Err(e.to_string());
+        }
+        return fs::rename(&tmp, target).map_err(|e| {
+            let _ = fs::remove_file(&tmp);
+            e.to_string()
+        });
+    }
+    Err(format!(
+        "Could not create a temporary file next to the target: {last}"
+    ))
 }
 
 /// The newest audit rows (JSON lines), newest last.
@@ -641,6 +671,37 @@ mod tests {
         assert!(resolve_for_write(&rw, &s(d.join("granted/a.txt")))
             .unwrap_err()
             .contains("hard links"));
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn atomic_write_replaces_and_leaves_no_temp_file() {
+        let d = sandbox("atomic");
+        let t = d.join("granted/a.txt");
+        write_atomic(&t, b"new").unwrap();
+        assert_eq!(fs::read(&t).unwrap(), b"new");
+        let left: Vec<_> = fs::read_dir(d.join("granted"))
+            .unwrap()
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().ends_with(".openfini-tmp"))
+            .collect();
+        assert!(left.is_empty(), "no temporary file is left behind");
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn atomic_write_never_follows_a_planted_temp_link() {
+        let d = sandbox("planted");
+        // the old fixed temporary name, planted as a link to a file outside the grant
+        std::os::unix::fs::symlink(
+            d.join("outside/secret.txt"),
+            d.join("granted/.a.txt.openfini-tmp"),
+        )
+        .unwrap();
+        write_atomic(&d.join("granted/a.txt"), b"new").unwrap();
+        assert_eq!(fs::read(d.join("outside/secret.txt")).unwrap(), b"secret");
+        assert_eq!(fs::read(d.join("granted/a.txt")).unwrap(), b"new");
         let _ = fs::remove_dir_all(&d);
     }
 

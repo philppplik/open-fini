@@ -1,6 +1,7 @@
 // Export a repository + working tree as a real folder layout (".git/…" plus the project files) or ZIP, and import a
 // zipped repository (loose objects and packfiles). Pure.
-import { zipSync, unzipSync } from "../../../vendor/fflate/fflate.js";
+import { zipSync } from "../../../vendor/fflate/fflate.js";
+import { readZip } from "../office/zip.js";
 import { GitRepo } from "./repo.js";
 import { readPack } from "./pack.js";
 import { utf8 } from "./objects.js";
@@ -25,12 +26,17 @@ export function exportRepoZip(repo, wt) {
   return zipSync(zip);
 }
 
+/** Limits for a repository ZIP: many small objects, larger working files. */
+export const REPO_ZIP_LIMITS = { maxEntries: 100000, maxEntryBytes: 256 * 1048576, maxTotalBytes: 1024 * 1048576 };
+
 /**
  * Reads a ZIP that contains a `.git` folder (optionally inside one top-level folder).
  * @returns {{ files: Map<string, Uint8Array>, git: Map<string, Uint8Array> | null, prefix: string }} `git` is null for a plain ZIP
  */
 export function importRepoZip(zipBytes) {
-  const entries = unzipSync(zipBytes);
+  // unsafe names ("../x", "/x", "C:\x") are skipped and the sizes are capped (zip bombs): engine/office/zip.js
+  const { entries, ok, problems } = readZip(zipBytes, { limits: REPO_ZIP_LIMITS });
+  if (!ok) throw new Error(problems.join(" "));
   const names = Object.keys(entries).filter((n) => !n.endsWith("/"));
   const gitHead = names.find((n) => /(^|\/)\.git\/HEAD$/.test(n));
   if (!gitHead) return { files: new Map(names.map((n) => [n, entries[n]])), git: null, prefix: "" };

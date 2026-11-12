@@ -72,7 +72,7 @@ reaches the internet itself (apart from the AI provider and MCP servers you add)
 | Protection | How |
 | --- | --- |
 | Approval | Every call asks per domain (once, always for this domain, decline). Not skipped by Auto mode or the per-tool *Always allow*. |
-| SSRF | Only `http` and `https`; no user name or password in the address; `localhost`, `*.local`, `*.internal`, single-label names, private, loopback, link-local, CGNAT and reserved IPv4 and IPv6 literals (also IPv4-mapped and decimal, hex or octal spellings, which the URL parser normalizes) are refused. Every redirect hop is checked again. |
+| SSRF | Only `http` and `https`; no user name or password in the address; `localhost`, `*.local`, `*.internal`, single-label names, private, loopback, link-local, CGNAT and reserved IPv4 and IPv6 literals (also IPv4-mapped and decimal, hex or octal spellings, which the URL parser normalizes) are refused. IPv6 addresses that carry an IPv4 address are judged by that address (NAT64 `64:ff9b::/96`, 6to4 `2002::/16`, IPv4-compatible); Teredo, local-use NAT64, site-local and discard-only IPv6 ranges are refused. The desktop `web_get` applies the same rules to every resolved address. Every redirect hop is checked again. |
 | No identity | `credentials: "omit"`, no referrer, no custom headers, no cache. |
 | Limits | Size (declared and read), pixels, timeout, redirect count; all configurable. |
 | Images | Detected by magic bytes (PNG, JPEG, GIF, WebP), never by name or `Content-Type`; SVG and other types are refused; width times height is capped. |
@@ -149,9 +149,18 @@ Computer use (screen and input control of the OS) is not built; see [ADR 0023](a
 Off by default and desktop only. The assistant can only touch folders the person picked in the native folder dialog,
 which the desktop process opens itself (the page cannot grant a path). `src-tauri/src/fileaccess.rs` canonicalizes
 every path and refuses anything outside a grant, including `..` and symbolic-link escapes, refuses writes in read-only
-grants, through symbolic links, to multiply hard-linked files (Unix) and to the granted folder itself, and appends
+grants, through symbolic links, to multiply hard-linked files (Unix) and to the granted folder itself, writes through a fresh temporary file created exclusively (a file or symbolic link planted at a temporary name is never followed), and appends
 every access to an audit log without file contents. Every listing, read and write is approved in the chat; file text
 is wrapped as untrusted data. Details and limits: [vibe-files.md](vibe-files.md).
+
+## ZIP files
+
+Every ZIP OpenFini unpacks is read with limits, because the ZIP library allocates what each entry header declares:
+Office packages, extensions, VS Code extensions and repository ZIPs go through `engine/office/zip.js ▸ readZip` (entry
+count, size per entry and in total; names with `..`, `.`, a leading `/`, a drive letter or a backslash are skipped, so
+nothing can land outside the project); `.ofini` documents are capped at 100,000 parts, 1 GiB per part and 2 GiB in total
+(`core/ofini.js ▸ OFINI_LIMITS`); skill packs unpack only their small text files; KRA, ORA and Sketch skip entries
+above 256 MiB.
 
 ## App lock
 An optional passphrase lock screen, on start, after a chosen idle time, when the window is hidden, or on demand

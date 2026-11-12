@@ -11,7 +11,7 @@ person grants, and reading web pages that do not allow cross-origin requests. Bo
 | Tool | What it does | Approval |
 | --- | --- | --- |
 | `local_list_folders` | Lists the granted folders and their scope. | none (no file system access) |
-| `local_list_files` | Lists a folder inside a grant, 1 to 4 levels, at most 2,000 entries; symbolic links are listed, not followed. | every call |
+| `local_list_files` | Lists a folder inside a grant, 1 to 4 levels, at most 2,000 entries; symbolic links are listed, not followed; subfolders that cannot be read are skipped. | every call |
 | `local_read_file` | Reads a text file (default limit 1 MiB, adjustable up to 20 MiB); binary files are refused; the text is wrapped in `<untrusted_file_content>`. | every call |
 | `local_write_file` | Creates or replaces a text file in a read-and-write grant, optionally creating folders; at most 20 MiB. | every call, showing path and size |
 

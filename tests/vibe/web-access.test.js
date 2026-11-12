@@ -24,6 +24,24 @@ test("SSRF guard: private, loopback and link-local IP literals in every spelling
   checkUrl("http://[2606:4700:4700::1111]/");
 });
 
+test("SSRF guard: IPv6 addresses that carry a private IPv4 or tunnel to one", () => {
+  for (const u of [
+    "http://[64:ff9b::7f00:1]/", // NAT64 of 127.0.0.1
+    "http://[64:ff9b::169.254.169.254]/", // NAT64 of the cloud metadata address
+    "http://[64:ff9b:1::a00:1]/", // local-use NAT64
+    "http://[2002:c0a8:101::1]/", // 6to4 of 192.168.1.1
+    "http://[2002:a00::]/", // 6to4 of 10.0.0.0
+    "http://[2001:0:4136:e378:8000:63bf:3fff:fdd2]/", // Teredo
+    "http://[fec0::1]/", // site local
+    "http://[100::1]/", // discard-only
+    "http://[::127.0.0.1]/", // IPv4-compatible
+    "http://[0:0:0:0:0:ffff:192.168.0.1]/",
+    "http://[ff02::1]/",
+  ]) bad(u, /blocked|local/);
+  checkUrl("http://[64:ff9b::808:808]/"); // NAT64 of 8.8.8.8
+  checkUrl("http://[2002:808:808::1]/"); // 6to4 of 8.8.8.8
+});
+
 test("blocklist and host matching", () => {
   assert.throws(() => checkUrl("https://ads.evil.com/x", { blockDomains: ["evil.com"] }), /blocklist/);
   assert.ok(hostMatches("a.b.example.com", "example.com"));
