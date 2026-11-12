@@ -17,7 +17,7 @@ in place and are marked as such.
 | [0010](0010-collaboration-e2e-relay.md) | Collaboration through a dumb relay with end-to-end encryption | Accepted |
 | [0011](0011-live-editing-sync.md) | Live editing: state-diffed tree registers and an RGA for text | Accepted (beta) |
 | [0012](0012-vscode-extensions.md) | VS Code extensions from Open VSX: declarative parts plus a sandboxed web-extension API subset | Accepted |
-| [0013](0013-collab-popout.md) | The Collaboration window pops out as a UI-only remote view | Accepted |
+| [0013](0013-collab-popout.md) | The Collaboration window pops out as a UI-only remote view | Superseded by 0030 |
 | [0014](0014-model-routing-fallback.md) | Model routing with fallback as a provider wrapper | Accepted |
 | [0015](0015-liquid-glass-refraction.md) | Liquid glass refraction: own SVG displacement-map code instead of vendoring amazing-glass | Superseded by 0021 |
 | [0016](0016-office-suite-apps.md) | Office Suite: one studio, a registry of lazily loaded apps per document kind | Accepted |
@@ -32,3 +32,4 @@ in place and are marked as such.
 | [0025](0025-code-studio-terminal.md) | A terminal in the Code studio without a shell or PTY (reuses the assistant's run-without-a-shell command) | Accepted |
 | [0029](0029-scene-studio.md) | Scene Studio: one pure model, frame = f(model, time), 2D compositor with a WebGL pass, WebCodecs export with own containers | Accepted |
 | [0028](0028-vibe-code-mode.md) | Code mode for the Vibe assistant: `run_script` in an isolated worker, call gate, one undo step, dry run | Accepted |
+| [0030](0030-collab-native-window.md) | Collaboration always lives in its own OS window: one UI fed by snapshots, no in-app fallback | Accepted |

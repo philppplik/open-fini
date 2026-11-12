@@ -1,4 +1,5 @@
 // Collaboration commands (docs/collaboration.md). Tiny on purpose: everything else loads with import() on first use.
+// collab.open/chat/comments/versions open the Collaboration window, which is always its own OS window (ADR 0030).
 // Ids: collab.open, collab.chat, collab.comments, collab.addComment, collab.versions, collab.saveVersion,
 //      collab.share, collab.leave, collab.profile, collab.shareDocument, collab.shareLive, collab.shareCopy,
 //      collab.stopSharing, collab.resync, collab.relayHelp
@@ -21,7 +22,7 @@ export function registerCollabCommands(app) {
   def("collab.open", "Collaborate…", async (a) => (await rt()).openCollab(a), { icon: "people" });
   def("collab.chat", "Room Chat", async (a) => (await rt()).openCollab(a, "chat"), { icon: "chat", shortcut: "Mod+Alt+C" });
   def("collab.comments", "Comments", async (a) => (await rt()).openCollab(a, "comments"), { icon: "chat-quote" });
-  def("collab.addComment", "Add Comment in Panel…", async (a, o) => (await rt()).addComment(a, o), { icon: "chat-quote", enabled: (a) => !!a.doc });
+  def("collab.addComment", "Add Comment…", async (a, o) => (await commentUI(a)).composeFor(o?.ctx || o || {}), { icon: "chat-quote", enabled: (a) => !!a.doc });
   // inline comments: the composer opens at the pointer / selection (docs/collaboration.md, "Comments on the canvas, in code and in text")
   def("collab.addCommentHere", "Add Comment Here…", async (a, o) => (await commentUI(a)).composeFor(o?.ctx || o || {}), { icon: "chat-quote", shortcut: "Mod+Alt+M", enabled: (a) => !!a.doc });
   def("collab.commentMode", "Comment Mode (click to place a comment)", async (a) => (await commentUI(a)).commentMode(), { icon: "chat-quote", shortcut: "Shift+C", enabled: (a) => !!a.doc });
@@ -29,7 +30,7 @@ export function registerCollabCommands(app) {
     const ui = await commentUI(a);
     ui.setPinsVisible(!ui.pinsVisible());
   }, { icon: "eye", enabled: (a) => !!a.doc });
-  // the Comments dock panel (Vector, Pixel, Layout, Code); studios without a dock (Office) open the Collaboration window's Comments tab
+  // the Comments dock panel (Vector, Pixel, Layout, Code); studios without a dock (Office) open the Comments tab of the Collaboration window
   def("comments.panel", "Comments Panel", async (a) => {
     const s = getStudio(a.studio);
     if (s && [...(s.top || []), ...(s.bottom || [])].includes("comments")) {
@@ -37,7 +38,6 @@ export function registerCollabCommands(app) {
       a.emit("revealpanel", "comments");
     } else await (await rt()).openCollab(a, "comments");
   }, { icon: "chat-quote", enabled: (a) => !!a.doc });
-  def("collab.popOut", "Pop Out Collaboration Window", async (a) => (await rt()).popOutCollab(a), { icon: "box-arrow-up-right" });
 
   // comments saved in a document show their pins as soon as the document is active (the runtime loads lazily)
   app.on("doc", () => {

@@ -105,7 +105,32 @@ as `host.room`: from then on local comment changes are also broadcast and remote
 
 ## The Collaboration window
 
-The window decides its layout from **its own width** (container based, not the app window):
+Collaboration **always opens in its own OS window** and is never drawn inside the app window
+([ADR 0030](adr/0030-collab-native-window.md)): a native window in the desktop app, a browser popup window on the web
+and in the PWA. *Collaborate…*, *Room Chat*, *Comments*, *Version History*, *Save Version…*, a join link and the
+notification actions all open it, or bring the open one to the front (there is only one). The window holds the whole
+control surface: start or join a room, invite code and QR code, verification words, members and roles, follow, chat
+with files and activity, the comments list and versions. What belongs to the document stays in the document: remote
+cursors, selection halos, carets, comment pins, the inline composer and thread popovers, share cards.
+
+| | Desktop app | Browser / PWA |
+| --- | --- | --- |
+| Window | Tauri `WebviewWindow`, label `collab` | `window.open` popup, name `openfini-collab` |
+| Open twice | the open window is focused (`getByLabel`) | the open window is focused |
+| Blocked | not applicable | a dialog explains it; its button opens the window from that click. No in-app fallback |
+| Main window closes | the window closes (also enforced in `src-tauri/src/lib.rs`) | the window closes |
+| Window closes | you stay in the room; a toast offers *Open window* | the same |
+| Position and size | remembered; reused when still on a monitor | remembered; browsers may clamp to the current screen |
+
+The main window **keeps the one room connection**, the identity, the keys and the documents. The Collaboration window
+is a remote view: it gets bounded snapshots over `BroadcastChannel("openfini-collab-ui")` and sends a whitelist of
+actions back; the main window validates each action and re-checks your role. No second member joins the room. Room keys
+and the room secret never cross the channel; the invite code crosses it only when you click *Show invite code*, *Copy*,
+or a QR code button (and when you paste a code to join). Unread badges, mention toasts and the title counter stay in
+the main window. Actions that need the main window (opening a received file, *Share*, *Settings*, jumping to a comment
+or a layer) bring it to the front.
+
+The window decides its layout from **its own width**:
 
 | Width | Layout |
 | --- | --- |
@@ -113,30 +138,22 @@ The window decides its layout from **its own width** (container based, not the a
 | >= 520 px | left side rail with icon + label: the tabs plus *Share* and *Settings* |
 | >= 900 px | rail plus a list column (members next to Chat, threads next to Comments) and the content on the right |
 
-Header buttons: *Compact density* (icon-only rail, tighter rows), *Pop out*, *Maximize/Restore* (also double-click the
-header), *Close*. Drag the header (it snaps to the edges of the app window), or focus it and use the arrow keys (Shift =
-bigger steps). Resize with the corner. Position, size, maximized and compact are remembered per browser profile
-(`openfini.collab.window`). The rail is one roving tab stop (arrows, Home/End); transitions respect reduced motion; colors
-come from the `--of-*` tokens, so themes and glass styles apply. Pure decisions (`layoutMode`, `clampRect`,
-`snapRect`, stored state) are in `app/src/ui/collab/layout-mode.js` (tested).
+Header buttons: *Compact density* (icon-only rail, tighter rows) and *Show the main OpenFini window*; on Windows and
+Linux the frameless window adds *Minimize* and *Close window* and the header drags the window. The rail is one roving
+tab stop (arrows, Home/End); colors come from the `--of-*` tokens, so themes apply. Updates keep what you are typing
+(the chat composer, reply drafts, the start and join forms).
 
-A web page cannot draw outside its own window, so the in-app window can never leave the main window. The real answer is
-the pop-out below.
+*OpenFini > Collaborate…* also works on the welcome screen; creating a room with nothing open offers (in the main
+window) to open a file, create a document or keep a chat-only room (`ui/collab/entry.js`).
 
-### Pop-out window
+Code: `app/src/collab/remote-ui.js` (protocol, placement) and `remote-model.js` (the window's model), both tested in
+`tests/collab/remote-ui.test.js`; `ui/collab/remote-host.js` (main window), `ui/collab/remote-view.js` and
+`ui/collab/window.js` (Collaboration window), `popoutCollab` in `ui/popout.js`.
 
-By default (`collabPopout`, Settings > Profile and collaboration) Collaboration opens as its own window whenever you are in a room; with it off, or when a browser blocks the pop-up, the in-page window opens. Starting or joining a room uses the forms of the in-page window (the pop-out is a remote view), and the room then pops out. *OpenFini > Collaborate…* also works on the welcome screen; creating a room with nothing open offers to open a file, create a document or keep a chat-only room (`ui/collab/entry.js`).
-
-*Pop out* (or the command *Pop Out Collaboration Window*) opens `?popout=collab` in an OS window (a popup in the
-browser, a `WebviewWindow` labeled `popout-<n>` in the desktop app). The main window **keeps the one room connection**:
-the pop-out is a UI-only remote view of the room (chat, people, comments of the active document) that talks to the main
-window over `BroadcastChannel("openfini-collab-ui")`. No secret, key or invite code crosses that channel, and no second
-identity joins the room. Unread badges, mention toasts and the title counter stay in the main window. *Dock back* or
-closing the pop-out shows the floating window again; closing the main window closes the pop-out. Why not a second
-connection: [ADR 0013](adr/0013-collab-popout.md). Code: `app/src/collab/remote-ui.js` (protocol, tested),
-`ui/collab/remote-host.js`, `ui/collab/remote-view.js`. Limits: the pop-out has no canvas, so a comment added there is
-anchored to the main window's current selection; the Tauri `WebviewWindow` path cannot be exercised in CI and needs a
-manual check.
+Limits: the window has no canvas, so *New comment* there is anchored to the main window's current selection
+(*Add Comment…* and *Add comment here…* open the composer in the document). The window needs the main window: without
+it, actions answer "The main window did not answer." Browsers show their own window chrome and decide whether a
+remembered position on another screen is honored. The Tauri window cannot be exercised in CI and needs a manual check.
 
 ## Architecture
 
@@ -145,9 +162,8 @@ app/src/collab/                 pure, Node-tested (tests/collab/)
   crypto.js        invite codes, HKDF room keys, signed AES-GCM envelope, replay guard, fingerprint words, ECDH wrapping
   wordlist.js      256 words for the verification code (frozen)
   anchors.js       comment anchor builders/resolution per studio, pin numbers, popover placement (tests/collab/comment-ux.test.js)
-  remote-ui.js     protocol of the UI-only pop-out: action whitelist, bounded snapshots (same test file)
-  (ui/collab/) comment-ui.js composer, thread popover, pins, comment mode; layout-mode.js responsive decisions;
-               remote-host.js / remote-view.js the two sides of the pop-out
+  remote-ui.js     protocol of the Collaboration window: action whitelist, bounded snapshots, window placement
+  remote-model.js  the Collaboration window's model: snapshots in, actions out (tests/collab/remote-ui.test.js)
   protocol.js      message types, limits, roles/permissions, strict validation, mention parsing, file-name sanitizing
   room.js          membership state machine: host, roles, removal, expiry
   chat.js          chat store: threads, replies, reactions, edits, unread, activity grouping
@@ -164,7 +180,12 @@ app/src/collab/                 pure, Node-tested (tests/collab/)
   qr.js            tiny QR encoder (relay terminal and join-link QR codes)
 app/src/ui/collab/              lazy UI (loads on the first collab.* command)
   runtime.js       controller (app.collab): rooms, presence, activity, comments, versions, files, follow, jumps
-  window.js        floating window: Chat, People, Comments, Versions
+  remote-host.js   main-window side of the Collaboration window: open/focus, snapshots, performs the actions
+  remote-view.js   the Collaboration window's page (?popout=collab): channel, model, own position and size
+  window.js        the Collaboration UI (Chat, People, Comments, Versions); runs only in the Collaboration window
+  avatar.js        member avatars (initials or a re-encoded picture)
+  comment-ui.js    inline composer, thread popover, pins, comment mode (in the document)
+  layout-mode.js   responsive layout from the window's width
   overlay.js       cursors, halos, comment markers (canvas), carets (Code/Office)
   settings-section.js   Settings ▸ Profile and collaboration
   live.js          shared documents: share/open/stop/pause/resync, tree and text bindings, cards, tab badges, bar
@@ -189,7 +210,7 @@ All transports carry opaque text frames (envelopes) and implement:
 
 * **Relay** (`ws://` / `wss://`): a WebSocket to `scripts/relay.mjs`. Reconnects with back-off.
 * **Local** (`BroadcastChannel("openfini-collab/<room>")`): windows and tabs of the same origin and profile. Also links
-  pop-out windows. Frames are encrypted all the same.
+  pop-out windows (document windows; the Collaboration window has no connection of its own). Frames are encrypted all the same.
 * **Memory**: a fake relay with the same semantics for tests.
 * **WebRTC peer-to-peer: not implemented.** Browsers and Tauri webviews cannot listen on sockets, so without a relay the
   only serverless option is WebRTC with manual signaling (copy/paste of offers). It was left out of this release; the

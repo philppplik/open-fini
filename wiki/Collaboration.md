@@ -22,7 +22,7 @@ Comments and versions also work **without** a room: comments are saved in the do
 3. **Invite:** *People ▸ Copy invite code* and send it privately. The code contains the room key.
 4. **Join:** paste the code under *Join with an invite code* and confirm what others will see.
 5. **Verify:** everyone sees six verification words under *People*. Compare them by phone or in person. Different words mean the invite was swapped or somebody is in another room: leave.
-5b. **Own window:** while you are in a room, Collaboration opens as a separate window by default (Settings ▸ Profile and collaboration turns this off). *OpenFini ▸ Collaborate…* also works with nothing open.
+5b. **Own window:** Collaboration always opens as a separate window (a native window in the desktop app, a popup window in the browser) and never inside the app window. If your browser blocks it, a message offers *Open Collaboration window*. Closing that window does not leave the room; closing the main window closes it. *OpenFini ▸ Collaborate…* also works with nothing open.
 6. **Roles:** the host chooses whether new members join as *Editor* (share documents, files and edit activity), *Commenter* (chat, comments, files) or *Viewer* (chat and presence only), and can change roles or remove members. Removing a member (or a member leaving) rotates the room key; the others switch automatically and the invite code changes.
 7. **Leave:** *People ▸ Leave*, the *Leave room* command, or *Settings ▸ Security and privacy ▸ Collaboration*.
 

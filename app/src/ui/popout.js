@@ -7,15 +7,17 @@
 //   popoutDoc(app, doc, { mode })              "move" (default) or "copy" a document into a new window
 //   popoutStudio(app, studioId)                new window showing a studio (hands over the current doc if it belongs there)
 //   newWindow(app)                             empty new window on the current studio
-//   popoutCollab(app)                          the Collaboration UI in its own window (?popout=collab, UI-only remote view, ADR 0013)
+//   popoutCollab()                             opens or focuses the one Collaboration window (?popout=collab, ADR 0030)
 //   returnToMain(app)                          send every document of this popout back to the main window
 //   isPopoutWindow()                           true inside a pop-out
 // Invariants: a document is only closed in the source window after the receiving window confirmed ("adopted");
 // a failed handoff leaves the source untouched. Handoff envelopes live in IndexedDB under popout:<id> until adopted.
 // See docs/multi-window.md.
+import { t } from "../i18n/index.js";
 import { platform } from "../platform/index.js";
 import { windowControls } from "../platform/window-controls.js";
 import { CHANNEL, buildPopoutUrl, createPopoutRegistry, handoffKey, isMessage, makeEnvelope, newId, nextWindowLabel, parsePopoutParams, readEnvelope, sessionKey } from "../platform/popout.js";
+import { WINDOW_LABEL, WINDOW_SIZE, WINDOW_STATE_KEY, placeWindow, windowFeatures } from "../collab/remote-ui.js";
 import { kvDelete, kvGet, kvKeys, kvSet } from "../core/storage.js";
 import { saveOfini, loadOfini } from "../core/ofini.js";
 import { hasStudio } from "../studios/registry.js";
@@ -72,15 +74,73 @@ async function openWindow({ studio, doc, pid, size = { w: 1280, h: 840, minW: 72
   return true;
 }
 
-/** Opens the UI-only Collaboration pop-out (?popout=collab). Resolves with its window id, or null (blocked). Run it inside a user gesture. */
-export async function popoutCollab(app) {
-  const pid = newId();
-  try {
-    return (await openWindow({ studio: "collab", pid, size: { w: 560, h: 720, minW: 340, minH: 320 } })) ? pid : null;
-  } catch (err) {
-    app.toast(err.message, "danger", 6000);
-    return null;
+/** The visible screen areas in CSS px (desktop: every monitor; browsers only tell about the current screen). */
+async function screenAreas() {
+  if (platform.isDesktop) {
+    try {
+      const list = await window.__TAURI__.window.availableMonitors();
+      return list.map((m) => {
+        const f = m.scaleFactor || 1;
+        return { x: m.position.x / f, y: m.position.y / f, w: m.size.width / f, h: m.size.height / f };
+      });
+    } catch {
+      return [];
+    }
   }
+  const s = window.screen;
+  return [{ x: s.availLeft ?? 0, y: s.availTop ?? 0, w: s.availWidth, h: s.availHeight }];
+}
+
+let collabWindow = null; // browsers: the Window of the Collaboration window
+
+/**
+ * Opens the Collaboration window (?popout=collab, ADR 0030), or brings the open one to the front: there is only ever
+ * one (desktop: the fixed Tauri label "collab"; browsers: a named popup). It opens where it was last time when that
+ * place is still on a screen. Resolves "opened", "focused" or null (the browser blocked it). Run it inside a user gesture.
+ * `onClosed` runs when a window opened here is gone, also when it could not say goodbye itself.
+ */
+export async function popoutCollab({ onClosed = () => {} } = {}) {
+  const url = buildPopoutUrl(platform.isDesktop ? "index.html" : location.pathname, { studio: "collab", pid: newId() });
+  let stored = null;
+  try {
+    stored = JSON.parse(localStorage.getItem(WINDOW_STATE_KEY) || "null");
+  } catch {
+    /* storage blocked: default size, the system picks the place */
+  }
+  if (platform.isDesktop) {
+    const W = window.__TAURI__?.webviewWindow?.WebviewWindow;
+    if (!W) throw new Error("The Tauri window API is not available (app.withGlobalTauri).");
+    const open = await W.getByLabel(WINDOW_LABEL).catch(() => null);
+    if (open) {
+      for (const step of ["unminimize", "show", "setFocus"]) await open[step]().catch(() => {});
+      return "focused";
+    }
+    const place = placeWindow(stored, await screenAreas());
+    const mac = windowControls.mode === "overlay";
+    const win = new W(WINDOW_LABEL, { url, title: "OpenFini", width: place.w, height: place.h, ...(place.x !== undefined ? { x: place.x, y: place.y } : {}), minWidth: WINDOW_SIZE.minW, minHeight: WINDOW_SIZE.minH, decorations: mac, ...(mac ? { titleBarStyle: "overlay", hiddenTitle: true } : {}) });
+    await new Promise((resolve, reject) => {
+      win.once("tauri://created", resolve);
+      win.once("tauri://error", (e) => reject(new Error(typeof e.payload === "string" ? e.payload : "The window could not be created.")));
+    });
+    win.once("tauri://destroyed", () => onClosed());
+    return "opened";
+  }
+  if (collabWindow && !collabWindow.closed) {
+    collabWindow.focus();
+    return "focused";
+  }
+  // Browsers cannot create frameless windows: a popup window with the browser's own chrome is the closest thing.
+  const w = window.open(url, "openfini-collab", windowFeatures(placeWindow(stored, await screenAreas())));
+  collabWindow = w;
+  if (!w) return null;
+  const timer = setInterval(() => {
+    if (!w.closed) return;
+    clearInterval(timer);
+    if (collabWindow !== w) return; // a newer window took over
+    collabWindow = null;
+    onClosed();
+  }, 1500);
+  return "opened";
 }
 
 /** Hands one document to a new window. mode "move" closes it here once the new window has it. */
@@ -98,7 +158,7 @@ export async function popoutDoc(app, doc, { mode = "move", studio } = {}) {
     return false;
   }
   if (!opened) {
-    app.toast("Your browser blocked the new window. Allow pop-ups for this site and try again.", "warning", 6000);
+    app.toast(t("Your browser blocked the new window. Allow pop-ups for this site and try again."), "warning", 6000);
     return false;
   }
   try {
@@ -128,7 +188,7 @@ export const newWindow = (app) => openEmpty(app, app.studio);
 
 async function openEmpty(app, studio) {
   try {
-    if (!(await openWindow({ studio, pid: newId() }))) app.toast("Your browser blocked the new window. Allow pop-ups for this site and try again.", "warning", 6000);
+    if (!(await openWindow({ studio, pid: newId() }))) app.toast(t("Your browser blocked the new window. Allow pop-ups for this site and try again."), "warning", 6000);
   } catch (err) {
     app.toast(err.message, "danger", 6000);
   }
