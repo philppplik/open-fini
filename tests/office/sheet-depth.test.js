@@ -154,7 +154,7 @@ test("page setup is validated and the print range follows it", () => {
   const opts = D.printOptions(s);
   assert.deepEqual(opts.page, { w: 1056, h: 816 });
   assert.equal(opts.gridlines, false);
-  assert.equal(opts.single, true);
+  assert.equal(opts.fit, "page");
   assert.deepEqual(opts.range, { r0: 0, c0: 0, r1: 1, c1: 1 });
   assert.throws(() => D.setPageSetup(m, "s1", { printArea: "nope" }), /range/i);
 });

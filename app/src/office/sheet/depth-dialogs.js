@@ -205,7 +205,12 @@ export function pasteSpecialDialog(view) {
         variant: "primary",
         onClick: (close) => {
           const at = { r: view.range.r0, c: view.range.c0 };
-          attempt(view, close, "Paste Special", () => D.pasteSpecial(view.model, view.sid, at.r, at.c, clip, { paste: what.value === "formulas" ? "formulas" : what.value, op: op.value, skipBlanks: skip.box.checked, transpose: transpose.box.checked }));
+          attempt(view, close, "Paste Special", () => {
+            const next = D.pasteSpecial(view.model, view.sid, at.r, at.c, clip, { paste: what.value === "formulas" ? "formulas" : what.value, op: op.value, skipBlanks: skip.box.checked, transpose: transpose.box.checked });
+            const bad = D.invalidWrites(view.model, next, view.sid, (sid, r, c) => view.calc.get(sid, r, c), 6);
+            if (bad.length) throw new Error(t("Nothing was pasted: {cells} break data validation. {message}", { cells: bad.map((b) => b.cell).join(", "), message: bad[0].message }));
+            return next;
+          });
         },
       },
     ],
@@ -215,18 +220,18 @@ export function pasteSpecialDialog(view) {
 export function pageSetupDialog(view) {
   const p = { orientation: "portrait", paper: "a4", margin: 48, gridlines: true, fit: "none", ...(view.sheet.page || {}) };
   const orientation = select([["portrait", N_("Portrait")], ["landscape", N_("Landscape")]], p.orientation);
-  const paper = select([["a4", N_("A4")], ["letter", N_("Letter")]], p.paper);
+  const paper = select([["a4", N_("A4")], ["a3", N_("A3")], ["a5", N_("A5")], ["letter", N_("Letter")], ["legal", N_("Legal")]], p.paper);
   const margin = select([["24", N_("Narrow")], ["48", N_("Normal")], ["96", N_("Wide")]], String(p.margin));
   const area = input(p.printArea || "", { placeholder: t("Whole sheet"), "aria-label": t("Print area") });
   const grid = check(N_("Print gridlines"), p.gridlines);
-  const fit = check(N_("Fit to one page"), p.fit === "page");
+  const fit = select([["none", N_("Actual size")], ["page", N_("Fit to one page")], ["width", N_("Fit all columns on one page")]], p.fit || "none");
   const useSel = h("button.of-tk-btn", { type: "button" }, t("Use the selection"));
   useSel.addEventListener("click", () => (area.value = sel(view)));
-  const apply = () => D.setPageSetup(view.model, view.sid, { orientation: orientation.value, paper: paper.value, margin: Number(margin.value), printArea: area.value.trim() || null, gridlines: grid.box.checked, fit: fit.box.checked ? "page" : "none" });
+  const apply = () => D.setPageSetup(view.model, view.sid, { orientation: orientation.value, paper: paper.value, margin: Number(margin.value), printArea: area.value.trim() || null, gridlines: grid.box.checked, fit: fit.value });
   openDialog({
     title: "Page setup",
     width: 420,
-    body: h("div.of-oform", field(N_("Orientation"), orientation), field(N_("Paper"), paper), field(N_("Margins"), margin), field(N_("Print area"), area), useSel, grid.el, fit.el),
+    body: h("div.of-oform", field(N_("Orientation"), orientation), field(N_("Paper"), paper), field(N_("Margins"), margin), field(N_("Print area"), area), useSel, field(N_("Scaling"), fit), grid.el),
     buttons: [
       { label: "Cancel", onClick: (c) => c() },
       { label: "Print…", onClick: (close) => (attempt(view, close, "Page Setup", apply), printSheet(view)) },
@@ -269,7 +274,7 @@ export function pivotDialog(view) {
   openDialog({
     title: "Pivot table",
     width: 420,
-    body: h("div.of-oform", h("p", t("Summarizes a table with a header row on a new sheet. It does not update by itself; run it again after changes.")), field(N_("Source range"), rangeIn), field(N_("Rows"), rows), field(N_("Columns"), cols), field(N_("Values"), vals), field(N_("Summarize by"), agg)),
+    body: h("div.of-oform", h("p", t("Summarizes a table with a header row on a new sheet. After the data changes, use Data ▸ Refresh Pivot Tables.")), field(N_("Source range"), rangeIn), field(N_("Rows"), rows), field(N_("Columns"), cols), field(N_("Values"), vals), field(N_("Summarize by"), agg)),
     buttons: [
       { label: "Cancel", onClick: (c) => c() },
       {
@@ -278,13 +283,22 @@ export function pivotDialog(view) {
         onClick: (close) =>
           attempt(view, close, "Pivot Table", () => {
             const table = D.pivot(view.model, view.sheet, (sid, r, c) => view.calc.get(sid, r, c), { range: rangeIn.value, rows: rows.value, columns: cols.value || null, values: vals.value, agg: agg.value });
-            const next = D.writePivot(view.model, view.sid, table, { name: "Pivot" });
+            const next = D.writePivot(view.model, view.sid, table, { name: "Pivot", spec: { range: rangeIn.value, rows: rows.value, columns: cols.value || null, values: vals.value, agg: agg.value } });
             queueMicrotask(() => view.showSheet(next.active));
             return next;
           }),
       },
     ],
   });
+}
+
+/** Data ▸ Refresh Pivot Tables: recomputes every pivot table of the workbook from its source data. */
+export function refreshPivots(view) {
+  const res = D.refreshPivots(view.model, (sid, r, c) => view.calc.get(sid, r, c));
+  if (!res.refreshed && !res.errors.length) return view.app.toast(t("This workbook has no pivot tables to refresh. Create one with Insert ▸ Pivot Table."), "info", 4000);
+  if (res.refreshed) view.commit("Refresh Pivot Tables", res.model);
+  if (res.errors.length) view.app.toast(t("Pivot table {at} could not be refreshed: {message}", { at: res.errors[0].at, message: res.errors[0].message }), "warning", 6000);
+  else view.app.toast(t("{n, plural, one {# pivot table refreshed.} other {# pivot tables refreshed.}}", { n: res.refreshed }), "success", 2500);
 }
 
 export function sparklineDialog(view) {

@@ -120,9 +120,11 @@ export function sparkItems(model, sheet, calc, sp, box) {
 
 /**
  * Pages of a range as display lists (A4 portrait at 96 dpi by default). Columns that do not fit move to further
- * pages (rows first, then columns, like spreadsheet print order). `single` renders the whole range on one page (PNG).
+ * pages (rows first, then columns, like spreadsheet print order). `single` renders the whole range on one page sized
+ * to it (PNG). `fit` scales the range onto the paper: "page" (one page), "width" (all columns on one page width; rows
+ * continue on further pages); it never enlarges.
  */
-export function sheetPages(model, sid, calc, { measurer, range = null, page = { w: 794, h: 1123 }, margin = 48, single = false, gridlines = true } = {}) {
+export function sheetPages(model, sid, calc, { measurer, range = null, page = { w: 794, h: 1123 }, margin = 48, single = false, gridlines = true, fit = "none" } = {}) {
   const sheet = model.sheets.find((s) => s.id === sid);
   const used = usedRange(sheet);
   let g = range ? parseRange(range) || range : used;
@@ -144,8 +146,17 @@ export function sheetPages(model, sid, calc, { measurer, range = null, page = { 
   const colW = (c) => (hideC.has(c) ? 0 : sheet.cols[c] ?? DEFAULT_COL);
   const rowH = (r) => (hideR.has(r) ? 0 : sheet.rows[r] ?? DEFAULT_ROW);
   const stats = cfStatsFor(sheet, calc);
-  const availW = page.w - margin * 2;
-  const availH = page.h - margin * 2;
+  let k = 1;
+  if (!single && (fit === "page" || fit === "width")) {
+    let tw = 0;
+    for (let c = g.c0; c <= g.c1; c++) tw += colW(c);
+    let th = 0;
+    if (fit === "page") for (let r = g.r0; r <= g.r1; r++) th += rowH(r);
+    k = Math.min(1, (page.w - margin * 2) / Math.max(1, tw), fit === "page" ? (page.h - margin * 2) / Math.max(1, th) : 1);
+  }
+  // scaled pages are laid out in unscaled units and drawn through a scaling group
+  const availW = (page.w - margin * 2) / k + 0.001;
+  const availH = (page.h - margin * 2) / k + 0.001;
   // split into column bands and row bands
   const bands = (from, to, size, avail) => {
     const out = [];
@@ -174,8 +185,8 @@ export function sheetPages(model, sid, calc, { measurer, range = null, page = { 
       for (let c = c0; c <= c1; c++) width += colW(c);
       let height = 0;
       for (let r = r0; r <= r1; r++) height += rowH(r);
-      const ox = single ? 0 : margin;
-      const oy = single ? 0 : margin;
+      const ox = single || k !== 1 ? 0 : margin;
+      const oy = single || k !== 1 ? 0 : margin;
       const xs = [ox];
       for (let c = c0; c <= c1; c++) xs.push(xs[xs.length - 1] + colW(c));
       const ys = [oy];
@@ -239,7 +250,8 @@ export function sheetPages(model, sid, calc, { measurer, range = null, page = { 
         if (ch.r < r0 || ch.r > r1 || ch.c < c0 || ch.c > c1) continue;
         items.push(...chartItems(model, sheet, ch, calc, measurer, xs[ch.c - c0], ys[ch.r - r0]));
       }
-      pages.push(single ? { width: Math.max(1, width), height: Math.max(1, height), items } : { width: page.w, height: page.h, items });
+      const body = k !== 1 ? [{ t: "group", items, m: [k, 0, 0, k, margin, margin], opacity: 1, blend: "normal", clip: null, isolate: false }] : items;
+      pages.push(single ? { width: Math.max(1, width), height: Math.max(1, height), items } : { width: page.w, height: page.h, items: body });
     }
   return pages;
 }

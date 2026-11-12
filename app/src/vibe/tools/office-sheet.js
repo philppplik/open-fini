@@ -64,7 +64,7 @@ export function officeSheetTools(app) {
       return { sheet: c.sheet.name, range: c.sel.formatRange({ ...g, r1 }), truncated: r1 < g.r1, values, ...(formulas ? { formulas: f } : {}), ...(formats ? { formats: nf } : {}) };
     }, { readOnly: true }),
 
-    tool("sheet_write_range", "Writes values into the active spreadsheet starting at a cell. Each value is entered like typed input: numbers, TRUE/FALSE, dates (2026-10-28), \"=SUM(A1:A3)\" formulas, text; null clears a cell.", {
+    tool("sheet_write_range", "Writes values into the active spreadsheet starting at a cell. Each value is entered like typed input: numbers, TRUE/FALSE, dates (2026-10-28), \"=SUM(A1:A3)\" formulas, text; null clears a cell. Values that break a data validation rule are rejected (nothing is written).", {
       start: S.str("Top-left cell, e.g. A1"),
       values: { type: "array", items: { type: "array", items: {} }, minItems: 1, description: "Rows of values" },
       ...sheetArg,
@@ -79,6 +79,9 @@ export function officeSheetTools(app) {
           const a1 = c.F.rcKey(g.r0 + i, g.c0 + j);
           next = c.M.inputCell(next, c.sheet.id, a1, v == null ? "" : typeof v === "boolean" ? (v ? "TRUE" : "FALSE") : String(v));
         }));
+      const { invalidWrites } = await import("../../office/sheet/depth.js");
+      const bad = invalidWrites(c.model, next, c.sheet.id, (sid, r, col) => c.calc.get(sid, r, col));
+      if (bad.length) throw new Error(`Data validation rejects ${bad.map((b) => `${b.cell} (${b.message})`).join("; ")}. Nothing was written: write allowed values, or change the rule with sheet_set_validation.`);
       c.commit("Write Range", next);
       const end = c.F.rcKey(g.r0 + values.length - 1, g.c0 + Math.max(...values.map((r) => (Array.isArray(r) ? r.length : 1))) - 1);
       return { written: cells, range: `${c.F.rcKey(g.r0, g.c0)}:${end}`, sheet: c.sheet.name };

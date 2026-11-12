@@ -369,7 +369,7 @@ note: the mistakes models typically make with the tool and which describe/read t
 | `slides_insert_chart` | A chart on a slide from a range of an open spreadsheet (a snapshot; `slides_refresh_charts` re-reads it) |
 
 | `sheet_add_rule` | Conditional formatting: data bars, color scale, comparisons |
-| `sheet_format_table`, `sheet_define_name`, `sheet_set_validation`, `sheet_paste_special`, `sheet_group`, `sheet_page_setup`, `sheet_pivot`, `sheet_add_sparkline` | Spreadsheet depth: table styles with a total row, defined names, drop-down and number validation, paste special, row/column groups, page setup, pivot-lite, sparklines ([office-sheet.md](office-sheet.md#tables-validation-and-data-tools)) |
+| `sheet_format_table`, `sheet_define_name`, `sheet_set_validation`, `sheet_paste_special`, `sheet_group`, `sheet_page_setup`, `sheet_pivot`, `sheet_refresh_pivots`, `sheet_add_sparkline` | Spreadsheet depth: table styles with a total row, defined names, drop-down and number validation, paste special, row/column groups, page setup, pivot-lite, sparklines ([office-sheet.md](office-sheet.md#tables-validation-and-data-tools)) |
 | `sheet_chart_data` | Categories and series of a range of any open spreadsheet, for charts and tables in other apps (read-only) |
 
 ### Office design and review tools

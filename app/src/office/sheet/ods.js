@@ -10,8 +10,10 @@ import { readZip, writeZip, strFromU8, isZip } from "../../engine/office/zip.js"
 import { parseXml, child, children, find, findAll, textOf, attr, esc, escAttr } from "../../engine/office/xml.js";
 import { parseRange, formatRange } from "../toolkit/selection.js";
 import { newWorkbook, newSheet, normalizeWorkbook, DEFAULT_COL, DEFAULT_ROW } from "./model.js";
-import { keyRC, rcKey, isErr, formatTokens, refText } from "./formula.js";
+import { keyRC, rcKey, isErr, formatTokens, refText, parseFormula, mayArray } from "./formula.js";
 import { dateToSerial, isDateCode } from "./numfmt-code.js";
+import { validName, PAPERS } from "./depth.js";
+import { groupsFromLevels, nestedGroups, unhideCollapsed, bakeTables, unbakeTable, odsTableName, odsTableFromName, isPivotName, pivotNames, restorePivots } from "./depth-io.js";
 
 export const ODS_MIME = "application/vnd.oasis.opendocument.spreadsheet";
 const MAX_REPEAT_FILL = 1024; // repeated *non-empty* cells/rows are expanded up to this many times
@@ -237,9 +239,32 @@ export function readOds(bytes, { report = null } = {}) {
   const st = readStyles([styles, content]);
   const body = find(content, "spreadsheet");
   if (!body) throw new Error("This file is not an OpenDocument spreadsheet.");
+  const ctx = { validations: readValidations(body, report), pages: readPages(content, styles) };
   const sheets = [];
-  for (const table of children(body, "table")) sheets.push(readTable(table, st, sheets.length, report));
+  for (const table of children(body, "table")) sheets.push(readTable(table, st, sheets.length, report, ctx));
   if (!sheets.length) sheets.push(newSheet("Sheet1", "s1", 1));
+  // named ranges and expressions (OpenFini pivot definitions travel as hidden names)
+  const names = {};
+  const pivotDefs = [];
+  for (const el of [...findAll(child(body, "named-expressions"), "named-range"), ...findAll(child(body, "named-expressions"), "named-expression")]) {
+    const name = attr(el, "table:name") || "";
+    const text = el.local === "named-range" ? fromOdfFormula(`[${attr(el, "table:cell-range-address") || ""}]`) : fromOdfFormula(attr(el, "table:expression") || "");
+    if (isPivotName(name)) pivotDefs.push(text.replace(/^"|"$/g, "").replace(/""/g, '"'));
+    else if (validName(name) && text && !text.includes("#REF!")) names[name] = text;
+  }
+  restorePivots(sheets, pivotDefs);
+  // OpenFini tables travel as database ranges named OpenFiniTable_<style>_<flags>_<n>; their look was baked into the cells
+  for (const db of findAll(child(body, "database-ranges"), "database-range")) {
+    const t = odsTableFromName(attr(db, "table:name"));
+    const m = /^\$?(?:'((?:[^']|'')+)'|([^.']+))\.\$?([A-Z]+)\$?(\d+):\$?(?:(?:'(?:[^']|'')+'|[^.']+)\.)?\$?([A-Z]+)\$?(\d+)$/.exec(attr(db, "table:target-range-address") || "");
+    if (!t || !m) continue;
+    const s = sheets.find((x) => x.name === (m[1] != null ? m[1].replace(/''/g, "'") : m[2]));
+    const g = parseRange(`${m[3]}${m[4]}:${m[5]}${m[6]}`);
+    if (!s || !g) continue;
+    const table = { id: `tb${(s.tables?.length || 0) + 1}`, range: formatRange(g), ...t };
+    unbakeTable(s, table);
+    s.tables = [...(s.tables || []), table];
+  }
   // frozen panes and the active sheet live in settings.xml
   let activeName = null;
   if (settings) {
@@ -256,11 +281,134 @@ export function readOds(bytes, { report = null } = {}) {
   const title = meta ? textOf(find(meta, "title")) : "";
   report?.kept?.(`${sheets.length} sheet${sheets.length === 1 ? "" : "s"}, values, formulas, number formats, fonts, fills, borders, alignment, merged cells, column widths, row heights`);
   const active = sheets.find((s) => s.name === activeName) || sheets[0];
-  return normalizeWorkbook({ ...newWorkbook(), sheets, active: active.id, meta: { title } });
+  return normalizeWorkbook({ ...newWorkbook(), sheets, active: active.id, meta: { title }, ...(Object.keys(names).length ? { names } : {}) });
 }
 
-function readTable(table, st, index, report) {
+// ------------------------------------------------------------------------------------------------------ depth features
+
+const num = (s) => (s !== undefined && String(s).trim() !== "" && Number.isFinite(Number(s)) ? Number(s) : undefined);
+
+/** OpenFormula condition of a validation rule (null when it has nothing to check). */
+function odsCondition(rule) {
+  const lim = (fn) => {
+    const has = (x) => x !== undefined && x !== null && Number.isFinite(Number(x));
+    if (has(rule.min) && has(rule.max)) return `${fn}-is-between(${Number(rule.min)};${Number(rule.max)})`;
+    if (has(rule.min)) return `${fn}()>=${Number(rule.min)}`;
+    if (has(rule.max)) return `${fn}()<=${Number(rule.max)}`;
+    return "";
+  };
+  if (rule.type === "list") {
+    if (rule.source) return `of:cell-content-is-in-list(${toOdfFormula(rule.source).replace(/^of:=/, "")})`;
+    return rule.list?.length ? `of:cell-content-is-in-list(${rule.list.map((x) => `"${String(x).replace(/"/g, '""')}"`).join(";")})` : null;
+  }
+  if (rule.type === "textLength") {
+    const b = lim("cell-content-text-length");
+    return b ? `of:${b}` : null;
+  }
+  const b = lim("cell-content");
+  return `of:cell-content-is-${rule.type === "integer" ? "whole" : "decimal"}-number()${b ? ` and ${b}` : ""}`;
+}
+
+/** Content validations → Map(name → rule without range); the cells that use one are collected by readTable. */
+function readValidations(body, report) {
+  const out = new Map();
+  let skipped = 0;
+  for (const el of findAll(child(body, "content-validations"), "content-validation")) {
+    const cond = String(attr(el, "table:condition") || "").replace(/^(?:of|oooc):/, "");
+    const base = { allowBlank: attr(el, "table:allow-empty-cell") !== "false" };
+    const msg = textOf(find(el, "error-message")).trim();
+    if (msg) base.message = msg.slice(0, 255);
+    let m;
+    let rule = null;
+    if ((m = /^cell-content-is-in-list\((.*)\)$/s.exec(cond))) {
+      const inner = m[1].trim();
+      if (inner.startsWith('"')) rule = { type: "list", list: [...inner.matchAll(/"((?:[^"]|"")*)"/g)].map((x) => x[1].replace(/""/g, '"')) };
+      else if (inner) rule = { type: "list", source: fromOdfFormula(inner) };
+    } else if ((m = /^cell-content-is-(decimal-number|whole-number)\(\)(?:\s+and\s+(.*))?$/s.exec(cond))) {
+      const type = m[1] === "whole-number" ? "integer" : "number";
+      const b = bounds(m[2] || "", "cell-content");
+      if (b) rule = { type, ...b };
+    } else if (/^cell-content-text-length/.test(cond)) {
+      const b = bounds(cond, "cell-content-text-length");
+      if (b) rule = { type: "textLength", ...b };
+    }
+    if (rule) out.set(attr(el, "table:name"), { ...rule, ...base });
+    else skipped++;
+  }
+  if (skipped) report?.dropped?.("Data validation rules of other kinds (dates, times, custom formulas, cell references as limits).");
+  return out;
+}
+
+/** "cell-content-is-between(1;10)" / "cell-content()>=1" → { min?, max? } (null when not understood). */
+function bounds(text, fn) {
+  const t = text.trim();
+  if (!t) return {};
+  let m;
+  if ((m = new RegExp(`^${fn}(?:-is)?-between\\(([^;]+);([^)]+)\\)$`).exec(t)) && num(m[1]) !== undefined && num(m[2]) !== undefined) return { min: num(m[1]), max: num(m[2]) };
+  if ((m = new RegExp(`^${fn}\\(\\)\\s*(>=|<=|>|<|=)\\s*(.+)$`).exec(t)) && num(m[2]) !== undefined) {
+    const v = num(m[2]);
+    return m[1] === "=" ? { min: v, max: v } : m[1].startsWith(">") ? { min: v } : { max: v };
+  }
+  return null;
+}
+
+/** Page setup per table style name: content table style → master page → page layout. */
+function readPages(content, styles) {
+  const layouts = new Map();
+  const masters = new Map();
+  for (const doc of [styles, content].filter(Boolean)) {
+    for (const pl of findAll(doc, "page-layout")) layouts.set(attr(pl, "style:name"), child(pl, "page-layout-properties"));
+    for (const mp of findAll(doc, "master-page")) masters.set(attr(mp, "style:name"), attr(mp, "style:page-layout-name"));
+  }
+  const out = new Map();
+  for (const sty of findAll(find(content, "automatic-styles"), "style")) {
+    if (attr(sty, "style:family") !== "table" || !attr(sty, "style:master-page-name")) continue;
+    const props = layouts.get(masters.get(attr(sty, "style:master-page-name")));
+    if (!props) continue;
+    const w = len(attr(props, "fo:page-width"));
+    const h = len(attr(props, "fo:page-height"));
+    const landscape = attr(props, "style:print-orientation") === "landscape" || (w && h && w > h);
+    const short = Math.min(w || 794, h || 1123);
+    const long = Math.max(w || 794, h || 1123);
+    const paper = Object.entries(PAPERS).find(([, p]) => Math.abs(p.w - short) < 6 && Math.abs(p.h - long) < 6)?.[0] || "a4";
+    const fitPage = Number(attr(props, "style:scale-to-pages")) === 1;
+    const fitWidth = Number(attr(props, "style:scale-to-X") || attr(props, "loext:scale-to-X")) === 1;
+    const margin = len(attr(props, "fo:margin-left"));
+    out.set(attr(sty, "style:name"), {
+      orientation: landscape ? "landscape" : "portrait",
+      paper,
+      margin: margin == null ? 48 : Math.max(0, Math.min(144, margin)),
+      gridlines: /\bgrid\b/.test(attr(props, "style:print") || ""),
+      fit: fitPage ? "page" : fitWidth ? "width" : "none",
+    });
+  }
+  return out;
+}
+
+/** Row or column groups of a table (table:table-row-group / table:table-column-group). */
+function readGroups(table, axis) {
+  const [unit, grp, rep] = axis === "row" ? ["table-row", "table-row-group", "table:number-rows-repeated"] : ["table-column", "table-column-group", "table:number-columns-repeated"];
+  const out = [];
+  let i = 0;
+  const walk = (el, depth) => {
+    for (const ch of el.children) {
+      if (typeof ch === "string") continue;
+      if (ch.local === unit) i += Math.min(Number(attr(ch, rep)) || 1, axis === "row" ? LIMIT_ROWS : LIMIT_COLS);
+      else if (ch.local === grp && depth < 7) {
+        const from = i;
+        walk(ch, depth + 1);
+        if (i > from) out.push({ from, to: i - 1, collapsed: attr(ch, "table:display") === "false" });
+      } else if (/^table-(header-)?(rows|columns)$/.test(ch.local)) walk(ch, depth);
+    }
+  };
+  walk(table, 0);
+  return out.sort((a, b) => a.from - b.from || b.to - a.to);
+}
+
+function readTable(table, st, index, report, ctx = null) {
   const s = newSheet(attr(table, "table:name") || `Sheet${index + 1}`, `s${index + 1}`, index + 1);
+  const valCells = new Map(); // validation name → bounding box
+  const arrayKeys = new Set();
   let c = 0;
   for (const col of findAll(table, "table-column")) {
     const n = Math.min(Number(attr(col, "table:number-columns-repeated")) || 1, LIMIT_COLS);
@@ -281,7 +429,7 @@ function readTable(table, st, index, report) {
   for (const row of rowsOf(table)) {
     const repeat = Math.min(Number(attr(row, "table:number-rows-repeated")) || 1, LIMIT_ROWS - r);
     const cellsEls = children(row).filter((x) => x.local === "table-cell" || x.local === "covered-table-cell");
-    const hasContent = cellsEls.some((x) => x.local === "table-cell" && (attr(x, "office:value-type") || attr(x, "table:formula") || attr(x, "table:number-columns-spanned") || attr(x, "table:number-rows-spanned") || x.children.length));
+    const hasContent = cellsEls.some((x) => x.local === "table-cell" && (attr(x, "office:value-type") || attr(x, "table:formula") || attr(x, "table:number-columns-spanned") || attr(x, "table:number-rows-spanned") || attr(x, "table:content-validation-name") || x.children.length));
     const h = attr(row, "table:visibility") === "collapse" ? 0 : st.rows.get(attr(row, "table:style-name"));
     const times = hasContent ? Math.min(repeat, MAX_REPEAT_FILL) : 1;
     for (let k = 0; k < times; k++) {
@@ -295,8 +443,20 @@ function readTable(table, st, index, report) {
           continue;
         }
         const style = st.cells.get(attr(cel, "table:style-name")) || null;
-        const cell = readCell(cel, style);
+        let cell = readCell(cel, style);
         if (find(cel, "annotation")) annotations++;
+        const vn = attr(cel, "table:content-validation-name");
+        if (vn) {
+          const b = valCells.get(vn);
+          const e = Math.min(n, MAX_REPEAT_FILL) - 1;
+          valCells.set(vn, b ? { r0: Math.min(b.r0, r + k), c0: Math.min(b.c0, cc), r1: Math.max(b.r1, r + k), c1: Math.max(b.c1, cc + e) } : { r0: r + k, c0: cc, r1: r + k, c1: cc + e });
+        }
+        // a matrix (array) formula: the cells it covers hold cached results that spill again here
+        const mr = Number(attr(cel, "table:number-matrix-rows-spanned")) || 0;
+        const mc = Number(attr(cel, "table:number-matrix-columns-spanned")) || 0;
+        if (cell?.f !== undefined && (mr > 1 || mc > 1) && mr * mc <= 100000)
+          for (let i = 0; i < Math.max(1, mr); i++) for (let j = 0; j < Math.max(1, mc); j++) if (i || j) arrayKeys.add(rcKey(r + k + i, cc + j));
+        if (cell && cell.f === undefined && arrayKeys.has(rcKey(r + k, cc))) cell = cell.s ? { s: cell.s } : null;
         if (cell) {
           const reps = cell.v !== undefined || cell.f !== undefined ? Math.min(n, MAX_REPEAT_FILL) : Math.min(n, 64);
           for (let j = 0; j < reps; j++) s.cells[rcKey(r + k, cc + j)] = cell;
@@ -311,6 +471,35 @@ function readTable(table, st, index, report) {
     if (r >= LIMIT_ROWS) break;
   }
   if (annotations) report?.dropped?.("Cell comments (annotations).");
+  if (!ctx) return s;
+  for (const [name, rule] of ctx.validations) {
+    const g = valCells.get(name);
+    if (g) s.validation = [...(s.validation || []), { id: `dv${(s.validation?.length || 0) + 1}`, range: formatRange(g), ...rule }];
+  }
+  const groups = { row: readGroups(table, "row"), col: readGroups(table, "col") };
+  if (groups.row.length || groups.col.length) {
+    s.groups = groups;
+    unhideCollapsed(s.rows, groups.row);
+    unhideCollapsed(s.cols, groups.col);
+  }
+  const page = ctx.pages.get(attr(table, "table:style-name"));
+  const area = /^\$?(?:'(?:[^']|'')+'|[^.']+)?\.\$?([A-Z]+)\$?(\d+)(?::\$?(?:(?:'(?:[^']|'')+'|[^.']+)?\.)\$?([A-Z]+)\$?(\d+))?/.exec(attr(table, "table:print-ranges") || "");
+  if (page || area) {
+    s.page = { ...(page || { orientation: "portrait", paper: "a4", margin: 48, gridlines: false, fit: "none" }) };
+    const g = area ? parseRange(`${area[1]}${area[2]}${area[3] ? `:${area[3]}${area[4]}` : ""}`) : null;
+    if (g) s.page.printArea = formatRange(g);
+  }
+  for (const grp of findAll(table, "sparkline-group")) {
+    const type = /column|stacked/.test(attr(grp, "calcext:type") || "") ? "column" : "line";
+    const color = /^#[0-9a-f]{6}$/i.test(attr(grp, "calcext:color-series") || "") ? attr(grp, "calcext:color-series").toLowerCase() : "#2563eb";
+    for (const sp of findAll(grp, "sparkline")) {
+      const at = /\.\$?([A-Z]+)\$?(\d+)$/.exec(attr(sp, "calcext:cell-address") || "");
+      const src = fromOdfFormula(`[${attr(sp, "calcext:data-range") || ""}]`).replace(/\$/g, "");
+      if (!at || src.includes("#REF!")) continue;
+      const own = src.startsWith(`${s.name}!`) ? src.slice(s.name.length + 1) : src.startsWith(`'${s.name.replace(/'/g, "''")}'!`) ? src.slice(s.name.replace(/'/g, "''").length + 3) : src;
+      s.sparks = [...(s.sparks || []), { id: `sp${(s.sparks?.length || 0) + 1}`, cell: `${at[1]}${at[2]}`, range: own, type, color }];
+    }
+  }
   return s;
 }
 
@@ -342,7 +531,7 @@ function readCell(el, style) {
 
 // ------------------------------------------------------------------------------------------------------ writer
 
-const NS = 'xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0" xmlns:of="urn:oasis:names:tc:opendocument:xmlns:of:1.2" xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0"';
+const NS = 'xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0" xmlns:of="urn:oasis:names:tc:opendocument:xmlns:of:1.2" xmlns:config="urn:oasis:names:tc:opendocument:xmlns:config:1.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0" xmlns:calcext="urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0"';
 const XML = '<?xml version="1.0" encoding="UTF-8"?>\n';
 const cm = (px) => `${(px / (96 / 2.54)).toFixed(3)}cm`;
 
@@ -428,17 +617,75 @@ export function writeOds(model, { calc = null, title = "" } = {}) {
   };
   const defCol = sizeStyle(colStyle, "co", DEFAULT_COL, "table-column", "style:column-width");
   const defRow = sizeStyle(rowStyle, "ro", DEFAULT_ROW, "table-row", "style:row-height");
-  const tables = wb.sheets.map((s) => {
+  const validations = [];
+  const pageLayouts = [];
+  const dbTables = [];
+  const qSheet = (name) => `$'${name.replace(/'/g, "''")}'`;
+  const tables = wb.sheets.map((s, si) => {
     let rows = 0;
     let cols = 0;
     const byRow = new Map();
+    // ODS has no table styles: the table look is written into the cell styles (and read back out of them)
+    const cellsOut = s.tables?.length ? bakeTables(s) : s.cells;
+    // spilling formulas become matrix formulas over their spill area, with the spilled values cached in the cells
+    const matrix = new Map();
+    const spilled = new Map();
     for (const [k, cell] of Object.entries(s.cells)) {
+      if (typeof cell.f !== "string" || !calc?.spillSize) continue;
+      let arr = false;
+      try {
+        arr = mayArray(parseFormula(cell.f));
+      } catch {}
+      const sz = arr ? calc.spillSize(s.id, k) : null;
+      if (!sz) continue;
+      const { r, c } = keyRC(k);
+      matrix.set(k, sz);
+      for (let a = 0; a < sz.rows; a++) for (let b = 0; b < sz.cols; b++) if (a || b) spilled.set(rcKey(r + a, c + b), calc.value(s.id, rcKey(r + a, c + b)));
+    }
+    const place = (k, cell) => {
       const { r, c } = keyRC(k);
       rows = Math.max(rows, r + 1);
       cols = Math.max(cols, c + 1);
       if (!byRow.has(r)) byRow.set(r, new Map());
       byRow.get(r).set(c, [k, cell]);
+    };
+    for (const [k, cell] of Object.entries(cellsOut)) place(k, spilled.has(k) && cell.v === undefined && cell.f === undefined ? { ...cell, cached: spilled.get(k) } : cell);
+    for (const [k, v] of spilled) if (!cellsOut[k]) place(k, { cached: v });
+    // data validation: one content validation per rule, named on every cell it covers (at most 50,000 cells a rule)
+    const valAt = new Map();
+    for (const rule of s.validation || []) {
+      const g = parseRange(rule.range);
+      const cond = odsCondition(rule);
+      if (!g || !cond) continue;
+      const name = `val${validations.length + 1}`;
+      const msg = rule.message ? `<table:error-message table:display="true" table:message-type="stop"><text:p>${esc(rule.message)}</text:p></table:error-message>` : '<table:error-message table:display="true" table:message-type="stop"/>';
+      validations.push(`<table:content-validation table:name="${name}" table:condition="${escAttr(cond)}" table:allow-empty-cell="${rule.allowBlank !== false}" table:base-cell-address="${escAttr(`${qSheet(s.name)}.${rcKey(g.r0, g.c0)}`)}">${msg}</table:content-validation>`);
+      const r1 = Math.min(g.r1, g.r0 + Math.floor(50000 / (g.c1 - g.c0 + 1)));
+      for (let r = g.r0; r <= r1; r++) for (let c = g.c0; c <= g.c1; c++) valAt.set(rcKey(r, c), name);
+      rows = Math.max(rows, r1 + 1);
+      cols = Math.max(cols, g.c1 + 1);
     }
+    const rowGroups = nestedGroups(s.groups?.row);
+    const colGroups = nestedGroups(s.groups?.col);
+    for (const g of rowGroups) rows = Math.max(rows, Math.min(g.to + 1, LIMIT_ROWS));
+    for (const g of colGroups) cols = Math.max(cols, Math.min(g.to + 1, LIMIT_COLS));
+    const shutR = new Set();
+    const shutC = new Set();
+    for (const g of rowGroups) if (g.collapsed) for (let i = g.from; i <= g.to && i < rows; i++) shutR.add(i);
+    for (const g of colGroups) if (g.collapsed) for (let i = g.from; i <= g.to && i < cols; i++) shutC.add(i);
+    // groups wrap their rows / columns; returns the opening and closing tags before index i
+    const wrapper = (list, tag) => {
+      const stack = [];
+      return (i, last = false) => {
+        let out = "";
+        while (stack.length && (last || stack[stack.length - 1].to < i)) (stack.pop(), (out += `</table:${tag}>`));
+        if (!last) for (const g of list) if (g.from === i) (stack.push(g), (out += `<table:${tag}${g.collapsed ? ' table:display="false"' : ""}>`));
+        return out;
+      };
+    };
+    const rowWrap = wrapper(rowGroups, "table-row-group");
+    const colWrap = wrapper(colGroups, "table-column-group");
+    for (const t of s.tables || []) dbTables.push({ s, t, n: dbTables.length + 1 });
     const spans = new Map();
     const covered = new Set();
     for (const m of s.merges) {
@@ -452,7 +699,8 @@ export function writeOds(model, { calc = null, title = "" } = {}) {
     for (const k of Object.keys(s.cols)) cols = Math.max(cols, Number(k) + 1);
     cols = Math.max(cols, 1);
     const colXml = [];
-    for (let c = 0; c < cols; c++) colXml.push(`<table:table-column table:style-name="${s.cols[c] != null ? sizeStyle(colStyle, "co", s.cols[c] || 1, "table-column", "style:column-width") : defCol}"${s.cols[c] === 0 ? ' table:visibility="collapse"' : ""} table:default-cell-style-name="Default"/>`);
+    for (let c = 0; c < cols; c++) colXml.push(`${colWrap(c)}<table:table-column table:style-name="${s.cols[c] != null ? sizeStyle(colStyle, "co", s.cols[c] || 1, "table-column", "style:column-width") : defCol}"${s.cols[c] === 0 || shutC.has(c) ? ' table:visibility="collapse"' : ""} table:default-cell-style-name="Default"/>`);
+    colXml.push(colWrap(cols, true));
     const rowXml = [];
     for (let r = 0; r < rows; r++) {
       const line = byRow.get(r);
@@ -465,17 +713,19 @@ export function writeOds(model, { calc = null, title = "" } = {}) {
         }
         const cell = line?.get(c)?.[1];
         const g = spans.get(k);
-        const span = g ? ` table:number-columns-spanned="${g.c1 - g.c0 + 1}" table:number-rows-spanned="${g.r1 - g.r0 + 1}"` : "";
+        const vn = valAt.get(k);
+        const span = (g ? ` table:number-columns-spanned="${g.c1 - g.c0 + 1}" table:number-rows-spanned="${g.r1 - g.r0 + 1}"` : "") + (vn ? ` table:content-validation-name="${vn}"` : "");
         if (!cell) {
           cellsXml.push(span ? `<table:table-cell${span}/>` : "<table:table-cell/>");
           continue;
         }
         const sn = styleFor(cell.s);
         const sa = sn ? ` table:style-name="${sn}"` : "";
-        let v = cell.v;
+        let v = cell.f === undefined && cell.cached !== undefined ? (isErr(cell.cached) ? null : cell.cached) : cell.v;
         let fx = "";
         if (typeof cell.f === "string") {
-          fx = ` table:formula="${escAttr(toOdfFormula(cell.f))}"`;
+          const mx = matrix.get(k);
+          fx = ` table:formula="${escAttr(toOdfFormula(cell.f))}"${mx ? ` table:number-matrix-columns-spanned="${mx.cols}" table:number-matrix-rows-spanned="${mx.rows}"` : ""}`;
           v = calc ? calc.value(s.id, k) : null;
           if (isErr(v)) v = null;
         }
@@ -496,18 +746,53 @@ export function writeOds(model, { calc = null, title = "" } = {}) {
       // trim trailing empty cells
       while (cellsXml.length > 1 && cellsXml[cellsXml.length - 1] === "<table:table-cell/>") cellsXml.pop();
       const rs = s.rows[r] != null ? sizeStyle(rowStyle, "ro", s.rows[r] || 1, "table-row", "style:row-height") : defRow;
-      rowXml.push(`<table:table-row table:style-name="${rs}"${s.rows[r] === 0 ? ' table:visibility="collapse"' : ""}>${cellsXml.join("")}</table:table-row>`);
+      rowXml.push(`${rowWrap(r)}<table:table-row table:style-name="${rs}"${s.rows[r] === 0 || shutR.has(r) ? ' table:visibility="collapse"' : ""}>${cellsXml.join("")}</table:table-row>`);
     }
     if (!rowXml.length) rowXml.push(`<table:table-row table:style-name="${defRow}"><table:table-cell/></table:table-row>`);
-    return `<table:table table:name="${escAttr(s.name)}">${colXml.join("")}${rowXml.join("")}</table:table>`;
+    rowXml.push(rowWrap(rows, true));
+    // page setup: a page layout and master page per sheet, linked through the table style
+    let tableAttr = "";
+    if (s.page) {
+      const p = s.page;
+      const paper = PAPERS[p.paper] || PAPERS.a4;
+      const [w, h] = p.orientation === "landscape" ? [paper.h, paper.w] : [paper.w, paper.h];
+      const mg = cm(p.margin ?? 48);
+      const fit = p.fit === "page" ? ' style:scale-to-pages="1"' : p.fit === "width" ? ' style:scale-to-X="1" style:scale-to-Y="0"' : "";
+      pageLayouts.push([`pm${si + 1}`, `OpenFini_Page_${si + 1}`, `<style:page-layout-properties fo:page-width="${cm(w)}" fo:page-height="${cm(h)}" style:print-orientation="${p.orientation === "landscape" ? "landscape" : "portrait"}" fo:margin-top="${mg}" fo:margin-bottom="${mg}" fo:margin-left="${mg}" fo:margin-right="${mg}" style:print="${p.gridlines ? "grid " : ""}charts drawings objects zero-values"${fit}/>`]);
+      auto.push(`<style:style style:name="ta${si + 1}" style:family="table" style:master-page-name="OpenFini_Page_${si + 1}"><style:table-properties table:display="true"/></style:style>`);
+      tableAttr = ` table:style-name="ta${si + 1}"`;
+      const g = p.printArea ? parseRange(p.printArea) : null;
+      if (g) tableAttr += ` table:print-ranges="${escAttr(`${qSheet(s.name)}.${refText({ r: g.r0, c: g.c0, absR: true, absC: true })}:${qSheet(s.name)}.${refText({ r: g.r1, c: g.c1, absR: true, absC: true })}`)}"`;
+    }
+    // sparklines (LibreOffice's calcext extension)
+    const sparks = (s.sparks || []).map((sp, j) => {
+      const src = sp.range.includes("!") ? sp.range : `'${s.name.replace(/'/g, "''")}'!${sp.range}`;
+      const addr = toOdfFormula(src).replace(/^of:=\[|\]$/g, "").replace(/\$/g, "");
+      return `<calcext:sparkline-group calcext:id="{${String(si + 1).padStart(8, "0")}-0000-4000-8000-${String(j + 1).padStart(12, "0")}}" calcext:type="${sp.type === "column" ? "column" : "line"}" calcext:color-series="${sp.color}" calcext:display-empty-cells-as="gap"><calcext:sparklines><calcext:sparkline calcext:cell-address="${escAttr(`${qSheet(s.name).slice(1)}.${sp.cell}`)}" calcext:data-range="${escAttr(addr)}"/></calcext:sparklines></calcext:sparkline-group>`;
+    });
+    const sparkXml = sparks.length ? `<calcext:sparkline-groups>${sparks.join("")}</calcext:sparkline-groups>` : "";
+    return `<table:table table:name="${escAttr(s.name)}"${tableAttr}>${colXml.join("")}${rowXml.join("")}${sparkXml}</table:table>`;
   });
   const dbRanges = wb.sheets.filter((s) => s.filter).map((s, i) => {
     const g = parseRange(s.filter.range);
     const q = `$'${s.name.replace(/'/g, "''")}'`;
     return `<table:database-range table:name="__Anonymous_Sheet_DB__${i}" table:target-range-address="${escAttr(`${q}.${rcKey(g.r0, g.c0)}:${q}.${rcKey(g.r1, g.c1)}`)}" table:display-filter-buttons="true"/>`;
   });
-  const content = `${XML}<office:document-content ${NS} office:version="1.3"><office:automatic-styles>${dataStyles.join("")}${auto.join("")}</office:automatic-styles><office:body><office:spreadsheet>${tables.join("")}${dbRanges.length ? `<table:database-ranges>${dbRanges.join("")}</table:database-ranges>` : ""}</office:spreadsheet></office:body></office:document-content>`;
-  const stylesXml = `${XML}<office:document-styles ${NS} office:version="1.3"><office:styles><style:style style:name="Default" style:family="table-cell"/></office:styles></office:document-styles>`;
+  for (const { s, t, n } of dbTables) {
+    const g = parseRange(t.range);
+    if (g) dbRanges.push(`<table:database-range table:name="${odsTableName(t, n)}" table:target-range-address="${escAttr(`${qSheet(s.name)}.${rcKey(g.r0, g.c0)}:${qSheet(s.name)}.${rcKey(g.r1, g.c1)}`)}" table:contains-header="${t.header}"/>`);
+  }
+  // named ranges (pure references) and named expressions (constants, formulas, OpenFini pivot definitions)
+  const namedXml = [];
+  for (const [name, ref] of Object.entries(wb.names || {})) {
+    if (!validName(name) || !String(ref).trim()) continue;
+    const f = toOdfFormula(String(ref).replace(/^=/, ""));
+    const m = /^of:=\[([^\]]+)\]$/.exec(f);
+    namedXml.push(m ? `<table:named-range table:name="${escAttr(name)}" table:base-cell-address="${escAttr(m[1].split(":")[0])}" table:cell-range-address="${escAttr(m[1])}"/>` : `<table:named-expression table:name="${escAttr(name)}" table:expression="${escAttr(f)}"/>`);
+  }
+  for (const [name, json] of pivotNames(wb)) namedXml.push(`<table:named-expression table:name="${name}" table:expression="${escAttr(`of:="${json.replace(/"/g, '""')}"`)}"/>`);
+  const content = `${XML}<office:document-content ${NS} office:version="1.3"><office:automatic-styles>${dataStyles.join("")}${auto.join("")}</office:automatic-styles><office:body><office:spreadsheet>${validations.length ? `<table:content-validations>${validations.join("")}</table:content-validations>` : ""}${tables.join("")}${namedXml.length ? `<table:named-expressions>${namedXml.join("")}</table:named-expressions>` : ""}${dbRanges.length ? `<table:database-ranges>${dbRanges.join("")}</table:database-ranges>` : ""}</office:spreadsheet></office:body></office:document-content>`;
+  const stylesXml = `${XML}<office:document-styles ${NS} office:version="1.3"><office:styles><style:style style:name="Default" style:family="table-cell"/></office:styles>${pageLayouts.length ? `<office:automatic-styles>${pageLayouts.map(([pm, , props]) => `<style:page-layout style:name="${pm}">${props}</style:page-layout>`).join("")}</office:automatic-styles><office:master-styles>${pageLayouts.map(([pm, mp]) => `<style:master-page style:name="${mp}" style:page-layout-name="${pm}"/>`).join("")}</office:master-styles>` : ""}</office:document-styles>`;
   const active = wb.sheets.find((s) => s.id === wb.active) || wb.sheets[0];
   const tableSettings = wb.sheets.map((s) => {
     const fr = s.freeze;

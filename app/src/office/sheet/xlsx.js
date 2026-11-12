@@ -9,7 +9,9 @@ import { readZip, writeZip, strFromU8 } from "../../engine/office/zip.js";
 import { parseXml, child, children, find, findAll, textOf, attr, esc, escAttr } from "../../engine/office/xml.js";
 import { parseRange, formatRange, colIndex } from "../toolkit/selection.js";
 import { newWorkbook, newSheet, normalizeWorkbook, DEFAULT_COL, DEFAULT_ROW, usedRange } from "./model.js";
-import { keyRC, rcKey, isErr, shiftFormula } from "./formula.js";
+import { keyRC, rcKey, isErr, shiftFormula, parseFormula, mayArray } from "./formula.js";
+import { validName, PAPERS } from "./depth.js";
+import { outlineLevels, groupsFromLevels, unhideCollapsed, bakeTables, xlTableStyle, tableStyleFromXl, isPivotName, pivotNames, restorePivots, ruleBounds, boundsFromOp } from "./depth-io.js";
 
 const BUILTIN_FMT = { 0: "General", 1: "0", 2: "0.00", 3: "#,##0", 4: "#,##0.00", 5: '"$"#,##0_);("$"#,##0)', 6: '"$"#,##0_);[Red]("$"#,##0)', 7: '"$"#,##0.00_);("$"#,##0.00)', 8: '"$"#,##0.00_);[Red]("$"#,##0.00)', 9: "0%", 10: "0.00%", 11: "0.00E+00", 12: "# ?/?", 13: "# ??/??", 14: "mm-dd-yy", 15: "d-mmm-yy", 16: "d-mmm", 17: "mmm-yy", 18: "h:mm AM/PM", 19: "h:mm:ss AM/PM", 20: "h:mm", 21: "h:mm:ss", 22: "m/d/yy h:mm", 37: "#,##0_);(#,##0)", 38: "#,##0_);[Red](#,##0)", 39: "#,##0.00_);(#,##0.00)", 40: "#,##0.00_);[Red](#,##0.00)", 45: "mm:ss", 46: "[h]:mm:ss", 47: "mmss.0", 48: "##0.0E+0", 49: "@" };
 const FMT_ID = Object.fromEntries(Object.entries(BUILTIN_FMT).map(([k, v]) => [v, Number(k)]));
@@ -122,7 +124,25 @@ export function readXlsx(bytes, { report = null } = {}) {
   const ss = txt("xl/sharedStrings.xml");
   if (ss) for (const si of findAll(parseXml(ss), "si")) shared.push(siText(si));
   if (entries["xl/vbaProject.bin"]) report?.dropped?.("Macros (VBA) are not kept; the workbook is saved without them.");
-  if (find(wbDoc, "definedNames")) report?.dropped?.("Named ranges are not supported yet; formulas that use them show #NAME?.");
+  // defined names: workbook names, print areas (per sheet) and OpenFini pivot definitions
+  const names = {};
+  const printAreas = new Map();
+  const pivotDefs = [];
+  let scoped = 0;
+  for (const dn of findAll(find(wbDoc, "definedNames"), "definedName")) {
+    const name = attr(dn, "name") || "";
+    const text = fromXlFormula(textOf(dn)).trim();
+    const local = attr(dn, "localSheetId");
+    if (/^_xlnm\.Print_Area$/i.test(name) && local != null) printAreas.set(Number(local), text);
+    else if (isPivotName(name)) pivotDefs.push(text.replace(/^"|"$/g, "").replace(/""/g, '"'));
+    else if (/^_xlnm\./i.test(name) || !text) continue;
+    else if (!validName(name)) report?.dropped?.(`Named range “${name}” (not a valid name here).`);
+    else if (names[name] === undefined) {
+      if (local != null) scoped++;
+      names[name] = text;
+    }
+  }
+  if (scoped) report?.flattened?.("Names that belong to one sheet became workbook names.");
   const sheets = [];
   const nameOf = new Map();
   let active = 0;
@@ -139,13 +159,47 @@ export function readXlsx(bytes, { report = null } = {}) {
     if (attr(el, "state") === "hidden" || attr(el, "state") === "veryHidden") report?.note?.(`Hidden sheet “${name}” is shown.`);
     const sheet = readSheet(txt(path), { name, id: `s${sheets.length + 1}`, pos: sheets.length + 1, shared, styles, date1904, report });
     readDrawing(sheet, path, entries, txt, report);
+    readTables(sheet, path, txt);
+    const area = printAreas.get(i);
+    if (area) {
+      const g = parseRange(area.replace(/^.*!/, "").replace(/\$/g, "").split(",")[0]);
+      if (g) sheet.page = { ...defaultPage(), ...(sheet.page || {}), printArea: formatRange(g) };
+    }
     nameOf.set(sheet.id, name);
     sheets.push(sheet);
   });
   if (!sheets.length) sheets.push(newSheet("Sheet1", "s1", 1));
+  restorePivots(sheets, pivotDefs);
   const title = textOf(find(parseXml(txt("docProps/core.xml") || ""), "title")) || "";
-  report?.kept?.(`${sheets.length} sheet${sheets.length === 1 ? "" : "s"}, values, formulas, number formats, fonts, fills, borders, alignment, merged cells, column widths, row heights, frozen panes`);
-  return normalizeWorkbook({ ...newWorkbook(), sheets, active: sheets[Math.min(active, sheets.length - 1)].id, meta: { title } });
+  report?.kept?.(`${sheets.length} sheet${sheets.length === 1 ? "" : "s"}, values, formulas, number formats, fonts, fills, borders, alignment, merged cells, column widths, row heights, frozen panes, named ranges, tables, data validation, groups, page setup, sparklines`);
+  return normalizeWorkbook({ ...newWorkbook(), sheets, active: sheets[Math.min(active, sheets.length - 1)].id, meta: { title }, ...(Object.keys(names).length ? { names } : {}) });
+}
+
+const defaultPage = () => ({ orientation: "portrait", paper: "a4", margin: 48, gridlines: false, fit: "none" });
+const XL_PAPER = { 1: "letter", 5: "legal", 8: "a3", 9: "a4", 11: "a5" };
+const PAPER_XL = Object.fromEntries(Object.entries(XL_PAPER).map(([k, v]) => [v, k]));
+
+/** Table parts of a sheet (xl/tables/tableN.xml) → Sheet.tables. */
+function readTables(sheet, sheetPath, txt) {
+  const rels = parseRels(txt(relsOf(sheetPath)));
+  for (const { target, type } of rels.values()) {
+    if (!/\/table$/.test(type)) continue;
+    const text = txt(resolvePath(sheetPath, target));
+    if (!text) continue;
+    const doc = parseXml(text);
+    const t = find(doc, "table");
+    const g = parseRange(attr(t, "ref") || "");
+    if (!g) continue;
+    const info = find(doc, "tableStyleInfo");
+    sheet.tables = [...(sheet.tables || []), {
+      id: `tb${(sheet.tables?.length || 0) + 1}`,
+      range: formatRange(g),
+      style: tableStyleFromXl(attr(info, "name")),
+      header: attr(t, "headerRowCount") !== "0",
+      banded: info ? attr(info, "showRowStripes") !== "0" : true,
+      total: Number(attr(t, "totalsRowCount") || 0) > 0,
+    }];
+  }
 }
 
 function siText(si) {
@@ -163,18 +217,32 @@ function readSheet(text, { name, id, pos, shared, styles, date1904, report }) {
   const s = newSheet(name, id, pos);
   const sharedF = new Map(); // si → { f, r, c }
   let dropped = 0;
+  const on = (v) => v === "1" || v === "true";
+  const levels = { row: new Map(), col: new Map() };
+  const folded = { row: new Set(), col: new Set() }; // summary rows / columns marked collapsed
+  const hidden = { row: new Set(), col: new Set() };
   for (const col of findAll(find(doc, "cols"), "col")) {
     const min = Number(attr(col, "min")) - 1;
     const max = Math.min(Number(attr(col, "max")) - 1, min + 512);
-    const w = attr(col, "hidden") === "1" ? 0 : attr(col, "width") ? colPx(attr(col, "width")) : null;
+    const lvl = Number(attr(col, "outlineLevel")) || 0;
+    for (let c = min; c <= max; c++) {
+      if (lvl) levels.col.set(c, lvl);
+      if (on(attr(col, "collapsed"))) folded.col.add(c);
+      if (on(attr(col, "hidden"))) hidden.col.add(c);
+    }
+    const w = on(attr(col, "hidden")) ? 0 : attr(col, "width") ? colPx(attr(col, "width")) : null;
     if (w == null) continue;
     for (let c = min; c <= max; c++) if (w !== DEFAULT_COL) s.cols[c] = w;
   }
+  const arrayKeys = new Set(); // cells covered by an array formula (their cached values are not kept)
   const sd = find(doc, "sheetData");
   let rowIdx = 0;
   for (const row of children(sd, "row")) {
     const r = attr(row, "r") ? Number(attr(row, "r")) - 1 : rowIdx;
     rowIdx = r + 1;
+    if (Number(attr(row, "outlineLevel"))) levels.row.set(r, Number(attr(row, "outlineLevel")));
+    if (on(attr(row, "collapsed"))) folded.row.add(r);
+    if (on(attr(row, "hidden"))) hidden.row.add(r);
     if (attr(row, "hidden") === "1") s.rows[r] = 0;
     else if (attr(row, "ht") && (attr(row, "customHeight") === "1" || attr(row, "customHeight") === "true")) {
       const px = Math.round((Number(attr(row, "ht")) * 4) / 3);
@@ -207,8 +275,16 @@ function readSheet(text, { name, id, pos, shared, styles, date1904, report }) {
           if (base) cell.f = base.r === rr && base.c === cc ? base.f : shiftFormula(base.f, rr - base.r, cc - base.c);
         } else if (attr(fEl, "t") === "array") {
           if (ftext) cell.f = fromXlFormula(ftext);
-          dropped++;
+          // dynamic arrays (cm = cell metadata) spill again here; legacy array formulas are approximated
+          if (attr(c, "cm") == null) dropped++;
+          const g = parseRange(attr(fEl, "ref") || "");
+          if (g && (g.r1 - g.r0 + 1) * (g.c1 - g.c0 + 1) <= 100000)
+            for (let i = g.r0; i <= g.r1; i++) for (let j = g.c0; j <= g.c1; j++) if (i !== rr || j !== cc) arrayKeys.add(rcKey(i, j));
         } else if (ftext) cell.f = fromXlFormula(ftext);
+      }
+      if (cell.f === undefined && arrayKeys.has(rcKey(rr, cc))) {
+        if (style) s.cells[rcKey(rr, cc)] = { s: style };
+        continue;
       }
       if (cell.f === undefined) {
         if (t === "s") {
@@ -266,8 +342,80 @@ function readSheet(text, { name, id, pos, shared, styles, date1904, report }) {
       } else report?.dropped?.(`Conditional formatting rules of type “${type}”.`);
     }
   }
-  if (find(doc, "dataValidations")) report?.dropped?.("Data validation rules.");
+  // row and column groups from outline levels; a group is collapsed when its summary row / column says so or all of
+  // it is hidden. Rows hidden only by a collapsed group are not "hidden" rows of their own.
+  for (const axis of ["row", "col"]) {
+    if (!levels[axis].size) continue;
+    const list = groupsFromLevels(levels[axis], (g) => folded[axis].has(g.to + 1) || folded[axis].has(g.from - 1) || [...Array(Math.min(g.to - g.from + 1, 5000)).keys()].every((k) => hidden[axis].has(g.from + k)));
+    s.groups = { row: [], col: [], ...(s.groups || {}), [axis]: list };
+    unhideCollapsed(axis === "row" ? s.rows : s.cols, list);
+  }
+  readPage(s, doc);
+  readValidation(s, doc, report);
+  readSparklines(s, doc);
   return s;
+}
+
+function readPage(s, doc) {
+  const ps = find(doc, "pageSetup");
+  const fitToPage = on01(attr(find(doc, "pageSetUpPr"), "fitToPage"));
+  const grid = on01(attr(find(doc, "printOptions"), "gridLines"));
+  const paper = XL_PAPER[attr(ps, "paperSize")];
+  const orientation = attr(ps, "orientation");
+  if (!paper && !orientation && !fitToPage && !grid) return;
+  const p = defaultPage();
+  if (paper) p.paper = paper;
+  if (orientation === "landscape") p.orientation = "landscape";
+  p.gridlines = grid;
+  if (fitToPage) p.fit = attr(ps, "fitToHeight") === "0" ? "width" : "page";
+  const left = Number(attr(find(doc, "pageMargins"), "left"));
+  if (Number.isFinite(left) && left >= 0) p.margin = Math.max(0, Math.min(144, Math.round(left * 96)));
+  s.page = p;
+}
+const on01 = (v) => v === "1" || v === "true";
+
+const DV_TYPE = { list: "list", decimal: "number", whole: "integer", textLength: "textLength" };
+
+function readValidation(s, doc, report) {
+  let skipped = 0;
+  for (const dv of findAll(find(doc, "dataValidations"), "dataValidation")) {
+    const type = DV_TYPE[attr(dv, "type") || "none"];
+    const f1 = textOf(child(dv, "formula1"));
+    const f2 = child(dv, "formula2") ? textOf(child(dv, "formula2")) : undefined;
+    let base = null;
+    if (type === "list") {
+      if (/^".*"$/s.test(f1)) base = { list: f1.slice(1, -1).replace(/""/g, '"').split(",").map((x) => x.trim()).filter((x) => x !== "") };
+      else if (f1.trim()) base = { source: fromXlFormula(f1).trim() };
+    } else if (type) {
+      const b = boundsFromOp(attr(dv, "operator") || "between", f1, f2);
+      if (b) base = Object.fromEntries(Object.entries(b).filter(([, v]) => v !== undefined));
+    }
+    if (!type || !base) {
+      skipped++;
+      continue;
+    }
+    const message = attr(dv, "error") || "";
+    for (const ref of String(attr(dv, "sqref") || "").split(/\s+/)) {
+      const g = parseRange(ref);
+      if (!g) continue;
+      s.validation = [...(s.validation || []), { id: `dv${(s.validation?.length || 0) + 1}`, range: formatRange(g), type, ...base, allowBlank: on01(attr(dv, "allowBlank")),...(message ? { message: message.slice(0, 255) } : {}) }];
+    }
+  }
+  if (skipped) report?.dropped?.("Data validation rules of other kinds (dates, times, custom formulas, cell references as limits).");
+}
+
+function readSparklines(s, doc) {
+  for (const grp of findAll(doc, "sparklineGroup")) {
+    const type = attr(grp, "type") === "column" || attr(grp, "type") === "stacked" ? "column" : "line";
+    const color = argb(child(grp, "colorSeries")) || "#2563eb";
+    for (const sp of findAll(grp, "sparkline")) {
+      const cell = parseRange(textOf(find(sp, "sqref")).trim());
+      const ref = textOf(find(sp, "f")).trim().replace(/\$/g, "");
+      if (!cell || !ref) continue;
+      const own = new RegExp(`^(?:'${s.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/'/g, "''")}'|${s.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})!`);
+      s.sparks = [...(s.sparks || []), { id: `sp${(s.sparks?.length || 0) + 1}`, cell: rcKey(cell.r0, cell.c0), range: ref.replace(own, ""), type, color }];
+    }
+  }
 }
 const numOr = (s) => (s != null && s !== "" && Number.isFinite(Number(s)) ? Number(s) : s);
 
@@ -404,7 +552,31 @@ function styleTable() {
   };
 }
 
-const toXlFormula = (f) => String(f).replace(NEW_FNS, "_xlfn.$1(");
+const toXlFormula = (f) => String(f).replace(NEW_FNS, "_xlfn.$1(").replace(/\b(FILTER|SORT)\(/g, "_xlfn._xlws.$1(").replace(/\b(SORTBY|UNIQUE|SEQUENCE)\(/g, "_xlfn.$1(");
+const isArrayFormula = (f) => {
+  try {
+    return mayArray(parseFormula(f));
+  } catch {
+    return false;
+  }
+};
+const xlNum = (n) => String(Number(n));
+const xlStr = (s) => `"${String(s).replace(/"/g, '""')}"`;
+/** Table column names: the header texts, which Excel requires to be unique non-empty strings (null when they are not). */
+function tableColumns(s, g, header) {
+  const names = [];
+  for (let c = g.c0; c <= g.c1; c++) {
+    if (!header) {
+      names.push(`Column${c - g.c0 + 1}`);
+      continue;
+    }
+    const cell = s.cells[rcKey(g.r0, c)];
+    const v = cell?.f === undefined ? cell?.v : undefined;
+    if (typeof v !== "string" || !v.trim() || v.length > 255 || names.some((n) => n.toLowerCase() === v.toLowerCase())) return null;
+    names.push(v);
+  }
+  return names;
+}
 const quoteName = (n) => (/^[A-Za-z_][\w.]*$/.test(n) && !/^[A-Za-z]{1,3}\d+$/.test(n) ? n : `'${n.replace(/'/g, "''")}'`);
 const absRange = (sheet, g) => `${quoteName(sheet)}!$${rcKey(g.r0, g.c0).replace(/(\d+)$/, "$$$1")}${g.r0 === g.r1 && g.c0 === g.c1 ? "" : `:$${rcKey(g.r1, g.c1).replace(/(\d+)$/, "$$$1")}`}`;
 
@@ -425,26 +597,81 @@ export function writeXlsx(model, { calc = null, title = "" } = {}) {
   const files = [];
   const ct = [];
   const sheetEntries = [];
+  const definedNames = [];
   let chartNo = 0;
+  let tableNo = 0;
+  let dynamic = false;
   wb.sheets.forEach((s, i) => {
     const n = i + 1;
     const path = `xl/worksheets/sheet${n}.xml`;
     ct.push(`<Override PartName="/${path}" ContentType="${CT.ws}"/>`);
-    const rowsMap = new Map();
+    // tables become table parts; a table whose header is not unique text is written as formatted cells instead
+    const parts = [];
+    const baked = [];
+    for (const t of s.tables || []) {
+      const g = parseRange(t.range);
+      if (!g) continue;
+      const cols = tableColumns(s, g, t.header);
+      if (cols && g.r1 > g.r0) parts.push({ t, g, cols });
+      else baked.push(t);
+    }
+    const cellsOut = baked.length ? bakeTables(s, baked) : s.cells;
+    // dynamic arrays: the anchor is written as an array formula over its spill area with Excel's dynamic-array cell
+    // metadata, and the spilled values as cached values
+    const spills = new Map();
+    const spilled = new Map();
     for (const [k, cell] of Object.entries(s.cells)) {
+      if (typeof cell.f !== "string" || !isArrayFormula(cell.f)) continue;
       const { r, c } = keyRC(k);
-      if (r < 0) continue;
+      const sz = calc?.spillSize?.(s.id, k);
+      spills.set(k, sz ? formatRange({ r0: r, c0: c, r1: r + sz.rows - 1, c1: c + sz.cols - 1 }) : k);
+      if (sz) for (let a = 0; a < sz.rows; a++) for (let b = 0; b < sz.cols; b++) if (a || b) spilled.set(rcKey(r + a, c + b), calc.value(s.id, rcKey(r + a, c + b)));
+    }
+    if (spills.size) dynamic = true;
+    const rowsMap = new Map();
+    const put = (k, cell) => {
+      const { r, c } = keyRC(k);
+      if (r < 0) return;
       if (!rowsMap.has(r)) rowsMap.set(r, []);
       rowsMap.get(r).push([c, k, cell]);
-    }
+    };
+    for (const [k, cell] of Object.entries(cellsOut)) put(k, spilled.has(k) && cell.v === undefined && cell.f === undefined ? { ...cell, cached: spilled.get(k) } : cell);
+    for (const [k, v] of spilled) if (!cellsOut[k]) put(k, { cached: v });
     for (const r of Object.keys(s.rows)) if (!rowsMap.has(Number(r))) rowsMap.set(Number(r), []);
+    // outline levels of grouped rows and columns; the row / column after a collapsed group carries "collapsed"
+    const lv = { row: outlineLevels(s.groups?.row), col: outlineLevels(s.groups?.col) };
+    const shut = { row: new Set(), col: new Set() };
+    const after = { row: new Set(), col: new Set() };
+    for (const axis of ["row", "col"])
+      for (const g of s.groups?.[axis] || []) {
+        after[axis].add(g.to + 1);
+        if (g.collapsed) for (let k = g.from; k <= g.to && k - g.from < 1048576; k++) shut[axis].add(k);
+      }
+    const foldedAfter = (axis, k) => (s.groups?.[axis] || []).some((g) => g.collapsed && g.to + 1 === k);
+    for (const r of [...lv.row.keys(), ...after.row]) if (!rowsMap.has(r) && r < 1048576) rowsMap.set(r, []);
     const rowXml = [...rowsMap.keys()].sort((a, b) => a - b).map((r) => {
       const cells = rowsMap.get(r).sort((a, b) => a[0] - b[0]).map(([, k, cell]) => {
         const xf = st.xf(cell.s);
         const sAttr = xf ? ` s="${xf}"` : "";
+        if (cell.cached !== undefined && cell.f === undefined) {
+          const v = cell.cached;
+          if (typeof v === "number" && Number.isFinite(v)) return `<c r="${k}"${sAttr}><v>${v}</v></c>`;
+          if (typeof v === "boolean") return `<c r="${k}"${sAttr} t="b"><v>${v ? 1 : 0}</v></c>`;
+          if (typeof v === "string") return `<c r="${k}"${sAttr} t="str"><v>${esc(v)}</v></c>`;
+          return `<c r="${k}"${sAttr}/>`;
+        }
         if (typeof cell.f === "string") {
           const v = calc ? calc.value(s.id, k) : null;
-          const fx = `<f>${esc(toXlFormula(cell.f))}</f>`;
+          const arr = spills.get(k);
+          const fx = arr ? `<f t="array" ref="${arr}">${esc(toXlFormula(cell.f))}</f>` : `<f>${esc(toXlFormula(cell.f))}</f>`;
+          if (arr) {
+            const cm = ' cm="1"';
+            if (isErr(v)) return XL_ERRORS.has(v.code) ? `<c r="${k}"${sAttr} t="e"${cm}>${fx}<v>${esc(v.code)}</v></c>` : `<c r="${k}"${sAttr}${cm}>${fx}</c>`;
+            if (typeof v === "number") return `<c r="${k}"${sAttr}${cm}>${fx}<v>${v}</v></c>`;
+            if (typeof v === "boolean") return `<c r="${k}"${sAttr} t="b"${cm}>${fx}<v>${v ? 1 : 0}</v></c>`;
+            if (typeof v === "string") return `<c r="${k}"${sAttr} t="str"${cm}>${fx}<v>${esc(v)}</v></c>`;
+            return `<c r="${k}"${sAttr}${cm}>${fx}</c>`;
+          }
           if (isErr(v)) return XL_ERRORS.has(v.code) ? `<c r="${k}"${sAttr} t="e">${fx}<v>${esc(v.code)}</v></c>` : `<c r="${k}"${sAttr}>${fx}</c>`;
           if (typeof v === "number") return `<c r="${k}"${sAttr}>${fx}<v>${v}</v></c>`;
           if (typeof v === "boolean") return `<c r="${k}"${sAttr} t="b">${fx}<v>${v ? 1 : 0}</v></c>`;
@@ -459,18 +686,33 @@ export function writeXlsx(model, { calc = null, title = "" } = {}) {
         return `<c r="${k}"${sAttr}/>`;
       });
       const ht = s.rows[r];
-      const rAttr = ht === 0 ? ' hidden="1"' : ht != null ? ` ht="${Math.round(ht * 0.75 * 100) / 100}" customHeight="1"` : "";
+      let rAttr = ht === 0 || shut.row.has(r) ? ' hidden="1"' : "";
+      if (ht) rAttr += ` ht="${Math.round(ht * 0.75 * 100) / 100}" customHeight="1"`;
+      if (lv.row.get(r)) rAttr += ` outlineLevel="${lv.row.get(r)}"`;
+      if (foldedAfter("row", r)) rAttr += ' collapsed="1"';
       return `<row r="${r + 1}"${rAttr}>${cells.join("")}</row>`;
     });
-    const colKeys = Object.keys(s.cols).map(Number).sort((a, b) => a - b);
-    const cols = colKeys.length ? `<cols>${colKeys.map((c) => `<col min="${c + 1}" max="${c + 1}" width="${colChars(s.cols[c] || DEFAULT_COL)}"${s.cols[c] === 0 ? ' hidden="1"' : ""} customWidth="1"/>`).join("")}</cols>` : "";
+    const colKeys = [...new Set([...Object.keys(s.cols).map(Number), ...lv.col.keys(), ...[...after.col].filter((c) => foldedAfter("col", c))])].filter((c) => c < 16384).sort((a, b) => a - b);
+    const colXml = (c) => {
+      const w = s.cols[c];
+      let a = ` width="${colChars(w || DEFAULT_COL)}"${w != null ? ' customWidth="1"' : ""}`;
+      if (w === 0 || shut.col.has(c)) a += ' hidden="1"';
+      if (lv.col.get(c)) a += ` outlineLevel="${lv.col.get(c)}"`;
+      if (foldedAfter("col", c)) a += ' collapsed="1"';
+      return `<col min="${c + 1}" max="${c + 1}"${a}/>`;
+    };
+    const cols = colKeys.length ? `<cols>${colKeys.map(colXml).join("")}</cols>` : "";
     const fr = s.freeze;
     const pane = fr ? `<pane${fr.c ? ` xSplit="${fr.c}"` : ""}${fr.r ? ` ySplit="${fr.r}"` : ""} topLeftCell="${rcKey(fr.r, fr.c)}" activePane="${fr.r && fr.c ? "bottomRight" : fr.r ? "bottomLeft" : "topRight"}" state="frozen"/>` : "";
     const views = `<sheetViews><sheetView workbookViewId="0"${s.id === wb.active ? ' tabSelected="1"' : ""}>${pane}</sheetView></sheetViews>`;
     const used = usedRange(s);
     const dim = `<dimension ref="${used ? formatRange({ r0: 0, c0: 0, r1: used.r1, c1: used.c1 }) : "A1"}"/>`;
     const merges = s.merges.length ? `<mergeCells count="${s.merges.length}">${s.merges.map((m) => `<mergeCell ref="${m}"/>`).join("")}</mergeCells>` : "";
-    const af = s.filter ? `<autoFilter ref="${s.filter.range}"/>` : "";
+    // a sheet filter over a table becomes the table's filter (Excel does not allow both)
+    const filterG = s.filter ? parseRange(s.filter.range) : null;
+    const filterTable = filterG ? parts.find((p) => p.t.header && filterG.r1 >= p.g.r0 && filterG.r0 <= p.g.r1 && filterG.c1 >= p.g.c0 && filterG.c0 <= p.g.c1) : null;
+    const af = s.filter && !filterTable ? `<autoFilter ref="${s.filter.range}"/>` : "";
+    if (af) definedNames.push(`<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">${esc(absRange(s.name, filterG))}</definedName>`);
     let prio = 0;
     const OPS = { gt: "greaterThan", lt: "lessThan", ge: "greaterThanOrEqual", le: "lessThanOrEqual", eq: "equal", ne: "notEqual", between: "between" };
     const fv = (v) => (typeof v === "number" || (v !== "" && Number.isFinite(Number(v))) ? String(v) : `"${String(v ?? "").replace(/"/g, '""')}"`);
@@ -490,8 +732,57 @@ export function writeXlsx(model, { calc = null, title = "" } = {}) {
       }
       return body ? `<conditionalFormatting sqref="${rule.range}">${body}</conditionalFormatting>` : "";
     }).join("");
+    const dvs = (s.validation || []).map((rule) => {
+      const g = parseRange(rule.range);
+      if (!g) return "";
+      const type = { list: "list", number: "decimal", integer: "whole", textLength: "textLength" }[rule.type];
+      let body = "";
+      let op = "";
+      if (rule.type === "list") {
+        const items = rule.source ? rule.source : xlStr((rule.list || []).join(","));
+        if (!rule.source && (items.length > 257 || (rule.list || []).some((x) => x.includes(",")))) return "";
+        body = `<formula1>${esc(rule.source ? toXlFormula(items) : items)}</formula1>`;
+      } else {
+        const b = ruleBounds(rule) || { op: "between", a: -9.99e307, b: 9.99e307 };
+        op = ` operator="${b.op}"`;
+        body = `<formula1>${xlNum(b.a)}</formula1>${b.b !== undefined ? `<formula2>${xlNum(b.b)}</formula2>` : ""}`;
+      }
+      const msg = rule.message ? ` errorTitle="${escAttr(rule.message.slice(0, 32))}" error="${escAttr(rule.message)}"` : "";
+      return `<dataValidation type="${type}"${op}${rule.allowBlank !== false ? ' allowBlank="1"' : ""} showErrorMessage="1"${msg} sqref="${formatRange(g)}">${body}</dataValidation>`;
+    }).filter(Boolean);
+    const dvXml = dvs.length ? `<dataValidations count="${dvs.length}">${dvs.join("")}</dataValidations>` : "";
+    const pg = s.page;
+    const inch = (px) => Math.round((px / 96) * 1000) / 1000;
+    const pageXml = pg
+      ? `${pg.gridlines ? '<printOptions gridLines="1"/>' : ""}<pageMargins left="${inch(pg.margin ?? 48)}" right="${inch(pg.margin ?? 48)}" top="${inch(pg.margin ?? 48)}" bottom="${inch(pg.margin ?? 48)}" header="0.3" footer="0.3"/><pageSetup paperSize="${PAPER_XL[pg.paper] || 9}" orientation="${pg.orientation === "landscape" ? "landscape" : "portrait"}"${pg.fit === "page" ? ' fitToWidth="1" fitToHeight="1"' : pg.fit === "width" ? ' fitToWidth="1" fitToHeight="0"' : ""}/>`
+      : '<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>';
+    if (pg?.printArea && parseRange(pg.printArea)) definedNames.push(`<definedName name="_xlnm.Print_Area" localSheetId="${i}">${esc(absRange(s.name, parseRange(pg.printArea)))}</definedName>`);
+    const sheetPr = pg?.fit === "page" || pg?.fit === "width" ? '<sheetPr><outlinePr summaryBelow="1" summaryRight="1"/><pageSetUpPr fitToPage="1"/></sheetPr>' : lv.row.size || lv.col.size ? '<sheetPr><outlinePr summaryBelow="1" summaryRight="1"/></sheetPr>' : "";
+    const maxLv = (m) => Math.max(0, ...m.values());
+    const fmtPr = `<sheetFormatPr defaultRowHeight="${DEFAULT_ROW * 0.75}"${lv.row.size ? ` outlineLevelRow="${maxLv(lv.row)}"` : ""}${lv.col.size ? ` outlineLevelCol="${maxLv(lv.col)}"` : ""}/>`;
+    // sparklines live in the worksheet's x14 extension list
+    const sparks = (s.sparks || []).map((sp) => {
+      const src = sp.range.includes("!") ? sp.range : `${quoteName(s.name)}!${sp.range}`;
+      return `<x14:sparklineGroup${sp.type === "column" ? ' type="column"' : ""} displayEmptyCellsAs="gap"><x14:colorSeries rgb="FF${sp.color.slice(1).toUpperCase()}"/><x14:colorNegative rgb="FFD00000"/><x14:colorAxis rgb="FF000000"/><x14:colorMarkers rgb="FFD00000"/><x14:colorFirst rgb="FFD00000"/><x14:colorLast rgb="FFD00000"/><x14:colorHigh rgb="FFD00000"/><x14:colorLow rgb="FFD00000"/><x14:sparklines><x14:sparkline><xm:f>${esc(src)}</xm:f><xm:sqref>${sp.cell}</xm:sqref></x14:sparkline></x14:sparklines></x14:sparklineGroup>`;
+    });
+    const extLst = sparks.length ? `<extLst><ext uri="{05C60535-1F16-4fd2-B633-F4F36F0B64E0}" xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main"><x14:sparklineGroups xmlns:xm="http://schemas.microsoft.com/office/excel/2006/main">${sparks.join("")}</x14:sparklineGroups></ext></extLst>` : "";
     let drawing = "";
     const sheetRels = [];
+    const tableRefs = parts.map((p) => {
+      const no = ++tableNo;
+      const rid = `rIdT${no}`;
+      const tPath = `xl/tables/table${no}.xml`;
+      ct.push(`<Override PartName="/${tPath}" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml"/>`);
+      sheetRels.push(`<Relationship Id="${rid}" Type="${REL("table")}" Target="../tables/table${no}.xml"/>`);
+      const { t, g, cols } = p;
+      const first = s.cells[rcKey(g.r1, g.c0)];
+      const label = t.total && typeof first?.v === "string" ? first.v : null;
+      const filt = p === filterTable ? `<autoFilter ref="${formatRange({ ...g, r1: t.total ? g.r1 - 1 : g.r1 })}"/>` : "";
+      const colsXml = cols.map((name, j) => `<tableColumn id="${j + 1}" name="${escAttr(name)}"${j === 0 && label ? ` totalsRowLabel="${escAttr(label)}"` : ""}/>`).join("");
+      files.push([tPath, `${XML}<table xmlns="${MAIN_NS}" id="${no}" name="Table${no}" displayName="Table${no}" ref="${formatRange(g)}"${t.header ? "" : ' headerRowCount="0"'}${t.total ? ' totalsRowCount="1"' : ' totalsRowShown="0"'}>${filt}<tableColumns count="${cols.length}">${colsXml}</tableColumns><tableStyleInfo name="${xlTableStyle(t.style)}" showFirstColumn="0" showLastColumn="0" showRowStripes="${t.banded ? 1 : 0}" showColumnStripes="0"/></table>`]);
+      return `<tablePart r:id="${rid}"/>`;
+    });
+    const tablePartsXml = tableRefs.length ? `<tableParts count="${tableRefs.length}">${tableRefs.join("")}</tableParts>` : "";
     if (s.charts.length) {
       const dn = n;
       const dPath = `xl/drawings/drawing${dn}.xml`;
@@ -512,14 +803,20 @@ export function writeXlsx(model, { calc = null, title = "" } = {}) {
       files.push([`xl/drawings/_rels/drawing${dn}.xml.rels`, `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${dRels.join("")}</Relationships>`]);
     }
     if (sheetRels.length) files.push([`xl/worksheets/_rels/sheet${n}.xml.rels`, `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheetRels.join("")}</Relationships>`]);
-    files.push([path, `${XML}<worksheet xmlns="${MAIN_NS}" xmlns:r="${R_NS}">${dim}${views}<sheetFormatPr defaultRowHeight="${DEFAULT_ROW * 0.75}"/>${cols}<sheetData>${rowXml.join("")}</sheetData>${af}${merges}${cf}<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>${drawing}</worksheet>`]);
+    files.push([path, `${XML}<worksheet xmlns="${MAIN_NS}" xmlns:r="${R_NS}">${sheetPr}${dim}${views}${fmtPr}${cols}<sheetData>${rowXml.join("")}</sheetData>${af}${merges}${cf}${dvXml}${pageXml}${drawing}${tablePartsXml}${extLst}</worksheet>`]);
     sheetEntries.push(`<sheet name="${escAttr(s.name)}" sheetId="${n}" r:id="rId${n}"/>`);
   });
   const nSheets = wb.sheets.length;
   const activeTab = Math.max(0, wb.sheets.findIndex((s) => s.id === wb.active));
-  const filterNames = wb.sheets.map((s, i) => (s.filter ? `<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">${esc(absRange(s.name, parseRange(s.filter.range)))}</definedName>` : "")).join("");
-  const workbook = `${XML}<workbook xmlns="${MAIN_NS}" xmlns:r="${R_NS}"><workbookPr/><bookViews><workbookView activeTab="${activeTab}"/></bookViews><sheets>${sheetEntries.join("")}</sheets>${filterNames ? `<definedNames>${filterNames}</definedNames>` : ""}<calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>`;
-  const wbRels = `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${wb.sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="${REL("worksheet")}" Target="worksheets/sheet${i + 1}.xml"/>`).join("")}<Relationship Id="rId${nSheets + 1}" Type="${REL("styles")}" Target="styles.xml"/><Relationship Id="rId${nSheets + 2}" Type="${REL("sharedStrings")}" Target="sharedStrings.xml"/></Relationships>`;
+  for (const [name, ref] of Object.entries(wb.names || {})) if (validName(name) && String(ref).trim()) definedNames.push(`<definedName name="${escAttr(name)}">${esc(toXlFormula(String(ref).replace(/^=/, "")))}</definedName>`);
+  // pivot definitions travel as hidden names so a file saved by Excel or LibreOffice can still be refreshed here
+  for (const [name, json] of pivotNames(wb)) definedNames.push(`<definedName name="${name}" hidden="1">${esc(xlStr(json))}</definedName>`);
+  const workbook = `${XML}<workbook xmlns="${MAIN_NS}" xmlns:r="${R_NS}"><workbookPr/><bookViews><workbookView activeTab="${activeTab}"/></bookViews><sheets>${sheetEntries.join("")}</sheets>${definedNames.length ? `<definedNames>${definedNames.join("")}</definedNames>` : ""}<calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>`;
+  if (dynamic) {
+    ct.push('<Override PartName="/xl/metadata.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheetMetadata+xml"/>');
+    files.push(["xl/metadata.xml", `${XML}<metadata xmlns="${MAIN_NS}" xmlns:xda="http://schemas.microsoft.com/office/spreadsheetml/2017/dynamicarray"><metadataTypes count="1"><metadataType name="XLDAPR" minSupportedVersion="120000" copy="1" pasteAll="1" pasteValues="1" merge="1" splitFirst="1" rowColShift="1" clearFormats="1" clearComments="1" assign="1" coerce="1" cellMeta="1"/></metadataTypes><futureMetadata name="XLDAPR" count="1"><bk><extLst><ext uri="{bdbb8cdc-fa1e-496e-a857-3c3f30c029c3}"><xda:dynamicArrayProperties fDynamic="1" fCollapsed="0"/></ext></extLst></bk></futureMetadata><cellMetadata count="1"><bk><rc t="1" v="0"/></bk></cellMetadata></metadata>`]);
+  }
+  const wbRels = `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${wb.sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="${REL("worksheet")}" Target="worksheets/sheet${i + 1}.xml"/>`).join("")}<Relationship Id="rId${nSheets + 1}" Type="${REL("styles")}" Target="styles.xml"/><Relationship Id="rId${nSheets + 2}" Type="${REL("sharedStrings")}" Target="sharedStrings.xml"/>${dynamic ? `<Relationship Id="rId${nSheets + 3}" Type="${REL("sheetMetadata")}" Target="metadata.xml"/>` : ""}</Relationships>`;
   const sst = `${XML}<sst xmlns="${MAIN_NS}" count="${strings.length}" uniqueCount="${strings.length}">${strings.map((s) => `<si><t xml:space="preserve">${esc(s)}</t></si>`).join("")}</sst>`;
   const docTitle = title || wb.meta?.title || "";
   const core = `${XML}<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${esc(docTitle)}</dc:title><dc:creator>OpenFini</dc:creator></cp:coreProperties>`;

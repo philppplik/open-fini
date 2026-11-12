@@ -12,7 +12,7 @@
 //             code, font, size (pt), bd: { t, r, b, l } colors }
 // CfRule    { id, range, type: gt|lt|ge|le|eq|ne|between|contains|blank|notBlank|scale, a?, b?, style?, colors? }
 // Chart     { id, type: column|bar|line|pie|area|donut|…, range, title, r, c (anchor cell), w, h, seriesIn? }
-// Depth features (optional fields: Workbook.names, Sheet.tables, validation, groups, page, sparks) are described and
+// Depth features (optional fields: Workbook.names, Sheet.tables, validation, groups, page, sparks, pivots) are described and
 // edited in depth.js; shiftAxis below keeps their ranges in step with inserted and deleted rows and columns.
 // Public API: see the exports below (each documented). Invariants: sheet names are unique (case-insensitive) and
 // 1–31 characters without []:*?/\ ; cell keys are A1 refs inside 1048576 x 16384; formulas never start with "=".
@@ -363,7 +363,11 @@ export function shiftAxis(m, sid, axis, at, n) {
       if (j < 0 || j >= (axis === "row" ? MAX_ROWS : MAX_COLS)) continue;
       cells[axis === "row" ? rcKey(j, c) : rcKey(r, j)] = cell;
     }
-    if (s.id !== sid) return cells === s.cells ? s : { ...s, cells };
+    // pivot sources are sheet-qualified references; the pivot's own cell moves with its sheet
+    const pivots = Array.isArray(s.pivots) && s.pivots.length
+      ? { pivots: s.pivots.map((p) => ({ ...p, src: adjustFormula(p.src, own), ...(s.id === sid ? { at: adjustRange(p.at, own) } : {}) })).filter((p) => p.at && !p.src.includes("#REF!")) }
+      : {};
+    if (s.id !== sid) return cells === s.cells && !pivots.pivots ? s : { ...s, cells, ...pivots };
     const sizes = (obj) => {
       const out = {};
       for (const [k, v] of Object.entries(obj)) {
@@ -399,6 +403,7 @@ export function shiftAxis(m, sid, axis, at, n) {
       ...ranged("tables"),
       ...ranged("validation"),
       ...sparks,
+      ...pivots,
       ...(s.groups ? { groups: shiftGroups(s.groups, axis, at, n) } : {}),
       ...(s.page?.printArea ? { page: { ...s.page, printArea: adjustRange(s.page.printArea, own) || undefined } } : {}),
       cells,
@@ -550,7 +555,8 @@ export function renameSheet(m, sid, name) {
           cells[k] = { ...c, f };
         }
       }
-      return { ...x, ...(x.id === sid ? { name } : {}), cells };
+      const pivots = x.pivots?.length ? { pivots: x.pivots.map((p) => ({ ...p, src: renameSheetInFormula(p.src, from, name) })) } : {};
+      return { ...x, ...(x.id === sid ? { name } : {}), cells, ...pivots };
     }),
   };
 }

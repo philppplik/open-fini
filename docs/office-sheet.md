@@ -68,7 +68,10 @@ array spills it from its cell into the empty cells below and to the right; the s
 (they are not stored in the cells), other formulas and the grid read them like normal values, and `SUM(FILTER(…))`
 works inside a single cell too. When a spill area holds a value or another spill, the anchor shows `#SPILL!` until the
 area is free again. Editing a cell below or right of an anchor recomputes the sheet's spilling formulas and everything
-that reads that area. Arrays are capped at 100 000 cells.
+that reads that area. Arrays are capped at 100 000 cells. XLSX writes a spilling formula as an Excel dynamic array
+(`t="array"` over the spill area, `cm="1"` with the `XLDAPR` cell metadata in `xl/metadata.xml`, `_xlfn._xlws.FILTER`
+and `_xlfn._xlws.SORT`), so Excel shows it without an implicit `@`; ODS writes it as a matrix formula. Both store the
+spilled values as cached results, and the readers drop them again so the formula spills here.
 
 ### Defined names
 
@@ -88,19 +91,27 @@ with their dialogs in `depth-dialogs.js` (loaded on first use).
 * **Data validation** (*Data ▸ Data Validation…*, `sheet_set_validation`): drop-down lists (items or a source range,
   Alt+Down or the arrow button on the selected cell opens the list), number, whole-number and text-length limits, an
   optional message and *Allow blank cells*. Typed input that breaks the rule is rejected with a warning and stays in the
-  editor; formulas are always accepted, and values written by paste or tools are not checked.
+  editor; formulas are always accepted. Pasted values and values written by `sheet_write_range` and
+  `sheet_paste_special` are checked too: if one breaks a rule, nothing is written and the cells and messages are named
+  (`invalidWrites`).
 * **Paste special** (*Edit ▸ Paste Special…*, `sheet_paste_special`): all, values (computed results), formulas or
   formats; add, subtract, multiply or divide into the target numbers; skip blanks; transpose. It works with cells
   copied in OpenFini (the system clipboard carries only text).
 * **Group rows and columns** (*Data ▸ Group Rows / Group Columns / Ungroup / Collapse Group / Expand All Groups*,
   Alt+Shift+Right and Alt+Shift+Left, `sheet_group`): collapsed groups hide their rows or columns in the grid, in PDF
-  output and in copies. There is no outline gutter with +/- buttons yet; use the commands.
-* **Page setup and print** (*Sheet ▸ Page Setup… / Print…*, `sheet_page_setup`): portrait or landscape, A4 or Letter,
-  narrow / normal / wide margins, print area, gridlines and *Fit to one page* (one page sized to the print area). PDF
-  export uses each sheet's setup; Print renders the pages to images in a hidden frame and opens the system dialog.
+  output and in copies. An **outline gutter** left of the row headers (and above the column headers) shows a bar per
+  expanded group, a +/- button on the row or column after each group, and level buttons (1, 2, 3 …) that show the
+  outline up to that level.
+* **Page setup and print** (*Sheet ▸ Page Setup… / Print…*, `sheet_page_setup`): portrait or landscape, A4, A3, A5,
+  Letter or Legal, narrow / normal / wide margins, print area, gridlines and scaling: *Actual size*, *Fit to one page*
+  or *Fit all columns on one page* (the print area is scaled down onto the chosen paper, never enlarged; with the
+  column fit, rows continue on further pages). PDF export uses each sheet's setup; Print renders the pages to images in
+  a hidden frame and opens the system dialog.
 * **Pivot table** (*Insert ▸ Pivot Table…*, `sheet_pivot`): rows field, optional columns field and a values field
-  summarized by sum, count, average, min or max, with totals, written to a new sheet (or a cell). It is a snapshot:
-  run it again after the data changes.
+  summarized by sum, count, average, min or max, with totals, written to a new sheet (or a cell). The sheet keeps the
+  definition (`Sheet.pivots`), so *Data ▸ Refresh Pivot Tables* (`sheet_refresh_pivots`) recomputes it after the data
+  changes and clears rows and columns a smaller result no longer uses. The source reference follows inserted and
+  deleted rows and sheet renames.
 * **Sparklines** (*Insert ▸ Sparkline…*, `sheet_add_sparkline`): a line or column chart of a range inside one cell,
   drawn in the grid and in PDF / PNG output.
 * **Chart data for other apps** (`sheetChartData` in `depth.js`, Vibe `sheet_chart_data`): the computed values of a
@@ -116,7 +127,7 @@ Plain JSON, immutable values (see the header of `office/sheet/model.js`):
   sheets: [{ id, name, pos, cells: { "B3": { v?, f?, s? } }, cols: { "1": 140 }, rows: { "0": 30 },
              merges: ["A1:C1"], freeze: { r, c } | null, filter: { range, hide: { "<col>": [texts] } } | null,
              cf: [{ id, range, type, a?, b?, style?, colors? }], charts: [{ id, type, range, title, r, c, w, h, seriesIn? }],
-             tables?, validation?, groups?, page?, sparks? }],
+             tables?, validation?, groups?, page?, sparks?, pivots? }],
   names?: { "<Name>": "Sheet1!$A$1:$A$9" } }
 ```
 
@@ -132,8 +143,8 @@ convert with `fmtToCode` (`office/sheet/numfmt-code.js`, which also renders code
 
 | Format | Read | Write | Notes |
 | --- | --- | --- | --- |
-| XLSX / XLSM / XLTX | values, shared / inline strings, formulas (shared formulas expanded, `_xlfn.` prefixes), cached values, number formats, fonts, fills, borders, alignment, wrap, merges, column widths, row heights, hidden rows / columns, frozen panes, autofilter range, conditional formats (cellIs, containsText, blanks, 2-color scales), bar / column / line / area / pie / doughnut / scatter charts, 1904 dates | everything the model has, with cached results | macros, named ranges, data validation, pictures, shapes, array-formula semantics, filter criteria and comments are reported in the import report |
-| ODS / FODS / OTS | values, OpenFormula (`of:=SUM([.A1:.B2])`), styles, data styles, merges, sizes, frozen panes and active sheet (settings.xml) | values, formulas, styles, data styles, merges, sizes, frozen panes, filter range | charts and conditional formats are not written yet (the export says so) |
+| XLSX / XLSM / XLTX | values, shared / inline strings, formulas (shared formulas expanded, `_xlfn.` / `_xlws.` prefixes), dynamic arrays, cached values, number formats, fonts, fills, borders, alignment, wrap, merges, column widths, row heights, hidden rows / columns, frozen panes, autofilter range, conditional formats (cellIs, containsText, blanks, 2-color scales), charts, 1904 dates, defined names, print areas, tables (`xl/tables`), data validation (list, decimal, whole, text length), outline groups, page setup, sparklines (`x14`) | everything the model has, with cached results; a table whose header cells are not unique text is written as formatted cells | macros, pictures, shapes, legacy array-formula semantics, filter criteria, comments, sheet-scoped names (they become workbook names) and other validation kinds are reported in the import report |
+| ODS / FODS / OTS | values, OpenFormula (`of:=SUM([.A1:.B2])`), styles, data styles, merges, sizes, frozen panes and active sheet (settings.xml), named ranges and expressions, content validations, row and column groups, page layouts and print ranges, matrix formulas, sparklines (`calcext`), OpenFini tables | the same; tables are database ranges named `OpenFiniTable_…` with their look written into the cell styles (taken out again on reading) | charts and conditional formats are not written yet (the export says so) |
 | CSV / TSV | separator sniffing (comma, semicolon, tab), typed input parsing | active sheet values (dates formatted) | lossy |
 | PDF | – | every sheet, A4 pages (columns that do not fit continue on further pages), charts | via `toolkit/export.js` |
 | PNG | – | the active sheet's used range at 2x | |
@@ -155,11 +166,12 @@ repeated ODS rows and columns are not expanded, at most 2,000,000 cells per rang
 | Grid UI (canvas, virtual axes from `toolkit/virtual.js`, frozen panes, editor, fill handle, charts) | `view.js` |
 | Dialogs (function, chart, conditional formatting, filter, find / replace, number format) | `dialogs.js` |
 | Tables, names, validation, paste special, groups, page setup, pivot, sparklines, chart data | `depth.js`, dialogs in `depth-dialogs.js` |
+| Depth features in XLSX / ODS (outline levels, baked table looks, pivot names, validation bounds) | `depth-io.js` |
 | Commands and the context menu (registered when the app loads) | `app/src/commands/office-sheet.js` |
 | Menus (`officeKinds: ["sheet"]`) | `app/src/studios/office.js` |
 | Styles (loaded on demand) | `app/styles/office-sheet.css` |
 | Vibe tools | `app/src/vibe/tools/office-sheet.js`, `office-sheet-depth.js` (group *Spreadsheets*) |
-| Tests | `tests/office/sheet-formula.test.js`, `tests/office/sheet-codecs.test.js`, `tests/office/sheet-depth.test.js` |
+| Tests | `tests/office/sheet-formula.test.js`, `tests/office/sheet-codecs.test.js`, `tests/office/sheet-depth.test.js`, `tests/office/sheet-depth-io.test.js` |
 
 The grid draws into one canvas: four quadrants (frozen rows × frozen columns), only the visible rows and columns, so a
 sheet of a million rows costs the same as a small one. A transparent scroller on top provides native scrolling and
@@ -170,8 +182,8 @@ focus; the screen reader gets the active cell and its value through a live regio
 `sheet_describe`, `sheet_read_range` (computed values, optional formulas and formats, 5000 cells per call),
 `sheet_write_range` (typed input, `=` formulas), `sheet_set_formula` (with `fillTo`), `sheet_format`, `sheet_add_sheet`,
 `sheet_add_chart`, `sheet_add_rule` (data bars, color scale, comparisons), `sheet_format_table`, `sheet_define_name`,
-`sheet_set_validation`, `sheet_paste_special`, `sheet_group`, `sheet_page_setup`, `sheet_pivot`, `sheet_add_sparkline`
-and `sheet_chart_data` (read-only, works on any open spreadsheet). The skill `analyze-sheet-data` combines them. Cross-app: `office_tables_to_sheet` and
+`sheet_set_validation`, `sheet_paste_special`, `sheet_group`, `sheet_page_setup`, `sheet_pivot`,
+`sheet_refresh_pivots`, `sheet_add_sparkline` and `sheet_chart_data` (read-only, works on any open spreadsheet). The skill `analyze-sheet-data` combines them. Cross-app: `office_tables_to_sheet` and
 `office_sheet_to_document` ([vibe-studio.md](vibe-studio.md#office-semantic-and-cross-app-tools)). Each edit is one undo step labelled "Vibe: …". `office_describe` uses the app's `aiAdapter.describe`;
 `office_new` creates spreadsheets from the templates; `office_export` writes every format above.
 
@@ -183,8 +195,7 @@ sparklines); `meta:title` and `meta:names` (defined names) are shared, the activ
 
 ## Known limits
 
-Tables, defined names, validation, groups, page setup and sparklines are not read from or written to XLSX / ODS files
-yet, and spilling formulas are written as plain formulas (Excel may show them with an implicit `@`); spill references
-(`A1#`), LET / LAMBDA, INDIRECT / OFFSET, refreshable pivot tables, an outline gutter for groups, pictures, cell
-comments from files, rich text inside a cell, more than one selection range, charts and conditional formats in
+Spill references (`A1#`), LET / LAMBDA, INDIRECT / OFFSET, real pivot-table parts in XLSX (pivot tables are written
+as values; their definition travels as a hidden name `_OpenFini_Pivot_<n>` and is refreshed only in OpenFini), pictures,
+cell comments from files, rich text inside a cell, more than one selection range, charts and conditional formats in
 ODS output, legacy `.xls`. The display locale of numbers and dates is US English (formulas use English names and commas).
