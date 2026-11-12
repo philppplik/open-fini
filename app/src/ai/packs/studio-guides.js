@@ -210,7 +210,7 @@ board_describe: every connector has from/to, nothing overlaps, every item has te
 
 ## Tool order
 - Rough cut: transcript, then scene_cut_transcript (keep or cut by segment numbers or phrases), scene_remove_fillers, scene_remove_silences; check with scene_transcript.
-- Picture: scene_place_media, scene_add_layer, scene_update_clips, scene_transition, scene_effect (scene_catalog lists parameters), scene_keyframes or scene_animate_clip for motion.
+- Picture: scene_place_media, scene_add_layer, scene_update_clips, scene_transition, scene_effect (scene_catalog lists parameters), scene_keyframes or scene_animate_clip for motion, scene_set_easing to smooth existing keys, scene_precompose to group clips into one layer.
 - Graphics: scene_title, scene_lower_third, scene_slideshow, scene_beat_cuts build editable clips with keyframes.
 - Sound: scene_audio (dB, fades, EQ, normalize to -14 LUFS for social after scene_analyze_audio).
 - Captions: scene_auto_captions from the transcript, scene_captions to edit or style, scene_captions_export for SRT/VTT.

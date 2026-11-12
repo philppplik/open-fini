@@ -26,7 +26,23 @@ export function avcCodec(w, h, fps) {
 
 /** A sensible video bit rate (bits per second) for a frame size, frame rate and quality 0..1. */
 export function defaultBitrate(w, h, fps, quality = 0.7) {
-  return Math.round(w * h * fps * (0.04 + quality * 0.12));
+  const q = Number.isFinite(+quality) ? Math.max(0.1, Math.min(1, +quality)) : 0.7;
+  return Math.round(w * h * fps * (0.04 + q * 0.12));
+}
+
+/**
+ * The timeline range to export, clamped to the sequence: { from, to }. A missing, NaN or reversed bound falls back to
+ * the start / end; a range that lies entirely after the end throws a readable error (not "the sequence is empty").
+ */
+export function exportRange(total, range, format = "mp4") {
+  const fin = (v) => v !== null && v !== undefined && v !== "" && Number.isFinite(+v);
+  let from = fin(range?.in) ? Math.max(0, +range.in) : 0;
+  let to = fin(range?.out) ? Math.min(total, +range.out) : total;
+  if (to < from) [from, to] = [Math.max(0, to), Math.min(total, from)];
+  if (format === "png") return { from: Math.min(from, total), to };
+  if (!(total > 0)) throw new Error("There is nothing to export: the sequence is empty.");
+  if (!(to > from)) throw new Error(`The export range ${+from.toFixed(3)}–${+to.toFixed(3)} s holds no frames; the sequence is ${+total.toFixed(3)} s long.`);
+  return { from, to };
 }
 
 async function videoConfig(format, w, h, fps, bitrate) {
@@ -123,9 +139,7 @@ const silent = (buffer) => {
 export async function exportScene(store, model, opts = {}) {
   const { format = "mp4", onProgress = () => {}, signal = null } = opts;
   const total = duration(model);
-  const from = Math.max(0, opts.range?.in ?? 0);
-  const to = Math.min(total, opts.range?.out ?? total);
-  if (!(to > from) && format !== "png") throw new Error("There is nothing to export: the sequence is empty.");
+  const { from, to } = exportRange(total, opts.range, format);
   const scale = Math.max(0.05, Math.min(4, opts.scale || 1));
   const fps = Math.max(1, Math.min(model.fps, opts.fps || model.fps));
   const notes = [];

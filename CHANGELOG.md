@@ -6,12 +6,18 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Security
+- Web access: IPv6 addresses that carry an IPv4 address are judged by it (NAT64 `64:ff9b::/96`, 6to4 `2002::/16`), and Teredo, local-use NAT64, site-local and discard-only IPv6 ranges are refused, in the page guard and in the desktop `web_get` ([docs/security.md](docs/security.md#web-access-for-the-assistant)).
+- Local file access (desktop): writes go through a fresh, exclusively created temporary file, so a symbolic link planted at the old fixed temporary name can no longer redirect a write outside the granted folder.
+- ZIP limits ([docs/security.md](docs/security.md#zip-files)): `.ofini` documents (100,000 parts, 1 GiB per part, 2 GiB in total), repository ZIPs in the Code studio (entry names with `..` or absolute paths are skipped; sizes capped) and skill packs (only the small text files are unpacked) can no longer exhaust memory with a zip bomb.
+
 ### Added
 - Vibe Studio: the empty chat offers a curated pool of start ideas (vector, pixel, layout, code, Office, Scene, automation and memory), led by the studio you came from, with a **More ideas** button.
 - Spreadsheet ([docs/office-sheet.md](docs/office-sheet.md)): **defined names, data validation, table styles, row and column groups, page setup and sparklines are kept in XLSX and ODS** (both ways; XLSX tables as `xl/tables` parts with a built-in table style, ODS tables as database ranges with their look in the cell styles); spilling formulas are written as **Excel dynamic arrays** (`xl/metadata.xml`), so Excel no longer shows an implicit `@`.
 - Spreadsheet: an **outline gutter** left of the row headers and above the column headers with a bar per group, +/- buttons and level buttons (1, 2, 3 …).
 - Spreadsheet: **refreshable pivot tables**. A pivot table keeps its definition (also through XLSX / ODS files saved by OpenFini, as a hidden name) and *Data ▸ Refresh Pivot Tables* recomputes it; Vibe tool `sheet_refresh_pivots`.
 - Spreadsheet page setup: *Scaling* (actual size, fit to one page, all columns on one page width) scales the print area onto the chosen paper instead of resizing the page; paper sizes A3, A5 and Legal. Vibe `sheet_page_setup` takes `fit`.
+- Vibe tools `scene_set_easing` (change the easing of existing keyframes, like the graph editor) and `scene_precompose` (group clips into a nested composition, also inside compositions); `scene_catalog` lists the easing presets.
 
 ### Changed
 - **Collaboration always opens in its own window** ([ADR 0030](docs/adr/0030-collab-native-window.md), [docs/collaboration.md](docs/collaboration.md#the-collaboration-window)): a native window in the desktop app, a popup window in the browser and the PWA. It is never drawn inside the app window any more. The window now holds everything: start or join a room, invite code and QR code, verification words, members and roles, chat with files, comments and versions (the earlier pop-out showed chat, people and comments only). Opening it again focuses the open window; it reopens where it was; closing it does not leave the room (a message offers to open it again); closing the main window closes it. The main window keeps the one room connection and the keys. Cursors, selections and comment pins stay in the document.
@@ -19,9 +25,16 @@ All notable changes to OpenFini are documented here. The format follows
 - *Add Comment in Panel…* is now *Add Comment…* and opens the composer in the document.
 - Code studio: the image context menu in Assets and the Explorer now reads *Open in Pixel Studio* / *Open in Vector Studio*.
 - Spreadsheet data validation also checks pasted values (Paste, Paste Special) and values written by `sheet_write_range` and `sheet_paste_special`; nothing is written when a value breaks a rule.
+- Straighten Horizon and the Crop tool's *Auto* search ±30° instead of ±20°.
 
 ### Fixed
 - Glass surface style: dialogs, the command palette and popovers no longer show a repeating bright stripe every 160 px (the highlight gradient was tiled by the grain layer size).
+- Scene Studio: media removed from the bin releases its object URL (a full copy of the file), decoded images and sound and its frame reader right away instead of when the document closes; a media probe that fails releases its element ([docs/performance.md](docs/performance.md#scene-studio-memory)).
+- Scene export: a range with a missing, NaN or reversed bound is repaired, a range after the end says so (it used to report an empty sequence), and the quality is clamped so the bit rate can never be negative or huge.
+- Worker jobs read image data of any byte view (a `Uint16Array` view was cut short, a plain array read as empty) and refuse data that is too short.
+- Local file listings skip subfolders that cannot be read instead of failing.
+- `npm run relay -- --help` printed nothing when its output went to a pipe on macOS.
+- Flaky tests: the git smart-HTTP test ignores the backend's early exit (EPIPE), the Vibe hub test waits for the first live event instead of a fixed delay, and the horizon test image uses an exact 32-bit noise generator.
 
 ### Removed
 - The floating in-app Collaboration window, the setting *Open Collaboration in its own window* (`collabPopout`) and the command *Pop Out Collaboration Window* (`collab.popOut`).

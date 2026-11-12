@@ -162,14 +162,14 @@ function houghNearHorizontal(gx, gy, mag, w, h, thr, maxAngle) {
  * Finds the dominant almost-level line (a horizon, shoreline, table edge) or, when stronger, the dominant almost-plumb
  * line (building edges, door frames) of an image. Returns null when no line is clear enough.
  * @param {RGBAImage} img
- * @param {{maxAngle?: number, maxSide?: number}} [opts] maxAngle: largest tilt searched (degrees, default 20);
+ * @param {{maxAngle?: number, maxSide?: number}} [opts] maxAngle: largest tilt searched (degrees, default 30);
  *   maxSide: analysis size (default 480 px)
  * @returns {{kind: 'horizon'|'vertical', angle: number, line: [[number, number], [number, number]], strength: number} | null}
  *   `angle`: tilt of the line in degrees (+ = clockwise from level/plumb, y down); `line`: two points on it in image
  *   pixels across the image; `strength`: supporting edge length relative to the image side (0..1+)
  */
 export function detectHorizon(img, opts = {}) {
-  const maxAngle = Math.max(1, Math.min(44, opts.maxAngle ?? 20));
+  const maxAngle = Math.max(1, Math.min(44, opts.maxAngle ?? 30));
   const k = Math.max(1, Math.ceil(Math.max(img.width, img.height) / (opts.maxSide || 480)));
   const { L, w, h } = lumaDown(img, k);
   if (w < 16 || h < 16) return null;

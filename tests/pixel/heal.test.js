@@ -14,7 +14,9 @@ function horizonImage(w, h, y0, deg, seed = 1) {
   const t = Math.tan((deg * Math.PI) / 180);
   let s = seed;
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    s = (s * 1103515245 + 12345) & 0x7fffffff;
+    // Math.imul: an exact 32-bit LCG. `s * 1103515245` overflows 2^53 in a double, drops low bits and falls into a
+    // short cycle (about 11 000 steps), so the noise was not the sequence the seed promised.
+    s = (Math.imul(s, 1103515245) + 12345) & 0x7fffffff;
     const n = (s % 9) - 4;
     const v = y < y0 + x * t ? 200 : 70;
     setPx(img, x, y, [v + n, v + n, v + 20 + n]);
@@ -77,6 +79,15 @@ test("detectHorizon finds tilted horizons and agrees with the crop tool's levelA
   }
 });
 
+test("detectHorizon searches ±30° by default (was ±20°)", () => {
+  for (const deg of [-28, -24, 25, 29]) {
+    const r = detectHorizon(horizonImage(640, 480, deg > 0 ? 60 : 420, deg));
+    assert.ok(r && r.kind === "horizon", `found at ${deg}°`);
+    assert.ok(Math.abs(r.angle - deg) <= 0.35, `angle ${r.angle} for ${deg}`);
+  }
+  assert.equal(detectHorizon(horizonImage(640, 480, 60, 25), { maxAngle: 20 }), null, "maxAngle still narrows the search");
+});
+
 test("detectHorizon: plumb lines, flat images and large images", () => {
   // a building edge leaning 4 degrees: bright left, dark right
   const img = createImage(200, 300);
@@ -117,8 +128,16 @@ test("worker jobs: inpaint, patch, horizon and extend", async () => {
   assert.deepEqual(px(r, 12, 12), [90, 90, 90, 90]);
   const p = await runJob("pixel.patch", { img: { width: 30, height: 30, data: new Uint8ClampedArray(900 * 4).fill(50) }, mask, dx: 5, dy: 0 });
   assert.equal(p.r.width, 30);
-  const h = await runJob("pixel.horizon", { img: horizonImage(200, 120, 60, 3) });
-  assert.ok(Math.abs(h.r.angle - 3) < 0.4);
+  const hImg = horizonImage(200, 120, 60, 3);
+  const direct = detectHorizon(hImg);
+  const h = await runJob("pixel.horizon", { img: hImg });
+  assert.ok(h.r && Math.abs(h.r.angle - 3) < 0.4, JSON.stringify(h.r));
+  assert.deepEqual(h.r, direct, "the job is the same pure function");
+  // other byte views of the same pixels give the same answer (asImage reads bytes, not elements)
+  const u16 = new Uint16Array(hImg.data.buffer.slice(0));
+  assert.deepEqual((await runJob("pixel.horizon", { img: { width: 200, height: 120, data: u16 } })).r, direct);
+  assert.deepEqual((await runJob("pixel.horizon", { img: { width: 200, height: 120, data: Array.from(hImg.data) } })).r, direct);
+  await assert.rejects(runJob("pixel.horizon", { img: { width: 200, height: 120, data: new Uint8Array(10) } }), /too short/);
   const e = await runJob("pixel.extend", { img, inv: [1, 0, 0, 1, -2, -2], width: 34, height: 34 });
   assert.equal(e.r.width, 34);
 });

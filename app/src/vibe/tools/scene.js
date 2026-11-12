@@ -133,6 +133,17 @@ export function sceneTools(app, ctxS = {}) {
       value: { description: "Constant value for mode clear (default: the value at the clip start)" },
     }, ["id", "prop"], (a) => sceneEdit(app, "Keyframes", async (m) => (await ops()).keyframes(m, a))),
 
+    tool("scene_set_easing", "Changes how existing keyframes of one clip property ease, like the graph editor: linear, easyEase (smooth in and out), easyEaseIn, easyEaseOut, hold, ease, easeIn, easeOut, easeInOut, back, bounce, elastic or a cubic bezier [x1, y1, x2, y2]. at = key times (default: every keyframe of the property). Add keyframes with scene_keyframes first.", {
+      id: S.str("Clip id"), prop: S.str("Property path: x, y, sx, sy, rot, opacity, volume, pan or fx:<effect id>:<parameter>"),
+      easing: { anyOf: [{ type: "string", enum: ["linear", "easyEase", "easyEaseIn", "easyEaseOut", "hold", "ease", "easeIn", "easeOut", "easeInOut", "back", "bounce", "elastic"] }, { type: "array", items: { type: "number" }, minItems: 4, maxItems: 4 }], description: "Easing preset or [x1, y1, x2, y2]" },
+      at: { type: "array", items: { anyOf: [{ type: "number" }, { type: "string" }] }, description: "Key times (default: all keyframes)" },
+      timeBase: S.str("clip (default, seconds from the clip start) or timeline", { enum: ["clip", "timeline"] }),
+    }, ["id", "prop", "easing"], (a) => sceneEdit(app, "Easing", async (m) => (await ops()).setEasing(m, a))),
+
+    tool("scene_precompose", "Moves clips into a new composition (pre-compose) and puts one composition clip in their place, so they can be moved, animated, masked or given effects as one layer. Their sound goes along. Works inside compositions too (seq). Returns the new clip id and the composition id (scene_describe seq shows its inside).", {
+      ids: IDS(), name: S.str("Composition name (default Composition)"), seq: S.str("Composition id the clips are in (default: the main sequence)"),
+    }, ["ids"], (a) => sceneEdit(app, "Pre-compose", async (m) => (await ops()).precompose(m, a))),
+
     tool("scene_effect", "Adds, updates (parameters, on/off) or removes an effect on clips: color (brightness, saturation, color grade, look), keying (chroma-key), blur, stylize (shadow, glow, duotone, vignette, posterize, grain) or audio (eq, compressor, highpass, lowpass, gate). scene_catalog lists types and parameters; animate a parameter with scene_keyframes prop fx:<id>:<param>.", {
       ids: IDS(), action: S.str("add, update or remove", { enum: ["add", "update", "remove"] }), type: S.str("Effect type (add)"),
       effect: S.str("Effect id or type (update, remove)"), params: OBJ("Parameter values"), on: S.bool("Switch on or off (update)"),

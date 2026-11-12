@@ -393,12 +393,12 @@ edit is one undo step.
 
 ### Scene Studio tools
 
-Three groups (44 tools) edit and understand video in the Scene Studio; each write call is one undo step. Details,
+Three groups (46 tools) edit and understand video in the Scene Studio; each write call is one undo step. Details,
 algorithms and limits: [scene-studio.md](scene-studio.md#assistant).
 
 | Group | Tools |
 | --- | --- |
-| Scene | `scene_describe`, `scene_catalog`, `scene_new`, `scene_set_format`, `scene_track`, `scene_import_media`, `scene_place_media`, `scene_add_layer`, `scene_move_clips`, `scene_trim_clip`, `scene_split`, `scene_delete_clips`, `scene_set_speed`, `scene_update_clips`, `scene_transition`, `scene_keyframes`, `scene_effect`, `scene_audio`, `scene_markers`, `scene_cut_ranges`, `scene_captions`, `scene_captions_export`, `scene_render_frame`, `scene_show`, `scene_export` |
+| Scene | `scene_describe`, `scene_catalog`, `scene_new`, `scene_set_format`, `scene_track`, `scene_import_media`, `scene_place_media`, `scene_add_layer`, `scene_move_clips`, `scene_trim_clip`, `scene_split`, `scene_delete_clips`, `scene_set_speed`, `scene_update_clips`, `scene_transition`, `scene_keyframes`, `scene_set_easing`, `scene_precompose`, `scene_effect`, `scene_audio`, `scene_markers`, `scene_cut_ranges`, `scene_captions`, `scene_captions_export`, `scene_render_frame`, `scene_show`, `scene_export` |
 | Scene understanding | `scene_transcribe` (batch speech engine of the engine registry; asks before an online one), `scene_set_transcript`, `scene_transcript`, `scene_detect_shots`, `scene_analyze_audio`, `scene_sample_frames`, `scene_index_note`, `scene_search` |
 | Scene automation | `scene_cut_transcript`, `scene_remove_silences`, `scene_remove_fillers`, `scene_auto_captions`, `scene_highlight_reel`, `scene_reframe`, `scene_animate_clip`, `scene_title`, `scene_lower_third`, `scene_slideshow`, `scene_beat_cuts` |
 

@@ -83,7 +83,7 @@ with texture from the surroundings (no AI model; `engine/pixel/inpaint.js` on th
 *Anti-alias* option (on by default: a soft one-pixel edge).
 
 **Straighten Horizon** (*Document* menu) detects the horizon or the strongest near-vertical edge (gradient Hough
-transform within ±20°, `engine/pixel/heal.js`) and rotates the page by it, cropped so no corner is empty. **Compare
+transform within ±30°, `engine/pixel/heal.js`) and rotates the page by it, cropped so no corner is empty. **Compare
 Before / After** (*View*, `Mod+Alt+Y`) shows the page as it looked when the Pixel studio first showed it in this
 session left of a draggable divider (`Alt+Left/Right` moves it); *Set Current State as Before* retakes the snapshot.
 Snapshots are kept in memory only (up to 8 megapixels). **Move to Position…** (canvas and layer context menus,
