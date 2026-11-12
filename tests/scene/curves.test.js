@@ -93,7 +93,7 @@ test("migration: a format 1 scene loads as format 2 and renders the same frames"
     media: {},
   };
   const m = M.normalizeScene(JSON.parse(JSON.stringify(v1)));
-  assert.equal(m.version, 2);
+  assert.equal(m.version, M.SCENE_VERSION);
   for (let tt = 0; tt <= 4; tt += 0.2) {
     const L = frameState(m, tt).layers[0];
     near(L.opacity, Math.max(0, Math.min(1, K.valueAt(v1.clips.a.opacity, tt))));

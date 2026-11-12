@@ -156,7 +156,8 @@ export function createMediaStore(getModel, onReady = () => {}) {
     const el = v.el;
     const want = Math.max(0, Math.min(time, (el.duration || Infinity) - 0.001));
     const speed = (clip?.speed || 1) * rate;
-    if (playing) {
+    // a time-remapped clip (reverse, freeze, speed ramp) is seeked frame by frame instead of played
+    if (playing && clip?.remap === undefined) {
       if (el.playbackRate !== speed) el.playbackRate = Math.max(0.0625, Math.min(16, speed));
       if (el.paused) {
         el.currentTime = want;

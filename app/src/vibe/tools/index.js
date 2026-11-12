@@ -46,13 +46,14 @@ import { scriptTools } from "./script.js";
 import { designAssistTools } from "./design-assist.js";
 import { sceneTools } from "./scene.js";
 import { sceneUnderstandTools } from "./scene-understand.js";
+import { sceneMotionTools } from "./scene-motion.js";
 
 /**
  * @param {import("../../core/app.js").App} app
  * @param {object} ctx session context: { images, knowledge, memory, skills, ask, plan, customTools }
  */
 export function createOpenFiniTools(app, ctx = {}) {
-  return withVerifyHints([...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...latexTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...officeSuiteTools(app, ctx), ...officeSheetTools(app, ctx), ...officeSheetDepthTools(app, ctx), ...slidesTools(app, ctx), ...officeBoardTools(app, ctx), ...officeSemanticTools(app, ctx), ...officeDesignTools(app, ctx), ...formatTools(app, ctx), ...exportTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...commentTools(app, ctx), ...vscodeTools(app, ctx), ...routingTools(app, ctx), ...webAccessTools(app, ctx), ...colorTools(app, ctx), ...pixelEditTools(app, ctx), ...knowledgeTools(app, ctx), ...utilityTools(app, ctx), ...terminalTools(app, ctx), ...localFileTools(app, ctx), ...scriptTools(app, ctx), ...designAssistTools(app, ctx), ...sceneTools(app, ctx), ...sceneUnderstandTools(app, ctx)]);
+  return withVerifyHints([...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...latexTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...officeSuiteTools(app, ctx), ...officeSheetTools(app, ctx), ...officeSheetDepthTools(app, ctx), ...slidesTools(app, ctx), ...officeBoardTools(app, ctx), ...officeSemanticTools(app, ctx), ...officeDesignTools(app, ctx), ...formatTools(app, ctx), ...exportTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...commentTools(app, ctx), ...vscodeTools(app, ctx), ...routingTools(app, ctx), ...webAccessTools(app, ctx), ...colorTools(app, ctx), ...pixelEditTools(app, ctx), ...knowledgeTools(app, ctx), ...utilityTools(app, ctx), ...terminalTools(app, ctx), ...localFileTools(app, ctx), ...scriptTools(app, ctx), ...designAssistTools(app, ctx), ...sceneTools(app, ctx), ...sceneUnderstandTools(app, ctx), ...sceneMotionTools(app, ctx)]);
 }
 
 /** Tools grouped for the UI. */
@@ -73,6 +74,7 @@ export const TOOL_GROUPS = {
   Scene: ["scene_describe", "scene_catalog", "scene_new", "scene_set_format", "scene_track", "scene_import_media", "scene_place_media", "scene_add_layer", "scene_move_clips", "scene_trim_clip", "scene_split", "scene_delete_clips", "scene_set_speed", "scene_update_clips", "scene_transition", "scene_keyframes", "scene_set_easing", "scene_precompose", "scene_effect", "scene_audio", "scene_markers", "scene_cut_ranges", "scene_captions", "scene_captions_export", "scene_render_frame", "scene_show", "scene_export"],
   "Scene understanding": ["scene_transcribe", "scene_set_transcript", "scene_transcript", "scene_detect_shots", "scene_analyze_audio", "scene_sample_frames", "scene_index_note", "scene_search"],
   "Scene automation": ["scene_cut_transcript", "scene_remove_silences", "scene_remove_fillers", "scene_auto_captions", "scene_highlight_reel", "scene_reframe", "scene_animate_clip", "scene_title", "scene_lower_third", "scene_slideshow", "scene_beat_cuts"],
+  "Scene motion": ["scene_parent", "scene_behavior", "scene_stagger", "scene_keyframe_edit", "scene_clip_time", "scene_link", "scene_effect_order", "scene_animate_with_sound", "scene_beat_markers"],
   Whiteboard: ["board_describe", "board_add_shape", "board_add_sticky", "board_add_text", "board_add_connector", "board_update", "board_delete", "board_arrange", "board_page", "board_import", "board_export", "board_add_table", "board_edit_table", "board_add_chart", "board_add_plot", "board_add_math", "board_add_subboard", "board_add_diagram", "board_draw"],
   "Imported documents": ["get_import_report", "list_pdf_pages", "describe_document_pages", "extract_pdf_text"],
   "System and files": ["get_platform_info", "list_recent_files"],
@@ -118,6 +120,7 @@ export const VERIFY_WITH = {
   Scene: "scene_describe or scene_render_frame",
   "Scene understanding": "scene_describe or scene_search",
   "Scene automation": "scene_describe and scene_render_frame",
+  "Scene motion": "scene_describe and scene_render_frame",
   Whiteboard: "board_describe",
   "Imported documents": "get_import_report",
   "System and files": "get_platform_info",

@@ -13,10 +13,10 @@ The layout follows what video editors share, so existing habits work:
 
 | Area | What it does |
 | --- | --- |
-| **Media** (left) | The project's files. *Import media…* or drop files. Drag an item to the timeline, or double-click to add it at the playhead. Below: *Text*, *Shape*, *Solid*, *Adjustment* add a generated clip at the playhead. |
+| **Media / Effects** (left) | *Media*: the project's files. *Import media…* or drop files. Drag an item to the timeline, or double-click to add it at the playhead. Below: *Text*, *Shape*, *Solid*, *Adjustment*, *Null object* add a generated clip at the playhead. *Effects*: the [effects browser](#effects-browser). |
 | **Viewer** (center) | The frame at the playhead. Click a layer to select it; drag to move, drag a corner to scale, drag the top handle to rotate (Shift = straight / 15° steps). Transport, time code and level meters below. |
-| **Properties** (right) | The selected clip: transform, crop, mask, text, shape, transitions, sound, effects, keyframe easing. With nothing selected: the sequence format, frame rate, background and the markers. |
-| **Timeline** (bottom) | Tracks with clips. Video tracks on top (the upper track is in front), audio tracks below. Track headers: hide / mute, lock, rename (double-click). |
+| **Properties** (right) | The selected clip in folding sections: clip (name, label color, enabled), time (speed, reverse, freeze frame, time remapping), text or shape or solid, transform (position, scale, rotation, opacity, anchor point, blend mode, parent, motion blur), behaviors, crop, mask, transitions, audio (volume, gain in dB, pan, fades, mute), the effect stack, keyframe easing. Every animatable property has [keyframe controls](#keyframe-controls). With nothing selected: the sequence format, frame rate, background and the markers; with several clips: label color, link, pre-compose, sequence layers. |
+| **Timeline** (bottom) | Tracks with clips. Video tracks on top (the upper track is in front), audio tracks below. Track headers: hide / mute, solo, lock, rename (double-click), drag the bottom edge for the height. Keyframe rows open under a clip (the triangle on the clip, or **U**). The bar above the tool strip resizes the timeline (double-click resets it). |
 
 ### Keyboard
 
@@ -37,6 +37,17 @@ The layout follows what video editors share, so existing habits work:
 | M, T, S | Add a marker / add text / toggle snapping |
 | +, -, \ | Zoom the timeline in / out / fit the sequence |
 | Shift+F3 | Graph editor on / off (its own keys: [Graph editor](#graph-editor)) |
+| Ctrl+C, Ctrl+X, Ctrl+V | Copy, cut, paste: the selected keyframes when there are any, else the clips (with their linked partners); paste at the playhead (keyframes into the selected clip) |
+| Shift+J, Shift+K | Previous / next keyframe (of the selected clips, or of all clips) |
+| U | Show / hide the keyframe rows of the selected clips (every animated clip when nothing is selected) |
+| Alt+Left, Alt+Right | Nudge the selected keyframes or clips one frame (Shift: five) |
+| Alt+[, Alt+] | Trim the start / end of the selection to the playhead (no ripple) |
+| Ctrl+R | Speed / duration dialog |
+| Ctrl+L | Link / unlink the selected clips |
+| Shift+E | Enable / disable the selected clips |
+| F9, Shift+F9, Ctrl+Shift+F9 | Easy ease / easy ease in / easy ease out on the selected keyframes |
+| Page Up, Page Down | Previous / next edit point |
+| Delete | With keyframes selected: delete the keyframes |
 
 Undo, redo, save and the other application shortcuts work as everywhere.
 
@@ -47,20 +58,64 @@ Undo, redo, save and the other application shortcuts work as everywhere.
 - **Trim:** drag a clip edge. **Alt** = ripple trim (later clips follow). A media clip cannot grow past its source.
 - **Razor (C):** click to cut; **Shift** cuts all tracks.
 - **Slip (Y):** drag a clip to move its source under it.
-- **Marquee:** drag empty space. **Shift / Ctrl-click** adds to the selection.
-- **Scrub:** drag in the ruler. **Wheel** scrolls, **Ctrl / Alt + wheel** zooms around the pointer.
+- **Marquee:** drag empty space. **Shift / Ctrl-click** adds to the selection. A clip click selects its linked
+  partners (a video and its sound); **Alt-click** selects only the clip.
+- **Scrub:** drag in the ruler.
+- **Scroll and zoom:** the wheel scrolls the tracks up and down when they do not fit (sideways when they do),
+  **Shift + wheel** scrolls sideways, **Ctrl / Alt + wheel** zooms around the pointer. The scroll bars, the zoom slider
+  in the tool strip and *Fit the sequence* (\\) do the same. Track headers scroll with the tracks; the ruler and the
+  playhead stay in place.
+- **Track height:** drag the bottom edge of a track header, or right-click ▸ *Track Height*.
+- **Keyframe rows:** click the triangle at the start of a clip (or press **U**) to show one row per animated
+  property under it. Click a keyframe to select it (**Shift / Ctrl** adds), drag to move the selection (snapped to
+  frames and, with snapping on, to edit points), **Alt-drag** scales the selection in time around the keyframe
+  farthest from the one you hold, drag empty row space for a box selection, double-click a row to add a keyframe
+  there. The row header has previous / add or remove / next keyframe and opens the property in the graph editor.
+  Glyphs: diamond = linear, round = eased (easing or Bezier tangents), square = hold.
 - **Snapping (S):** clip edges, markers, In / Out and the playhead attract; a line shows the snap.
+
+### Context menus
+
+Right-click works everywhere, with the items editors share. What is under the pointer is selected first.
+
+| Target | Items |
+| --- | --- |
+| Clip | Cut, copy, paste, duplicate; split at playhead, trim start / end to playhead, delete, ripple delete; *Speed and Time* (speed / duration, reverse, freeze frame, time remapping); *Animate* (in / out / continuous presets, behaviors, animate with sound, sequence layers, motion blur, parent to, show keyframes); add effect (by group), add transition (start / end); add markers at beats; enabled, mute, link / unlink, detach audio, pre-compose, open composition; rename, replace media, label color, arrange (layer order), set In and Out to the selection, properties |
+| Track header | Add video / audio track above / below, rename, duplicate, delete, move up / down, lock, hide or mute, solo, track height, select all clips on the track |
+| Empty track space | Paste here, ripple delete gap, insert gap, add text / shape / solid / adjustment layer / null object here, add marker here, select all clips on the track, select all |
+| Ruler | Add marker here, rename / remove the marker under the pointer, set In / Out here, set In and Out to the selection, clear In and Out, zoom to fit |
+| Keyframe | Linear, easy ease (in / out), hold, easing presets; copy, paste, delete; set value, reverse keyframes, select all keyframes of the property, go to the keyframe, open in the graph editor |
+| Keyframe row | Add or remove a keyframe at the playhead, previous / next keyframe, select all, paste, remove animation, graph editor |
+| Viewer | Bring to front / forward, send backward / to back, fit, fill, reset transform, copy, paste, guides (title and action safe, rule of thirds, center cross, motion path) |
+
+With the assistant on, an *AI* section follows (describe this moment, animate the selection, captions, …).
 
 ## Animation
 
-Position, scale, rotation, opacity, volume, pan and every numeric effect parameter can be animated.
+Position, scale, rotation, opacity, anchor point, volume, pan, the source time of remapped clips, crop, the mask
+(position, size, feather), text (size, color, letter spacing, line height, outline width), shapes (width, height,
+corner radius, fill, outline width) and every numeric or color effect parameter can be animated.
 
-- The **diamond** next to a property adds or removes a keyframe at the playhead. Once a property has keyframes,
-  changing its value (in the panel or by dragging in the viewer) writes a keyframe at the playhead.
+### Keyframe controls
+
+Every animatable property in Properties has four controls:
+
+- the **stopwatch** turns animation on (one keyframe with the current value at the playhead) or off (all keyframes
+  removed, the value at the playhead stays);
+- **◀ ▶** jump to the previous / next keyframe of that property;
+- the **diamond** adds or removes a keyframe at the playhead (filled: there is one).
+
+Once a property has keyframes, changing its value (in the panel or by dragging in the viewer) writes a keyframe at
+the playhead. Right-click the controls to open the property in the graph editor. Uniform scale animates X and Y
+together (*Unlink scale* shows them separately).
 - Keyframes show as yellow diamonds on the clip. With the playhead on a keyframe, **Easing** sets how the value
   leaves it: linear, easy ease (in / out), ease, ease in, ease out, ease in and out, overshoot, bounce, elastic or
   hold. Curves and tangents are shaped in the **graph editor** (below).
 - **Text animation** (*Animate in / out*): fade, slide, pop, typewriter, letter by letter, word by word, blur.
+- **Motion path:** a selected clip with animated position shows its path in the viewer (a dot per frame, squares at
+  keyframes); drag a square to move that position keyframe. *Guides ▸ Motion Path* hides it.
+- **Anchor point** (*Anchor X / Y*, layer pixels from the content center): the point the layer turns and scales
+  around; the viewer shows it as a cross.
 - **Transitions** at a clip's edges: fade, cross dissolve, dip to black / white, slide, wipe, zoom, blur. A cross
   dissolve keeps the previous clip of the same track visible underneath (it uses source frames past its end).
 - **Pre-compose** (Clip menu) moves the selected clips into a composition that then behaves like one clip
@@ -92,6 +147,29 @@ Tangent model (After Effects'): each side of a keyframe has a **speed** (value u
 **influence** (0 to 100 % of the neighboring segment's length), so tangents keep their meaning when keyframes move in
 time. A segment with a tangent on either side is a 2D cubic Bezier; when the two influences add up to more than
 100 % both are shortened so time stays monotonic. Segments without tangents evaluate exactly as in format 1.
+
+## Motion tools
+
+| Tool | Where | What it does |
+| --- | --- | --- |
+| Animation presets | Clip menu ▸ *Animate*, *Effects* tab | One click: fade, slide from any side, zoom, pop, spin, blur in or out; Ken Burns, shake, pulse, float over the whole clip. The result is ordinary keyframes (`scene/motion.js`). |
+| Behaviors | Properties ▸ *Behaviors*, *Animate ▸ Behaviors* | Expressions without code, on top of the keyframes: **wiggle** (smooth random motion: amount, frequency, seed), **loop** (repeat the keyframes after the last one: cycle, ping-pong, offset to continue), **spin** (units per second). Deterministic: the same frame always looks the same, in the preview and the export. |
+| Parenting and null objects | Properties ▸ *Parent*, *Animate ▸ Parent To*, *Null object* | A child moves, turns and scales with its parent (any picture clip, on screen or not). Parenting and unparenting keep the look at the playhead (values are converted). A null object is an invisible layer that only carries children. |
+| Sequence layers | Several clips ▸ *Sequence layers…* | Starts the clips one after another (a delay between starts, or end to start with an overlap), by track, by time or in selection order. |
+| Motion blur | Properties ▸ Transform, *Animate ▸ Motion Blur* | The layer is the average of eight sub-frames over a 180° shutter (half a frame), only while it moves; static frames stay sharp. |
+| Animate with sound | *Animate ▸ Animate with Sound…* | Bakes the loudness of a sound clip into keyframes of scale, opacity, rotation or position (one per frame, fast attack, smooth release); edit them like any keyframes. |
+| Beat markers | Clip menu ▸ *Add Markers at Beats* | Analyses the sound (tempo and beats, worker pool) and puts a green marker on every beat; cuts and keyframes snap to them. |
+| Speed ramps, reverse, freeze frame | Clip menu ▸ *Speed and Time*, Properties ▸ Time | Video and composition clips: *Reverse* plays backwards, *Freeze Frame* holds the frame at the playhead for the rest of the clip, *Time remapping* keyframes the source time (with Bezier easing in the graph editor for ramps). |
+| Masks, crop, text and shape animation | Properties | The mask's edges and feather, the crop, text size / color / spacing and shape size / fill are keyframeable like the transform. |
+
+## Effects browser
+
+*Effects* tab of the left panel: every effect (by group), the transitions (at the start / end) and the animation
+presets (in / out / continuous) in one searchable list. Drag an item onto a clip in the timeline, or double-click it
+(Enter) to apply it to the selected clips. The star keeps an item in *Favorites* (stored on this device).
+
+In Properties the **effect stack** applies top to bottom: each effect folds, turns on and off, moves up and down,
+resets to its defaults and is removed; its parameters have keyframe controls.
 
 ## Compositions
 
@@ -199,11 +277,18 @@ Stored as the document's project of kind `"scene"` ([file-format.md](file-format
 Clip { id, track, type: video | audio | image | text | shape | solid | adjustment | comp, name,
        start, dur,                 // seconds on the timeline, on the frame grid
        in, speed, media | comp,    // source offset, rate and source of media / composition clips
-       x, y, sx, sy, rot, opacity, // animatable; x, y = center in sequence pixels
+       x, y, sx, sy, rot, opacity, // animatable; x, y = center in sequence pixels (or in the parent's space)
+       ax?, ay?,                   // format 3, animatable: anchor point in layer pixels from the content center
        volume, pan,                // animatable (audio and composition clips)
-       remap?, collapse?,          // composition clips: time remap (animatable, seconds), collapse transformations
+       remap?, collapse?,          // video and composition clips: time remap (animatable, seconds); comp: collapse
        crop, blend, mask, effects: [{ id, type, on, p }], tin, tout, fadeIn, fadeOut, muted,
-       text: { … }, caption, shape: { … }, color }
+       text: { … }, caption, shape: { … }, color,
+       // format 3, all optional:
+       label?, link?, off?,        // label color "#rrggbb", link group id, disabled (neither seen nor heard)
+       parent?, beh?, mblur? }     // parent clip id, behaviors [{ id, type: wiggle | loop | spin, prop, … }], motion blur
+Track { …, solo? }                 // format 3: while a track of a kind is soloed, the other tracks of that kind are silent / hidden
+Animatable inside objects (format 3): crop.l/t/r/b, mask.x/y/w/h/feather, text.size/tracking/lineHeight/strokeW/color,
+                                      shape.w/h/radius/strokeW/fill (paths "crop.l", "text.size", …)
 
 Animatable value: a constant, or { kf: [Keyframe] } with
 Keyframe { t, v,                   // seconds from the clip start, value
@@ -219,7 +304,10 @@ through its clips; compositions carry no media or composition definitions of the
 
 **Format history and migration.** Version 1 was the first release. Version 2 adds, all optional: keyframe
 tangents `i`, `o`, `b`; the `bounce` and `elastic` easings; nested compositions; `remap` and `collapse` on
-composition clips; composition sound. `normalizeScene` migrates: a version 1 file loads unchanged and renders the
+composition clips; composition sound. Version 3 adds, all optional: the anchor point, keyframes inside crop, mask,
+text and shape, time remapping of video clips, label colors, links, disabled clips, track solo, parenting, behaviors
+and motion blur. A version 2 file loads unchanged; an older OpenFini drops the version 3 fields (keyframes inside
+objects fall back to their defaults). `normalizeScene` migrates: a version 1 file loads unchanged and renders the
 same frames (tested), cycles in foreign files are broken deterministically, and the model is saved as version 2.
 An older OpenFini opening a version 2 file drops what it does not know (tangents become the plain easing of the
 keyframe, nested composition clips stay) and keeps working.
@@ -230,7 +318,15 @@ keyframe, nested composition clips stay) and keeps working.
 `deleteClips` (ripple), `cutRanges`, `keepRanges`, `insertGap`, `closeGaps`, `slipClip`, `setSpeed`,
 `duplicateClips`, `setKeyframe`, `removeKeyframe`, `setProp`, `addEffect`, `updateEffect`, `removeEffect`,
 `setTransition`, `addTrack`, `removeTrack`, `updateTrack`, `moveTrack`, `addMarker`, `removeMarker`, `setRange`,
-`addMedia`, `removeMedia`, `setAnalysis`, `precompose`, `describeScene`.
+`addMedia`, `removeMedia`, `setAnalysis`, `precompose`, `describeScene`, `moveEffect`, `resetEffect`, `propValue`,
+`mapAnimated`, `resolveClip`.
+
+`scene/keyops.js` works on keyframe selections `[{ id, path, t }]` across clips and properties: `deleteKeys`,
+`easeKeys`, `setKeyValue`, `retimeKeys` (move and scale in time), `reverseKeys`, `copyKeySel` / `pasteKeySel`,
+`toggleAnimation` (the stopwatch), `keyTimesOf`. `scene/edit-ops.js` has the clip operations of the context menus:
+`copyClips` / `pasteClips`, `reverseClip`, `freezeFrame`, `trimTo`, `gapAt`, `rippleDeleteGap`, `linkClips` /
+`unlinkClips` / `linkedIds`, `duplicateTrack`, `arrangeClip`, `replaceMedia`. `scene/rig.js` has `propAt`
+(behaviors), `setParent`, `parentMatrix`, `staggerClips`, `audioToKeyframes`, `beatMarkerTimes`.
 
 A sequence is the root ("main") or a composition: `sequence(model, seqId)` returns it with the shared `fps`, `media`
 and `comps`; every operation above works on it; `commitSequence(model, seqId, next)` (or `inSequence(model, seqId,
@@ -248,7 +344,30 @@ fn)`) writes it back, keeping media and compositions the operation added.
 | `pasteKeyframes(m, id, path, keys, t)` | Pastes keyframes (times relative to the first) at `t`. |
 | `editKeyframes(m, id, path, fn)` | Low level: `fn(track, clip) → track` with the pure helpers of `scene/keyframes.js` (`applyEasing`, `setTangents`, `tangentsOf`, `moveKeys`, `removeKeys`, `copyKeys`, `pasteKeys`, `speedAt`). |
 
-#### Compositions
+#### Motion tools
+
+| Tool | Where | What it does |
+| --- | --- | --- |
+| Animation presets | Clip menu ▸ *Animate*, *Effects* tab | One click: fade, slide from any side, zoom, pop, spin, blur in or out; Ken Burns, shake, pulse, float over the whole clip. The result is ordinary keyframes (`scene/motion.js`). |
+| Behaviors | Properties ▸ *Behaviors*, *Animate ▸ Behaviors* | Expressions without code, on top of the keyframes: **wiggle** (smooth random motion: amount, frequency, seed), **loop** (repeat the keyframes after the last one: cycle, ping-pong, offset to continue), **spin** (units per second). Deterministic: the same frame always looks the same, in the preview and the export. |
+| Parenting and null objects | Properties ▸ *Parent*, *Animate ▸ Parent To*, *Null object* | A child moves, turns and scales with its parent (any picture clip, on screen or not). Parenting and unparenting keep the look at the playhead (values are converted). A null object is an invisible layer that only carries children. |
+| Sequence layers | Several clips ▸ *Sequence layers…* | Starts the clips one after another (a delay between starts, or end to start with an overlap), by track, by time or in selection order. |
+| Motion blur | Properties ▸ Transform, *Animate ▸ Motion Blur* | The layer is the average of eight sub-frames over a 180° shutter (half a frame), only while it moves; static frames stay sharp. |
+| Animate with sound | *Animate ▸ Animate with Sound…* | Bakes the loudness of a sound clip into keyframes of scale, opacity, rotation or position (one per frame, fast attack, smooth release); edit them like any keyframes. |
+| Beat markers | Clip menu ▸ *Add Markers at Beats* | Analyses the sound (tempo and beats, worker pool) and puts a green marker on every beat; cuts and keyframes snap to them. |
+| Speed ramps, reverse, freeze frame | Clip menu ▸ *Speed and Time*, Properties ▸ Time | Video and composition clips: *Reverse* plays backwards, *Freeze Frame* holds the frame at the playhead for the rest of the clip, *Time remapping* keyframes the source time (with Bezier easing in the graph editor for ramps). |
+| Masks, crop, text and shape animation | Properties | The mask's edges and feather, the crop, text size / color / spacing and shape size / fill are keyframeable like the transform. |
+
+## Effects browser
+
+*Effects* tab of the left panel: every effect (by group), the transitions (at the start / end) and the animation
+presets (in / out / continuous) in one searchable list. Drag an item onto a clip in the timeline, or double-click it
+(Enter) to apply it to the selected clips. The star keeps an item in *Favorites* (stored on this device).
+
+In Properties the **effect stack** applies top to bottom: each effect folds, turns on and off, moves up and down,
+resets to its defaults and is removed; its parameters have keyframe controls.
+
+## Compositions
 
 | Function | What it does |
 | --- | --- |
@@ -292,7 +411,7 @@ model ──frameState(model, t)──▶ layers ──compositor.render(ctx, �
 
 ## Assistant
 
-The Vibe assistant edits scenes natively: 46 tools in three groups, each write call one undo step named
+The Vibe assistant edits scenes natively: 55 tools in four groups, each write call one undo step named
 "Vibe: …", every result readable data (ids, times, one line per clip). In the Scene Studio the compact tool list shows
 these groups; the studio guide `studio-guide-scene` explains the model to the assistant and to `plan_work` sub-agents
 (studio `scene`).
@@ -301,6 +420,7 @@ these groups; the studio guide `studio-guide-scene` explains the model to the as
 | --- | --- | --- |
 | Scene | `scene_describe`, `scene_catalog`, `scene_new`, `scene_set_format`, `scene_track`, `scene_import_media`, `scene_place_media`, `scene_add_layer`, `scene_move_clips`, `scene_trim_clip`, `scene_split`, `scene_delete_clips`, `scene_set_speed`, `scene_update_clips`, `scene_transition`, `scene_keyframes`, `scene_set_easing`, `scene_precompose`, `scene_effect`, `scene_audio`, `scene_markers`, `scene_cut_ranges`, `scene_captions`, `scene_captions_export`, `scene_render_frame`, `scene_show`, `scene_export` | Inspect (compact summary, full detail of chosen clips), edit tracks and clips, keyframes with easing (and `scene_set_easing` for existing keys, like the graph editor), pre-compose clips into a nested composition, effects, masks and blend modes, sound (dB, pan, fades, EQ, loudness normalization), markers, captions (create, import SRT/VTT, edit, style, export), look at frames (one frame or a numbered contact sheet), export (asks first) |
 | Scene understanding | `scene_transcribe`, `scene_set_transcript`, `scene_transcript`, `scene_detect_shots`, `scene_analyze_audio`, `scene_sample_frames`, `scene_index_note`, `scene_search` | Transcript with word times, shots, silences, loudness, tempo and beats, sampled frames for the vision model, the searchable index |
+| Scene motion | `scene_parent`, `scene_behavior`, `scene_stagger`, `scene_keyframe_edit`, `scene_clip_time`, `scene_link`, `scene_effect_order`, `scene_animate_with_sound`, `scene_beat_markers` | Parenting and null objects, behaviors (wiggle, loop, spin), sequence layers, keyframe selections (move, scale, reverse, delete, ease, value), reverse / freeze / remap, links, effect order and reset, sound-driven keyframes, beat markers |
 | Scene automation | `scene_cut_transcript`, `scene_remove_silences`, `scene_remove_fillers`, `scene_auto_captions`, `scene_highlight_reel`, `scene_reframe`, `scene_animate_clip`, `scene_title`, `scene_lower_third`, `scene_slideshow`, `scene_beat_cuts` | Edits driven by the analysis and motion presets; everything they create is ordinary clips and keyframes the user can edit |
 
 Skills: `rough-cut-from-transcript`, `video-captions`, `social-cutdowns`, `title-animation`, `lower-third`,
@@ -346,7 +466,9 @@ the logic on the first call.
 | `studios/scene.js`, `commands/scene.js` | Registration, menus, commands (the only start-up code is the registration) |
 | `scene/host.js` | Mounts the workspace per document, start screen, `newScene` |
 | `scene/view.js` | Workspace: bin, viewer, transport, keyboard, the instance API |
-| `scene/timeline.js`, `scene/inspector.js` | Timeline canvas and gestures; properties panel |
+| `scene/timeline.js`, `scene/inspector.js` | Timeline canvas, keyframe rows, scroll bars and gestures; properties panel |
+| `scene/actions.js`, `scene/menus.js`, `scene/browser.js`, `scene/props.js` | Actions of the menus, keys and commands; context menus; effects browser; property labels |
+| `scene/keyops.js`, `scene/edit-ops.js`, `scene/rig.js`, `scene/ai-motion.js` | Keyframe selections; clip operations; parenting, behaviors, stagger, sound-driven keyframes; the motion tools of the assistant (pure) |
 | `scene/graph.js` | Graph editor (loaded on first use) |
 | `scene/model.js`, `scene/keyframes.js`, `scene/evaluate.js` | Pure model, animation and frame evaluation |
 | `scene/render.js`, `scene/gl.js`, `scene/effects.js` | Compositor, WebGL pass, effect registry |
@@ -355,13 +477,22 @@ the logic on the first call.
 | `scene/captions.js` | SRT / VTT, captions |
 | `scene/analysis.js`, `scene/ai-ops.js`, `scene/ai-auto.js`, `scene/motion.js` | Assistant: analysis algorithms, editing operations, transcript-driven edits, motion presets (pure) |
 | `scene/ai-runtime.js`, `scene/ai-menu.js` | Assistant: browser side of the tools; right-click ▸ AI |
-| `vibe/tools/scene.js`, `vibe/tools/scene-understand.js`, `ai/skills-scene.js` | Tool definitions (three groups) and skills |
+| `vibe/tools/scene.js`, `vibe/tools/scene-understand.js`, `vibe/tools/scene-motion.js`, `ai/skills-scene.js` | Tool definitions (four groups) and skills |
 | `tests/scene/` | Model, keyframes, evaluation, effect math, containers, GIF, WAV, captions, analysis, every assistant tool's logic; `curves.test.js`: Bezier evaluation, tangent serialization and migration, graph operations, nesting, cycles, time remap, composition sound |
 
 ## Limits
 
 - Export speed is about real time (sources are seeked frame by frame).
-- Changing a clip's speed changes the pitch of its sound. Reverse playback is not supported (J steps back).
+- Changing a clip's speed changes the pitch of its sound. Reverse playback in the viewer is not supported (J steps
+  back); a reversed clip (time remapping) plays backwards, and its sound does not (detach and keep it, or mute it).
+- Time-remapped video clips (reverse, freeze frame, speed ramps) are seeked frame by frame while playing, so the
+  preview may stutter on long-GOP files; the export is exact.
+- Parenting converts keyframes with the parent's transform at the playhead (as After Effects does); a parent that
+  is itself animated keeps the child's motion relative to it. Motion paths are edited by dragging keyframe points;
+  spatial Bezier handles are not available (the path between keyframes follows the X and Y curves).
+- Motion blur uses eight sub-frames of the transform (not of the video's own motion) and costs about eight times
+  the drawing of that layer.
+- Animate with sound and beat markers decode the whole sound in this window; very long files take a moment.
 - Time-remapped compositions are silent (their sound would need resampling); compositions at normal or changed
   speed play their sound (pitch follows the speed).
 - The graph editor shows the properties of one clip (the first selected). Color keyframes are listed but edited in

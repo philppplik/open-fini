@@ -14,7 +14,7 @@
 // like a picture; frames of compositions without video are cached (CACHE_SIZE per compositor). A composition clip
 // with `collapse` instead draws its layers straight into the target with its transform (crisp, not clipped).
 // Invariants: render() never throws for a missing source (the layer is skipped); it restores the context state.
-import { frameState } from "./evaluate.js";
+import { frameState, layerAt, withParent } from "./evaluate.js";
 import { layerSize, sequence, MAX_NESTING } from "./model.js";
 import { cssFilter, stageEffects, applyPixel } from "./effects.js";
 import { ease } from "./keyframes.js";
@@ -201,6 +201,7 @@ function isStaticComp(comps, id, seen = new Set()) {
 }
 
 const CACHE_SIZE = 4; // rendered composition frames kept per compositor
+const MBLUR_SAMPLES = 8; // sub-frames of a motion-blurred layer
 
 export function createCompositor({ provider }) {
   let scratch = null;
@@ -269,9 +270,11 @@ export function createCompositor({ provider }) {
     const c = layer.clip;
     const W = m.width;
     const H = m.height;
+    if (layer.pm) ctx.transform(...layer.pm); // parented (scene/rig.js)
     ctx.translate(layer.x + layer.fx.dx * W, layer.y + layer.fx.dy * H);
     if (layer.rot) ctx.rotate((layer.rot * Math.PI) / 180);
     ctx.scale(layer.sx * layer.fx.scale, layer.sy * layer.fx.scale);
+    if (layer.ax || layer.ay) ctx.translate(-(layer.ax || 0), -(layer.ay || 0)); // anchor point (format 3)
     if (c.type === "solid") {
       ctx.fillStyle = c.color;
       ctx.fillRect(-W / 2, -H / 2, W, H);
@@ -386,9 +389,11 @@ export function createCompositor({ provider }) {
       setBase(ctx, opts);
       ctx.globalCompositeOperation = k.invert ? "destination-out" : "destination-in";
       if (k.feather > 0) ctx.filter = `blur(${k.feather * s}px)`;
+      if (layer.pm) ctx.transform(...layer.pm);
       ctx.translate(layer.x + layer.fx.dx * m.width, layer.y + layer.fx.dy * m.height);
       if (layer.rot) ctx.rotate((layer.rot * Math.PI) / 180);
       ctx.scale(layer.sx * layer.fx.scale, layer.sy * layer.fx.scale);
+      if (layer.ax || layer.ay) ctx.translate(-(layer.ax || 0), -(layer.ay || 0));
       const bx = -size.w / 2 + k.x * size.w;
       const by = -size.h / 2 + k.y * size.h;
       ctx.beginPath();
@@ -407,6 +412,21 @@ export function createCompositor({ provider }) {
       ctx.fillRect(l * m.width, t * m.height, (r - l) * m.width, (b - t) * m.height);
       ctx.restore();
     }
+  }
+
+  // Sub-frame layers of a motion-blurred layer (MBLUR_SAMPLES over half a frame around t), or null when the layer
+  // does not move during the shutter (then it is drawn once, sharp).
+  function subframes(model, m, layer, t) {
+    const c = m.clips[layer.clip.id];
+    if (!c) return null;
+    const shutter = 0.5 / model.fps;
+    const list = [];
+    for (let i = 0; i < MBLUR_SAMPLES; i++) {
+      const tt = t + (i / (MBLUR_SAMPLES - 1) - 0.5) * shutter;
+      list.push(withParent(m, layerAt(c, tt - c.start), c, tt));
+    }
+    const key = (L) => [L.x, L.y, L.sx, L.sy, L.rot, L.ax, L.ay, ...(L.pm || [])].map((v) => Math.round((v || 0) * 1000)).join();
+    return key(list[0]) === key(list[list.length - 1]) ? null : list;
   }
 
   function renderInto(ctx, model, t, opts, depth) {
@@ -431,8 +451,37 @@ export function createCompositor({ provider }) {
       const filter = [fl, blur].filter(Boolean).join(" ") || "none";
       const collapse = layer.type === "comp" && !!layer.clip.collapse;
       const heavy = collapse || layer.type === "adjustment" || layer.mask || layer.fx.wipe || layer.effects.some((e) => stageEffects([e], "pixel").length || stageEffects([e], "glow").length);
+      const blurred = layer.clip.mblur && layer.type !== "adjustment" && !collapse && opts.motionBlur !== false ? subframes(model, m, layer, t) : null;
       try {
-        if (!heavy) {
+        if (blurred) {
+          // motion blur: the average of sub-frames over a 180° shutter, each painted like a heavy layer and added
+          // with 1 / n of its opacity ("lighter" sums premultiplied colors, so the result is the mean)
+          const acc = makeCanvas(dw, dh);
+          const a = acc.getContext("2d");
+          const one = depth ? makeCanvas(dw, dh) : getScratch(1, dw, dh);
+          const b = one.getContext("2d");
+          for (const L of blurred) {
+            b.setTransform(1, 0, 0, 1, 0, 0);
+            b.clearRect(0, 0, dw, dh);
+            b.save();
+            setBase(b, opts);
+            b.filter = filter;
+            const ok = paintContent(b, model, m, L, opts, depth);
+            b.restore();
+            if (!ok) continue;
+            process(one, L.effects, opts);
+            cut(one, m, L, opts);
+            a.globalCompositeOperation = "lighter";
+            a.globalAlpha = L.opacity / blurred.length;
+            a.drawImage(one, 0, 0);
+          }
+          ctx.save();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.globalAlpha = alpha;
+          ctx.globalCompositeOperation = layer.blend === "normal" ? "source-over" : layer.blend;
+          ctx.drawImage(acc, 0, 0);
+          ctx.restore();
+        } else if (!heavy) {
           ctx.save();
           setBase(ctx, opts);
           ctx.globalAlpha = layer.opacity * alpha;

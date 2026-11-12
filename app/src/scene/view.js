@@ -24,6 +24,11 @@ import { createMediaStore, probeMedia, mediaKind } from "./media.js";
 import { createAudioEngine } from "./audio.js";
 import { createTimeline } from "./timeline.js";
 import { createInspector } from "./inspector.js";
+import { createActions } from "./actions.js";
+import { parentMatrix, invert as invertM, apply as applyM } from "./rig.js";
+import { createBrowser } from "./browser.js";
+import { installSceneMenus } from "./menus.js";
+import { markContext } from "../ui/context-menu/index.js";
 
 const TOOLS = [
   { id: "select", icon: "cursor", label: "Selection tool (V)", key: "v" },
@@ -48,6 +53,10 @@ export function mountScene(host, doc, app) {
   ensureScene(prj);
   const state = (prj.view.scene ||= { t: 0, zoom: 80, scrollX: 0, scrollY: 0, snap: true, tool: "select", loop: false });
   state.sel = new Set();
+  state.keys = []; // selected keyframes [{ id, path, t }] (scene/keyops.js)
+  state.twirl = new Set(); // clips whose keyframe rows are shown
+  state.heights ||= {};
+  state.guides ||= {};
   // open sequences: tabs (composition ids besides "main"), the breadcrumb of each tab and its playhead
   state.seq ||= "main";
   state.tabs ||= [];
@@ -125,15 +134,28 @@ export function mountScene(host, doc, app) {
     b.addEventListener("click", fn);
     return b;
   };
-  const bin = h("div.of-scene-bin", { role: "region", "aria-label": t("Media") },
+  const mediaPane = h("div.of-scene-bin__pane",
     h("div.of-scene-bin__head", h("h3", t("Media")), ibtn("plus-lg", "Import media…", () => api.importDialog())),
     binList,
     h("div.of-scene-bin__adds",
       addBtn("fonts", "Text", () => api.addText()),
       addBtn("square", "Shape", () => api.addShape("rect")),
       addBtn("palette", "Solid", () => api.addSolid()),
-      addBtn("layers-half", "Adjustment", () => api.addAdjustment())),
-    compBar,
+      addBtn("layers-half", "Adjustment", () => api.addAdjustment()),
+      addBtn("plus-square-dotted", "Null object", () => api.addLayerAt("null"))),
+    compBar);
+  const fxPane = h("div.of-scene-bin__pane", { hidden: true });
+  const binTab = (label, pane, other) => {
+    const b = h("button.of-scene-bin__tab", { type: "button", role: "tab", "aria-selected": String(!pane.hidden) }, t(label));
+    b.addEventListener("click", () => api.showBinTab(pane === fxPane ? "effects" : "media"));
+    return b;
+  };
+  const tabMedia = binTab("Media", mediaPane);
+  const tabFx = binTab("Effects", fxPane);
+  const bin = h("div.of-scene-bin", { role: "region", "aria-label": t("Media and effects") },
+    h("div.of-scene-bin__tabs", { role: "tablist" }, tabMedia, tabFx),
+    mediaPane,
+    fxPane,
     h("datalist", { id: "of-scene-fonts" }, ["Inter", "Arial", "Georgia", "Times New Roman", "Courier New", "Impact", "Verdana", "Trebuchet MS", "Segoe UI", "Helvetica"].map((f) => h("option", { value: f }))));
 
   const toolBtns = new Map();
@@ -141,6 +163,13 @@ export function mountScene(host, doc, app) {
   const graphBtn = ibtn("bezier2", "Graph editor (Shift+F3)", () => api.toggleGraph(), { "aria-pressed": "false" });
   const seqBar = h("div.of-scene-seqbar", { role: "tablist", "aria-label": t("Sequences") });
   const snapBtn = ibtn("magnet", "Snapping (S)", () => api.toggleSnap(), { "aria-pressed": String(state.snap) });
+  // zoom slider: logarithmic over the zoom range (2 to 2000 pixels per second)
+  const zoomSlider = h("input.of-scene-strip__zoom", { type: "range", min: "0", max: "1000", step: "1", title: t("Timeline zoom"), "aria-label": t("Timeline zoom") });
+  const zoomToSlider = (z) => String(Math.round((Math.log(z / 2) / Math.log(1000)) * 1000));
+  zoomSlider.addEventListener("input", () => {
+    const z = 2 * Math.pow(1000, +zoomSlider.value / 1000);
+    api.zoomBy(z / state.zoom);
+  });
   const strip = h("div.of-scene-strip", { role: "toolbar", "aria-label": t("Timeline tools") },
     ...TOOLS.map((d) => {
       const b = ibtn(d.icon, d.label, () => api.setTool(d.id), { "aria-pressed": String(state.tool === d.id) });
@@ -157,10 +186,36 @@ export function mountScene(host, doc, app) {
     ibtn("music-note-beamed", "Add audio track", () => api.addTrack("audio")),
     h("span.of-scene-strip__sep"),
     graphBtn,
+    ibtn("diamond", "Show keyframes of the selection (U)", () => api.toggleTwirl()),
     h("span.of-scene-strip__grow"),
     ibtn("zoom-out", "Zoom out (-)", () => api.zoomBy(1 / 1.4)),
+    zoomSlider,
     ibtn("zoom-in", "Zoom in (+)", () => api.zoomBy(1.4)),
     ibtn("aspect-ratio", "Fit the sequence (\\)", () => timeline.fit()));
+  // the timeline height: drag the bar above the tool strip
+  const splitter = h("div.of-scene__split", { role: "separator", "aria-orientation": "horizontal", title: t("Drag to resize the timeline") });
+  splitter.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+    const y0 = e.clientY;
+    const h0 = root.querySelector(".of-scene__bottom")?.getBoundingClientRect().height || 240;
+    splitter.setPointerCapture(e.pointerId);
+    const mv = (ev) => {
+      state.tlH = Math.max(120, Math.min(root.getBoundingClientRect().height - 200, Math.round(h0 - (ev.clientY - y0))));
+      root.style.setProperty("--of-scene-tl-h", `${state.tlH}px`);
+    };
+    const up = () => {
+      splitter.removeEventListener("pointermove", mv);
+      splitter.removeEventListener("pointerup", up);
+      requestDraw();
+    };
+    splitter.addEventListener("pointermove", mv);
+    splitter.addEventListener("pointerup", up);
+  });
+  splitter.addEventListener("dblclick", () => {
+    delete state.tlH;
+    root.style.removeProperty("--of-scene-tl-h");
+    requestDraw();
+  });
 
   const live = h("div.of-scene__live", { role: "status", "aria-live": "polite" });
   const root = h("div.of-scene", { tabindex: "0", role: "application", "aria-label": t("Scene editor"), "aria-roledescription": t("video editor") });
@@ -290,16 +345,47 @@ export function mountScene(host, doc, app) {
       if (state.graph) requestAnimationFrame(() => graph?.fit());
       requestDraw();
     },
-    select(ids, { add = false } = {}) {
+    select(ids, { add = false, keepKeys = false } = {}) {
       const next = add ? new Set(state.sel) : new Set();
       for (const id of ids) {
         if (add && state.sel.has(id) && ids.length === 1) next.delete(id);
         else next.add(id);
       }
       state.sel = next;
+      if (!keepKeys) state.keys = state.keys.filter((k) => next.has(k.id) && add);
       requestDraw();
       app.emit("scenestatus");
     },
+    /** Selects keyframes ([{ id, path, t }], clip-local times). */
+    selectKeys(keys) {
+      state.keys = keys.slice();
+      requestDraw();
+    },
+    /** Shows the keyframe rows of clips (default: the selection, or every animated clip) or hides them (U). */
+    toggleTwirl(ids = null) {
+      const m = model();
+      const list = ids?.length ? ids : api.selection().length ? api.selection() : Object.values(m.clips).filter((c) => M.animatedPaths(c).length).map((c) => c.id);
+      timeline.toggleTwirl(list);
+    },
+    /** Opens the graph editor with one property of a clip. */
+    async openGraph(id, path) {
+      api.select([id]);
+      await api.toggleGraph(true);
+      graph?.solo?.(path);
+    },
+    showBinTab(which) {
+      const fx = which === "effects";
+      if (fx && !browser) {
+        browser = createBrowser(api);
+        fxPane.append(browser.el);
+      }
+      mediaPane.hidden = fx;
+      fxPane.hidden = !fx;
+      tabMedia.setAttribute("aria-selected", String(!fx));
+      tabFx.setAttribute("aria-selected", String(fx));
+      if (fx) browser.focusSearch();
+    },
+    revealInspector: () => inspector.reveal(),
     seek(time, { scrub = false } = {}) {
       const m = model();
       state.t = M.snapT(m, Math.max(0, Number.isFinite(time) ? time : M.duration(m)));
@@ -362,10 +448,7 @@ export function mountScene(host, doc, app) {
       snapBtn.setAttribute("aria-pressed", String(state.snap));
     },
     zoomBy(f) {
-      const center = state.t * state.zoom - state.scrollX;
-      state.zoom = Math.max(2, Math.min(2000, state.zoom * f));
-      state.scrollX = Math.max(0, state.t * state.zoom - center);
-      requestDraw();
+      timeline.zoomAround(f, state.t);
     },
     fit: () => timeline.fit(),
 
@@ -540,10 +623,17 @@ export function mountScene(host, doc, app) {
     },
   };
 
+  // context-menu, keyboard and command actions (scene/actions.js); getters such as canPaste stay getters
+  Object.defineProperties(api, Object.getOwnPropertyDescriptors(createActions(api)));
+  let browser = null; // the effects browser (scene/browser.js), created when its tab is first shown
   const timeline = createTimeline(api);
   const inspector = createInspector(api);
+  installSceneMenus();
+  markContext(stage, "scene-viewer", { ui: api });
+  markContext(timeline.el, "scene-timeline", { ui: api });
+  if (state.tlH) root.style.setProperty("--of-scene-tl-h", `${state.tlH}px`);
   // the bottom area: sequence tabs over the timeline, or over the graph editor when it is on
-  root.append(h("div.of-scene__top", bin, viewer, inspector.el), strip, h("div.of-scene__bottom", seqBar, timeline.el), live);
+  root.append(h("div.of-scene__top", bin, viewer, inspector.el), splitter, strip, h("div.of-scene__bottom", seqBar, timeline.el), live);
   host.replaceChildren(root);
 
   function startAudio() {
@@ -710,11 +800,59 @@ export function mountScene(host, doc, app) {
   }
 
   // selection box of the selected clip in sequence coordinates: center, half size, rotation
+  // the box is centered on the layer's content; with an anchor point (format 3) the content sits at -anchor × scale
   function boxOf(c, time) {
     const m = model();
     const local = Math.max(0, Math.min(c.dur, time - c.start));
-    const size = M.layerSize(m, c, textSize);
-    return { x: valueAt(c.x, local), y: valueAt(c.y, local), w: size.w * valueAt(c.sx, local), h: size.h * valueAt(c.sy, local), rot: valueAt(c.rot, local) };
+    const size = M.layerSize(m, M.resolveClip(c, local), textSize);
+    const sx = valueAt(c.sx, local);
+    const sy = valueAt(c.sy, local);
+    return { x: valueAt(c.x, local), y: valueAt(c.y, local), w: size.w * sx, h: size.h * sy, rot: valueAt(c.rot, local), ox: -(valueAt(c.ax ?? 0, local) || 0) * sx, oy: -(valueAt(c.ay ?? 0, local) || 0) * sy };
+  }
+
+  // a point in sequence pixels seen in the parent space of clip c (scene/rig.js ▸ parentMatrix)
+  const parentOf = (c) => (c.parent && model().clips[c.parent] ? parentMatrix(model(), c, state.t) : null);
+  const toParent = (c, x, y) => {
+    const pm = parentOf(c);
+    return pm ? applyM(invertM(pm), x, y) : [x, y];
+  };
+
+  // position keyframes of a clip as points of its motion path: [{ local, x, y }]
+  function pathKeys(c) {
+    const times = new Set([...(isTrack(c.x) ? c.x.kf.map((k) => k.t) : []), ...(isTrack(c.y) ? c.y.kf.map((k) => k.t) : [])]);
+    return [...times].sort((a, b) => a - b).map((lt) => ({ local: lt, x: valueAt(c.x, lt), y: valueAt(c.y, lt) }));
+  }
+
+  function drawGuides(o, m, k) {
+    const g = state.guides || {};
+    o.save();
+    o.setTransform(k, 0, 0, k, 0, 0);
+    o.lineWidth = 1 / k;
+    o.strokeStyle = "rgba(255,255,255,0.45)";
+    o.setLineDash([6 / k, 4 / k]);
+    if (g.safe) {
+      for (const f of [0.05, 0.1]) o.strokeRect(m.width * f, m.height * f, m.width * (1 - 2 * f), m.height * (1 - 2 * f));
+    }
+    if (g.thirds) {
+      o.beginPath();
+      for (const f of [1 / 3, 2 / 3]) {
+        o.moveTo(m.width * f, 0);
+        o.lineTo(m.width * f, m.height);
+        o.moveTo(0, m.height * f);
+        o.lineTo(m.width, m.height * f);
+      }
+      o.stroke();
+    }
+    if (g.center) {
+      o.setLineDash([]);
+      o.beginPath();
+      o.moveTo(m.width / 2 - 20 / k, m.height / 2);
+      o.lineTo(m.width / 2 + 20 / k, m.height / 2);
+      o.moveTo(m.width / 2, m.height / 2 - 20 / k);
+      o.lineTo(m.width / 2, m.height / 2 + 20 / k);
+      o.stroke();
+    }
+    o.restore();
   }
 
   function drawOverlay() {
@@ -723,32 +861,77 @@ export function mountScene(host, doc, app) {
     const o = overlay.getContext("2d");
     o.setTransform(1, 0, 0, 1, 0, 0);
     o.clearRect(0, 0, overlay.width, overlay.height);
+    const k = (vw / m.width) * dpr;
+    drawGuides(o, m, k);
     const ids = api.selection();
     if (ids.length !== 1 || playing) return;
     const c = m.clips[ids[0]];
-    if (c.type === "audio" || state.t < c.start || state.t >= M.clipEnd(c)) return;
+    if (c.type === "audio") return;
+    // motion path: the position over the clip, ticks per frame, keyframes as squares
+    const pm = parentOf(c);
+    if (state.guides?.path !== false && (isTrack(c.x) || isTrack(c.y))) {
+      o.save();
+      o.setTransform(k, 0, 0, k, 0, 0);
+      if (pm) o.transform(...pm);
+      o.lineWidth = 1.5 / k;
+      o.strokeStyle = "rgba(77, 163, 255, 0.85)";
+      o.beginPath();
+      const n = Math.min(600, Math.max(2, Math.round(c.dur * m.fps)));
+      for (let i = 0; i <= n; i++) {
+        const lt = (c.dur * i) / n;
+        const px = valueAt(c.x, lt);
+        const py = valueAt(c.y, lt);
+        if (i) o.lineTo(px, py);
+        else o.moveTo(px, py);
+      }
+      o.stroke();
+      o.fillStyle = "rgba(77, 163, 255, 0.85)";
+      for (let i = 0; i <= n; i += Math.max(1, Math.round(n / 120))) {
+        const lt = (c.dur * i) / n;
+        o.fillRect(valueAt(c.x, lt) - 1.5 / k, valueAt(c.y, lt) - 1.5 / k, 3 / k, 3 / k);
+      }
+      for (const p of pathKeys(c)) {
+        const on = Math.abs(c.start + p.local - state.t) < 0.5 / m.fps;
+        o.fillStyle = on ? "#ffd84d" : "#fff";
+        o.strokeStyle = "#1e3a8a";
+        o.fillRect(p.x - 4 / k, p.y - 4 / k, 8 / k, 8 / k);
+        o.strokeRect(p.x - 4 / k, p.y - 4 / k, 8 / k, 8 / k);
+      }
+      o.restore();
+    }
+    if (state.t < c.start || state.t >= M.clipEnd(c)) return;
     const b = boxOf(c, state.t);
-    const k = (vw / m.width) * dpr;
     o.setTransform(k, 0, 0, k, 0, 0);
+    if (pm) o.transform(...pm);
     o.translate(b.x, b.y);
     o.rotate((b.rot * Math.PI) / 180);
     o.lineWidth = 1.5 / k;
     o.strokeStyle = "#4da3ff";
-    o.strokeRect(-b.w / 2, -b.h / 2, b.w, b.h);
+    o.strokeRect(b.ox - b.w / 2, b.oy - b.h / 2, b.w, b.h);
     o.fillStyle = "#fff";
     const hs = 5 / k;
     for (const [hx, hy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
-      o.fillRect((hx * b.w) / 2 - hs, (hy * b.h) / 2 - hs, hs * 2, hs * 2);
-      o.strokeRect((hx * b.w) / 2 - hs, (hy * b.h) / 2 - hs, hs * 2, hs * 2);
+      o.fillRect(b.ox + (hx * b.w) / 2 - hs, b.oy + (hy * b.h) / 2 - hs, hs * 2, hs * 2);
+      o.strokeRect(b.ox + (hx * b.w) / 2 - hs, b.oy + (hy * b.h) / 2 - hs, hs * 2, hs * 2);
     }
     o.beginPath();
-    o.moveTo(0, -b.h / 2);
-    o.lineTo(0, -b.h / 2 - 24 / k);
+    o.moveTo(b.ox, b.oy - b.h / 2);
+    o.lineTo(b.ox, b.oy - b.h / 2 - 24 / k);
     o.stroke();
     o.beginPath();
-    o.arc(0, -b.h / 2 - 24 / k, hs, 0, Math.PI * 2);
+    o.arc(b.ox, b.oy - b.h / 2 - 24 / k, hs, 0, Math.PI * 2);
     o.fill();
     o.stroke();
+    // the anchor point
+    if (b.ox || b.oy) {
+      o.beginPath();
+      o.arc(0, 0, hs * 1.2, 0, Math.PI * 2);
+      o.moveTo(-hs * 2, 0);
+      o.lineTo(hs * 2, 0);
+      o.moveTo(0, -hs * 2);
+      o.lineTo(0, hs * 2);
+      o.stroke();
+    }
   }
 
   // direct manipulation in the viewer: move, scale (corners, from the center) and rotate (top handle)
@@ -760,18 +943,39 @@ export function mountScene(host, doc, app) {
     const toSeq = (ev) => [((ev.clientX - r.left) / r.width) * m.width, ((ev.clientY - r.top) / r.height) * m.height];
     const [px, py] = toSeq(e);
     const k = m.width / r.width; // sequence pixels per CSS pixel
-    const inBox = (c, x, y, pad = 0) => {
+    const inBox = (c, x0, y0, pad = 0) => {
+      const [x, y] = toParent(c, x0, y0);
       const b = boxOf(c, state.t);
       const a = (-b.rot * Math.PI) / 180;
       const dx = x - b.x;
       const dy = y - b.y;
-      const lx = dx * Math.cos(a) - dy * Math.sin(a);
-      const ly = dx * Math.sin(a) + dy * Math.cos(a);
+      const lx = dx * Math.cos(a) - dy * Math.sin(a) - b.ox;
+      const ly = dx * Math.sin(a) + dy * Math.cos(a) - b.oy;
       return { hit: Math.abs(lx) <= b.w / 2 + pad && Math.abs(ly) <= b.h / 2 + pad, lx, ly, b };
     };
     let id = api.selection().length === 1 ? api.selection()[0] : null;
     let mode = "move";
     const cur = id && m.clips[id];
+    // a keyframe of the motion path: drag it to change the position keyframes at its time
+    const pk = cur && cur.type !== "audio" && state.guides?.path !== false ? pathKeys(cur).find((p) => Math.hypot(p.x - toParent(cur, px, py)[0], p.y - toParent(cur, px, py)[1]) < 8 * k) : null;
+    if (pk) {
+      overlay.setPointerCapture(e.pointerId);
+      const [qx, qy] = toParent(cur, px, py);
+      const onMove = (ev) => {
+        const [x, y] = toParent(cur, ...toSeq(ev));
+        let next = model();
+        for (const [path, v] of [["x", Math.round(pk.x + x - qx)], ["y", Math.round(pk.y + y - qy)]]) next = M.setKeyframe(next, cur.id, path, cur.start + pk.local, v);
+        api.commitSeq("Move Keyframe", next, { coalesce: `scene:${cur.id}:path:${pk.local}` });
+      };
+      const up = (ev) => {
+        overlay.releasePointerCapture(ev.pointerId);
+        overlay.removeEventListener("pointermove", onMove);
+        overlay.removeEventListener("pointerup", up);
+      };
+      overlay.addEventListener("pointermove", onMove);
+      overlay.addEventListener("pointerup", up);
+      return;
+    }
     const probe = cur && cur.type !== "audio" ? inBox(cur, px, py, 8 * k) : null;
     if (probe && Math.hypot(probe.lx, probe.ly + probe.b.h / 2 + 24 * k) < 10 * k) mode = "rotate";
     else if (probe?.hit && Math.abs(Math.abs(probe.lx) - probe.b.w / 2) < 10 * k && Math.abs(Math.abs(probe.ly) - probe.b.h / 2) < 10 * k) mode = "scale";
@@ -779,7 +983,7 @@ export function mountScene(host, doc, app) {
       // pick the topmost visible layer under the pointer
       const tracks = M.videoTracks(m);
       const under = M.clipList(m)
-        .filter((c) => c.type !== "audio" && c.type !== "adjustment" && state.t >= c.start && state.t < M.clipEnd(c) && !M.trackOf(m, c.track).hidden && !M.trackOf(m, c.track).locked && inBox(c, px, py).hit)
+        .filter((c) => c.type !== "audio" && c.type !== "adjustment" && !c.off && state.t >= c.start && state.t < M.clipEnd(c) && !M.trackOf(m, c.track).hidden && !M.trackOf(m, c.track).locked && inBox(c, px, py).hit)
         .sort((a, b) => tracks.findIndex((x) => x.id === a.track) - tracks.findIndex((x) => x.id === b.track));
       id = under[0]?.id || null;
       api.select(id ? [id] : []);
@@ -789,16 +993,17 @@ export function mountScene(host, doc, app) {
     const b0 = boxOf(c0, state.t);
     const local = Math.max(0, Math.min(c0.dur, state.t - c0.start));
     const s0 = [valueAt(c0.sx, local), valueAt(c0.sy, local)];
-    const d0 = Math.hypot(px - b0.x, py - b0.y) || 1;
-    const a0 = Math.atan2(py - b0.y, px - b0.x);
+    const [qx, qy] = toParent(c0, px, py); // the pointer in the clip's parent space (sequence pixels without one)
+    const d0 = Math.hypot(qx - b0.x, qy - b0.y) || 1;
+    const a0 = Math.atan2(qy - b0.y, qx - b0.x);
     overlay.setPointerCapture(e.pointerId);
     const onMove = (ev) => {
-      const [x, y] = toSeq(ev);
+      const [x, y] = toParent(c0, ...toSeq(ev));
       if (mode === "move") {
-        let nx = b0.x + (x - px);
-        let ny = b0.y + (y - py);
-        if (ev.shiftKey) Math.abs(x - px) > Math.abs(y - py) ? (ny = b0.y) : (nx = b0.x);
-        if (state.snap) {
+        let nx = b0.x + (x - qx);
+        let ny = b0.y + (y - qy);
+        if (ev.shiftKey) Math.abs(x - qx) > Math.abs(y - qy) ? (ny = b0.y) : (nx = b0.x);
+        if (state.snap && !c0.parent) {
           if (Math.abs(nx - m.width / 2) < 8 * k) nx = m.width / 2;
           if (Math.abs(ny - m.height / 2) < 8 * k) ny = m.height / 2;
         }
@@ -821,6 +1026,27 @@ export function mountScene(host, doc, app) {
     overlay.addEventListener("pointermove", onMove);
     overlay.addEventListener("pointerup", up);
     overlay.addEventListener("pointercancel", up);
+  });
+
+  // right-click in the viewer selects the topmost layer under the pointer (scene/menus.js shows the viewer menu)
+  overlay.addEventListener("contextmenu", (e) => {
+    const m = model();
+    const r = overlay.getBoundingClientRect();
+    const px = ((e.clientX - r.left) / r.width) * m.width;
+    const py = ((e.clientY - r.top) / r.height) * m.height;
+    const tracks = M.videoTracks(m);
+    const under = M.clipList(m)
+      .filter((c) => c.type !== "audio" && c.type !== "adjustment" && !c.off && state.t >= c.start && state.t < M.clipEnd(c) && !M.trackOf(m, c.track).hidden)
+      .filter((c) => {
+        const b = boxOf(c, state.t);
+        const a = (-b.rot * Math.PI) / 180;
+        const [lx, ly] = toParent(c, px, py);
+        const dx = lx - b.x;
+        const dy = ly - b.y;
+        return Math.abs(dx * Math.cos(a) - dy * Math.sin(a) - b.ox) <= b.w / 2 && Math.abs(dx * Math.sin(a) + dy * Math.cos(a) - b.oy) <= b.h / 2;
+      })
+      .sort((a, b) => tracks.findIndex((x) => x.id === a.track) - tracks.findIndex((x) => x.id === b.track));
+    if (under[0] && !state.sel.has(under[0].id)) api.select([under[0].id]);
   });
 
   // ------------------------------------------------------------------------------------------- frame loop
@@ -860,6 +1086,7 @@ export function mountScene(host, doc, app) {
       if (state.graph) graph?.draw();
       else timeline.draw();
       tc.textContent = M.timecode(m, state.t);
+      if (document.activeElement !== zoomSlider) zoomSlider.value = zoomToSlider(state.zoom);
       total.textContent = M.timecode(m, M.duration(m));
       if (!playing) {
         inspector.render();
@@ -902,14 +1129,35 @@ export function mountScene(host, doc, app) {
       e.stopPropagation();
     };
     if (key === "F3" && e.shiftKey) return done(), api.toggleGraph();
+    if (key === "F9" && state.keys.length) return done(), api.easeKeys(mod && e.shiftKey ? "easyEaseOut" : e.shiftKey ? "easyEaseIn" : "easyEase");
     if (mod) {
       if (key === "k") return done(), api.splitAtPlayhead();
       if (key === "d") return done(), api.duplicateSelection();
       if (key === "a") return done(), api.selectAll();
+      if (key === "c" && !e.shiftKey) return done(), api.copy();
+      if (key === "x" && !e.shiftKey) return done(), api.cut();
+      if (key === "v" && !e.shiftKey) return done(), api.paste();
+      if (key === "l" && !e.shiftKey) return done(), api.link();
+      if (key === "r" && !e.shiftKey) return done(), api.speedDialog();
       return; // undo / redo / save and the rest stay with the application
     }
     const fps = model().fps;
+    if (e.altKey) {
+      if (key === "ArrowLeft") return done(), api.nudge(e.shiftKey ? -5 : -1);
+      if (key === "ArrowRight") return done(), api.nudge(e.shiftKey ? 5 : 1);
+      if (e.code === "BracketLeft") return done(), api.trimTo("start");
+      if (e.code === "BracketRight") return done(), api.trimTo("end");
+      return;
+    }
+    if (e.shiftKey && (key === "j" || key === "k")) return done(), api.goKeyframe(key === "k" ? 1 : -1);
+    if (e.shiftKey && key === "e") return done(), api.toggleEnabled();
     switch (key) {
+      case "u":
+        return done(), api.toggleTwirl();
+      case "PageUp":
+        return done(), api.goEdit(-1);
+      case "PageDown":
+        return done(), api.goEdit(1);
       case " ":
         return done(), api.toggle();
       case "k":
@@ -952,6 +1200,7 @@ export function mountScene(host, doc, app) {
         return done(), api.addText();
       case "Delete":
       case "Backspace":
+        if (state.keys.length) return done(), api.deleteKeys();
         return done(), api.deleteSelection({ ripple: e.shiftKey });
       case "+":
       case "=":
@@ -961,6 +1210,7 @@ export function mountScene(host, doc, app) {
       case "\\":
         return done(), timeline.fit();
       case "Escape":
+        if (state.keys.length) return done(), api.selectKeys([]);
         return done(), api.select([]);
       default: {
         const tool = TOOLS.find((d) => d.key === key);

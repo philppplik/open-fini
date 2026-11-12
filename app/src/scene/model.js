@@ -40,14 +40,22 @@
 // their sequence; the root sequence is addressed as "main", a pre-composition by its id; no composition reaches
 // itself through its clips.
 // Format history (normalizeScene migrates): 1 = first release; 2 = Bezier tangents on keyframes (i, o, b), the
-// bounce and elastic easings, nested compositions, remap and collapse on composition clips, sound of compositions.
+// bounce and elastic easings, nested compositions, remap and collapse on composition clips, sound of compositions;
+// 3 = anchor point (ax, ay), keyframes inside crop / mask / text / shape (NESTED_ANIMATABLE), time remapping of
+// video clips (reverse, freeze frames, speed ramps), clip label colors, links, disabled clips (off), track solo.
 // Every addition is optional, so a version 1 file loads unchanged and evaluates to the same frames.
+import { normBehaviors, normalizeParents } from "./rig.js";
 import { valueAt, isTrack, setKeyframe as kfSet, removeKeyframe as kfRemove, retime, normalizeValue, applyEasing, setTangents as kfTangents, tangentsOf, moveKeys, pasteKeys as kfPaste } from "./keyframes.js";
 
-export const SCENE_VERSION = 2;
+export const SCENE_VERSION = 3;
 export const CLIP_TYPES = ["video", "audio", "image", "text", "shape", "solid", "adjustment", "comp"];
 export const VISUAL_TYPES = ["video", "image", "text", "shape", "solid", "adjustment", "comp"];
-export const ANIMATABLE = ["x", "y", "sx", "sy", "rot", "opacity", "volume", "pan", "remap"];
+export const ANIMATABLE = ["x", "y", "sx", "sy", "rot", "opacity", "volume", "pan", "remap", "ax", "ay"];
+/** Format 3: optional animatable fields of picture clips with their default (absent = default): the anchor point. */
+export const OPTIONAL_ANIMATABLE = { ax: 0, ay: 0 };
+/** Format 3: animatable fields inside a clip's objects, addressed as "crop.l", "mask.feather", "text.size" … */
+export const NESTED_ANIMATABLE = { crop: ["l", "t", "r", "b"], mask: ["x", "y", "w", "h", "feather"], text: ["size", "tracking", "lineHeight", "strokeW", "color"], shape: ["w", "h", "radius", "strokeW", "fill"] };
+export const NESTED_PATHS = Object.entries(NESTED_ANIMATABLE).flatMap(([o, ks]) => ks.map((k) => o + "." + k));
 /** Deepest nesting of compositions that is rendered (a guard; cycles are impossible). */
 export const MAX_NESTING = 16;
 export const BLEND_MODES = ["normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge", "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation", "color", "luminosity", "lighter"];
@@ -322,12 +330,18 @@ export function normalizeClip(m, c) {
     out.speed = clamp(num(c.speed, 1), 0.05, 20);
   }
   if (type === "video" || type === "audio" || type === "image") out.media = String(c.media || "");
-  if (type === "comp") {
-    out.comp = String(c.comp || "");
+  if (type === "comp" || type === "video") {
     const remap = c.remap === undefined || c.remap === null ? undefined : normalizeValue(c.remap, undefined);
     if (typeof remap === "number" || isTrack(remap)) out.remap = typeof remap === "number" ? Math.max(0, remap) : remap;
+  }
+  if (type === "comp") {
+    out.comp = String(c.comp || "");
     if (c.collapse) out.collapse = true;
   }
+  // format 3: label color, link group, disabled
+  if (typeof c.label === "string" && /^#[0-9a-f]{6}$/i.test(c.label)) out.label = c.label;
+  if (isId(c.link)) out.link = c.link;
+  if (c.off) out.off = true;
   if (type !== "audio") {
     out.x = normalizeValue(c.x, m.width / 2);
     out.y = normalizeValue(c.y, m.height / 2);
@@ -341,6 +355,12 @@ export function normalizeClip(m, c) {
     out.mask = normMask(c.mask);
     out.tin = normTransition(c.tin);
     out.tout = normTransition(c.tout);
+    for (const k of Object.keys(OPTIONAL_ANIMATABLE)) if (c[k] !== undefined && c[k] !== null) out[k] = normalizeValue(c[k], OPTIONAL_ANIMATABLE[k]);
+    // format 3: parent (checked against the sequence by normalizeParents), behaviors, motion blur
+    if (isId(c.parent)) out.parent = c.parent;
+    const beh = normBehaviors(c.beh);
+    if (beh) out.beh = beh;
+    if (c.mblur) out.mblur = true;
   }
   out.effects = (Array.isArray(c.effects) ? c.effects : []).slice(0, 32).map(normEffect).filter(Boolean);
   if (type === "audio" || type === "comp") {
@@ -356,7 +376,37 @@ export function normalizeClip(m, c) {
   }
   if (type === "shape") out.shape = normShape(c.shape);
   if (type === "solid") out.color = hex(c.color, "#1f2937");
+  // format 3: keyframes inside crop, mask, text and shape (the constant fields above are their fallbacks)
+  for (const [obj, keys] of Object.entries(NESTED_ANIMATABLE)) {
+    if (!out[obj] || !c[obj]) continue;
+    for (const k of keys) if (isTrack(c[obj][k])) out[obj][k] = normalizeValue(c[obj][k], out[obj][k]);
+  }
   return out;
+}
+
+/** Applies `fn(value, path)` to every animatable value of a clip (properties, effect parameters, nested fields). */
+export function mapAnimated(c, fn) {
+  const n = { ...c };
+  for (const k of ANIMATABLE) if (n[k] !== undefined) n[k] = fn(n[k], k);
+  if (c.effects?.length) n.effects = c.effects.map((e) => ({ ...e, p: Object.fromEntries(Object.entries(e.p).map(([k, v]) => [k, fn(v, `fx:${e.id}:${k}`)])) }));
+  for (const [obj, keys] of Object.entries(NESTED_ANIMATABLE)) {
+    if (!c[obj] || !keys.some((k) => isTrack(c[obj][k]))) continue;
+    n[obj] = { ...c[obj] };
+    for (const k of keys) if (isTrack(c[obj][k])) n[obj][k] = fn(c[obj][k], `${obj}.${k}`);
+  }
+  return n;
+}
+
+/** The clip with its nested animated fields (crop, mask, text, shape) resolved at clip-local time `local`. */
+export function resolveClip(c, local) {
+  let n = c;
+  for (const [obj, keys] of Object.entries(NESTED_ANIMATABLE)) {
+    if (!c[obj] || !keys.some((k) => isTrack(c[obj][k]))) continue;
+    if (n === c) n = { ...c };
+    n[obj] = { ...c[obj] };
+    for (const k of keys) if (isTrack(c[obj][k])) n[obj][k] = valueAt(c[obj][k], local);
+  }
+  return n;
 }
 
 /** Normalizes a stored or foreign model: drops what is invalid, never throws on bad input. */
@@ -372,7 +422,7 @@ export function normalizeScene(raw) {
     const m = { ...shell, fps: base.fps, media };
     const tracks = (Array.isArray(s?.tracks) ? s.tracks : [])
       .filter((t) => t && isId(t.id) && ["video", "audio"].includes(t.kind))
-      .map((t) => ({ id: t.id, kind: t.kind, name: String(t.name || "").slice(0, 40) || (t.kind === "video" ? "V" : "A"), muted: !!t.muted, hidden: !!t.hidden, locked: !!t.locked }));
+      .map((t) => ({ id: t.id, kind: t.kind, name: String(t.name || "").slice(0, 40) || (t.kind === "video" ? "V" : "A"), muted: !!t.muted, hidden: !!t.hidden, locked: !!t.locked, ...(t.solo ? { solo: true } : {}) }));
     const useTracks = tracks.length ? [...tracks.filter((t) => t.kind === "video"), ...tracks.filter((t) => t.kind === "audio")] : base.tracks;
     const ids = new Set(useTracks.map((t) => t.id));
     const clips = {};
@@ -389,7 +439,7 @@ export function normalizeScene(raw) {
       .slice(0, 2000)
       .map((k) => ({ id: isId(k.id) ? k.id : newId("m"), t: Math.max(0, +k.t), name: String(k.name || "").slice(0, 200), color: hex(k.color, "#f59e0b") }))
       .sort((a, b) => a.t - b.t);
-    return { tracks: useTracks, clips, markers };
+    return { tracks: useTracks, clips: normalizeParents(clips), markers };
   };
   const root = normSeq(raw, { width: base.width, height: base.height });
   const comps = {};
@@ -463,6 +513,7 @@ export function freeTrack(m, kind, start, end) {
 /** Maximum timeline duration a media or comp clip can have with its `in` and `speed` (Infinity for the others). */
 export function maxDur(m, c) {
   if (c.type === "video" || c.type === "audio") {
+    if (c.remap !== undefined) return Infinity; // time remapping decides what is shown (it holds at the ends)
     const d = m.media[c.media]?.duration;
     return d > 0 ? Math.max(1 / m.fps, (d - c.in) / c.speed) : Infinity;
   }
@@ -518,12 +569,20 @@ function cutAt(m, c, t) {
     const R = right.length ? { kf: [{ t: 0, v: at, ...(lastE ? { e: lastE } : {}) }, ...right] } : at;
     return [L, R];
   };
-  for (const k of ANIMATABLE) if (c[k] !== undefined) [a[k], b[k]] = split(c[k]);
-  if (c.effects?.length) {
-    a.effects = c.effects.map((e) => ({ ...e, p: Object.fromEntries(Object.entries(e.p).map(([k, v]) => [k, split(v)[0]])) }));
-    b.effects = c.effects.map((e) => ({ ...e, id: newId("fx"), p: Object.fromEntries(Object.entries(e.p).map(([k, v]) => [k, split(v)[1]])) }));
-  }
-  return [a, b];
+  // the second half gets a link derived from the old link and the cut frame, so picture and sound cut at the same
+  // time stay linked pairwise
+  if (c.link) b.link = linkAfterCut(c.link, frameOf(m, t));
+  const A = mapAnimated(a, (v) => split(v)[0]);
+  const B = mapAnimated(b, (v) => split(v)[1]);
+  if (B.effects?.length) B.effects = B.effects.map((e) => ({ ...e, id: newId("fx") }));
+  return [A, B];
+}
+
+/** Deterministic link id of the second halves of linked clips cut at `frame`. */
+export function linkAfterCut(link, frame) {
+  let h = 5381;
+  for (const ch of `${link}@${frame}`) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0;
+  return `l${h.toString(36)}`;
 }
 
 const must = (m, id) => {
@@ -605,10 +664,8 @@ export function trimClip(m, id, edge, to, { ripple = false } = {}) {
     s = snapT(m, Math.max(0, s));
     const shift = s - c.start;
     if (!shift) return m;
-    n = { ...c, dur: c.dur - shift, start: ripple ? c.start : s };
+    n = mapAnimated({ ...c, dur: c.dur - shift, start: ripple ? c.start : s }, (v) => retime(v, { shift: -shift }));
     if (c.in !== undefined) n.in = Math.max(0, c.in + shift * c.speed);
-    for (const k of ANIMATABLE) if (n[k] !== undefined) n[k] = retime(n[k], { shift: -shift });
-    n.effects = n.effects.map((e) => ({ ...e, p: Object.fromEntries(Object.entries(e.p).map(([k, v]) => [k, retime(v, { shift: -shift })])) }));
     delta = ripple ? -shift : 0;
   } else {
     let e = Math.max(snapT(m, to), c.start + frame);
@@ -756,9 +813,7 @@ export function setSpeed(m, id, speed, { ripple = false } = {}) {
   const s = clamp(num(speed, 1), 0.05, 20);
   const dur = Math.max(1 / m.fps, snapT(m, (c.dur * c.speed) / s));
   const scale = dur / c.dur;
-  const n = { ...c, speed: s, dur };
-  for (const k of ANIMATABLE) if (n[k] !== undefined) n[k] = retime(n[k], { scale });
-  n.effects = n.effects.map((e) => ({ ...e, p: Object.fromEntries(Object.entries(e.p).map(([k, v]) => [k, retime(v, { scale })])) }));
+  const n = mapAnimated({ ...c, speed: s, dur }, (v) => retime(v, { scale }));
   let clips = { ...m.clips, [id]: n };
   if (ripple) {
     const d = dur - c.dur;
@@ -776,8 +831,10 @@ export function duplicateClips(m, ids, at = null) {
   const base = at === null ? Math.max(...src.map(clipEnd)) : snapT(m, at);
   let next = m;
   const out = [];
+  const links = new Map();
   for (const c of src) {
-    const r = addClip(next, { ...c, id: undefined, start: base + (c.start - first), effects: c.effects.map((e) => ({ ...e, id: undefined })) });
+    const link = c.link ? links.get(c.link) || links.set(c.link, newId("l")).get(c.link) : undefined;
+    const r = addClip(next, { ...c, id: undefined, link, start: base + (c.start - first), effects: c.effects.map((e) => ({ ...e, id: undefined })) });
     next = r.model;
     out.push(r.id);
   }
@@ -789,12 +846,19 @@ export function duplicateClips(m, ids, at = null) {
 // "x" | "opacity" … or "fx:<effect id>:<param>"
 function propRef(c, path) {
   if (ANIMATABLE.includes(path)) {
-    if (c[path] === undefined && !(path === "remap" && c.type === "comp")) throw new Error(`A ${c.type} clip has no “${path}” property.`);
-    return { get: () => c[path], set: (v) => ({ ...c, [path]: v }) };
+    const optional = path in OPTIONAL_ANIMATABLE && c.type !== "audio";
+    if (c[path] === undefined && !(path === "remap" && (c.type === "comp" || c.type === "video")) && !optional) throw new Error(`A ${c.type} clip has no “${path}” property.`);
+    return { get: () => c[path] ?? (optional ? OPTIONAL_ANIMATABLE[path] : undefined), set: (v) => ({ ...c, [path]: v }) };
+  }
+  const nm = /^(crop|mask|text|shape)\.(\w+)$/.exec(path);
+  if (nm && NESTED_ANIMATABLE[nm[1]].includes(nm[2])) {
+    const [, obj, key] = nm;
+    if (!c[obj]) throw new Error(`A ${c.type} clip has no “${obj}”${obj === "mask" ? " (add a mask first)" : ""}.`);
+    return { get: () => c[obj][key], set: (v) => ({ ...c, [obj]: { ...c[obj], [key]: v } }) };
   }
   const m = /^fx:([\w-]+):([\w-]+)$/.exec(path);
   const fx = m && c.effects.find((e) => e.id === m[1]);
-  if (!fx) throw new Error(`Unknown property “${path}”. Use one of ${ANIMATABLE.join(", ")} or fx:<effect id>:<parameter>.`);
+  if (!fx) throw new Error(`Unknown property “${path}”. Use one of ${ANIMATABLE.join(", ")}, ${NESTED_PATHS.join(", ")} or fx:<effect id>:<parameter>.`);
   return { get: () => fx.p[m[2]], set: (v) => ({ ...c, effects: c.effects.map((e) => (e === fx ? { ...e, p: { ...e.p, [m[2]]: v } } : e)) }) };
 }
 
@@ -853,8 +917,38 @@ export function setTransition(m, id, edge, type, dur = 0.5) {
 /** The animated property paths of a clip ("x", …, "fx:<effect id>:<param>"), in panel order. */
 export function animatedPaths(c) {
   const out = ANIMATABLE.filter((k) => isTrack(c[k]));
+  for (const [obj, keys] of Object.entries(NESTED_ANIMATABLE)) for (const k of keys) if (c[obj] && isTrack(c[obj][k])) out.push(`${obj}.${k}`);
   for (const e of c.effects || []) for (const [k, v] of Object.entries(e.p)) if (isTrack(v)) out.push(`fx:${e.id}:${k}`);
   return out;
+}
+
+/** The value (constant or keyframe track) of a property path of a clip, or undefined. */
+export function propValue(c, path) {
+  try {
+    return propRef(c, path).get();
+  } catch {
+    return undefined;
+  }
+}
+
+/** Moves an effect of a clip to position `index` of its stack (effects apply top to bottom). */
+export function moveEffect(m, id, fxId, index) {
+  const c = must(m, id);
+  const i = c.effects.findIndex((e) => e.id === fxId);
+  if (i < 0) throw new Error(`Clip “${id}” has no effect “${fxId}”.`);
+  const j = clamp(Math.round(num(index)), 0, c.effects.length - 1);
+  if (i === j) return m;
+  const effects = c.effects.slice();
+  const [e] = effects.splice(i, 1);
+  effects.splice(j, 0, e);
+  return { ...m, clips: { ...m.clips, [id]: { ...c, effects } } };
+}
+
+/** Resets the parameters of an effect to their defaults (keyframes removed). */
+export function resetEffect(m, id, fxId) {
+  const c = must(m, id);
+  if (!c.effects.some((e) => e.id === fxId)) throw new Error(`Clip “${id}” has no effect “${fxId}”.`);
+  return { ...m, clips: { ...m.clips, [id]: { ...c, effects: c.effects.map((e) => (e.id === fxId ? { ...e, p: {} } : e)) } } };
 }
 
 /** Applies `fn(track, clip) → track` to one animated property of a clip. */
@@ -934,7 +1028,7 @@ export function keyframesOf(m, id, path) {
  */
 export function setTimeRemap(m, id, on) {
   const c = must(m, id);
-  if (c.type !== "comp") throw new Error("Time remapping is available on composition clips.");
+  if (c.type !== "comp" && c.type !== "video") throw new Error("Time remapping is available on video and composition clips.");
   if (!on) {
     const { remap: _r, ...rest } = c;
     return { ...m, clips: { ...m.clips, [id]: rest } };
@@ -971,7 +1065,17 @@ export function updateTrack(m, id, patch) {
   const p = {};
   if (patch.name !== undefined) p.name = String(patch.name).slice(0, 40) || "Track";
   for (const k of ["muted", "hidden", "locked"]) if (patch[k] !== undefined) p[k] = !!patch[k];
-  return { ...m, tracks: m.tracks.map((t) => (t.id === id ? { ...t, ...p } : t)) };
+  const solo = patch.solo === undefined ? undefined : !!patch.solo;
+  return {
+    ...m,
+    tracks: m.tracks.map((t) => {
+      if (t.id !== id) return t;
+      const n = { ...t, ...p };
+      if (solo === true) n.solo = true;
+      else if (solo === false) delete n.solo;
+      return n;
+    }),
+  };
 }
 
 /** Moves a track by `delta` positions among the tracks of its kind. */
@@ -1040,8 +1144,11 @@ export function placeMedia(m, mediaId, { start = null, track: trackId = null, du
   next = r.model;
   ids.push(r.id);
   if (md.kind === "video" && md.hasAudio && withAudio) {
-    const a = addClip(next, { type: "audio", media: mediaId, start: at, dur: next.clips[r.id].dur, name: md.name });
+    // picture and sound stay linked (selected and moved together) until the user unlinks them
+    const link = newId("l");
+    const a = addClip(next, { type: "audio", media: mediaId, start: at, dur: next.clips[r.id].dur, name: md.name, link });
     next = a.model;
+    next = { ...next, clips: { ...next.clips, [r.id]: { ...next.clips[r.id], link } } };
     ids.push(a.id);
   }
   return { model: next, ids };
@@ -1093,7 +1200,12 @@ export function describeClip(m, c) {
   if (c.comp) o.comp = c.comp;
   if (c.remap !== undefined) o.remap = brief(c.remap);
   if (c.collapse) o.collapse = true;
+  if (c.off) o.off = true;
+  if (c.link) o.link = c.link;
+  if (c.label) o.label = c.label;
   if (c.type !== "audio") {
+    for (const k of ["ax", "ay"]) if (c[k] !== undefined && c[k] !== 0) o[k] = brief(c[k]);
+    for (const [obj, keys] of Object.entries(NESTED_ANIMATABLE)) for (const k of keys) if (c[obj] && isTrack(c[obj][k])) o[`${obj}.${k}`] = brief(c[obj][k]);
     for (const k of ["x", "y", "sx", "sy", "rot", "opacity"]) {
       const d = k === "x" ? m.width / 2 : k === "y" ? m.height / 2 : k === "rot" ? 0 : 1;
       if (c[k] !== d) o[k] = brief(c[k]);
@@ -1134,7 +1246,7 @@ export function describeScene(model, { seq: seqId = "main", from = 0, to = Infin
     fps: model.fps,
     duration: r3(duration(m)),
     timecode: timecode(model, duration(m)),
-    tracks: m.tracks.map((t, i) => ({ id: t.id, name: t.name, kind: t.kind, order: i, ...(t.muted ? { muted: true } : {}), ...(t.hidden ? { hidden: true } : {}), ...(t.locked ? { locked: true } : {}), clips: list.filter((c) => c.track === t.id).length })),
+    tracks: m.tracks.map((t, i) => ({ id: t.id, name: t.name, kind: t.kind, order: i, ...(t.muted ? { muted: true } : {}), ...(t.hidden ? { hidden: true } : {}), ...(t.locked ? { locked: true } : {}), ...(t.solo ? { solo: true } : {}), clips: list.filter((c) => c.track === t.id).length })),
     clips: list.slice(0, limit).map((c) => describeClip(m, c)),
     ...(list.length > limit ? { truncated: list.length - limit } : {}),
     markers: m.markers.map((k) => ({ id: k.id, t: r3(k.t), name: k.name })),
