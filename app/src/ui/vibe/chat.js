@@ -2,7 +2,7 @@
 // composer (mention chips for @ / ! / slash via composer-mentions.js, icon toolbar, message toolbars via message-actions.js).
 import { h, empty } from "../../core/util.js";
 import { iconButton } from "../controls.js";
-import { t } from "../../i18n/index.js";
+import { t, N_ } from "../../i18n/index.js";
 import { ta, tspan } from "../../i18n/dom.js";
 import { iconEl } from "../toolbox.js";
 import { renderMarkdown } from "./markdown.js";
@@ -10,6 +10,7 @@ import { vibeStore } from "../../vibe/store.js";
 import { showContextMenu } from "../menus.js";
 import { createToolCards } from "./tool-cards.js";
 import { markEl } from "./logo.js";
+import { pickIdeas } from "../../vibe/ideas.js";
 import { markContext } from "../context-menu/index.js";
 import { registerVibeContext } from "./context.js";
 import { createMentions, layerChip } from "./composer-mentions.js";
@@ -22,6 +23,8 @@ import { watchBubbleStyle } from "./bubble-style.js";
 const CHIP_ICON = { file: "file-earmark-code", document: "files", layer: "layers", attachment: "paperclip", member: "people", tool: "wrench", skill: "mortarboard" };
 
 const textOfMessage = (m) => (typeof m.content === "string" ? m.content : (m.content || []).filter((b) => b.type === "text" && !/^\[Attached/.test(b.text)).map((b) => b.text).join("\n"));
+
+const IDEA_GROUP_LABELS = { vector: N_("Vector studio"), pixel: N_("Pixel studio"), layout: N_("Layout studio"), code: N_("Code studio"), office: N_("Office studio"), scene: N_("Scene studio"), automation: N_("Automation and memory") };
 
 export function createChat(vs) {
   const { app, session } = vs;
@@ -342,18 +345,19 @@ export function createChat(vs) {
   }
 
   function emptyState() {
-    const ideas = [
-      ["Design a logo", "Design a clean, memorable logo for a coffee roaster called “Ember & Oak” and show me three color variations.", "vector"],
-      ["Build a landing page", "Create a landing page for a note-taking app called Fieldnote: hero, three features, pricing and a footer. Calm colors, modern type.", "code"],
-      ["Make a poster", "Make a 1080×1350 poster for a jazz night on Friday at 8 pm with a bold headline, a geometric background and event details.", "layout"],
-      ["Retouch a photo", "Open my photo, brighten the shadows, add warmth and a subtle vignette using adjustment layers.", "pixel"],
-    ];
+    // a handful of ideas from a curated pool (vibe/ideas.js): the studio you came from first, "More ideas" rotates
+    const studio = ["code", "pixel", "vector", "layout", "office", "scene"].includes(app.studio) ? app.studio : "";
+    let round = 0;
+    const grid = h("div.of-vempty__ideas");
+    const draw = () => grid.replaceChildren(...pickIdeas(studio, round).map((i) => { const p = t(i.prompt); return h("button.of-videa", { type: "button", onclick: () => { input.value = p; autosize(); input.focus(); } }, h("strong", t(i.title)), h("span", p.length > 90 ? `${p.slice(0, 88)}…` : p), h("small", t(IDEA_GROUP_LABELS[i.group]))); }));
+    draw();
     return h(
       "div.of-vempty",
       h("div.of-vempty__logo", markEl()),
       h("h1", "What do you want to make?"),
       h("p", "Vibe works inside OpenFini. Describe it — it draws, edits photos, lays out pages and builds websites with your studios, and you can undo everything in one click."),
-      h("div.of-vempty__ideas", ideas.map(([t, p, s]) => h("button.of-videa", { type: "button", onclick: () => { input.value = p; autosize(); input.focus(); } }, h("strong", t), h("span", p.slice(0, 80) + "…"), h("small", `${s} studio`)))),
+      grid,
+      h("button.of-btn.of-vempty__more", { type: "button", onclick: () => { round++; draw(); } }, iconEl("shuffle"), t("More ideas")),
     );
   }
 

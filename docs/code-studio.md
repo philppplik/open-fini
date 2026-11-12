@@ -168,7 +168,7 @@ selects nothing. Tests: `tests/web/text-map.test.js`.
 
 #### Editing assets in a design studio
 
-Right-click an image in **Assets** or the **Explorer**: *Edit in Pixel Studio* (PNG, JPEG, WebP) or *Edit in Vector Studio* (SVG)
+Right-click an image in **Assets** or the **Explorer**: *Open in Pixel Studio* (PNG, JPEG, WebP) or *Open in Vector Studio* (SVG)
 opens it as its own document, linked to the project file (`ui/code/asset-edit.js`). **File ▸ Save** (`Mod+S`) in that document
 writes the image back into the project in its own format at the document's page size; *Save Back to Website and Return*
 (command `code.assetSaveBack`) also returns to the Code studio. The preview, the Assets pane and exports use the new file at once,

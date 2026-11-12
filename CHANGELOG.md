@@ -6,6 +6,15 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Vibe Studio: the empty chat offers a curated pool of start ideas (vector, pixel, layout, code, Office, Scene, automation and memory), led by the studio you came from, with a **More ideas** button.
+
+### Changed
+- Code studio: the image context menu in Assets and the Explorer now reads *Open in Pixel Studio* / *Open in Vector Studio*.
+
+### Fixed
+- Glass surface style: dialogs, the command palette and popovers no longer show a repeating bright stripe every 160 px (the highlight gradient was tiled by the grain layer size).
+
 ## [1.1.0] — Scene Studio, code mode for Vibe, deeper tools
 
 ### Security

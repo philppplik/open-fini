@@ -193,3 +193,12 @@ test("native window material keeps text AA at any window opacity", () => {
     }
   }
 });
+
+test("glass highlight gradients are sized to the whole surface (a 160px grain size once tiled them into stripes)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const css = readFileSync(new URL("../../app/styles/glass.css", import.meta.url), "utf8");
+  const rule = /:root\[data-surface="glass"\] \.of-popover \{[^}]*\}/.exec(css)?.[0] || "";
+  assert.match(rule, /background-image: linear-gradient/);
+  assert.match(rule, /background-size: 100% 100%/);
+  assert.match(rule, /background-repeat: no-repeat/);
+});

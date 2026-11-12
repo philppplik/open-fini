@@ -31,7 +31,7 @@ Select on the canvas or in the Navigator (`Alt`-click selects the parent). Selec
 
 ### Editing assets in a design studio
 
-Right-click a PNG, JPEG or WebP image in Assets or the Explorer and choose *Edit in Pixel Studio*, or an SVG and choose *Edit in Vector Studio*. The image opens as its own document; *File ▸ Save* (`Mod+S`) writes it back into the project file in the same format, and *Save Back to Website and Return* also switches back to the Code studio. SVG is rewritten from the drawing, so comments and scripts in it are not kept.
+Right-click a PNG, JPEG or WebP image in Assets or the Explorer and choose *Open in Pixel Studio*, or an SVG and choose *Open in Vector Studio*. The image opens as its own document; *File ▸ Save* (`Mod+S`) writes it back into the project file in the same format, and *Save Back to Website and Return* also switches back to the Code studio. SVG is rewritten from the drawing, so comments and scripts in it are not kept.
 
 ### Terminal
 
