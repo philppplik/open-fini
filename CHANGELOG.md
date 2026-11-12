@@ -8,9 +8,14 @@ All notable changes to OpenFini are documented here. The format follows
 
 ### Added
 - Vibe Studio: the empty chat offers a curated pool of start ideas (vector, pixel, layout, code, Office, Scene, automation and memory), led by the studio you came from, with a **More ideas** button.
+- Spreadsheet ([docs/office-sheet.md](docs/office-sheet.md)): **defined names, data validation, table styles, row and column groups, page setup and sparklines are kept in XLSX and ODS** (both ways; XLSX tables as `xl/tables` parts with a built-in table style, ODS tables as database ranges with their look in the cell styles); spilling formulas are written as **Excel dynamic arrays** (`xl/metadata.xml`), so Excel no longer shows an implicit `@`.
+- Spreadsheet: an **outline gutter** left of the row headers and above the column headers with a bar per group, +/- buttons and level buttons (1, 2, 3 …).
+- Spreadsheet: **refreshable pivot tables**. A pivot table keeps its definition (also through XLSX / ODS files saved by OpenFini, as a hidden name) and *Data ▸ Refresh Pivot Tables* recomputes it; Vibe tool `sheet_refresh_pivots`.
+- Spreadsheet page setup: *Scaling* (actual size, fit to one page, all columns on one page width) scales the print area onto the chosen paper instead of resizing the page; paper sizes A3, A5 and Legal. Vibe `sheet_page_setup` takes `fit`.
 
 ### Changed
 - Code studio: the image context menu in Assets and the Explorer now reads *Open in Pixel Studio* / *Open in Vector Studio*.
+- Spreadsheet data validation also checks pasted values (Paste, Paste Special) and values written by `sheet_write_range` and `sheet_paste_special`; nothing is written when a value breaks a rule.
 
 ### Fixed
 - Glass surface style: dialogs, the command palette and popovers no longer show a repeating bright stripe every 160 px (the highlight gradient was tiled by the grain layer size).
