@@ -68,6 +68,7 @@ export function registerSheetCommands(app) {
   def("sheet.validation", "Data Validation…", (x) => x.validationDialog(), { icon: "ui-checks" });
   def("sheet.names", "Named Ranges…", (x) => x.namesDialog(), { icon: "bookmark" });
   def("sheet.pivot", "Pivot Table…", (x) => x.pivotDialog(), { icon: "diagram-3" });
+  def("sheet.refreshPivots", "Refresh Pivot Tables", (x) => x.refreshPivots(), { icon: "arrow-clockwise" });
   def("sheet.sparkline", "Sparkline…", (x) => x.sparklineDialog(), { icon: "graph-up" });
   def("sheet.groupRows", "Group Rows", (x) => x.groupSelection("row", true), { shortcut: "Alt+Shift+Right" });
   def("sheet.ungroupRows", "Ungroup Rows", (x) => x.groupSelection("row", false), { shortcut: "Alt+Shift+Left" });

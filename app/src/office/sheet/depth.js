@@ -10,8 +10,11 @@
 //   Sheet.validation [{ id, range, type: list|number|integer|textLength, list?: string[], source?: "Sheet1!D1:D9",
 //                      min?, max?, allowBlank: true, message? }]
 //   Sheet.groups     { row: [{ from, to, collapsed }], col: [...] }            indexes are 0-based and inclusive
-//   Sheet.page       { orientation: portrait|landscape, paper: a4|letter, margin (px), printArea?, gridlines, fit: none|page }
+//   Sheet.page       { orientation: portrait|landscape, paper: a4|a3|a5|letter|legal, margin (px), printArea?, gridlines,
+//                      fit: none|page|width }                                 fit scales the print area onto the paper
 //   Sheet.sparks     [{ id, cell, range, type: line|column, color }]
+//   Sheet.pivots     [{ id, at: "A1", src: "Data!A1:D9", rows, columns, values, agg, size: { rows, cols } }]
+//                    pivot tables written on this sheet, refreshed by refreshPivots
 import { parseRange, formatRange, normRange } from "../toolkit/selection.js";
 import { rcKey, keyRC, shiftFormula, isErr, compareValues, toText, MAX_ROWS, MAX_COLS } from "./formula.js";
 import { sheetById, sheetByName, updateSheet, setCells, addSheet, newId, overlaps } from "./model.js";
@@ -199,6 +202,25 @@ export function checkInput(m, sheet, r, c, text, get) {
   return (rule.min === undefined || n >= rule.min) && (rule.max === undefined || n <= rule.max) ? { ok: true } : fail(`Enter a value from ${range}.`);
 }
 
+/**
+ * Cells of sheet `sid` whose new value (written by paste, fill or a tool) breaks their validation rule:
+ * [{ cell, message }], at most `limit`. Formulas and cleared cells are not checked, like typed input.
+ */
+export function invalidWrites(before, after, sid, get, limit = 20) {
+  const s = sheetById(after, sid);
+  const old = sheetById(before, sid);
+  if (!s?.validation?.length || !old) return [];
+  const out = [];
+  for (const [k, cell] of Object.entries(s.cells)) {
+    if (cell === old.cells[k] || cell?.v === undefined || cell.f !== undefined || cell.v === old.cells[k]?.v) continue;
+    const { r, c } = keyRC(k);
+    const text = typeof cell.v === "boolean" ? (cell.v ? "TRUE" : "FALSE") : String(cell.v);
+    const res = checkInput(before, s, r, c, text, get);
+    if (!res.ok && out.push({ cell: k, message: res.message }) >= limit) break;
+  }
+  return out;
+}
+
 // ------------------------------------------------------------------------------------------------------ paste special
 
 const OPS = { add: (a, b) => a + b, sub: (a, b) => a - b, mul: (a, b) => a * b, div: (a, b) => (b === 0 ? a : a / b) };
@@ -288,7 +310,9 @@ export function collapsedIndexes(s, axis) {
 
 // ------------------------------------------------------------------------------------------------------ page setup
 
-export const PAPERS = { a4: { w: 794, h: 1123 }, letter: { w: 816, h: 1056 } };
+/** Paper sizes in px at 96 dpi (portrait). */
+export const PAPERS = { a4: { w: 794, h: 1123 }, a3: { w: 1123, h: 1587 }, a5: { w: 559, h: 794 }, letter: { w: 816, h: 1056 }, legal: { w: 816, h: 1344 } };
+export const FIT_MODES = ["none", "page", "width"];
 
 export function setPageSetup(m, sid, patch) {
   return updateSheet(m, sid, (s) => {
@@ -297,7 +321,7 @@ export function setPageSetup(m, sid, patch) {
     if (patch.paper) p.paper = PAPERS[patch.paper] ? patch.paper : "a4";
     if (patch.margin != null) p.margin = Math.max(0, Math.min(144, Math.round(Number(patch.margin) || 0)));
     if (patch.gridlines != null) p.gridlines = !!patch.gridlines;
-    if (patch.fit) p.fit = patch.fit === "page" ? "page" : "none";
+    if (patch.fit) p.fit = FIT_MODES.includes(patch.fit) ? patch.fit : "none";
     if (patch.printArea !== undefined) {
       if (patch.printArea === null || patch.printArea === "") delete p.printArea;
       else p.printArea = formatRange(range(patch.printArea));
@@ -311,7 +335,7 @@ export function printOptions(s) {
   const p = s.page || {};
   const paper = PAPERS[p.paper] || PAPERS.a4;
   const page = p.orientation === "landscape" ? { w: paper.h, h: paper.w } : { ...paper };
-  const out = { page, margin: p.margin ?? 48, gridlines: p.gridlines !== false, single: p.fit === "page" };
+  const out = { page, margin: p.margin ?? 48, gridlines: p.gridlines !== false, fit: FIT_MODES.includes(p.fit) ? p.fit : "none" };
   if (p.printArea) out.range = parseRange(p.printArea);
   return out;
 }
@@ -380,8 +404,12 @@ export function pivot(m, sheet, get, { range: text, rows, columns = null, values
   return out;
 }
 
-/** Writes a pivot result to a new sheet (`name`) or at a cell of a sheet (`sid` + `at` "A1"); header and total bold. */
-export function writePivot(m, sid, table, { name = null, at = "A1" } = {}) {
+/**
+ * Writes a pivot result to a new sheet (`name`) or at a cell of a sheet (`sid` + `at` "A1"); header and total bold.
+ * With `spec` (the options given to `pivot`, read relative to sheet `sid`) the definition is kept on the target sheet
+ * so refreshPivots can recompute it.
+ */
+export function writePivot(m, sid, table, { name = null, at = "A1", spec = null, prev = null } = {}) {
   let next = m;
   let target = sid;
   if (name) {
@@ -390,12 +418,61 @@ export function writePivot(m, sid, table, { name = null, at = "A1" } = {}) {
   }
   const o = range(at);
   const updates = {};
+  if (prev?.size) for (let i = 0; i < prev.size.rows; i++) for (let j = 0; j < prev.size.cols; j++) updates[rcKey(o.r0 + i, o.c0 + j)] = null;
   table.forEach((row, i) =>
     row.forEach((v, j) => {
       const bold = i === 0 || i === table.length - 1;
       updates[rcKey(o.r0 + i, o.c0 + j)] = { ...(v == null ? {} : { v }), ...(bold ? { s: { b: true, ...(i === 0 ? { fill: "#dbe5f1" } : { bd: { t: "#000000" } }) } } : {}) };
     }));
-  return setCells(next, target, updates);
+  next = setCells(next, target, updates);
+  if (!spec && !prev) return next;
+  const size = { rows: table.length, cols: Math.max(...table.map((r) => r.length)) };
+  const def = prev
+    ? { ...prev, size }
+    : { id: newId("pv"), at: rcKey(o.r0, o.c0), src: qualify(m, spec.range, sheetById(m, sid)), rows: String(spec.rows), columns: spec.columns || null, values: String(spec.values), agg: spec.agg || "sum", size };
+  return updateSheet(next, target, (s) => ({ ...s, pivots: [...list(s, "pivots").filter((p) => p.id !== def.id && p.at !== def.at), def] }));
+}
+
+/** "A1:D9" read on `sheet` → "Data!A1:D9" (a reference that stays valid from any sheet). */
+function qualify(m, text, sheet) {
+  const { sheet: src, g } = sheetRange(m, text, sheet);
+  const q = /^[A-Za-z_][\w.]*$/.test(src.name) && !/^[A-Za-z]{1,3}\d+$/.test(src.name) ? src.name : `'${src.name.replace(/'/g, "''")}'`;
+  return `${q}!${formatRange(g)}`;
+}
+
+/** The pivot table whose output covers a cell, or null. */
+export const pivotAt = (sheet, r, c) => list(sheet, "pivots").find((p) => {
+  const o = parseRange(p.at);
+  return o && p.size && r >= o.r0 && r < o.r0 + p.size.rows && c >= o.c0 && c < o.c0 + p.size.cols;
+}) || null;
+
+/**
+ * Recomputes pivot tables from their source data: every pivot of the workbook, or those of sheet `sid` (or only
+ * `id`). Returns { model, refreshed, errors: [{ at, message }] }. `get(sid, r, c)` reads computed values.
+ */
+export function refreshPivots(m, get, { sid = null, id = null } = {}) {
+  let next = m;
+  let refreshed = 0;
+  const errors = [];
+  for (const s of m.sheets) {
+    if (sid && s.id !== sid) continue;
+    for (const p of list(s, "pivots")) {
+      if (id && p.id !== id) continue;
+      try {
+        const table = pivot(next, s, get, { range: p.src, rows: p.rows, columns: p.columns, values: p.values, agg: p.agg });
+        next = writePivot(next, s.id, table, { at: p.at, prev: p });
+        refreshed++;
+      } catch (err) {
+        errors.push({ at: `${s.name}!${p.at}`, message: err.message });
+      }
+    }
+  }
+  return { model: next, refreshed, errors };
+}
+
+/** Forgets the pivot definition at a cell (its values stay). */
+export function removePivot(m, sid, pid) {
+  return updateSheet(m, sid, (s) => ({ ...s, pivots: list(s, "pivots").filter((p) => p.id !== pid) }));
 }
 
 // ------------------------------------------------------------------------------------------------------ sparklines

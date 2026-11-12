@@ -136,7 +136,7 @@ office_read_document (outline and styles) and office_find for placeholders such 
 
 ## Tool order
 sheet_write_range (values entered like typed input; a 2D array from the start cell) -> sheet_set_formula (with fillTo for columns) -> sheet_format (number formats, widths, borders) -> sheet_add_chart (first row series names, first column categories).
-Depth: sheet_format_table (header, bands, total row) -> sheet_define_name for inputs used in many formulas -> sheet_set_validation for drop-downs -> sheet_pivot for summaries -> sheet_add_sparkline for trends -> sheet_page_setup before PDF export. sheet_chart_data hands a range to slides or documents.
+Depth: sheet_format_table (header, bands, total row) -> sheet_define_name for inputs used in many formulas -> sheet_set_validation for drop-downs -> sheet_pivot for summaries (sheet_refresh_pivots after the data changes) -> sheet_add_sparkline for trends -> sheet_page_setup before PDF export. sheet_chart_data hands a range to slides or documents.
 
 ## Behavior
 - A1 references; English function names with commas (=SUM(B2:B10)); dates as 2026-10-28. sheet_set_formula returns the computed value.

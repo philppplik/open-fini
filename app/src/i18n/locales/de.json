@@ -2797,7 +2797,6 @@
   "Spreadsheet grid": "Tabellenraster",
   "Sum: {sum} · Average: {avg} · Count: {count}": "Summe: {sum} · Mittelwert: {avg} · Anzahl: {count}",
   "Summarize by": "Zusammenfassen nach",
-  "Summarizes a table with a header row on a new sheet. It does not update by itself; run it again after changes.": "Fasst eine Tabelle mit Überschriftenzeile auf einem neuen Blatt zusammen. Sie aktualisiert sich nicht selbst; führen Sie sie nach Änderungen erneut aus.",
   "Tab-separated values": "Tabulatorgetrennte Werte",
   "Text contains": "Text enthält",
   "The first row holds the series names and the first column the categories.": "Die erste Zeile enthält die Namen der Datenreihen, die erste Spalte die Kategorien.",
@@ -3690,5 +3689,16 @@
   "Work with local files": "Mit lokalen Dateien arbeiten",
   "Write a report": "Bericht schreiben",
   "Write a two-page project status report with a title, a summary, a table of milestones and a table of contents.": "Schreibe einen zweiseitigen Projektstatusbericht mit Titel, Zusammenfassung, Meilensteintabelle und Inhaltsverzeichnis.",
-  "Write and run a script that renames every layer in this document by its type and position, then show me the result.": "Schreibe und führe ein Skript aus, das jede Ebene dieses Dokuments nach Typ und Position umbenennt, und zeige mir dann das Ergebnis."
+  "Write and run a script that renames every layer in this document by its type and position, then show me the result.": "Schreibe und führe ein Skript aus, das jede Ebene dieses Dokuments nach Typ und Position umbenennt, und zeige mir dann das Ergebnis.",
+  "{n, plural, one {# pivot table refreshed.} other {# pivot tables refreshed.}}": "{n, plural, one {# Pivot-Tabelle aktualisiert.} other {# Pivot-Tabellen aktualisiert.}}",
+  "Actual size": "Tatsächliche Größe",
+  "Fit all columns on one page": "Alle Spalten auf eine Seite",
+  "Legal": "Legal",
+  "Nothing was pasted: {cells} break data validation. {message}": "Nichts wurde eingefügt: {cells} verletzen die Datenüberprüfung. {message}",
+  "Pivot table {at} could not be refreshed: {message}": "Die Pivot-Tabelle {at} konnte nicht aktualisiert werden: {message}",
+  "Refresh Pivot Tables": "Pivot-Tabellen aktualisieren",
+  "Scaling": "Skalierung",
+  "Show Outline Level": "Gliederungsebene anzeigen",
+  "Summarizes a table with a header row on a new sheet. After the data changes, use Data ▸ Refresh Pivot Tables.": "Fasst eine Tabelle mit Kopfzeile auf einem neuen Blatt zusammen. Wenn sich die Daten ändern: Daten ▸ Pivot-Tabellen aktualisieren.",
+  "This workbook has no pivot tables to refresh. Create one with Insert ▸ Pivot Table.": "Diese Arbeitsmappe hat keine Pivot-Tabellen zum Aktualisieren. Erstellen Sie eine mit Einfügen ▸ Pivot-Tabelle."
 }

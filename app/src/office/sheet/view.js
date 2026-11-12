@@ -15,10 +15,11 @@ import { fmtToCode } from "./numfmt-code.js";
 import * as M from "./model.js";
 import { rcKey, keyRC, compareValues, MAX_ROWS, MAX_COLS } from "./formula.js";
 import { cellLook, cfStatsFor, chartItems, sparkItems, FONT } from "./render.js";
-import { validationAt, sparklineAt, collapsedIndexes, checkInput } from "./depth.js";
+import { validationAt, sparklineAt, collapsedIndexes, checkInput, invalidWrites } from "./depth.js";
+import { outlineLevels } from "./depth-io.js";
 import { calcFor } from "./app.js";
 
-const HH = 22; // column header height
+const HEAD_H = 22; // column header height (the outline gutter adds to it)
 const CLIP_MIME = "application/x-openfini-sheet";
 let cssLoaded = false;
 let commandsReady = null;
@@ -52,6 +53,9 @@ export class SheetView {
     this.editing = null;
     this.charts = new Map();
     this.version = 0;
+    this.HH = HEAD_H;
+    this.GW = 0;
+    this.GH = 0;
     this.build(host);
     this.off = doc.office.on("change", (info) => this.onModel(info));
     this.onModel({});
@@ -105,11 +109,17 @@ export class SheetView {
     for (const c of collapsedIndexes(s, "col")) colSizes[c] = 0;
     this.rows = createAxis({ count: rowCount, size: M.DEFAULT_ROW, sizes });
     this.cols = createAxis({ count: colCount, size: M.DEFAULT_COL, sizes: colSizes });
-    this.HW = Math.max(40, 12 + String(rowCount).length * 8);
+    // outline gutter for row and column groups (levels with +/- buttons) left of and above the headers
+    this.outline = { row: outlineLevels(s.groups?.row), col: outlineLevels(s.groups?.col) };
+    const depth = (m) => (m.size ? Math.max(...m.values()) : 0);
+    this.GW = depth(this.outline.row) ? depth(this.outline.row) * 14 + 14 : 0;
+    this.GH = depth(this.outline.col) ? depth(this.outline.col) * 14 + 14 : 0;
+    this.HW = this.GW + Math.max(40, 12 + String(rowCount).length * 8);
+    this.HH = this.GH + HEAD_H;
     this.fr = Math.min(s.freeze?.r || 0, rowCount - 1);
     this.fc = Math.min(s.freeze?.c || 0, colCount - 1);
     this.sizer.style.width = `${(this.HW + this.cols.total) * this.zoom}px`;
-    this.sizer.style.height = `${(HH + this.rows.total) * this.zoom}px`;
+    this.sizer.style.height = `${(this.HH + this.rows.total) * this.zoom}px`;
   }
 
   // ---------------------------------------------------------------------------------------------------- DOM
@@ -194,7 +204,7 @@ export class SheetView {
   }
   rowY(r) {
     const fh = this.rows.offsetOf(this.fr);
-    return r < this.fr ? HH + this.rows.offsetOf(r) : HH + fh + this.rows.offsetOf(r) - fh - this.sy;
+    return r < this.fr ? this.HH + this.rows.offsetOf(r) : this.HH + fh + this.rows.offsetOf(r) - fh - this.sy;
   }
   colAt(x) {
     const fw = this.cols.offsetOf(this.fc);
@@ -203,7 +213,7 @@ export class SheetView {
   }
   rowAt(y) {
     const fh = this.rows.offsetOf(this.fr);
-    const py = y - HH;
+    const py = y - this.HH;
     return py < fh ? this.rows.indexAt(py) : this.rows.indexAt(py + this.sy);
   }
   /** Visible index ranges: frozen part [0, f) and the scrolled part from `start`. */
@@ -270,15 +280,15 @@ export class SheetView {
     const s = this.sheet;
     const calc = this.calc;
     const stats = cfStatsFor(s, calc);
-    const R = this.visible(this.rows, this.fr, this.sy, vh, HH);
+    const R = this.visible(this.rows, this.fr, this.sy, vh, this.HH);
     const Cc = this.visible(this.cols, this.fc, this.sx, vw, this.HW);
     const fw = this.cols.offsetOf(this.fc);
     const fh = this.rows.offsetOf(this.fr);
     const quads = [
-      [R.frozen, Cc.frozen, this.HW, HH, fw, fh],
-      [R.frozen, Cc.scroll, this.HW + fw, HH, vw, fh],
-      [R.scroll, Cc.frozen, this.HW, HH + fh, fw, vh],
-      [R.scroll, Cc.scroll, this.HW + fw, HH + fh, vw, vh],
+      [R.frozen, Cc.frozen, this.HW, this.HH, fw, fh],
+      [R.frozen, Cc.scroll, this.HW + fw, this.HH, vw, fh],
+      [R.scroll, Cc.frozen, this.HW, this.HH + fh, fw, vh],
+      [R.scroll, Cc.scroll, this.HW + fw, this.HH + fh, vw, vh],
     ];
     for (const [[ra, rb], [ca, cb], x0, y0, w0, h0] of quads) {
       if (ra >= rb || ca >= cb) continue;
@@ -293,7 +303,7 @@ export class SheetView {
     }
     // freeze lines
     ctx.fillStyle = "#9aa3ae";
-    if (this.fr) ctx.fillRect(0, HH + fh - 1, vw, 1.5);
+    if (this.fr) ctx.fillRect(0, this.HH + fh - 1, vw, 1.5);
     if (this.fc) ctx.fillRect(this.HW + fw - 1, 0, 1.5, vh);
     this.drawHeaders(ctx, R, Cc, C, vw, vh);
     this.placeEditor();
@@ -541,14 +551,14 @@ export class SheetView {
     ctx.font = `12px ${FONT}`;
     ctx.textBaseline = "middle";
     ctx.fillStyle = C.head;
-    ctx.fillRect(0, 0, vw, HH);
+    ctx.fillRect(0, 0, vw, this.HH);
     ctx.fillRect(0, 0, this.HW, vh);
     const fw = this.cols.offsetOf(this.fc);
     const fh = this.rows.offsetOf(this.fr);
     for (const [[a, b], clipX] of [[Cc.frozen, this.HW], [Cc.scroll, this.HW + fw]]) {
       ctx.save();
       ctx.beginPath();
-      ctx.rect(clipX, 0, vw - clipX, HH);
+      ctx.rect(clipX, 0, vw - clipX, this.HH);
       ctx.clip();
       for (let c = a; c < b; c++) {
         const w = this.cols.sizeOf(c);
@@ -557,17 +567,17 @@ export class SheetView {
         const on = c >= g.c0 && c <= g.c1;
         if (on) {
           ctx.fillStyle = "rgba(37, 99, 235, 0.16)";
-          ctx.fillRect(x, 0, w, HH);
+          ctx.fillRect(x, this.GH, w, HEAD_H);
         }
         ctx.fillStyle = C.grid;
-        ctx.fillRect(x + w - 0.5, 0, 1, HH);
+        ctx.fillRect(x + w - 0.5, this.GH, 1, HEAD_H);
         ctx.fillStyle = on ? C.accent : C.headText;
         ctx.textAlign = "center";
-        ctx.fillText(colName(c), x + w / 2, HH / 2 + 1);
+        ctx.fillText(colName(c), x + w / 2, this.GH + HEAD_H / 2 + 1);
       }
       ctx.restore();
     }
-    for (const [[a, b], clipY] of [[R.frozen, HH], [R.scroll, HH + fh]]) {
+    for (const [[a, b], clipY] of [[R.frozen, this.HH], [R.scroll, this.HH + fh]]) {
       ctx.save();
       ctx.beginPath();
       ctx.rect(0, clipY, this.HW, vh - clipY);
@@ -579,21 +589,106 @@ export class SheetView {
         const on = r >= g.r0 && r <= g.r1;
         if (on) {
           ctx.fillStyle = "rgba(37, 99, 235, 0.16)";
-          ctx.fillRect(0, y, this.HW, hgt);
+          ctx.fillRect(this.GW, y, this.HW - this.GW, hgt);
         }
         ctx.fillStyle = C.grid;
-        ctx.fillRect(0, y + hgt - 0.5, this.HW, 1);
+        ctx.fillRect(this.GW, y + hgt - 0.5, this.HW - this.GW, 1);
         ctx.fillStyle = on ? C.accent : C.headText;
         ctx.textAlign = "center";
-        ctx.fillText(String(r + 1), this.HW / 2, y + hgt / 2 + 1);
+        ctx.fillText(String(r + 1), this.GW + (this.HW - this.GW) / 2, y + hgt / 2 + 1);
       }
       ctx.restore();
     }
     ctx.fillStyle = C.grid;
-    ctx.fillRect(0, HH - 1, vw, 1);
+    ctx.fillRect(0, this.HH - 1, vw, 1);
     ctx.fillRect(this.HW - 1, 0, 1, vh);
+    if (this.GW || this.GH) this.drawOutline(ctx, R, Cc, C, vw, vh);
     ctx.textAlign = "start";
     ctx.textBaseline = "alphabetic";
+  }
+
+  /** Groups of an axis with their outline level (1 = outermost). */
+  outlineGroups(axis) {
+    const list = this.sheet.groups?.[axis] || [];
+    return list.map((g) => ({ g, level: list.filter((o) => o.from <= g.from && o.to >= g.to).length }));
+  }
+
+  /** The outline gutter: level buttons, a bar per expanded group and a +/- button on the row or column after it. */
+  drawOutline(ctx, R, Cc, C, vw, vh) {
+    const box = (x, y, label, on = false) => {
+      ctx.fillStyle = on ? C.accent : C.bg;
+      ctx.fillRect(x, y, 12, 12);
+      ctx.strokeStyle = C.headText;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 0.5, y + 0.5, 11, 11);
+      ctx.fillStyle = on ? C.bg : C.headText;
+      ctx.font = `10px ${FONT}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, x + 6, y + 6.5);
+    };
+    ctx.fillStyle = C.head;
+    if (this.GW) ctx.fillRect(0, this.HH, this.GW, vh - this.HH);
+    if (this.GH) ctx.fillRect(this.HW, 0, vw - this.HW, this.GH);
+    const depth = (m) => (m.size ? Math.max(...m.values()) : 0);
+    for (let L = 1; L <= depth(this.outline.row) + 1 && this.GW; L++) box(1 + (L - 1) * 14, this.GH + 5, String(L));
+    for (let L = 1; L <= depth(this.outline.col) + 1 && this.GH; L++) box(this.GW + (this.HW - this.GW) / 2 - 6, 1 + (L - 1) * 14, String(L));
+    ctx.strokeStyle = C.headText;
+    for (const [axis, size, pos] of [["row", (i) => this.rows.sizeOf(i), (i) => this.rowY(i)], ["col", (i) => this.cols.sizeOf(i), (i) => this.colX(i)]]) {
+      if (axis === "row" ? !this.GW : !this.GH) continue;
+      ctx.save();
+      ctx.beginPath();
+      if (axis === "row") ctx.rect(0, this.HH, this.GW, vh - this.HH);
+      else ctx.rect(this.HW, 0, vw - this.HW, this.GH);
+      ctx.clip();
+      for (const { g, level } of this.outlineGroups(axis)) {
+        const lane = (level - 1) * 14 + 7;
+        if (!g.collapsed) {
+          const a = pos(g.from);
+          const b = pos(g.to) + size(g.to);
+          ctx.beginPath();
+          if (axis === "row") (ctx.moveTo(lane + 0.5, a + 2), ctx.lineTo(lane + 0.5, b), ctx.lineTo(lane + 4, b));
+          else (ctx.moveTo(a + 2, lane + 0.5), ctx.lineTo(b, lane + 0.5), ctx.lineTo(b, lane + 4));
+          ctx.stroke();
+        }
+        const k = g.to + 1;
+        if (!size(k)) continue;
+        const mid = pos(k) + size(k) / 2;
+        if (axis === "row") box(lane - 6, mid - 6, g.collapsed ? "+" : "−");
+        else box(mid - 6, lane - 6, g.collapsed ? "+" : "−");
+      }
+      ctx.restore();
+    }
+  }
+
+  /** Collapses or expands one group (the gutter's +/- button). */
+  toggleGroup(axis, group) {
+    this.commit(group.collapsed ? "Expand Group" : "Collapse Group", M.updateSheet(this.model, this.sid, (s) => ({ ...s, groups: { ...s.groups, [axis]: s.groups[axis].map((g) => (g.from === group.from && g.to === group.to ? { ...g, collapsed: !g.collapsed } : g)) } })));
+  }
+
+  /** Shows outline levels up to `level` (the gutter's 1, 2, 3 … buttons): deeper groups collapse, the others expand. */
+  showLevel(axis, level) {
+    const lv = new Map(this.outlineGroups(axis).map(({ g, level: l }) => [g, l]));
+    this.commit("Show Outline Level", M.updateSheet(this.model, this.sid, (s) => ({ ...s, groups: { ...s.groups, [axis]: s.groups[axis].map((g) => ({ ...g, collapsed: lv.get(g) >= level })) } })));
+  }
+
+  /** What the outline gutter has at a point, or null. */
+  outlineHit(p) {
+    if (this.GW && p.x < this.GW) {
+      if (p.y < this.HH) return p.y > this.GH ? { kind: "outlineLevel", axis: "row", level: Math.floor((p.x - 1) / 14) + 1 } : null;
+      const r = this.rowAt(p.y);
+      const lane = Math.floor(p.x / 14) + 1;
+      const hit = this.outlineGroups("row").find(({ g, level }) => level === lane && (r === g.to + 1 || (!g.collapsed && r >= g.from && r <= g.to)));
+      return hit ? { kind: "outline", axis: "row", group: hit.g } : { kind: "gutter" };
+    }
+    if (this.GH && p.y < this.GH) {
+      if (p.x < this.HW) return p.x > this.GW ? { kind: "outlineLevel", axis: "col", level: Math.floor((p.y - 1) / 14) + 1 } : null;
+      const c = this.colAt(p.x);
+      const lane = Math.floor(p.y / 14) + 1;
+      const hit = this.outlineGroups("col").find(({ g, level }) => level === lane && (c === g.to + 1 || (!g.collapsed && c >= g.from && c <= g.to)));
+      return hit ? { kind: "outline", axis: "col", group: hit.g } : { kind: "gutter" };
+    }
+    return null;
   }
 
   // ---------------------------------------------------------------------------------------------------- selection
@@ -628,7 +723,7 @@ export class SheetView {
     const z = this.zoom;
     if (r >= this.fr) {
       const top = this.rows.offsetOf(r) - this.rows.offsetOf(this.fr);
-      const room = this.vh - HH - this.rows.offsetOf(this.fr);
+      const room = this.vh - this.HH - this.rows.offsetOf(this.fr);
       if (top < this.sy) el.scrollTop = top * z;
       else if (top + this.rows.sizeOf(r) > this.sy + room) el.scrollTop = (top + this.rows.sizeOf(r) - room) * z;
     }
@@ -798,7 +893,7 @@ export class SheetView {
     sc.addEventListener("keydown", (e) => this.keyDown(e));
     sc.addEventListener("contextmenu", (e) => {
       const p = this.point(e);
-      if (p.y > HH && p.x > this.HW) {
+      if (p.y > this.HH && p.x > this.HW) {
         const r = this.rowAt(p.y);
         const c = this.colAt(p.x);
         if (r < this.range.r0 || r > this.range.r1 || c < this.range.c0 || c > this.range.c1) this.select(r, c, false, false);
@@ -838,10 +933,14 @@ export class SheetView {
     for (let i = s.charts.length - 1; i >= 0; i--) {
       const ch = s.charts[i];
       const b = this.chartRect(ch);
-      if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h && p.x > this.HW && p.y > HH) return { kind: "chart", ch, resize: p.x > b.x + b.w - 12 && p.y > b.y + b.h - 12 };
+      if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h && p.x > this.HW && p.y > this.HH) return { kind: "chart", ch, resize: p.x > b.x + b.w - 12 && p.y > b.y + b.h - 12 };
     }
-    if (p.y < HH && p.x < this.HW) return { kind: "corner" };
-    if (p.y < HH) {
+    const og = this.outlineHit(p);
+    if (og) return og;
+    if (this.GW && p.x < this.GW) return { kind: "gutter" };
+    if (this.GH && p.y < this.GH) return { kind: "gutter" };
+    if (p.y < this.HH && p.x < this.HW) return { kind: "corner" };
+    if (p.y < this.HH) {
       const c = this.colAt(p.x);
       const right = this.colX(c) + this.cols.sizeOf(c);
       const left = this.colX(c);
@@ -894,6 +993,17 @@ export class SheetView {
     this.scroller.setPointerCapture?.(e.pointerId);
     this.drag = { hit, start: p, moved: false };
     switch (hit.kind) {
+      case "outline":
+        this.drag = null;
+        this.toggleGroup(hit.axis, hit.group);
+        break;
+      case "outlineLevel":
+        this.drag = null;
+        this.showLevel(hit.axis, hit.level);
+        break;
+      case "gutter":
+        this.drag = null;
+        break;
       case "corner":
         this.anchor = { r: 0, c: 0 };
         this.select(this.rows.count - 1, this.cols.count - 1, true, false);
@@ -960,9 +1070,9 @@ export class SheetView {
     const dy = p.y - d.start.y;
     if (Math.abs(dx) + Math.abs(dy) > 3) d.moved = true;
     const k = d.hit.kind;
-    if (k === "cell") this.select(this.rowAt(Math.max(HH + 1, p.y)), this.colAt(Math.max(this.HW + 1, p.x)), true);
+    if (k === "cell") this.select(this.rowAt(Math.max(this.HH + 1, p.y)), this.colAt(Math.max(this.HW + 1, p.x)), true);
     else if (k === "colHead") this.selectCols(this.anchor.c, this.colAt(Math.max(this.HW + 1, p.x)));
-    else if (k === "rowHead") this.selectRows(this.anchor.r, this.rowAt(Math.max(HH + 1, p.y)));
+    else if (k === "rowHead") this.selectRows(this.anchor.r, this.rowAt(Math.max(this.HH + 1, p.y)));
     else if (k === "colEdge") {
       this.cols.setSize(d.hit.c, Math.max(4, d.size + dx));
       this.paint();
@@ -984,7 +1094,7 @@ export class SheetView {
       else {
         const x = this.colX(d.orig.c) + dx;
         const y = this.rowY(d.orig.r) + dy;
-        d.next = { ...d.orig, c: Math.max(0, this.colAt(Math.max(this.HW + 1, x + 4))), r: Math.max(0, this.rowAt(Math.max(HH + 1, y + 4))) };
+        d.next = { ...d.orig, c: Math.max(0, this.colAt(Math.max(this.HW + 1, x + 4))), r: Math.max(0, this.rowAt(Math.max(this.HH + 1, y + 4))) };
       }
       this.previewChart = d.next;
       this.doc.office.model = M.updateSheet(this.model, this.sid, (sh) => ({ ...sh, charts: sh.charts.map((x) => (x.id === ch.id ? d.next : x)) })); // preview; committed on release
@@ -1102,7 +1212,7 @@ export class SheetView {
       case "PageDown":
       case "PageUp": {
         handled();
-        const n = Math.max(1, Math.floor((this.vh - HH) / M.DEFAULT_ROW) - 1);
+        const n = Math.max(1, Math.floor((this.vh - this.HH) / M.DEFAULT_ROW) - 1);
         return this.select(Math.max(0, this.sel.r + (key === "PageDown" ? n : -n)), this.sel.c, e.shiftKey);
       }
     }
@@ -1202,6 +1312,10 @@ export class SheetView {
           updates[k] = p ? { ...(p.f !== undefined ? { f: p.f } : { v: p.v }), ...(p.nf ? { s: { ...(this.sheet.cells[k]?.s || {}), nf: p.nf } } : {}) } : null;
         }));
       next = M.setCells(next, this.sid, updates);
+    }
+    if (this.sheet.validation?.length) {
+      const bad = invalidWrites(this.model, next, this.sid, (sid, r, c) => this.calc.get(sid, r, c), 6);
+      if (bad.length) return this.app.toast(t("Nothing was pasted: {cells} break data validation. {message}", { cells: bad.map((b) => b.cell).join(", "), message: bad[0].message }), "warning", 6000);
     }
     this.commit(values ? "Paste Values" : "Paste", next);
     if (h0 && w0) {
@@ -1475,6 +1589,9 @@ export class SheetView {
   }
   collapseGroups(collapsed, all = false) {
     return this.depth("collapseGroups", collapsed, all);
+  }
+  refreshPivots() {
+    return this.depth("refreshPivots");
   }
 
   deleteChart(id) {

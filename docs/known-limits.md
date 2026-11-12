@@ -11,7 +11,7 @@ Legend: **Unverified** = built and unit-tested but never run in the real environ
 - **Real AI models:** tool-calling behavior across providers, orchestrator (`plan_work`), OpenAI plan sign-in (preview terms), MCP OAuth against real servers.
 - **File interop:** Office files produced by Excel, PowerPoint and LibreOffice; PDF/X output against real validators (preflight, Acrobat).
 - **Rust tests locally:** the local `cargo test` binary does not start on the Windows dev machine; CI is the only Rust test run.
-- **Office sheet dialogs:** print flow, table/validation/names/pivot/sparkline/page-setup dialogs, Alt+Shift grouping, keyboard navigation in the validation drop-down.
+- **Office sheet dialogs:** print flow, table/validation/names/pivot/sparkline/page-setup dialogs, Alt+Shift grouping, the outline gutter (+/- and level buttons), *Refresh Pivot Tables*, keyboard navigation in the validation drop-down. The XLSX / ODS round trips of names, validation, tables, groups, page setup, sparklines and dynamic arrays are unit-tested only, not opened in Excel or LibreOffice.
 
 ## Security and ownership follow-ups
 
@@ -33,7 +33,7 @@ Partial: content-aware fill and the object eraser switch from patch synthesis to
 
 ## Office suite
 
-- **Sheet:** the new features (named ranges, validation, table styles, groups, page setup, sparklines, pivots) are not read from or written to XLSX/ODS; spill formulas are saved as plain formulas (Excel may show an implicit `@`). Groups have no +/- outline gutter. Pivots are snapshots and do not refresh. "Fit to one page" sizes the page to the content instead of scaling onto the chosen paper. Validation checks typed input only, not pasted values or tool writes.
+- **Sheet:** pivot tables are written to XLSX / ODS as values (their definition travels as a hidden name and refreshes only in OpenFini); ODS does not write charts or conditional formats; validation does not recheck values already in cells, formulas or fill. Spill references (`A1#`), LET / LAMBDA, INDIRECT / OFFSET, pictures, file comments, rich text in a cell and multi-range selection are missing (see [office-limits-audit.md](office-limits-audit.md)).
 - **Slides:** no chart element yet (`sheet_chart_data` supplies data only).
 - **Document, slides and board depth:** tracked in the "Roadmap: Office depth" section of `docs/office-suite.md`; check it for what the current wave has not landed.
 

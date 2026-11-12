@@ -68,7 +68,7 @@ export const OFFICE_MENUS = [
     ["Edit", "edit.undo edit.redo - sheet.cut sheet.copy sheet.paste sheet.pasteValues sheet.pasteSpecial - sheet.fillDown sheet.fillRight sheet.clear sheet.clearAll - sheet.selectAll sheet.find sheet.replace"],
     ["Insert", "sheet.insertRowAbove sheet.insertRowBelow sheet.insertColLeft sheet.insertColRight - sheet.insertFunction sheet.insertChart sheet.sparkline sheet.pivot - sheet.addSheet"],
     ["Format", "sheet.bold sheet.italic sheet.underline sheet.strike - sheet.alignLeft sheet.alignCenter sheet.alignRight sheet.wrap sheet.merge sheet.unmerge - sheet.numberFormat sheet.moreDecimals sheet.fewerDecimals - sheet.bordersAll sheet.bordersOuter sheet.bordersNone - sheet.formatTable sheet.conditional sheet.clearFormats - sheet.colWidth sheet.rowHeight sheet.autofit"],
-    ["Data", "sheet.sortAsc sheet.sortDesc - sheet.filter sheet.validation sheet.names - sheet.groupRows sheet.ungroupRows sheet.groupCols sheet.ungroupCols sheet.collapseGroup sheet.expandGroups - sheet.deleteRows sheet.deleteCols"],
+    ["Data", "sheet.sortAsc sheet.sortDesc - sheet.filter sheet.validation sheet.names - sheet.groupRows sheet.ungroupRows sheet.groupCols sheet.ungroupCols sheet.collapseGroup sheet.expandGroups - sheet.refreshPivots - sheet.deleteRows sheet.deleteCols"],
     ["View", "sheet.freeze sheet.freezeRow sheet.freezeCol sheet.unfreeze - sheet.zoomIn sheet.zoomOut sheet.zoom100 - view.theme"],
     ["Sheet", "sheet.addSheet sheet.renameSheet sheet.duplicateSheet sheet.deleteSheet - sheet.pageSetup sheet.print - office.export sheet.exportXlsx sheet.exportOds sheet.exportCsv sheet.exportPdf sheet.exportPng"],
   ].map(([label, items]) => ({ label, studios: ["office"], officeKinds: ["sheet"], items: items.split(" ") })),

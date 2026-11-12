@@ -536,7 +536,7 @@ const VOLATILE = new Set(["TODAY", "NOW", "RAND", "RANDBETWEEN"]);
 
 /** Functions whose result can be an array that spills (and operators over ranges, see `mayArray`). */
 const ARRAY_FNS = new Set(["FILTER", "SORT", "SORTBY", "UNIQUE", "SEQUENCE", "TRANSPOSE"]);
-const mayArray = (ast) => (ast.k === "fn" && ARRAY_FNS.has(ast.name)) || (ast.k === "bin" && (ast.a.k === "range" || ast.b.k === "range" || mayArray(ast.a) || mayArray(ast.b)));
+export const mayArray = (ast) => (ast.k === "fn" && ARRAY_FNS.has(ast.name)) || (ast.k === "bin" && (ast.a.k === "range" || ast.b.k === "range" || mayArray(ast.a) || mayArray(ast.b)));
 
 /** Collects the references of an AST: [{ sheet, r0, c0, r1, c1 }] and whether it is volatile. `nameAst(name)` resolves
  * defined names (their references count as dependencies). */

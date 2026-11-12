@@ -49,7 +49,7 @@ export function officeSheetDepthTools(app) {
       return { names: next.names || {} };
     }),
 
-    tool("sheet_set_validation", "Adds data validation to a range: a drop-down list (items or a source range), or number, whole-number or text-length limits; typed values that break the rule are rejected with the message. `clear` removes validation from the range. Watch out: validation checks typed input only, not values already in the cells or written by tools.", {
+    tool("sheet_set_validation", "Adds data validation to a range: a drop-down list (items or a source range), or number, whole-number or text-length limits; typed values that break the rule are rejected with the message. `clear` removes validation from the range. Watch out: validation checks typed, pasted and tool-written values, not values already in the cells.", {
       range: S.str("A1 range, e.g. C2:C100"),
       type: S.str("Rule type", { enum: ["list", "number", "integer", "textLength"] }),
       items: { type: "array", items: { type: "string" }, description: "List items (type list)" },
@@ -93,7 +93,10 @@ export function officeSheetDepthTools(app) {
         block.push(row);
         values.push(vrow);
       }
-      c.commit("Paste Special", c.D.pasteSpecial(c.model, c.sheet.id, at.r0, at.c0, { block, values, from: { r: g.r0, c: g.c0 } }, { paste, op, transpose, skipBlanks }));
+      const pasted = c.D.pasteSpecial(c.model, c.sheet.id, at.r0, at.c0, { block, values, from: { r: g.r0, c: g.c0 } }, { paste, op, transpose, skipBlanks });
+      const bad = c.D.invalidWrites(c.model, pasted, c.sheet.id, c.get);
+      if (bad.length) throw new Error(`Data validation rejects ${bad.map((b) => `${b.cell} (${b.message})`).join("; ")}. Nothing was pasted.`);
+      c.commit("Paste Special", pasted);
       const h = transpose ? g.c1 - g.c0 : g.r1 - g.r0;
       const w = transpose ? g.r1 - g.r0 : g.c1 - g.c0;
       return { pasted: `${c.M.rcKey(at.r0, at.c0)}:${c.M.rcKey(at.r0 + h, at.c0 + w)}`, sheet: c.sheet.name };
@@ -123,22 +126,23 @@ export function officeSheetDepthTools(app) {
       return { groups: c.M.sheetById(next, c.sheet.id).groups || { row: [], col: [] }, sheet: c.sheet.name };
     }),
 
-    tool("sheet_page_setup", "Sets how a sheet prints and exports to PDF: orientation, paper, margins, print area, gridlines and fit to one page.", {
+    tool("sheet_page_setup", "Sets how a sheet prints and exports to PDF: orientation, paper, margins, print area, gridlines and scaling (fit the print area on one page, or all columns on one page width).", {
       orientation: S.str("portrait or landscape", { enum: ["portrait", "landscape"] }),
-      paper: S.str("a4 or letter", { enum: ["a4", "letter"] }),
+      paper: S.str("Paper size", { enum: ["a4", "a3", "a5", "letter", "legal"] }),
       margin: S.num("Margin in pixels at 96 dpi (24 narrow, 48 normal, 96 wide)"),
       printArea: S.str("A1 range to print; empty string prints the whole sheet"),
       gridlines: S.bool("Print gridlines"),
-      fitToPage: S.bool("Fit the print area on one page"),
+      fitToPage: S.bool("Fit the print area on one page (same as fit: page)"),
+      fit: S.str("Scaling onto the paper: none, page (one page) or width (all columns on one page width)", { enum: ["none", "page", "width"] }),
       ...sheetArg,
-    }, [], async ({ orientation, paper, margin, printArea, gridlines, fitToPage, sheet }) => {
+    }, [], async ({ orientation, paper, margin, printArea, gridlines, fitToPage, fit, sheet }) => {
       const c = await ctx(sheet);
-      const next = c.D.setPageSetup(c.model, c.sheet.id, { orientation, paper, margin, printArea, gridlines, fit: fitToPage === undefined ? undefined : fitToPage ? "page" : "none" });
+      const next = c.D.setPageSetup(c.model, c.sheet.id, { orientation, paper, margin, printArea, gridlines, fit: fit || (fitToPage === undefined ? undefined : fitToPage ? "page" : "none") });
       c.commit("Page Setup", next);
       return { page: c.M.sheetById(next, c.sheet.id).page, sheet: c.sheet.name };
     }),
 
-    tool("sheet_pivot", "Summarizes a table (header row + data rows) like a pivot table: one row per value of `rows`, optionally one column per value of `columns`, with the sum, count, average, min or max of `values`, plus totals. Writes the result to a new sheet (default) or at a cell. Watch out: the result is a snapshot of values; run it again after the data changes.", {
+    tool("sheet_pivot", "Summarizes a table (header row + data rows) like a pivot table: one row per value of `rows`, optionally one column per value of `columns`, with the sum, count, average, min or max of `values`, plus totals. Writes the result to a new sheet (default) or at a cell and keeps its definition, so sheet_refresh_pivots updates it after the data changes.", {
       range: S.str("Source range with its header row, e.g. A1:E200 (Data!A1:E200 for another sheet)"),
       rows: S.str("Header (or column letter) of the row field"),
       columns: S.str("Optional header of the column field"),
@@ -150,10 +154,20 @@ export function officeSheetDepthTools(app) {
     }, ["range", "rows", "values"], async ({ range, rows, columns, values, agg = "sum", newSheet, at, sheet }) => {
       const c = await ctx(sheet);
       const table = c.D.pivot(c.model, c.sheet, c.get, { range, rows, columns, values, agg });
-      const next = at ? c.D.writePivot(c.model, c.sheet.id, table, { at }) : c.D.writePivot(c.model, c.sheet.id, table, { name: newSheet || "Pivot" });
+      const spec = { range, rows, columns, values, agg };
+      const next = at ? c.D.writePivot(c.model, c.sheet.id, table, { at, spec }) : c.D.writePivot(c.model, c.sheet.id, table, { name: newSheet || "Pivot", spec });
       c.commit("Pivot Table", next);
       if (!at && app.officeUI?.kind === "sheet" && app.officeUI.doc === c.doc) app.officeUI.showSheet(next.active);
       return { sheet: at ? c.sheet.name : c.M.sheetById(next, next.active).name, rows: table.length, columns: table[0].length, preview: table.slice(0, 12) };
+    }),
+
+    tool("sheet_refresh_pivots", "Recomputes pivot tables from their source data after it changed: every pivot table of the workbook, or those on one sheet. Pivot tables made by sheet_pivot or Insert ▸ Pivot Table remember their definition (also through XLSX and ODS files saved by OpenFini). Verify with sheet_read_range on the pivot sheet.", {
+      sheet: S.str("Only the pivot tables on this sheet (default: all sheets)"),
+    }, [], async ({ sheet }) => {
+      const c = await ctx(sheet);
+      const res = c.D.refreshPivots(c.model, c.get, { sid: sheet ? c.sheet.id : null });
+      if (res.refreshed) c.commit("Refresh Pivot Tables", res.model);
+      return { refreshed: res.refreshed, errors: res.errors };
     }),
 
     tool("sheet_add_sparkline", "Draws a small line or column chart inside one cell from a row or column of numbers (a trend next to each data row).", {
