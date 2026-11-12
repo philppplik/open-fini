@@ -18,10 +18,10 @@ Everything runs on your device.
 
 | Area | Use |
 | --- | --- |
-| Media (left) | Imported files; buttons for Text, Shape, Solid and Adjustment layer |
+| Media / Effects (left) | Imported files; buttons for Text, Shape, Solid, Adjustment layer and Null object. The *Effects* tab lists every effect, transition and animation preset: search, favorite, drag onto a clip |
 | Viewer (center) | The picture at the playhead; drag a layer to move it, a corner to scale, the top handle to rotate |
 | Properties (right) | Everything about the selected clip, or the sequence format when nothing is selected |
-| Timeline (bottom) | Video tracks on top (upper = in front), audio tracks below |
+| Timeline (bottom) | Video tracks on top (upper = in front), audio tracks below. Scroll bars both ways, a zoom slider, track heights (drag a header's bottom edge) and keyframe rows under clips (U); drag the bar above the tools to resize it |
 
 ## Editing
 
@@ -36,6 +36,8 @@ Everything runs on your device.
 | Marker | `M` |
 | Snapping | `S` |
 
+Right-click anything (clips, track headers, empty track space, the ruler, keyframes, the viewer) for the commands editors share: split, trim to playhead, speed / duration, reverse, freeze frame, link, label color, add effect or transition, track options and more. `Ctrl+C` / `Ctrl+V` copy and paste clips or keyframes, `Alt+Left` / `Alt+Right` nudge, `Shift+J` / `Shift+K` jump between keyframes, `Ctrl+R` opens speed / duration.
+
 The full list is in `docs/scene-studio.md` in the repository.
 
 ## Animation
@@ -44,6 +46,10 @@ Click the diamond next to a property (position, scale, rotation, opacity, volume
 at the playhead. Move the playhead, change the value, and OpenFini animates between the two. With the playhead on a
 keyframe, *Easing* chooses how the motion starts and ends. Text clips have ready-made animations (*Animate in* and
 *Animate out*), clips have transitions at both edges.
+
+Every animatable property also has a **stopwatch** (animation on / off) and arrows to jump between its keyframes. Crop, mask edges and feather, text size and color, shape size and fill, the anchor point and effect values animate too.
+
+**Motion tools:** one-click animation presets; behaviors (wiggle, loop, spin) that move a layer without keyframes; parenting to another layer or a null object; *Sequence layers* to stagger clips; motion blur; *Animate with Sound* (keyframes follow the loudness of a sound); beat markers; reverse, freeze frame and speed ramps (time remapping) on video clips. Drag the squares of the motion path in the viewer to move position keyframes.
 
 ### Graph editor
 

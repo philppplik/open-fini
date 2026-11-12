@@ -305,7 +305,7 @@ export function shortcutsDialog(app) {
 export function shortcutsContent(app) {
   const groups = new Map();
   const group = (c) => c.id.split(".")[0];
-  const names = { file: t("File"), edit: t("Edit"), arrange: t("Arrange"), align: t("Align"), view: t("View"), studio: t("Studios"), layer: t("Layer"), select: t("Select"), doc: t("Document"), help: t("Help"), bool: t("Shape"), shape: t("Shape"), pixel: "Pixel", filter: t("Filter"), distribute: t("Align") };
+  const names = { file: t("File"), edit: t("Edit"), arrange: t("Arrange"), align: t("Align"), view: t("View"), studio: t("Studios"), layer: t("Layer"), select: t("Select"), doc: t("Document"), help: t("Help"), bool: t("Shape"), shape: t("Shape"), pixel: "Pixel", filter: t("Filter"), distribute: t("Align"), scene: t("Scene") };
   for (const c of app.commands.values()) {
     if (!c.shortcut) continue;
     const g = names[group(c)] || t("Other");

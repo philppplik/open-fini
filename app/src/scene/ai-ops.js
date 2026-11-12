@@ -135,7 +135,9 @@ export function catalog() {
     textAnimations: M.TEXT_ANIMS,
     shapes: M.SHAPE_KINDS,
     captionStyles: Object.keys(CAPTION_STYLES),
-    animatable: [...M.ANIMATABLE, "fx:<effect id>:<parameter>"],
+    animatable: [...M.ANIMATABLE, ...M.NESTED_PATHS, "fx:<effect id>:<parameter>"],
+    behaviors: { wiggle: "amount, freq, seed", loop: "mode: cycle | pingpong | offset", spin: "rate", props: ["x", "y", "sx", "sy", "rot", "opacity", "ax", "ay"] },
+    clipFlags: "label (#rrggbb), off (disabled), mblur (motion blur), ax / ay (anchor point), parent (scene_parent)",
     sizePresets: Object.fromEntries(Object.entries(M.PRESETS).map(([k, p]) => [k, `${p.width}×${p.height}`])),
   };
 }
@@ -147,7 +149,7 @@ const pick = (o, keys) => Object.fromEntries(keys.filter((k) => o?.[k] !== undef
 
 /** Clip properties from tool arguments (transform, look, text, shape, sound); `scale` sets sx and sy. */
 export function clipProps(a = {}) {
-  const p = pick(a, ["name", "x", "y", "sx", "sy", "rot", "opacity", "blend", "crop", "mask", "color", "volume", "pan", "fadeIn", "fadeOut", "muted"]);
+  const p = pick(a, ["name", "x", "y", "sx", "sy", "rot", "opacity", "ax", "ay", "blend", "crop", "mask", "color", "volume", "pan", "fadeIn", "fadeOut", "muted", "label", "off", "mblur"]);
   if (a.scale !== undefined) p.sx = p.sy = a.scale;
   if (a.blend !== undefined && !M.BLEND_MODES.includes(a.blend)) throw new Error(`“${a.blend}” is not a blend mode. Use one of: ${M.BLEND_MODES.join(", ")}.`);
   if (a.text !== undefined) p.text = typeof a.text === "string" ? { text: a.text } : pick(a.text, TEXT_KEYS);

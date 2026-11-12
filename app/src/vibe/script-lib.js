@@ -167,7 +167,7 @@ const STUDIO_GROUPS = {
   sheet: ["Office suite", "Spreadsheets"],
   slides: ["Office suite", "Presentation"],
   board: ["Office suite", "Whiteboard"],
-  scene: ["Scene", "Scene understanding", "Scene automation"],
+  scene: ["Scene", "Scene understanding", "Scene automation", "Scene motion"],
 };
 
 /**

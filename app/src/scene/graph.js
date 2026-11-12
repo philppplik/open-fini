@@ -16,11 +16,10 @@ import { h } from "../core/util.js";
 import { t, N_ } from "../i18n/index.js";
 import * as M from "./model.js";
 import * as K from "./keyframes.js";
-import { EFFECTS } from "./effects.js";
 import { EASE_LABEL } from "./inspector.js";
+import { propLabel } from "./props.js";
 
 const COLORS = ["#ff6b6b", "#4fc3f7", "#9ccc65", "#ffca28", "#ce93d8", "#ff8a65", "#4db6ac", "#f48fb1", "#90a4ae", "#c5e1a5"];
-const LABEL = { x: N_("Position X"), y: N_("Position Y"), sx: N_("Scale X"), sy: N_("Scale Y"), rot: N_("Rotation"), opacity: N_("Opacity"), volume: N_("Volume"), pan: N_("Pan"), remap: N_("Source time") };
 const RULER = 20;
 const HIT = 7;
 let clipboard = null; // { [path]: keys (times relative to the first copied keyframe) }, shared by all scenes
@@ -55,18 +54,8 @@ export function createGraphEditor(ui) {
   const clipId = () => ui.selection()[0] || null;
   const clip = () => (clipId() ? seq().clips[clipId()] || null : null);
   const kkey = (path, k) => `${path}|${Math.round(k.t * 1e4)}`;
-  const trackOf = (c, path) => {
-    if (!path.startsWith("fx:")) return c[path];
-    const [, fid, p] = path.split(":");
-    return c.effects.find((e) => e.id === fid)?.p[p];
-  };
-  const labelOf = (c, path) => {
-    if (!path.startsWith("fx:")) return t(LABEL[path] || path);
-    const [, fid, p] = path.split(":");
-    const fx = c.effects.find((e) => e.id === fid);
-    const def = fx && EFFECTS[fx.type];
-    return def ? `${t(def.label)} › ${t(def.params[p]?.label || p)}` : p;
-  };
+  const trackOf = (c, path) => M.propValue(c, path);
+  const labelOf = (c, path) => propLabel(c, path);
   function curves() {
     const c = clip();
     if (!c) return [];
@@ -762,6 +751,15 @@ export function createGraphEditor(ui) {
   const api = {
     el,
     draw,
+    /** Shows only one property's curve (the others are hidden, not removed), selects its keyframes and fits. */
+    solo(path) {
+      const c = clip();
+      if (!c || !path) return;
+      hidden.clear();
+      for (const cv of curves()) if (cv.path !== path) hidden.add(cv.path);
+      sel = new Set(curves().filter((cv) => cv.path === path).flatMap((cv) => cv.track.kf.map((k) => kkey(path, k))));
+      requestAnimationFrame(() => api.fit());
+    },
     /** Zooms so every visible curve (or the selected keyframes) fits. */
     fit(selected = false) {
       const c = clip();

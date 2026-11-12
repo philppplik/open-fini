@@ -9,7 +9,8 @@
 //           { dx, dy (frame fractions), wipe: [l, t, r, b] | null, scale, blur, dip: { color, a } | null },
 //           textAnim: { type, p, edge } | null }
 import { valueAt, ease, isTrack } from "./keyframes.js";
-import { sequence, clipList, clipEnd, videoTracks, MAX_NESTING } from "./model.js";
+import { sequence, clipList, clipEnd, videoTracks, resolveClip, MAX_NESTING } from "./model.js";
+import { propAt, parentMatrix } from "./rig.js";
 
 const NO_FX = Object.freeze({ dx: 0, dy: 0, wipe: null, scale: 1, blur: 0, dip: null, alpha: 1 });
 
@@ -72,24 +73,35 @@ export function layerAt(c, local) {
   let fx = NO_FX;
   if (c.tin && local < c.tin.dur) fx = combine(fx, transitionState(c.tin.type, local / c.tin.dur, "in"));
   if (c.tout && local > c.dur - c.tout.dur) fx = combine(fx, transitionState(c.tout.type, (c.dur - local) / c.tout.dur, "out"));
+  // format 3: keyframes inside crop / mask / text / shape are resolved here, so the compositor sees plain values
+  const rc = resolveClip(c, kt);
   const layer = {
-    clip: c,
+    clip: rc,
     type: c.type,
     local,
-    x: valueAt(c.x, kt),
-    y: valueAt(c.y, kt),
-    sx: valueAt(c.sx, kt),
-    sy: valueAt(c.sy, kt),
-    rot: valueAt(c.rot, kt),
-    opacity: Math.max(0, Math.min(1, valueAt(c.opacity, kt) * fx.alpha)),
+    // behaviors (scene/rig.js: wiggle, loop, spin) apply on top of the keyframes
+    x: propAt(c, "x", kt),
+    y: propAt(c, "y", kt),
+    sx: propAt(c, "sx", kt),
+    sy: propAt(c, "sy", kt),
+    rot: propAt(c, "rot", kt),
+    ax: c.ax === undefined && !c.beh ? 0 : propAt(c, "ax", kt) || 0,
+    ay: c.ay === undefined && !c.beh ? 0 : propAt(c, "ay", kt) || 0,
+    opacity: Math.max(0, Math.min(1, propAt(c, "opacity", kt) * fx.alpha)),
     blend: c.blend,
-    crop: c.crop,
-    mask: c.mask,
+    crop: rc.crop,
+    mask: rc.mask,
     effects: c.effects.filter((e) => e.on).map((e) => ({ type: e.type, p: Object.fromEntries(Object.entries(e.p).map(([k, v]) => [k, valueAt(v, kt)])) })),
     fx,
     textAnim: c.type === "text" ? textAnimState(c.text.anim, local, c.dur) : null,
   };
   if (c.in !== undefined) layer.time = sourceTime(c, local);
+  return layer;
+}
+
+/** A layer of a parented clip carries its parents' matrix `pm` (scene/rig.js ▸ parentMatrix). */
+export function withParent(m, layer, c, t) {
+  if (c.parent && m.clips[c.parent]) layer.pm = parentMatrix(m, c, t);
   return layer;
 }
 
@@ -109,22 +121,23 @@ export function frameState(model, t, { seq = "main" } = {}) {
   const eps = 1e-6;
   const byTrack = new Map();
   for (const c of clipList(m)) {
-    if (c.type === "audio") continue;
+    if (c.type === "audio" || c.off) continue;
     if (!byTrack.has(c.track)) byTrack.set(c.track, []);
     byTrack.get(c.track).push(c);
   }
   const tracks = videoTracks(m);
+  const solo = tracks.some((k) => k.solo);
   for (let i = tracks.length - 1; i >= 0; i--) {
     const tk = tracks[i];
-    if (tk.hidden) continue;
+    if (tk.hidden || (solo && !tk.solo)) continue;
     const list = byTrack.get(tk.id) || [];
     for (let j = 0; j < list.length; j++) {
       const c = list[j];
       if (t >= c.start - eps && t < clipEnd(c) - eps) {
         // the outgoing clip of a cross dissolve is drawn first (below)
         const prev = list[j - 1];
-        if (prev && c.tin?.type === "dissolve" && Math.abs(clipEnd(prev) - c.start) < eps && t - c.start < c.tin.dur) layers.push(layerAt({ ...prev, tout: null }, t - prev.start));
-        layers.push(layerAt(c, t - c.start));
+        if (prev && c.tin?.type === "dissolve" && Math.abs(clipEnd(prev) - c.start) < eps && t - c.start < c.tin.dur) layers.push(withParent(m, layerAt({ ...prev, tout: null }, t - prev.start), prev, t));
+        layers.push(withParent(m, layerAt(c, t - c.start), c, t));
       }
     }
   }
@@ -143,8 +156,19 @@ export function gainAt(c, local) {
 /** The clips that produce sound at time t (audio clips and comp clips are resolved by the audio engine). */
 export function audibleAt(model, t, { seq = "main" } = {}) {
   const m = sequence(model, seq);
-  const muted = new Set(m.tracks.filter((k) => k.muted).map((k) => k.id));
-  return clipList(m).filter((c) => (c.type === "audio" || c.type === "comp") && !muted.has(c.track) && t >= c.start && t < clipEnd(c));
+  const muted = silentTracks(m);
+  return clipList(m).filter((c) => (c.type === "audio" || c.type === "comp") && !c.off && !muted.has(c.track) && t >= c.start && t < clipEnd(c));
+}
+
+/** Ids of the tracks that are not heard: muted ones, and the others of a kind when a track of that kind is soloed. */
+export function silentTracks(m) {
+  const out = new Set();
+  for (const kind of ["video", "audio"]) {
+    const list = m.tracks.filter((k) => k.kind === kind);
+    const solo = list.some((k) => k.solo);
+    for (const k of list) if (k.muted || (solo && !k.solo)) out.add(k.id);
+  }
+  return out;
 }
 
 /**
@@ -157,10 +181,10 @@ export function audibleAt(model, t, { seq = "main" } = {}) {
  */
 export function flattenAudio(model, { seq = "main", depth = 0 } = {}) {
   const m = sequence(model, seq);
-  const muted = new Set(m.tracks.filter((k) => k.muted).map((k) => k.id));
+  const muted = silentTracks(m);
   const out = [];
   for (const c of clipList(m)) {
-    if (c.muted || muted.has(c.track)) continue;
+    if (c.muted || c.off || muted.has(c.track)) continue;
     if (c.type === "audio") {
       out.push({
         id: c.id,

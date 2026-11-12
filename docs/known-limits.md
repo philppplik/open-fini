@@ -37,6 +37,12 @@ Partial: content-aware fill and the object eraser switch from patch synthesis to
 - **Sheet:** pivot tables are written to XLSX / ODS as values (their definition travels as a hidden name and refreshes only in OpenFini); ODS does not write charts or conditional formats; validation does not recheck values already in cells, formulas or fill. Spill references (`A1#`), LET / LAMBDA, INDIRECT / OFFSET, pictures, file comments, rich text in a cell and multi-range selection are missing (see [office-limits-audit.md](office-limits-audit.md)).
 - **Document, slides and board depth:** tracked in the "Roadmap: Office depth" section of `docs/office-suite.md`; check it for what the current wave has not landed.
 
+## Scene Studio
+
+- Spatial Bezier handles on motion paths, track mattes, shape trim paths / repeaters, 2.5D camera parallax, stabilization and tracking are not built (see docs/scene-studio.md ▸ Limits).
+- Time-remapped video clips are seeked frame by frame while playing (the preview may stutter); reversed clips play no reversed sound.
+- The timeline's context menus, keyframe rows and effects browser were exercised in a browser with synthetic events; real pointer drags of keyframes (Alt-scale) and the sound-driven tools on real footage are not verified.
+
 ## Performance and size budget
 
 - Budgets in `scripts/size-budget.json` have been raised repeatedly (start-up 350 KiB, shell 1704+, total 2635+ KiB, plus the sheet-depth increase). Start-up is close to its cap.
