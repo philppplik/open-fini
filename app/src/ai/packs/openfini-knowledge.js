@@ -132,7 +132,7 @@ ${RULES}`,
 
 ${RULES}`,
 
-  `${fm("troubleshooting", "Troubleshooting OpenFini: common problems, safe mode, reset, logs and how to report an issue.", "get_diagnostics, get_app_logs, get_security_status", "not working, error, crash, slow, bug, problem, white screen, fehler, funktioniert nicht")}
+  `${fm("troubleshooting", "Troubleshooting OpenFini: common problems, safe mode, reset, logs and how to report an issue.", "get_diagnostics, get_app_logs, get_security_status, run_doctor", "not working, error, crash, slow, bug, problem, white screen, damaged file, repair, doctor, fehler, funktioniert nicht")}
 # Troubleshooting
 
 - Storage full or autosave fails: save as files; clear recent files or the autosaved session (Privacy tools); private windows have tiny limits.
@@ -141,7 +141,8 @@ ${RULES}`,
 - AI request fails: 401/403 key rejected, 429 rate limit, provider unreachable (local server off, CORS in a browser, offline mode on). Vibe Studio > Activity shows details.
 - White screen after an update: reload, then Restart in safe mode, then Reset app data (offline cache).
 - Report: Settings > Troubleshooting > Copy report or Save bundle (secrets redacted), then Report an issue (${REPO}/issues).
-- get_diagnostics and get_app_logs show the live state. Docs: docs/troubleshooting.md.
+- Damaged or unopenable .ofini file: Help > Doctor (or the Repair with Doctor offer) opens a repaired copy in a new tab; in a terminal: ofini doctor --fix file.ofini. run_doctor lists the findings.
+- get_diagnostics and get_app_logs show the live state. Docs: docs/troubleshooting.md, docs/doctor.md, docs/cli.md.
 
 ${RULES}`,
 

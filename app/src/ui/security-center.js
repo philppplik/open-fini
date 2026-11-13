@@ -10,7 +10,7 @@ import { parseManifest, verifyFiles, integritySummary } from "../core/integrity.
 import { kvDelete, kvEntries, kvClear, getRecents, clearSession } from "../core/storage.js";
 import { log } from "../core/log.js";
 import { platform } from "../platform/index.js";
-import { t } from "../i18n/index.js";
+import { t, N_ } from "../i18n/index.js";
 
 const sw = (key, label, hint, extra = {}) => ({ type: "switch", key, label, hint, ...extra });
 const custom = (label, hint, render) => ({ type: "custom", label, hint, render });
@@ -349,6 +349,7 @@ export function troubleshootingSection(app) {
       {
         title: "Diagnose",
         items: [
+          action(N_("Doctor"), N_("Checks storage, recovery data, the offline cache, graphics support, workers, extensions, AI settings and the open document, and repairs what it safely can."), N_("Run Doctor…"), () => app.run("help.doctor"), false),
           action("Troubleshooting", "Live log, grouped problems with explanations, and your environment (version, browser, storage, service worker).", "Open…", () => app.run("help.troubleshoot"), false),
           sw("verboseLogging", "Verbose logging", "Also record debug-level messages in the log. Useful when you are asked to reproduce a problem."),
           { type: "info", label: "Privacy of logs", text: "Logs stay on this device. API keys, tokens, credentials in URLs, e-mail addresses and your user name in file paths are removed when an entry is recorded, and logs never contain document contents." },

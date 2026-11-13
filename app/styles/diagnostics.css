@@ -99,6 +99,11 @@ sl-dialog.of-diagnostics::part(body) { padding: 0; display: flex; flex-direction
 .of-sec__row.lv-warn { border-color: var(--of-warn); background: var(--of-warn-soft); }
 .of-sec__row.lv-warn > sl-icon { color: var(--of-warn); }
 .of-sec__row .of-hint { margin: 2px 0 6px; max-width: 560px; }
+.of-sec__row.lv-error { border-color: var(--of-danger); background: var(--of-danger-soft); }
+.of-sec__row.lv-error > sl-icon { color: var(--of-danger); }
+.of-doctor { display: flex; flex-direction: column; gap: 8px; }
+.of-doctor__h { margin: 10px 0 2px; font-size: 13px; font-weight: 650; }
+.of-doctor__row .of-btn { margin-top: 2px; }
 .of-sec__lv { font: 700 10.5px var(--of-font); text-transform: uppercase; letter-spacing: 0.05em; color: var(--of-text-dim); }
 .of-sec__acts { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .of-sec__ext { font-size: 12.5px; }

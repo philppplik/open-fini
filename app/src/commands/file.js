@@ -76,7 +76,13 @@ export function registerFileCommands(app) {
     if (!/\.ofini$/i.test(file.name) && isTextDocumentName(file.name)) return (await import("../ui/code/open-document.js")).openTextDocument(app, file);
     const mime = sniffMime(file.bytes, file.name);
     if (mime === OFINI_MIME || /\.ofini$/i.test(file.name)) {
-      const doc = await loadOfini(file.bytes);
+      let doc;
+      try {
+        doc = await loadOfini(file.bytes);
+      } catch (err) {
+        // a damaged project: explain it and offer "Repair with Doctor" (opens a repaired copy; docs/doctor.md)
+        return (await import("../ui/doctor-dialog.js")).damagedFileDialog(app, file, err);
+      }
       if (doc.formatNotes?.length) app.toast(doc.formatNotes.join(" "), doc.formatNewer ? "warning" : "primary", doc.formatNewer ? 12000 : 6000);
       if (!doc.name || doc.name === "Untitled") doc.name = file.name.replace(/\.ofini$/i, "");
       doc.path = file.path || null;
@@ -312,6 +318,7 @@ export function registerFileCommands(app) {
   def("help.docs", "Documentation", async (a) => (await import("../ui/links.js")).openLink("https://github.com/philppplik/open-fini#readme", { app: a }));
   // troubleshooting and security (docs/troubleshooting.md, docs/security.md)
   def("help.troubleshoot", "Troubleshooting…", async (a, o) => (await import("../ui/diagnostics-dialog.js")).troubleshootingDialog(a, o?.tab), { shortcut: "Mod+Shift+F1", icon: "bug" });
+  def("help.doctor", "Doctor…", async (a) => (await import("../ui/doctor-dialog.js")).doctorDialog(a), { icon: "activity" });
   def("help.copyReport", "Copy Diagnostic Report", async (a) => (await import("../ui/diagnostics-dialog.js")).copyReport(a));
   def("help.saveBundle", "Save Diagnostic Bundle…", async (a) => (await import("../ui/diagnostics-dialog.js")).saveBundle(a));
   def("help.safeMode", "Restart in Safe Mode…", async (a) => {
