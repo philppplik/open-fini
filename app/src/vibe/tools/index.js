@@ -91,7 +91,7 @@ export const TOOL_GROUPS = {
   "File formats": ["list_supported_formats", "import_palette_from_text", "export_palette"],
   Export: ["list_export_options", "export_document"],
   Customization: ["get_settings", "set_setting", "list_shortcuts", "set_shortcut", "export_profile"],
-  "Diagnostics and security": ["get_app_logs", "get_diagnostics", "get_security_status"],
+  "Diagnostics and security": ["get_app_logs", "get_diagnostics", "get_security_status", "run_doctor"],
   "Text and encoding": ["encode_text", "decode_text", "transform_file_text"],
   Assistant: ["search_knowledge", "remember", "recall_memory", "forget_memory", "use_skill", "create_skill", "ask_user", "update_plan", "create_tool"],
   "Power tools": ["run_plan", "query_layers", "describe_page", "describe_selection", "apply_to_many", "evaluate", "screenshot_layers", "compare_screenshots", "grid_layout", "distribute_layers", "snap_layers", "make_component"],

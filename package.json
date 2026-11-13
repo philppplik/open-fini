@@ -24,6 +24,9 @@
     "tauri",
     "open-source"
   ],
+  "bin": {
+    "ofini": "cli/ofini.mjs"
+  },
   "engines": {
     "node": ">=20"
   },
@@ -43,7 +46,7 @@
     "mcp:gateway": "node scripts/mcp-gateway.mjs",
     "publish:helper": "node scripts/publish-helper.mjs",
     "relay": "node scripts/relay.mjs",
-    "ofini": "node scripts/ofini.mjs",
+    "ofini": "node cli/ofini.mjs",
     "wiki:shortcuts": "node scripts/wiki-shortcuts.mjs",
     "wiki:check": "node scripts/wiki-sync.mjs --check",
     "knowledge:packs": "node scripts/knowledge-packs.mjs",

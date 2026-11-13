@@ -157,7 +157,8 @@ The application itself has **no build step** in development: `app/` is served as
 | [Extensions](docs/extensions.md) · [Themes](docs/themes.md) | Extension SDK, manifest and API; theme registry |
 | [Frameworks](docs/frameworks.md) · [Git and publishing](docs/git-and-publishing.md) | Code studio frameworks, Markdown/LaTeX, Git, deploy targets |
 | [Layout tables and charts](docs/layout-tables-charts.md) · [Pixel histogram](docs/pixel-histogram.md) · [PDF import](docs/pdf-import.md) | Studio features in depth |
-| [Security](docs/security.md) · [Troubleshooting](docs/troubleshooting.md) · [OS integration](docs/os-integration.md) | Security tools, diagnostics, file associations |
+| [Security](docs/security.md) · [Troubleshooting](docs/troubleshooting.md) · [Doctor](docs/doctor.md) · [OS integration](docs/os-integration.md) | Security tools, diagnostics, diagnose and repair, file associations |
+| [Command line tool](docs/cli.md) | `ofini`: inspect, validate, repair, convert and export projects from a terminal |
 | [File format](docs/file-format.md) | The `.ofini` container |
 | [Design system](docs/design-system.md) | Shoelace, tokens, theming, icons |
 | [Performance](docs/performance.md) | Measurements and low-power design |

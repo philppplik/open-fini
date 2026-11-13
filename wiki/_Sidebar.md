@@ -61,6 +61,7 @@
 **Operate**
 - [[Security and Privacy]]
 - [[Troubleshooting and Logs]]
+- [[Command Line Tool]]
 - [[Performance and Low Power]]
 - [[Roadmap and Known Limits]]
 

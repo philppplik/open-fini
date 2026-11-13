@@ -1,6 +1,6 @@
 // Diagnostics and security tools: let the assistant read the (redacted) app log, a summary of problems and the
-// security status when the user asks "why did this fail?" or "is my setup safe?". All three are read-only and
-// return redacted data only: no documents, no API keys, no file names.
+// security status when the user asks "why did this fail?" or "is my setup safe?", and the Doctor's findings
+// (run_doctor). All are read-only and return redacted data only: no document contents, no API keys, no file paths.
 import { tool, S } from "./helpers.js";
 import { log, redact } from "../../core/log.js";
 import { groupProblems, environmentSummary, problemSummary } from "../../core/diagnostics.js";
@@ -43,6 +43,29 @@ export function diagnosticsTools(app) {
       const { securityOverview } = await import("../../core/env.js");
       const { status, checks } = await securityOverview(app);
       return { checks, ai: { enabled: status.ai.enabled, providers: status.ai.providers.map((p) => ({ label: p.label, local: p.local, keyStored: p.hasKey })), keysEncrypted: status.ai.keysEncrypted, keysLocked: status.ai.keysLocked, mcpServers: status.ai.mcpServers }, extensions: status.extensions, offlineMode: status.network.offline, appLock: status.storage.appLock, protectedMode: status.protectedMode, safeMode: status.safeMode };
+    }, { readOnly: true }),
+
+    tool("run_doctor", `Runs the Doctor (docs/doctor.md) read-only: app checks (storage quota and persistence, local database, autosave recovery, offline cache, WebGL/WebGPU/WebCodecs/OffscreenCanvas, fonts, worker pool, extensions, engines, AI settings, saved settings) and checks of the active document (damaged parts, invalid values, duplicate ids, missing pictures, stories or styles, orphaned files). Each finding has a severity, a message and the id of a fix. It repairs nothing: tell the user to open Help ▸ Doctor to apply fixes (document repairs open a copy in a new tab). ${WHEN}`, {
+      scope: S.str("What to check (default both)", { enum: ["app", "document", "both"] }),
+    }, [], async (a) => {
+      const scope = a.scope || "both";
+      const { formatMessage } = await import("../../i18n/format.js");
+      const text = (f) => formatMessage(f.message, f.params || {});
+      const out = { note: "Read-only. Fixes are applied by the user in Help > Doctor." };
+      if (scope !== "document") {
+        const { runEnvironmentChecks } = await import("../../core/doctor/collect.js");
+        const { findings } = await runEnvironmentChecks(app);
+        out.app = findings.map((f) => ({ area: f.area, severity: f.severity, message: redact(text(f)), fix: f.fix ? { id: f.fix.id, safe: f.fix.safe } : null }));
+      }
+      if (scope !== "app") {
+        if (!app.doc) out.document = null;
+        else {
+          const [{ saveOfini }, { diagnoseFile }] = await Promise.all([import("../../core/ofini.js"), import("../../core/doctor/file.js")]);
+          const r = diagnoseFile(await saveOfini(app.doc), { name: "document.ofini" });
+          out.document = { counts: r.counts, kind: r.info?.kind || null, findings: r.findings.slice(0, 60).map((f) => ({ code: f.code, severity: f.severity, message: redact(text(f)), fix: f.fix ? { id: f.fix.id, safe: f.fix.safe } : null })) };
+        }
+      }
+      return out;
     }, { readOnly: true }),
   ];
 }

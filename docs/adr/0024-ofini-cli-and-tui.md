@@ -1,6 +1,6 @@
 # ADR 0024: An `ofini` command-line tool with an optional TUI
 
-- Status: Proposed (first slice built: `scripts/ofini.mjs` with `info` and `validate`)
+- Status: Layer 1 accepted and built as [ADR 0032](0032-ofini-cli.md) (`cli/`, the `ofini` command, with a small interactive mode); layers 2 (rendering through the desktop app) and 3 (full TUI) remain proposed
 - Date: 2026-11-06
 
 ## Context

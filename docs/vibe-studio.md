@@ -270,7 +270,7 @@ Sources: opencode.ai/docs/server, /docs/sdk, /docs/zen, /docs/providers.
   `list_commands` (every command that can run now, with its shortcut; the assistant can tell you where things are but
   cannot run commands itself). The built-in skill `help-me-use-openfini` ties them together.
 - **Diagnostics and security**: `get_app_logs` (redacted, filterable), `get_diagnostics` (environment and grouped problems) and
-  `get_security_status`, all read-only; the assistant should call them only when you ask about errors or your setup
+  `get_security_status` and `run_doctor` (the Doctor's findings, [doctor.md](doctor.md)), all read-only; the assistant should call them only when you ask about errors or your setup
   (see [troubleshooting](troubleshooting.md), [security](security.md)). Offline mode blocks provider and MCP requests.
 - **File formats**: `list_supported_formats` (verdict and best conversion route per format, see [file-format-research.md](file-format-research.md)), `import_palette_from_text` (GPL text or hex colors into the swatches) and `export_palette` (swatches as GPL text).
 - **Export**: `list_export_options` (formats, the options that apply with their values and ranges, presets, planned files; read only) and `export_document` (any format and option of the Export dialog, or a preset; approval and save dialog). See [export.md](export.md).

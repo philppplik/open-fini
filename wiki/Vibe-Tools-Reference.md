@@ -22,7 +22,7 @@ The Vibe assistant acts through tools: named functions with schemas that call in
 | System and files | `get_platform_info`, `list_recent_files` | Read-only |
 | Customization | `get_settings`, `set_setting`, `list_shortcuts`, `set_shortcut`, `export_profile` | `set_shortcut` asks; security settings and secrets are unreachable |
 | Appearance and help | `list_themes`, `set_theme`, `start_tour`, `list_commands` | No tool runs arbitrary commands |
-| Diagnostics and security | `get_app_logs`, `get_diagnostics`, `get_security_status` | Read-only and redacted; used when you ask about errors or setup |
+| Diagnostics and security | `get_app_logs`, `get_diagnostics`, `get_security_status`, `run_doctor` | Read-only and redacted; used when you ask about errors or setup |
 | File formats | `list_supported_formats`, `import_palette_from_text`, `export_palette` | |
 | Export | `list_export_options`, `export_document` | Same options and presets as File ▸ Export…; the user approves and picks the file |
 | Imported documents | `get_import_report`, `list_pdf_pages`, `describe_document_pages`, `extract_pdf_text` | |

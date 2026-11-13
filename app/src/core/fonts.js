@@ -30,6 +30,16 @@ function ctx() {
   return scratch;
 }
 
+// Hosts without a canvas (the `ofini` command line tool in Node) install a pure measurer, e.g.
+// engine/layout/measurers.js ▸ approxMeasurer; the browser never sets one.
+let override = null;
+/** Replaces canvas text measurement (null restores it). */
+export function setTextMeasurer(m) {
+  override = m && typeof m.measure === "function" && typeof m.metrics === "function" ? m : null;
+  widthCache.clear();
+  metricCache.clear();
+}
+
 const widthCache = new Map();
 const metricCache = new Map();
 export const fontState = { version: 0 };
@@ -37,6 +47,7 @@ export const fontState = { version: 0 };
 /** Width of `text` in px for the font spec (cached). */
 export function measure(font, text) {
   if (!text) return 0;
+  if (override) return override.measure(font, text);
   const css = fontCss(font);
   const cacheable = text.length <= 48;
   const key = cacheable ? `${css}|${text}` : null;
@@ -56,6 +67,7 @@ export function measure(font, text) {
 
 /** Ascent/descent (px) of the font spec. */
 export function metrics(font) {
+  if (override) return override.metrics(font);
   const css = fontCss(font);
   let m = metricCache.get(css);
   if (!m) {
