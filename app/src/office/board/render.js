@@ -356,7 +356,7 @@ function arrowHead(tip, from, kind, el, ro) {
  * `origin` is the world point at (0, 0) of the list.
  */
 export function pageDisplayList(model, pageId, { region = null, padding = 32, measure, image, background = model.background, previews = true } = {}) {
-  const els = pageElements(model, pageId);
+  const els = pageElements(model, pageId).filter((e) => !e.hidden);
   const box = region || unionBounds(els) || { x: 0, y: 0, w: 800, h: 600 };
   const x0 = box.x - (region ? 0 : padding);
   const y0 = box.y - (region ? 0 : padding);

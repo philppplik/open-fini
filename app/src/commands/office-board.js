@@ -39,6 +39,15 @@ export function registerBoardCommands(app) {
   def("board.insertMath", "Formula…", () => b().insertObject("math"), { icon: "calculator" });
   def("board.insertSubboard", "Sub-board…", () => b().insertObject("portal"), { icon: "window-stack" });
 
+  // comments and sidebar (the canvas handles C and Ctrl+\ itself while it has focus)
+  def("board.toolComment", "Comment Tool", () => b().setTool("comment"), { icon: "chat-quote" });
+  def("board.addComment", "Add Comment", () => b().addComment(), { icon: "chat" });
+  def("board.toggleSidebar", "Sidebar", () => b().toggleSidebar(), { icon: "layout-sidebar-inset-reverse", checked: (a) => on(a) && a.officeUI.isSidebarOpen() });
+  def("board.showComments", "Comments", () => b().showSidebar("comments"), { icon: "chat-quote" });
+  def("board.showOutline", "Outline", () => b().showSidebar("outline"), { icon: "layers" });
+  def("board.showProperties", "Properties", () => b().showSidebar("properties"), { icon: "sliders" });
+  def("board.showLibrary", "Library", () => b().showSidebar("library"), { icon: "grid" });
+
   // edit
   def("board.cut", "Cut", () => b().cut(), { icon: "scissors", enabled: hasSel() });
   def("board.copy", "Copy", () => b().copy(), { icon: "files", enabled: hasSel() });
@@ -103,6 +112,7 @@ export function registerBoardCommands(app) {
           { label: "Paste", icon: "clipboard", run: () => brd.paste() },
           { label: "Select all", run: () => app.run("board.selectAll") },
           "-",
+          { label: "Add comment here…", icon: "chat-quote", run: () => brd.commentAt(c.data.at || [0, 0], null, { x: c.x, y: c.y }) },
           { label: "Add sticky note", icon: "sticky", run: () => brd.setTool("sticky") },
           { label: "Insert image…", icon: "image", run: () => brd.insertImage() },
           "-",
@@ -123,7 +133,8 @@ export function registerBoardCommands(app) {
         { label: "Ungroup", icon: "view-stacked", run: () => brd.ungroup() },
         { label: "Lock or unlock", icon: "lock", run: () => brd.toggleLock() },
         "-",
-        { label: "Add comment…", icon: "chat-quote", hidden: n !== 1, run: () => app.run("collab.addComment") },
+        { label: "Add comment…", icon: "chat-quote", hidden: n !== 1, run: () => (c.data.at && c.data.element ? brd.commentAt(c.data.at, c.data.element, { x: c.x, y: c.y }) : brd.addComment()) },
+        { label: "Show in outline", icon: "layers", hidden: n !== 1, run: () => brd.showSidebar("outline") },
       ];
     },
   });

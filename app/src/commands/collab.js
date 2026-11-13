@@ -32,6 +32,7 @@ export function registerCollabCommands(app) {
   }, { icon: "eye", enabled: (a) => !!a.doc });
   // the Comments dock panel (Vector, Pixel, Layout, Code); studios without a dock (Office) open the Comments tab of the Collaboration window
   def("comments.panel", "Comments Panel", async (a) => {
+    if (a.studio === "office" && typeof a.officeUI?.showComments === "function") return a.officeUI.showComments(); // the whiteboard sidebar
     const s = getStudio(a.studio);
     if (s && [...(s.top || []), ...(s.bottom || [])].includes("comments")) {
       await cm(a);

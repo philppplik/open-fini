@@ -35,6 +35,7 @@ Partial: content-aware fill and the object eraser switch from patch synthesis to
 ## Office suite
 
 - **Sheet:** pivot tables are written to XLSX / ODS as values (their definition travels as a hidden name and refreshes only in OpenFini); ODS does not write charts or conditional formats; validation does not recheck values already in cells, formulas or fill. Spill references (`A1#`), LET / LAMBDA, INDIRECT / OFFSET, pictures, file comments, rich text in a cell and multi-range selection are missing (see [office-limits-audit.md](office-limits-audit.md)).
+- **Whiteboard comments and sidebar:** checked in a browser (comment tool, pins following a moved element, orphan pin and undo, reply and resolve, clusters, sidebar tabs, drawer on a narrow window, light and dark). Not checked by hand: dragging outline rows (HTML drag and drop; the reordering is unit-tested and `Alt+Up`/`Alt+Down` was checked), dragging library tiles onto the board, comment sync between two people in a room (the comment op merge is unit-tested), the desktop app (Tauri) and touch devices. Pins are never included in exports (there is no option to include them).
 - **Document, slides and board depth:** tracked in the "Roadmap: Office depth" section of `docs/office-suite.md`; check it for what the current wave has not landed.
 
 ## Scene Studio

@@ -6,6 +6,9 @@
 // Input: pointer events (pen pressure, coalesced samples, palm rejection: once a stylus was seen, touch only pans and
 // zooms), two-finger pinch, wheel (Ctrl/⌘ = zoom), Space or the middle button to pan, keyboard shortcuts while the
 // board has focus (single-key tools, Delete, Mod+D/G/A, arrows). Every finished gesture is one commitOffice step.
+// Comments: pins over the stage (one DOM button per open thread, clustered where they overlap) for the document's
+// comment threads anchored with comments.js; the Comment tool (C) and "Add comment" place new ones. The sidebar
+// (sidebar.js: Comments, Outline, Properties, Library) docks on the right and becomes a drawer on narrow windows.
 // Instance API (used by commands/office-board.js and the Vibe tools): see the object returned by mountBoard().
 import { h } from "../../core/util.js";
 import { t, N_ } from "../../i18n/index.js";
@@ -14,7 +17,9 @@ import { ribbon, button, colorPicker, zoomControl, officeContextMenu, promptDial
 import { drawDisplayList, CanvasPool } from "../../engine/backends/canvas.js";
 import { elementItems, inkOutline, rotationStemStart } from "./render.js";
 import { measureText } from "./app.js";
-import { officeItemAnchor } from "../../collab/anchors.js";
+import { pinNumbers } from "../../collab/anchors.js";
+import { elementAnchor, pointAnchor, resolvePin, clusterPins, isBoardAnchor, anchorElementId, isUnread } from "./comments.js";
+import { createBoardSidebar, anchorText } from "./sidebar.js";
 import * as M from "./model.js";
 
 const TOOLS = [
@@ -33,7 +38,10 @@ const TOOLS = [
   { id: "sticky", icon: "sticky", label: N_("Sticky note"), key: "N" },
   { id: "image", icon: "image", label: N_("Image"), key: "I" },
   { id: "frame", icon: "bounding-box", label: N_("Frame"), key: "F" },
+  { id: "comment", icon: "chat-quote", label: N_("Comment"), key: "C" },
 ];
+const SEEN_KEY = "openfini.board.seen."; // + document id: { threadId: ms } (this device only)
+const NARROW = 760; // px of board width below which the sidebar is an overlay drawer
 const GRID = 20;
 const HANDLE = 8;
 const BINDABLE = (e) => e && !M.LINEAR.includes(e.type) && !M.INK.includes(e.type);
@@ -84,11 +92,13 @@ export function mountBoard(host, doc, app) {
   const roughBtn = button({ icon: "feather", label: N_("Hand-drawn style"), toggle: true, pressed: true, onClick: () => toggleRough() });
   const gridBtn = button({ icon: "grid-3x3", label: N_("Show grid"), toggle: true, pressed: view.grid, onClick: () => toggleGrid() });
   const snapBtn = button({ icon: "magnet", label: N_("Snap to grid"), toggle: true, pressed: view.snap, onClick: () => toggleSnap() });
+  const sideBtn = button({ icon: "layout-sidebar-inset-reverse", label: N_("Show or hide the sidebar"), shortcut: "Mod+\\", toggle: true, pressed: false, onClick: () => toggleSidebar() });
   const zoom = zoomControl({ value: view.zoom, min: 0.1, max: 8, onChange: (z) => zoomAt(z, null) });
   const bar = ribbon([
     { id: "tools", label: N_("Tools"), items: TOOLS.slice(0, 6).map(toolBtn) },
     { id: "shapes", label: N_("Shapes"), items: TOOLS.slice(6, 11).map(toolBtn) },
-    { id: "insert", label: N_("Insert"), items: TOOLS.slice(11).map(toolBtn) },
+    { id: "insert", label: N_("Insert"), items: TOOLS.slice(11, 15).map(toolBtn) },
+    { id: "review", label: N_("Review"), items: [toolBtn(TOOLS[15]), sideBtn] },
     { id: "style", label: N_("Style"), items: [strokePick.el, fillPick.el, fillSel, widthSel, dashSel, fontSel, roughBtn] },
     {
       id: "arrange",
@@ -108,8 +118,90 @@ export function mountBoard(host, doc, app) {
     { id: "view", label: N_("View"), items: [gridBtn, snapBtn, zoom.el, button({ icon: "arrows-expand", label: N_("Zoom to fit"), onClick: () => fit() })] },
   ]);
   const pagesBar = h("div.of-board__pages", { role: "tablist", "aria-label": t("Pages") });
-  const root = h("div.of-board", bar, stage, pagesBar, live);
+  const pinLayer = h("div.of-board__pins", { role: "group", "aria-label": t("Comment pins") });
+  stage.append(pinLayer);
+  const body = h("div.of-board__body", stage);
+  const root = h("div.of-board", bar, body, pagesBar, live);
   host.replaceChildren(root);
+
+  // ------------------------------------------------------------------------------------------- comments (state)
+  let cm = null; // the comments host (ui/collab/comments-host.js), loaded with the board
+  let cui = null; // the inline comment UI (composer, thread popover, pins), loaded on first use
+  const lastPin = new Map(); // thread id -> last board point where its element was seen (pins of deleted elements stay there)
+  const pinEls = new Map(); // thread id (or cluster key) -> pin button
+  const seenStore = (() => {
+    let map = {};
+    try {
+      map = JSON.parse(localStorage.getItem(SEEN_KEY + doc.id) || "{}") || {};
+    } catch {
+      map = {};
+    }
+    return {
+      get: (id) => map[id] || 0,
+      mark(id) {
+        map[id] = Date.now();
+        try {
+          localStorage.setItem(SEEN_KEY + doc.id, JSON.stringify(map));
+        } catch {
+          /* private mode: unread marks last for this session */
+        }
+      },
+    };
+  })();
+  const threads = () => (cm ? cm.threads(doc) : []);
+  const onComments = () => {
+    invalidate();
+    sidebar.refresh("comments");
+  };
+  import("../../ui/collab/comments-host.js")
+    .then((m) => {
+      if (destroyed) return;
+      cm = m.getComments(app);
+      cm.events.addEventListener("change", onComments);
+      return cm.commentUI().then((u) => {
+        cui = u;
+        onComments();
+      });
+    })
+    .catch(() => {});
+
+  // ------------------------------------------------------------------------------------------- sidebar
+  const sidebar = createBoardSidebar({
+    app,
+    model: () => model(),
+    page: () => page(),
+    selection: () => [...sel],
+    select: (ids) => setSelection(ids),
+    reveal: (id) => inst.reveal(id, { zoom: true }),
+    gotoPage: (id) => gotoPage(id),
+    commit: (label, next) => commit(label, next),
+    measure: measureText,
+    threads,
+    pinNumbers: () => pinNumbers(threads()),
+    openThread: (id) => openThread(id),
+    setResolved: (id, on) => cm?.setResolved(doc, id, on),
+    addComment: () => addComment(),
+    canComment: () => !!cm,
+    myId: () => cm?.myId || "",
+    seenAt: (id) => seenStore.get(id),
+    markSeen: (id) => seenStore.mark(id),
+    insertItem: (it) => insertItem(it),
+    focusBoard: () => stage.focus({ preventScroll: true }),
+    onToggle: (on) => {
+      sideBtn.setAttribute("aria-pressed", String(on));
+      requestAnimationFrame(resize);
+    },
+  });
+  body.append(sidebar.scrim, sidebar.el);
+  root.addEventListener("keydown", (e) => {
+    if (mod(e) && e.key === "\\" && e.target !== stage) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleSidebar();
+    }
+  });
+  const rootRo = new ResizeObserver(() => sidebar.setNarrow(root.clientWidth > 0 && root.clientWidth < NARROW));
+  rootRo.observe(root);
 
   // ------------------------------------------------------------------------------------------- camera
   const toWorld = (sx, sy) => [sx / view.zoom + view.x, sy / view.zoom + view.y];
@@ -199,6 +291,7 @@ export function mountBoard(host, doc, app) {
     if (destroyed) return;
     if (sceneDirty) paintScene();
     paintOverlay();
+    placePins();
     if (laser.length) invalidate();
   }
 
@@ -217,6 +310,7 @@ export function mountBoard(host, doc, app) {
     const [vx1, vy1] = toWorld(size.w, size.h);
     const items = [];
     for (const el of M.pageElements(m, page())) {
+      if (el.hidden) continue;
       const b = M.bounds(el);
       if (b.x > vx1 || b.y > vy1 || b.x + b.w < vx0 || b.y + b.h < vy0) continue;
       const shown = editing?.id === el.id ? { ...el, text: "", name: el.type === "frame" ? el.name : undefined } : el;
@@ -399,6 +493,7 @@ export function mountBoard(host, doc, app) {
     renderPages();
     syncStyleControls();
     invalidate(true);
+    sidebar.refresh();
     app.emit("officestatus");
   });
 
@@ -407,6 +502,8 @@ export function mountBoard(host, doc, app) {
     for (const id of ids) if (model().elements[id]) sel.add(id);
     syncStyleControls();
     invalidate();
+    sidebar.refresh("outline");
+    sidebar.refresh("properties");
     app.emit("officestatus");
     if (announce) live.textContent = sel.size ? t("{n} selected", { n: sel.size }) : "";
   }
@@ -537,6 +634,10 @@ export function mountBoard(host, doc, app) {
       case "sticky":
         gesture = null;
         createSticky(pt);
+        break;
+      case "comment":
+        gesture = null;
+        commentAt(w, M.elementAt(m, page(), w[0], w[1], 6 / view.zoom), { x: e.clientX, y: e.clientY });
         break;
       default:
         startSelectGesture(e, [sx, sy], w);
@@ -837,7 +938,7 @@ export function mountBoard(host, doc, app) {
     const els = M.pageElements(m, page());
     for (let i = els.length - 1; i >= 0; i--) {
       const el = els[i];
-      if (el.id === except || el.id === "draft" || !BINDABLE(el)) continue;
+      if (el.id === except || el.id === "draft" || el.hidden || !BINDABLE(el)) continue;
       const b = M.bounds(el);
       const pad = 12 / view.zoom;
       if (w[0] >= b.x - pad && w[0] <= b.x + b.w + pad && w[1] >= b.y - pad && w[1] <= b.y + b.h + pad) return el;
@@ -856,7 +957,7 @@ export function mountBoard(host, doc, app) {
     const base = prj.model;
     let changed = false;
     for (const el of M.pageElements(base, page())) {
-      if (g.ids.has(el.id) || el.locked || el.type === "frame") continue;
+      if (g.ids.has(el.id) || el.locked || el.hidden || el.type === "frame") continue;
       if (M.hitTest(el, w[0], w[1], 10 / view.zoom)) {
         g.ids.add(el.id);
         changed = true;
@@ -1039,6 +1140,7 @@ export function mountBoard(host, doc, app) {
     }
     if (mod(e)) {
       const lk = k.toLowerCase();
+      if (k === "\\") return done(), toggleSidebar();
       if (lk === "a") return done(), setSelection(M.pageElements(m, page()).map((x) => x.id));
       if (lk === "d") return done(), duplicate();
       if (lk === "g") return done(), e.shiftKey ? ungroup() : group();
@@ -1105,8 +1207,22 @@ export function mountBoard(host, doc, app) {
     if (files.length) return files.forEach((f) => insertImageFile(f));
     pasteText(e.clipboardData?.getData("text/plain") || "");
   });
-  stage.addEventListener("dragover", (e) => e.dataTransfer?.types?.includes("Files") && e.preventDefault());
+  const LIB_MIME = "application/x-openfini-board-item";
+  stage.addEventListener("dragover", (e) => {
+    const types = e.dataTransfer?.types || [];
+    if (types.includes("Files") || types.includes(LIB_MIME)) e.preventDefault();
+  });
   stage.addEventListener("drop", (e) => {
+    const lib = e.dataTransfer?.getData(LIB_MIME);
+    if (lib) {
+      e.preventDefault();
+      try {
+        insertItem(JSON.parse(lib), toWorld(...eventPoint(e)));
+      } catch {
+        /* not ours */
+      }
+      return;
+    }
     const files = [...(e.dataTransfer?.files || [])].filter((f) => f.type.startsWith("image/"));
     if (!files.length) return;
     e.preventDefault();
@@ -1300,6 +1416,7 @@ export function mountBoard(host, doc, app) {
     setSelection([], { announce: false });
     renderPages();
     invalidate(true);
+    sidebar.refresh();
     live.textContent = t("Page {n} of {total}", { n: pages.indexOf(next) + 1, total: pages.length });
     app.emit("officestatus");
   }
@@ -1349,6 +1466,213 @@ export function mountBoard(host, doc, app) {
     if (hit && !sel.has(hit.id)) setSelection(hit.group ? Object.values(prj.model.elements).filter((x) => x.group === hit.group).map((x) => x.id) : [hit.id]);
     if (!hit) setSelection([]);
     officeContextMenu(app, e, "office-board", { doc, board: inst, at: w, element: hit?.id || null });
+  }
+
+  // ------------------------------------------------------------------------------------------- comments (pins, compose)
+  /** Opens the composer for a new thread at a board point (on `el` when given). `at` = viewport point for the popover. */
+  async function commentAt(w, el = null, at = null) {
+    if (editing) finishEditing();
+    if (tool === "comment") setTool("select");
+    const anchor = el ? elementAnchor(el, { x: w[0], y: w[1] }) : pointAnchor(page(), { x: w[0], y: w[1] });
+    if (!at) {
+      const r = stage.getBoundingClientRect();
+      const [sx, sy] = toScreen(w[0], w[1]);
+      at = { x: r.left + sx, y: r.top + sy };
+    }
+    const u = cui || (cm ? await cm.commentUI() : null);
+    if (!u) return app.toast(t("Comments are still loading. Try again in a moment."), "warning", 2500);
+    u.compose({ anchor, at });
+  }
+
+  /** "Add comment": on the selected element (its top right corner) or at the center of the view. */
+  function addComment() {
+    const el = model().elements[[...sel][0]];
+    if (el) {
+      const a = elementAnchor(el);
+      return commentAt([a.pin.x, a.pin.y], el);
+    }
+    return commentAt(toWorld(size.w / 2, size.h / 2), null);
+  }
+
+  /** Shows a thread: switches to its page, brings its pin into view and opens the thread popover there. */
+  function openThread(id) {
+    const th = threads().find((x) => x.id === id);
+    if (!th) return;
+    seenStore.mark(id);
+    const p = resolvePin(th.anchor, model(), { lastKnown: lastPin.get(id) });
+    if (p) {
+      if (p.page !== page()) gotoPage(p.page);
+      const [sx, sy] = toScreen(p.x, p.y);
+      if (sx < 40 || sy < 40 || sx > size.w - 40 || sy > size.h - 40) {
+        view.x = p.x - size.w / 2 / view.zoom;
+        view.y = p.y - size.h / 2 / view.zoom;
+      }
+      const elId = anchorElementId(th.anchor);
+      if (elId && model().elements[elId]) setSelection([elId], { announce: false });
+      invalidate(true);
+    }
+    sidebar.refresh("comments");
+    if (!cui) return;
+    if (th.resolved || !cui.pinsVisible()) {
+      const r = stage.getBoundingClientRect();
+      const [sx, sy] = p ? toScreen(p.x, p.y) : [size.w / 2, size.h / 3];
+      return cui.openThread(id, { at: { x: r.left + sx, y: r.top + sy }, focus: true });
+    }
+    // after the pins were placed for the new camera
+    requestAnimationFrame(() => requestAnimationFrame(() => cui.openThread(id, { focus: true })));
+  }
+
+  /** Pins of the open threads on this page, clustered where they would overlap. Runs with every paint. */
+  function placePins() {
+    if (!cui || !cm || !cui.pinsVisible()) {
+      if (pinLayer.childElementCount) pinLayer.replaceChildren();
+      pinEls.clear();
+      return;
+    }
+    const all = threads();
+    const nums = pinNumbers(all);
+    const m = model();
+    const pins = [];
+    for (const th of all) {
+      if (th.resolved || !isBoardAnchor(th.anchor)) continue;
+      const p = resolvePin(th.anchor, m, { lastKnown: lastPin.get(th.id) });
+      if (!p) continue;
+      if (p.attached) lastPin.set(th.id, { x: p.x, y: p.y });
+      if (p.page !== page()) continue;
+      pins.push({ ...p, th, n: nums.get(th.id) });
+    }
+    const clusters = clusterPins(pins, { zoom: view.zoom, radius: 24 });
+    const keep = new Set();
+    const me = cm.myId;
+    for (const c of clusters) {
+      const [sx, sy] = toScreen(c.x, c.y);
+      if (sx < -40 || sy < -40 || sx > size.w + 40 || sy > size.h + 40) continue;
+      if (c.items.length > 1) {
+        const key = `cluster:${c.items.map((x) => x.th.id).join(",")}`;
+        keep.add(key);
+        let b = pinEls.get(key);
+        if (!b) {
+          b = h("button.of-board__cluster", { type: "button" });
+          b.addEventListener("pointerdown", (e) => e.stopPropagation());
+          b.addEventListener("click", (e) => {
+            e.stopPropagation();
+            zoomToPoints(c.items);
+          });
+          pinEls.set(key, b);
+          pinLayer.append(b);
+        }
+        const unread = c.items.some((q) => isUnread(q.th, seenStore.get(q.th.id), me));
+        b.textContent = String(c.items.length);
+        b.classList.toggle("is-unread", unread);
+        const label = t("{n} comments here. Click to zoom in.", { n: c.items.length });
+        b.title = label;
+        b.setAttribute("aria-label", label);
+        b.style.transform = `translate(${Math.round(sx) - 14}px, ${Math.round(sy) - 14}px)`;
+        continue;
+      }
+      const { th, n, orphan } = c.items[0];
+      keep.add(th.id);
+      let b = pinEls.get(th.id);
+      if (!b) {
+        b = cui.makePin(th, n, { draggable: false });
+        b.classList.add("of-board__pin");
+        b.addEventListener("pointerdown", (e) => startPinDrag(e, b));
+        b.addEventListener("click", () => {
+          seenStore.mark(b.dataset.thread);
+          b.classList.remove("is-unread");
+          sidebar.refresh("comments");
+        });
+        pinEls.set(th.id, b);
+        pinLayer.append(b);
+      }
+      cui.refreshPin(b, th, n);
+      b.classList.toggle("is-orphan", !!orphan);
+      b.classList.toggle("is-unread", isUnread(th, seenStore.get(th.id), me));
+      if (orphan) b.title = `${b.title} · ${t("The element was deleted; the comment stays here.")}`;
+      if (!b.classList.contains("is-dragging")) b.style.transform = `translate(${Math.round(sx) - 11}px, ${Math.round(sy) - 28}px)`;
+    }
+    for (const [k, b] of pinEls) {
+      if (keep.has(k)) continue;
+      if (b.contains(document.activeElement)) stage.focus({ preventScroll: true });
+      b.remove();
+      pinEls.delete(k);
+    }
+  }
+
+  /** Zooms so a group of pins (a cluster) spreads out (at least 2.5x closer). */
+  function zoomToPoints(pts) {
+    const xs = pts.map((q) => q.x);
+    const ys = pts.map((q) => q.y);
+    const box = { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+    const fitZ = Math.min((size.w - 160) / Math.max(1, box.w), (size.h - 160) / Math.max(1, box.h));
+    const z = Math.max(0.1, Math.min(8, Math.max(view.zoom * 2.5, Math.min(fitZ, 2))));
+    view.zoom = z;
+    view.x = box.x + box.w / 2 - size.w / 2 / z;
+    view.y = box.y + box.h / 2 - size.h / 2 / z;
+    zoom.set(z);
+    invalidate(true);
+    app.emit("officestatus");
+  }
+
+  /** Dragging a pin moves the comment (its author or the room host): onto an element, or to a point of the board. */
+  function startPinDrag(e, b) {
+    if (e.button !== 0 || !cm) return;
+    const th = threads().find((x) => x.id === b.dataset.thread);
+    if (!th || !(cm.isMine(th.author) || cm.session?.isHost)) return;
+    const x0 = e.clientX;
+    const y0 = e.clientY;
+    const base = b.style.transform;
+    const r0 = b.getBoundingClientRect();
+    const tip = [x0 - (r0.left + 11), y0 - (r0.top + 28)]; // pointer offset from the pin's tip
+    let moved = false;
+    b.setPointerCapture(e.pointerId);
+    const move = (ev) => {
+      if (!moved && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 5) return;
+      moved = true;
+      cui?.closePopover(false);
+      b.classList.add("is-dragging");
+      b.style.transform = `${base} translate(${ev.clientX - x0}px, ${ev.clientY - y0}px)`;
+    };
+    const up = (ev) => {
+      b.removeEventListener("pointermove", move);
+      b.removeEventListener("pointerup", up);
+      b.removeEventListener("pointercancel", up);
+      b.classList.remove("is-dragging");
+      if (!moved || ev.type === "pointercancel") return invalidate();
+      b.dataset.dragged = "1";
+      setTimeout(() => delete b.dataset.dragged, 50);
+      const r = stage.getBoundingClientRect();
+      const w = toWorld(ev.clientX - tip[0] - r.left, ev.clientY - tip[1] - r.top);
+      const hit = M.elementAt(model(), page(), w[0], w[1], 6 / view.zoom);
+      lastPin.delete(th.id);
+      cm.reanchor(doc, th.id, hit ? elementAnchor(hit, { x: w[0], y: w[1] }) : pointAnchor(page(), { x: w[0], y: w[1] }));
+      invalidate();
+    };
+    b.addEventListener("pointermove", move);
+    b.addEventListener("pointerup", up);
+    b.addEventListener("pointercancel", up);
+  }
+
+  // ------------------------------------------------------------------------------------------- sidebar and library
+  function toggleSidebar(force) {
+    sidebar.toggle(force);
+  }
+
+  /** Library item ({ type, fill? }) at a board point (default: the center of the view). */
+  function insertItem(it, at = null) {
+    const c = at || toWorld(size.w / 2, size.h / 2);
+    const type = ["rect", "ellipse", "diamond", "text", "frame", "sticky"].includes(it?.type) ? it.type : null;
+    if (!type) return;
+    let el;
+    if (type === "text") el = newEl("text", { x: c[0] - 40, y: c[1] - 15, text: t("Text"), ...M.textBox(t("Text"), style.fontSize, (s2, z) => measureText(s2, z, style.font)) });
+    else if (type === "sticky") el = newEl("sticky", { x: c[0] - 100, y: c[1] - 100, ...(/^#[0-9a-f]{6}$/i.test(it.fill || "") ? { fill: it.fill } : {}) });
+    else if (type === "frame") el = newEl("frame", { x: c[0] - 240, y: c[1] - 160, w: 480, h: 320 });
+    else el = newEl(type, { x: c[0] - 80, y: c[1] - 50, w: 160, h: 100 });
+    let next = M.addElements(prj.model, [el]);
+    next = type === "frame" ? M.assignFrames(next, M.pageElements(next, page()).map((x) => x.id)) : M.assignFrames(next, [el.id]);
+    commit(type === "frame" ? "Add Frame" : type === "sticky" ? "Add Sticky Note" : type === "text" ? "Add Text" : "Add Shape", next);
+    setTool("select");
+    setSelection([el.id]);
   }
 
   // ------------------------------------------------------------------------------------------- instance
@@ -1410,17 +1734,46 @@ export function mountBoard(host, doc, app) {
       }
     },
     /** Shows an element (comments, Vibe): switches to its page and centers it. */
-    reveal(id) {
+    reveal(id, { zoom: fitIt = false } = {}) {
       const el = prj.model.elements[id];
       if (!el) return false;
       gotoPage(el.page);
       const b = M.bounds(el);
+      if (fitIt) {
+        const z = Math.max(0.1, Math.min(2, Math.min((size.w - 120) / Math.max(1, b.w), (size.h - 120) / Math.max(1, b.h))));
+        view.zoom = z;
+        zoom.set(z);
+      }
       view.x = b.x + b.w / 2 - size.w / 2 / view.zoom;
       view.y = b.y + b.h / 2 - size.h / 2 / view.zoom;
       setSelection([id]);
       invalidate(true);
+      app.emit("officestatus");
       return true;
     },
+    // comments and sidebar (docs/office-board.md ▸ Comments, Sidebar)
+    addComment,
+    commentAt: (w, elId = null, at = null) => commentAt(w, elId ? model().elements[elId] || null : null, at),
+    openThread,
+    toggleSidebar,
+    showSidebar: (tab) => sidebar.show(tab),
+    isSidebarOpen: () => sidebar.isOpen(),
+    /** Comments panel for this app: the sidebar's Comments tab (and the thread when given). */
+    showComments(threadId) {
+      sidebar.show("comments");
+      if (threadId) openThread(threadId);
+    },
+    insertItem,
+    /** Comment mode (Shift+C): a click on the board places a comment. Returns true when the event was handled. */
+    commentModeClick(e) {
+      if (!stage.contains(e.target) || e.target.closest?.(".of-cpin, .of-board__cluster")) return false;
+      const r = stage.getBoundingClientRect();
+      const w = toWorld(e.clientX - r.left, e.clientY - r.top);
+      commentAt(w, M.elementAt(model(), page(), w[0], w[1], 6 / view.zoom), { x: e.clientX, y: e.clientY });
+      return true;
+    },
+    /** Label of a board anchor for the comment popover ("Sticky note “Ideas”"). */
+    anchorLabel: (a) => (a?.kind === "item" ? anchorText(a, model()) : null),
     activate() {
       resize();
       renderPages();
@@ -1434,6 +1787,9 @@ export function mountBoard(host, doc, app) {
       destroyed = true;
       offChange?.();
       ro.disconnect();
+      rootRo.disconnect();
+      cm?.events.removeEventListener("change", onComments);
+      sidebar.destroy();
       bar.destroy?.();
       for (const c of images.values()) c.ref?.source?.close?.();
       root.remove();
@@ -1448,14 +1804,20 @@ export function mountBoard(host, doc, app) {
       return parts.join(" · ");
     },
     commentAnchor() {
-      const id = [...sel][0];
-      const el = id && prj.model.elements[id];
-      if (!el) return null;
-      return officeItemAnchor({ item: `el:${el.id}`, label: (M.elementText(el) || el.type).slice(0, 80) });
+      const el = prj.model.elements[[...sel][0]];
+      if (el) return elementAnchor(el);
+      const [x, y] = toWorld(size.w / 2, size.h / 2);
+      return pointAnchor(page(), { x, y });
     },
     revealAnchor(anchor) {
-      const key = String(anchor?.item || "");
-      return key.startsWith("el:") ? inst.reveal(key.slice(3)) : false;
+      const key = JSON.stringify(anchor);
+      const th = threads().find((x) => x.anchor === anchor || JSON.stringify(x.anchor) === key);
+      if (th) {
+        openThread(th.id);
+        return true;
+      }
+      const id = anchorElementId(anchor);
+      return id ? inst.reveal(id) : false;
     },
   };
   stage.dataset.tool = tool;

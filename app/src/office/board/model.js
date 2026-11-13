@@ -7,7 +7,8 @@
 //     elements: { <id>: Element }, media: { <id>: { id, mime, name, w, h, bytes } } }
 // Element (every type): { id, type, page, x, y, w, h, angle (radians, about the center), z (fractional key),
 //     stroke, fill (null = none), fillStyle: "solid"|"hachure"|"cross", width (stroke px), dash: "solid"|"dashed"|"dotted",
-//     rough (0 clean, 1 hand-drawn, 2 sketchy), opacity 0..1, seed, group?, frame?, locked?, link? }
+//     rough (0 clean, 1 hand-drawn, 2 sketchy), opacity 0..1, seed, group?, frame?, locked?, hidden?, name?, link? }
+//     (hidden: not drawn, not exported, not hit; name: an optional label set in the sidebar outline)
 //   rect | ellipse | diamond   + text (label), round (rect corners), font, fontSize, align
 //   line | arrow               + points [[x, y]] relative to (x, y), start/end: { id } | null (connectors), heads: { start, end }
 //   pen | highlighter          + points [[x, y, pressure 0..1]] relative to (x, y)
@@ -208,13 +209,14 @@ export function hitTest(el, px, py, tol = 6) {
 /** The top-most element of a page at a world point (null if none). */
 export function elementAt(model, page, x, y, tol = 6) {
   const els = pageElements(model, page);
-  for (let i = els.length - 1; i >= 0; i--) if (hitTest(els[i], x, y, tol)) return els[i];
+  for (let i = els.length - 1; i >= 0; i--) if (!els[i].hidden && hitTest(els[i], x, y, tol)) return els[i];
   return null;
 }
 
 /** Elements of a page whose bounds lie fully inside a world rectangle (marquee selection). */
 export function elementsInRect(model, page, r) {
   return pageElements(model, page).filter((e) => {
+    if (e.hidden) return false;
     const b = bounds(e);
     return b.x >= r.x && b.y >= r.y && b.x + b.w <= r.x + r.w && b.y + b.h <= r.y + r.h;
   });

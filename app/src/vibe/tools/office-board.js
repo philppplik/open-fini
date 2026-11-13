@@ -373,5 +373,48 @@ export function officeBoardTools(app) {
       const text = new TextDecoder().decode(out.bytes);
       return { format, notes: out.notes || [], length: text.length, content: text.length > 120000 ? `${text.slice(0, 120000)}…` : text };
     }, { readOnly: true }),
+
+    // comments (docs/office-board.md ▸ Comments): the document's comment threads with whiteboard anchors. Replies and
+    // resolving use the general reply_comment and resolve_comment tools (same thread ids).
+    tool("board_list_comments", "Lists the comment threads of the active whiteboard with what each points at: the element (id, type, text, bounds; the pin follows it when it moves) or a point on a page, plus status, author and messages. Reply with reply_comment, resolve with resolve_comment.", {
+      status: S.str("Which threads (default open)", { enum: ["open", "resolved", "all"] }),
+      page: S.str("Only threads on this page id"),
+    }, [], async (a) => {
+      const { doc, model } = await board(app);
+      const c = (await import("../../ui/collab/comments-host.js")).getComments(app);
+      const C = await import("../../office/board/comments.js");
+      const threads = C.filterBoardThreads(c.threads(doc), { status: a.status || "open", page: a.page || null, model: model() });
+      return {
+        count: threads.length,
+        threads: threads.slice(0, 100).map((th) => ({
+          id: th.id,
+          status: th.resolved ? "resolved" : "open",
+          author: th.nick || "Unknown author",
+          ...(th.ai ? { ai: true } : {}),
+          createdAt: new Date(th.ts).toISOString(),
+          target: C.describeBoardAnchor(th.anchor, model()) || { board: "document" },
+          messages: th.messages.filter((m) => !m.deleted).slice(0, 20).map((m) => ({ id: m.id, author: m.nick || "Unknown author", text: m.text, at: new Date(m.ts).toISOString() })),
+        })),
+      };
+    }, { readOnly: true }),
+
+    tool("board_add_comment", "Adds a comment to the active whiteboard: on an element (element_id; the pin follows the element, optionally at x, y on it) or at a point of a page (x, y). Comments are saved in the document and shared with the room when the user is in one.", {
+      text: S.str("The comment text (plain text; @Name mentions a room member)"),
+      element_id: S.str("Element id from board_describe to attach the comment to"),
+      x: S.num("Board x of the pin (default: the element's top right corner)"),
+      y: S.num("Board y of the pin"),
+      page: S.str("Page id for a point comment (default: the current page)"),
+    }, ["text"], async (a) => {
+      const { doc, model, page } = await board(app);
+      const C = await import("../../office/board/comments.js");
+      const el = a.element_id ? model().elements[a.element_id] : null;
+      if (a.element_id && !el) throw new Error(`There is no element “${a.element_id}”. Call board_describe for the current ids.`);
+      const pt = Number.isFinite(a.x) && Number.isFinite(a.y) ? { x: a.x, y: a.y } : null;
+      if (!el && !pt) throw new Error("Give element_id, or x and y for a comment on the board.");
+      const anchor = el ? C.elementAnchor(el, pt) : C.pointAnchor(page(a.page), pt);
+      const c = (await import("../../ui/collab/comments-host.js")).getComments(app);
+      const th = c.addThread(doc, anchor, a.text, { nick: "Vibe (AI)", color: "#7c6df2", ai: true });
+      return { added: th.id, target: C.describeBoardAnchor(anchor, model()), shared: !!app.collab?.session && app.collab.session.state === "open" };
+    }, { needsApproval: (a) => (app.collab?.session?.state === "open" ? `Add the comment “${String(a.text).slice(0, 80)}” (it is shared with the room)?` : false) }),
   ];
 }

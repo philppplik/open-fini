@@ -123,6 +123,9 @@ export function installCommentUI(app, c) {
   }
 
   const anchorText = (d, a) => {
+    // Office Suite apps name their own anchors (whiteboard: "Sticky note “Ideas”", office/board/view.js anchorLabel)
+    const own = app.studio === "office" && app.officeUI?.doc === d ? app.officeUI.anchorLabel?.(a) : null;
+    if (own) return own;
     switch (a.kind) {
       case "node": {
         const n = d.find(a.node);
@@ -362,7 +365,9 @@ export function installCommentUI(app, c) {
       kids.push(h("div.of-thread__reply", attachMentions(ta), button("", send, { ic: "send", title: t("Reply") })));
     }
     if (!th.resolved && app.prefs.aiEnabled) kids.push(h("div.of-collab-actions", button(t("Resolve with AI"), () => (closePopover(false), resolveWithAI(th)), { ic: "stars", title: t("Let the assistant read this comment, make the edit and resolve it") })));
-    kids.push(h("div.of-collab-actions", button(t("Open in Comments"), () => (closePopover(false), import("./runtime.js").then((m) => m.openCollab(app, "comments")).then(() => c.events.dispatchEvent(new CustomEvent("focus-thread", { detail: th.id })))), { ic: "chat-quote" })));
+    const own = app.studio === "office" && typeof app.officeUI?.showComments === "function";
+    if (own) kids.push(h("div.of-collab-actions", button(t("Show in sidebar"), () => (closePopover(false), app.officeUI.showComments()), { ic: "layout-sidebar-inset-reverse" })));
+    else kids.push(h("div.of-collab-actions", button(t("Open in Comments"), () => (closePopover(false), import("./runtime.js").then((m) => m.openCollab(app, "comments")).then(() => c.events.dispatchEvent(new CustomEvent("focus-thread", { detail: th.id })))), { ic: "chat-quote" })));
     pop.el.setAttribute("aria-label", t("Comment thread {n} by {name}", { n: n || "", name: th.nick || t("Unknown author") }));
     pop.el.replaceChildren(...kids);
     if (hadFocus) pop.el.querySelector("textarea[data-role=reply]")?.focus();
@@ -492,6 +497,15 @@ export function installCommentUI(app, c) {
 
   document.addEventListener("pointerdown", (e) => {
     if (!mode || e.button !== 0 || e.target.closest?.(".of-cpop, .of-cpin, .of-collab-win, .of-ctxmenu, .of-status")) return;
+    // Office apps with a canvas of their own (the whiteboard) place the comment themselves
+    if (app.studio === "office" && typeof app.officeUI?.commentModeClick === "function" && app.officeUI.el?.contains(e.target)) {
+      if (e.target.closest?.(".of-cpin, .of-board__cluster, .of-bside, .of-tk-ribbon")) return;
+      e.preventDefault();
+      e.stopPropagation();
+      commentMode(false);
+      app.officeUI.commentModeClick(e);
+      return;
+    }
     const stage = app.cv?.stage;
     if (stage && CANVAS_STUDIOS.includes(app.studio) && stage.contains(e.target)) {
       e.preventDefault();

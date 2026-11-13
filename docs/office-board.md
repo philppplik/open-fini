@@ -22,6 +22,7 @@ the spirit of Excalidraw, tldraw and GoodNotes. It plugs into the suite through 
 | `M` | Highlighter | `N` | Sticky note |
 | `E` | Eraser (whole strokes and shapes) | `I` | Image (also paste or drop files) |
 | `K` | Laser pointer (fading trail, not saved) | `F` | Frame |
+| `C` | Comment (click the board or an element) | `Mod+\` | Show or hide the sidebar |
 
 `Delete` removes, `Mod+D` duplicates (`Alt`-drag too), `Mod+G` / `Mod+Shift+G` group and ungroup, `Mod+]` / `Mod+[`
 (with `Shift`: to front / back), `Mod+A` selects the page, arrows nudge (`Shift`: 10 px), `Enter` edits the text of the
@@ -41,7 +42,55 @@ change pages. `Shift` keeps proportions while resizing, snaps rotation to 15° a
   paper: plain, dotted, squared or lined. *View ▸ Show Grid* and *Snap to Grid* work on every page.
 * **Touch and stylus**: pen pressure and coalesced pointer samples give smooth ink; once a stylus is seen, fingers only
   pan and pinch-zoom (palm rejection, best effort).
-* **Comments**: select one element ▸ *Add comment…* (context menu); the comment follows the element.
+* **Comments** and the **sidebar**: see the next two sections.
+
+### Comments
+
+Comments are the document's comment threads (`doc.comments`, the same threads as in every studio): they work without a
+collaboration room, are saved in the `.ofini` and, in a room, travel as end-to-end encrypted comment ops (authorship
+checks, idempotent; the Collaboration window lists them too). They are not part of the board's undo history, like in
+the other apps.
+
+* **Add**: the *Comment* tool (`C`) and a click on an element or on empty board; right-click ▸ *Add comment…* (on an
+  element) or *Add comment here…* (on the board); *Edit ▸ Add Comment* (the selection, else the view's center);
+  *Comment Mode* (`Shift+C`) works on the board as well. The composer opens at the pin.
+* **Anchors** (`office/board/comments.js`): on an element `{ kind: "item", item: "el:<id>", page, pin, off, quote }`:
+  `off` is the clicked spot relative to the element's unrotated box, so the pin follows when the element moves,
+  resizes or rotates. When the element is deleted the pin stays where it was last seen (dashed outline) and the list
+  says "Deleted element"; undo brings the element back with the same id and the pin re-attaches. On the board:
+  `{ kind: "item", item: "pt:<pageId>", page, pin }`. Comments from before 1.1.2 (`el:<id>` without a pin) sit at the
+  element's top right corner.
+* **Pins**: numbered (creation order), in the author's color, positioned with the camera on every frame, so they keep
+  their size at any zoom. Pins that would overlap on screen merge into a cluster with a count; clicking it zooms in.
+  Drag a pin to move the comment (its author or the room host): onto an element or to a point. A red dot marks threads
+  with new messages from others (per device). *Show or Hide All Comments* hides every pin.
+* **Threads**: click a pin (or a row of the sidebar) to open the thread popover at the pin: reply, edit and delete your
+  messages, resolve and reopen, delete the thread, *Resolve with AI*, @mentions of room members, `[` / `]` step
+  between pins, `Escape` closes and returns focus to the pin.
+* **Export**: pins are interface, not content: PNG, SVG, PDF, Excalidraw and tldraw never contain them.
+
+### Sidebar
+
+*View ▸ Sidebar* (`Mod+\`, or the sidebar button in the *Review* group of the toolbar) docks a panel on the right of the
+board (`office/board/sidebar.js`). It is resizable (drag its edge or use the arrow keys on it) and remembers whether it
+is open, its width and its tab (preferences `boardSidebar`, `boardSidebarWidth`, `boardSidebarTab`). On boards narrower
+than 760 px it opens as an overlay drawer (`Escape` or a click beside it closes it). With the glass surface style the
+docked panel uses the panel fill; the drawer blurs on its own box.
+
+* **Comments**: every thread of the board with filters (Open / Resolved / All, *Mine*, *This page*), search (text,
+  author, element), the unread count, and per row the author, time, target, first message, replies and a resolve
+  button. A row opens its thread at the pin (switching page and scrolling the pin into view).
+* **Outline**: the pages (click to switch) and the elements of the current page, top-most first, with frame contents
+  indented under their frame. Click selects (`Shift`/`Ctrl` adds), double-click or `F2` renames (frames change their
+  title, other elements get a `name`), eye and lock buttons hide and lock, the magnifier zooms to the element, drag
+  rows to change the stacking order (`Alt+Up` / `Alt+Down` from the keyboard), and a search field filters. Hidden
+  elements are not drawn, hit or exported (`hidden: true`, synced like every other property).
+* **Properties**: position, size and angle of one element; stroke, fill (or none), fill style, width, line style,
+  drawing style and opacity; font, size and alignment for text; start and end arrowheads for connectors; locked and
+  hidden. Changes apply to the whole selection where it makes sense; locked elements are read-only. The style controls
+  of the toolbar stay for quick changes.
+* **Library**: shapes, text, frame and sticky notes in every paper color; click to add one at the view's center or
+  drag it onto the board.
 
 ## Model
 
@@ -100,12 +149,15 @@ shapes, stickies and bound connectors.
 | Diagram generators (mind map, tree, timeline, cycle, matrix) | `app/src/office/board/diagrams.js` |
 | Insert and edit dialogs for rich objects (lazy) | `app/src/office/board/object-dialogs.js` |
 | Excalidraw / tldraw codecs | `app/src/office/board/formats.js` |
-| Canvas UI (gestures, editing, pages) | `app/src/office/board/view.js` |
+| Canvas UI (gestures, editing, pages, comment pins) | `app/src/office/board/view.js` |
+| Comment anchors, pins, clusters, filters, unread (pure) | `app/src/office/board/comments.js` |
+| Sidebar (Comments, Outline, Properties, Library) | `app/src/office/board/sidebar.js` |
+| Outline rows and z-order drag and drop (pure) | `app/src/office/board/outline.js` |
 | Commands and context menu (registered when the first board mounts) | `app/src/commands/office-board.js` |
 | Menus | `app/src/studios/office.js ▸ OFFICE_MENUS` (`officeKinds: ["board"]`) |
 | Vibe tools | `app/src/vibe/tools/office-board.js` (group *Whiteboard*) |
 | Styles | `app/styles/office-board.css` |
-| Tests | `tests/office/board.test.js`, `tests/office/board-objects.test.js`, `tests/office/board-depth.test.js` |
+| Tests | `tests/office/board.test.js`, `tests/office/board-objects.test.js`, `tests/office/board-depth.test.js`, `tests/office/board-comments.test.js`, `tests/office/board-outline.test.js` |
 
 Rendering uses the engine's display lists (docs/engine-contracts.md): the screen draws them with
 `engine/backends/canvas.js` on a scene canvas (redrawn on model or camera changes) under an overlay canvas (selection,
@@ -119,7 +171,8 @@ Every finished gesture, menu command or Vibe call is one `commitOffice` step (nu
 flattens the board into records: `el:<id>` per element (last writer wins per element, so two people moving
 different shapes never conflict), `page:<id>`, `media:<id>` (images up to about 46 KiB travel inline; larger ones show
 as placeholders for the other members until the file is shared again) and `meta:board`. Orders are fractional keys
-inside the records. Comments use the item anchor `el:<id>`. Remote cursors are not shown.
+inside the records. Comments are not records: they are the document's comment threads and sync as comment ops
+(see *Comments*). Remote cursors are not shown.
 
 ## Vibe
 
@@ -131,7 +184,10 @@ page) and `board_export` (Excalidraw, tldraw or SVG text). Rich content: `board_
 points, segments, parametric and implicit curves), `board_add_math` (TeX formula with matrices and stretched delimiters),
 `board_add_subboard` (new page plus a card that opens it; pass its
 page id to the other tools), `board_add_diagram` (mindmap, tree, timeline, cycle, matrix in one call) and `board_draw`
-(free polylines and polygons). Skills: `whiteboard-math-lesson`, `whiteboard-data-story`, `whiteboard-diagram`,
+(free polylines and polygons). Comments: `board_list_comments` (each thread with the element or board point it points
+at) and `board_add_comment` (on an element id, optionally at a point on it, or at a point of a page); the general
+`reply_comment`, `resolve_comment`, `list_comments` and `get_comment_context` work on the same threads and resolve
+board anchors to the element. Skills: `whiteboard-math-lesson`, `whiteboard-data-story`, `whiteboard-diagram`,
 `whiteboard-visual-explainer`, `brainstorm-to-board`. `office_describe`, `office_new` and `office_export` work too.
 `office_board_to_document` writes a board up as a new text document (`boardToMarkdown` in `model.js`: the title, one
 heading per page and frame, stickies, text boxes and labeled shapes as bullets in reading order, connectors as
@@ -153,7 +209,8 @@ The tldraw writer was checked by round trips through our own reader, not against
 
 ## Limits
 
-* No elbow / curved connector routing, no arrow labels positioned by the user, no shape libraries.
+* No elbow / curved connector routing, no arrow labels positioned by the user; the Library holds the built-in shapes
+  and sticky notes only (no user libraries or templates).
 * No remote cursors or live laser for collaborators; large images are not sent through live editing.
 * Text inside rotated shapes is edited unrotated; the editor is a plain textarea (no rich text).
 * Palm rejection is heuristic: it activates after the first stylus contact in the session.
