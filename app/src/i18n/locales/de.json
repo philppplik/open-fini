@@ -4257,5 +4257,12 @@
   "WebGPU is unavailable; features that use it fall back to WebGL or the CPU.": "WebGPU ist nicht verfügbar; Funktionen, die es nutzen, weichen auf WebGL oder die CPU aus.",
   "Workers": "Worker",
   "{where} is missing page settings ({fields}).": "{where} fehlen Seiteneinstellungen ({fields}).",
-  "The offline worker is not used on a local development server.": "Auf einem lokalen Entwicklungsserver wird kein Offline-Worker verwendet."
+  "The offline worker is not used on a local development server.": "Auf einem lokalen Entwicklungsserver wird kein Offline-Worker verwendet.",
+  "Command line tool, Doctor and launch screen timing": "Kommandozeilenwerkzeug, Doctor und die Dauer des Startbildschirms",
+  "The ofini command line tool": "Das Kommandozeilenwerkzeug ofini",
+  "Create, inspect, validate, export and convert projects from a terminal, with an interactive mode and shell completion.": "Erstelle, prüfe, validiere, exportiere und konvertiere Projekte im Terminal, mit interaktivem Modus und Shell-Vervollständigung.",
+  "Diagnose and repair with Doctor": "Mit Doctor prüfen und reparieren",
+  "Check the app and your documents for problems, repair damaged projects and save a redacted report. Open Doctor from Help or Settings.": "Prüfe die App und deine Dokumente auf Probleme, repariere beschädigte Projekte und speichere einen bereinigten Bericht. Öffne Doctor über Hilfe oder die Einstellungen.",
+  "A smoother launch screen": "Ein flüssigerer Startbildschirm",
+  "The launch screen stays visible for at least five seconds while the app loads behind it. Errors and the app lock still appear immediately.": "Der Startbildschirm bleibt mindestens fünf Sekunden sichtbar, während die App dahinter lädt. Fehler und die App-Sperre erscheinen weiterhin sofort."
 }
