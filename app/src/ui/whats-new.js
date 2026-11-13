@@ -3,6 +3,15 @@
 
 export const WHATS_NEW = [
   {
+    version: "1.1.3",
+    title: "Command line tool, Doctor and launch screen timing",
+    items: [
+      { icon: "terminal", title: "The ofini command line tool", text: "Create, inspect, validate, export and convert projects from a terminal, with an interactive mode and shell completion." },
+      { icon: "tools", title: "Diagnose and repair with Doctor", text: "Check the app and your documents for problems, repair damaged projects and save a redacted report. Open Doctor from Help or Settings." },
+      { icon: "window", title: "A smoother launch screen", text: "The launch screen stays visible for at least five seconds while the app loads behind it. Errors and the app lock still appear immediately." },
+    ],
+  },
+  {
     version: "1.1.2",
     title: "Launch screen, studios follow tabs, whiteboard comments",
     items: [
