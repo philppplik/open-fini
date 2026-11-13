@@ -3,6 +3,16 @@
 
 export const WHATS_NEW = [
   {
+    version: "1.1.2",
+    title: "Launch screen, studios follow tabs, whiteboard comments",
+    items: [
+      { icon: "window", title: "A launch screen", text: "OpenFini now greets you with a launch screen that shows real loading progress. You can turn it off in Settings." },
+      { icon: "arrow-left-right", title: "Studios follow your tabs", text: "Each document tab remembers its studio. Go back to a tab and OpenFini switches to the studio it belongs to." },
+      { icon: "chat-left-text", title: "Whiteboard comments", text: "Comment on any element or spot of a board, with pins, threads and a comment tool." },
+      { icon: "layout-sidebar-reverse", title: "Whiteboard sidebar", text: "A sidebar with comments, outline, properties and a library of shapes and sticky notes." },
+    ],
+  },
+  {
     version: "1.1.1",
     title: "Deeper Scene Studio, collaboration window, hardening",
     items: [
