@@ -40,6 +40,20 @@ serde_json = "1"
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = "2.5"
 
+# Computer use for the assistant (src/computer.rs, docs/vibe-computer-use.md): Windows and macOS only. Screen capture
+# (xcap, Apache-2.0), synthetic mouse and keyboard input (enigo, MIT), JPEG/PNG encoding and downscaling (image,
+# MIT OR Apache-2.0) and the emergency stop hotkey (tauri-plugin-global-shortcut, MIT OR Apache-2.0). Linux is left
+# out: xcap needs PipeWire, GBM and Wayland development packages the build machines do not have; there the commands
+# answer "not supported".
+[target.'cfg(any(target_os = "macos", windows))'.dependencies]
+xcap = { version = "0.9", default-features = false }
+enigo = { version = "0.6", default-features = false }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+tauri-plugin-global-shortcut = "2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_Threading", "Win32_Security"] }
+
 # Tuned for a tiny native binary. Build time is traded for size.
 [profile.release]
 opt-level = "s"

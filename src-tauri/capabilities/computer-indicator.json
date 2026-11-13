@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "computer-indicator",
+  "description": "The always-on-top indicator shown while a computer use session is active (window computer-indicator, created by src/computer.rs): it may read the session status, pause, resume and stop it, listen for its events and be dragged, on top of the Tauri core defaults the app shell reads while it starts. None of the app's other commands.",
+  "windows": [
+    "computer-indicator"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "allow-computer-status",
+    "allow-computer-pause",
+    "allow-computer-resume",
+    "allow-computer-stop"
+  ]
+}

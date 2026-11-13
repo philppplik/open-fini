@@ -9,6 +9,13 @@ export async function boot(app) {
   const params = new URLSearchParams(location.search);
   log.info("app", `OpenFini started${app.safeMode ? " in safe mode" : ""}`);
 
+  // ?popout=computer-indicator: the always-on-top bar of a computer use session (src-tauri/src/computer.rs). It shows
+  // no document data, so it comes before the app lock and everything else.
+  if (params.get("popout") === "computer-indicator") {
+    (await import("./ui/vibe/computer-indicator.js")).bootComputerIndicator(app);
+    return;
+  }
+
   // app lock: ask for the passphrase before anything reads the autosaved session (ui/app-lock.js)
   try {
     const { kvGetRaw } = await import("./core/storage.js");

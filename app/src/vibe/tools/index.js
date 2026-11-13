@@ -47,13 +47,14 @@ import { designAssistTools } from "./design-assist.js";
 import { sceneTools } from "./scene.js";
 import { sceneUnderstandTools } from "./scene-understand.js";
 import { sceneMotionTools } from "./scene-motion.js";
+import { computerTools } from "./computer.js";
 
 /**
  * @param {import("../../core/app.js").App} app
  * @param {object} ctx session context: { images, knowledge, memory, skills, ask, plan, customTools }
  */
 export function createOpenFiniTools(app, ctx = {}) {
-  return withVerifyHints([...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...latexTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...officeSuiteTools(app, ctx), ...officeSheetTools(app, ctx), ...officeSheetDepthTools(app, ctx), ...slidesTools(app, ctx), ...officeBoardTools(app, ctx), ...officeSemanticTools(app, ctx), ...officeDesignTools(app, ctx), ...formatTools(app, ctx), ...exportTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...commentTools(app, ctx), ...vscodeTools(app, ctx), ...routingTools(app, ctx), ...webAccessTools(app, ctx), ...colorTools(app, ctx), ...pixelEditTools(app, ctx), ...knowledgeTools(app, ctx), ...utilityTools(app, ctx), ...terminalTools(app, ctx), ...localFileTools(app, ctx), ...scriptTools(app, ctx), ...designAssistTools(app, ctx), ...sceneTools(app, ctx), ...sceneUnderstandTools(app, ctx), ...sceneMotionTools(app, ctx)]);
+  return withVerifyHints([...designTools(app, ctx), ...pixelTools(app, ctx), ...pixelAnalysisTools(app, ctx), ...webTools(app, ctx), ...webViewTools(app, ctx), ...gitTools(app, ctx), ...publishTools(app, ctx), ...metaTools(app, ctx), ...appearanceTools(app, ctx), ...systemTools(app, ctx), ...extensionTools(app, ctx), ...diagnosticsTools(app, ctx), ...importTools(app, ctx), ...layoutDataTools(app, ctx), ...frameworkTools(app, ctx), ...latexTools(app, ctx), ...textcodecTools(app, ctx), ...customizationTools(app, ctx), ...officeTools(app, ctx), ...officeSuiteTools(app, ctx), ...officeSheetTools(app, ctx), ...officeSheetDepthTools(app, ctx), ...slidesTools(app, ctx), ...officeBoardTools(app, ctx), ...officeSemanticTools(app, ctx), ...officeDesignTools(app, ctx), ...formatTools(app, ctx), ...exportTools(app, ctx), ...powerTools(app, ctx), ...agentTools(app, ctx), ...attachmentTools(app, ctx), ...saveTargetTools(app, ctx), ...collabTools(app, ctx), ...commentTools(app, ctx), ...vscodeTools(app, ctx), ...routingTools(app, ctx), ...webAccessTools(app, ctx), ...colorTools(app, ctx), ...pixelEditTools(app, ctx), ...knowledgeTools(app, ctx), ...utilityTools(app, ctx), ...terminalTools(app, ctx), ...localFileTools(app, ctx), ...scriptTools(app, ctx), ...designAssistTools(app, ctx), ...sceneTools(app, ctx), ...sceneUnderstandTools(app, ctx), ...sceneMotionTools(app, ctx), ...computerTools(app, ctx)]);
 }
 
 /** Tools grouped for the UI. */
@@ -85,6 +86,7 @@ export const TOOL_GROUPS = {
   Utilities: ["calculate", "convert_units", "date_calc", "run_code", "clipboard_read"],
   Terminal: ["run_command"],
   "Local files": ["local_list_folders", "local_list_files", "local_read_file", "local_write_file"],
+  "Computer use": ["computer", "computer_info"],
   "Model routing": ["get_model_route", "set_model_route"],
   "Appearance and help": ["list_themes", "set_theme", "start_tour", "list_commands"],
   Color: ["set_color_mode", "convert_colors", "preflight_pdf"],
@@ -148,6 +150,7 @@ export const VERIFY_WITH = {
   Utilities: "the returned result",
   Terminal: "the exit code and output",
   "Local files": "local_read_file",
+  "Computer use": "the screenshot that comes back",
 };
 
 function withVerifyHints(tools) {

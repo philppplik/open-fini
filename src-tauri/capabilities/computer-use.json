@@ -1,0 +1,25 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "computer-use",
+  "description": "Computer use for the assistant (src/computer.rs, docs/vibe-computer-use.md): the main window only may ask for a session grant, take screenshots, send mouse and keyboard input and read the action log. The native side checks the grant on every call and the calling window again.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "allow-computer-status",
+    "allow-computer-grant-request",
+    "allow-computer-stop",
+    "allow-computer-pause",
+    "allow-computer-resume",
+    "allow-computer-open-settings",
+    "allow-computer-policy",
+    "allow-computer-policy-set",
+    "allow-computer-displays",
+    "allow-computer-windows",
+    "allow-computer-screenshot",
+    "allow-computer-cursor",
+    "allow-computer-input",
+    "allow-computer-audit",
+    "allow-computer-audit-clear"
+  ]
+}

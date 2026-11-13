@@ -23,12 +23,15 @@ import { Orchestrator } from "./orchestrator.js";
 import { agentTools } from "./tools/agents.js";
 import { officeSummary } from "../office/ai.js";
 import { createRunLog, recordRun } from "./ai-log.js";
+import { computerAvailable } from "./tools/computer.js";
 
 const MAX_TEXT_ATTACHMENT = 60_000;
 // tools a skill restriction never blocks: the assistant must still be able to talk, plan and load skills
 const ALWAYS_ALLOWED = new Set(["use_skill", "update_plan", "ask_user", "get_document_info", "screenshot"]);
 // removed from the tool list when memory is off (globally or for this chat)
 const MEMORY_TOOLS = new Set(["remember", "recall_memory", "forget_memory"]);
+// only listed in the desktop app: a web page cannot see the screen or use the mouse and keyboard
+const COMPUTER_TOOLS = new Set(["computer", "computer_info"]);
 const LIVE_TYPES = new Set(["text", "thinking", "tool_start", "tool_end", "tool_progress", "agent_status", "agent_event", "retry", "route_fallback", "route_retry"]);
 
 export class VibeSession extends Emitter {
@@ -180,7 +183,7 @@ export class VibeSession extends Emitter {
       skills: this.ctx?.skills,
       memory: memory.map((m) => (m.kind === "note" ? m.text : `${m.kind}: ${m.text}`)),
       mode: s.approval,
-      extra: [s.extraInstructions, this.chat.primer, s.compactTools ? "Your tool list is compact: it shows the tools for what is open. Many more exist (other studios, Office apps, web, git, export, color, settings). When you need one, call find_tools with a query, then call_tool with its name and arguments." : ""].filter(Boolean).join("\n\n"),
+      extra: [s.extraInstructions, this.chat.primer, this.computerPrompt, s.compactTools ? "Your tool list is compact: it shows the tools for what is open. Many more exist (other studios, Office apps, web, git, export, color, settings). When you need one, call find_tools with a query, then call_tool with its name and arguments." : ""].filter(Boolean).join("\n\n"),
       language: app.i18n?.locale(),
     });
   }
@@ -371,7 +374,7 @@ export class VibeSession extends Emitter {
     const custom = customToolDefs(vibeStore.customTools, callTool, (text) => this.emit("notice", { kind: "log", text }));
     const mcp = await this.hub.mcpTools(this);
     const ext = (await app.extensions?.vibeToolDefs().catch(() => [])) || [];
-    raw = [...base, ...custom, ...mcp, ...ext].filter((t) => !s.disabledTools.includes(t.name) && !(t.name === "screenshot" && s.sendScreenshots === false) && (memoryOn || !MEMORY_TOOLS.has(t.name)));
+    raw = [...base, ...custom, ...mcp, ...ext].filter((t) => !s.disabledTools.includes(t.name) && !(t.name === "screenshot" && s.sendScreenshots === false) && (memoryOn || !MEMORY_TOOLS.has(t.name)) && (!COMPUTER_TOOLS.has(t.name) || computerAvailable()));
     return raw.map((t) => this.#wrap(t, s));
   }
 
@@ -442,6 +445,8 @@ export class VibeSession extends Emitter {
     if (!this.hidden) vibeStore.saveChat(this.chat).catch(() => {});
     this.emit("message", userMsg);
 
+    // computer use is on: the rules for it (screen text is untrusted, no secrets) go into the system prompt
+    this.computerPrompt = s.computerUse?.enabled && computerAvailable() ? (await import("./computer-policy.js")).COMPUTER_PROMPT : "";
     const mem = await this.#memoryFor(text).catch(() => ({ selected: [], considered: 0 }));
     const system = this.#systemPrompt(ai, s, mem.selected);
     this.lastContext = { memory: mem.selected.map((m) => m.id), systemChars: system.length, tools: tools.length, time: Date.now() };

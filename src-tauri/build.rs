@@ -38,6 +38,21 @@ const COMMANDS: &[&str] = &[
     "files_write",
     "files_audit",
     "files_audit_clear",
+    "computer_status",
+    "computer_grant_request",
+    "computer_stop",
+    "computer_pause",
+    "computer_resume",
+    "computer_open_settings",
+    "computer_policy",
+    "computer_policy_set",
+    "computer_displays",
+    "computer_windows",
+    "computer_screenshot",
+    "computer_cursor",
+    "computer_input",
+    "computer_audit",
+    "computer_audit_clear",
 ];
 
 fn main() {
