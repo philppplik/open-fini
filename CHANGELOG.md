@@ -6,6 +6,9 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Launch screen: it now stays up for at least five seconds while the app goes on loading behind it, and the bar fills smoothly over that time ([docs/launch-screen.md](docs/launch-screen.md)). Errors and the app lock still show at once.
+
 ## [1.1.2] — Launch screen, studios follow tabs, whiteboard comments
 
 ### Added
