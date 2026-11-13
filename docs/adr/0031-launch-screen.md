@@ -46,12 +46,12 @@ Options b and d, sharing one card:
 - The artwork is an ordinary file (`app/assets/launch/artwork.webp`), loaded lazily with low priority over a
   placeholder gradient, and precached by the service worker.
 - The tab-to-studio memory that shipped with this change (docs/studios.md) is imported right after start instead of
-  statically, which keeps the start-up closure at its budget.
+  statically, which keeps its code out of the start-up closure.
 
 ## Consequences
 
 - The total download grows by the artwork (about 107 KiB; WebP does not compress further). The start-up module budget
-  is unchanged.
+  grows by 1 KiB for the boot-stage calls and the tab hooks; the card itself adds no module code.
 - Two HTML files carry the same card; changing it means changing both (the test fails otherwise).
 - The splash window cannot be exercised in CI or a browser; its logic is small and covered by configuration tests,
   but it needs a manual check on each desktop platform.
