@@ -88,4 +88,5 @@ the bundle adds them as `log-history.json`.
   secrets (redaction is a safety net, not permission).
 * `app/src/core/diagnostics.js` holds the hint table (`HINTS`), problem grouping, the report/bundle/issue-URL builders
   and the storage inventory; `app/src/core/env.js` collects the environment (browser only).
-* Vibe tools: `get_app_logs`, `get_diagnostics`, `get_security_status` (read-only, redacted).
+* Vibe tools: `get_app_logs`, `get_diagnostics`, `get_security_status`, `run_doctor` (read-only, redacted).
+* Doctor: *Help ▸ Doctor…* checks the app and the open document and repairs what it safely can; a damaged `.ofini` file offers *Repair with Doctor* when it fails to open. In a terminal: `ofini doctor --fix file.ofini`. See [doctor.md](doctor.md) and [cli.md](cli.md).
