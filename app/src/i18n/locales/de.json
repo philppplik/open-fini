@@ -4050,5 +4050,13 @@
   "Show launch screen": "Startbildschirm anzeigen",
   "Shows the OpenFini card with a progress bar while the app starts. Off: the window appears right away and fills in as it loads. Takes effect at the next start.": "Zeigt beim Start die OpenFini-Karte mit einem Fortschrittsbalken. Aus: Das Fenster erscheint sofort und füllt sich beim Laden. Wirkt ab dem nächsten Start.",
   "Switch studio with the active tab": "Studio mit dem aktiven Tab wechseln",
-  "Tabs": "Tabs"
+  "Tabs": "Tabs",
+  "Launch screen, studios follow tabs, whiteboard comments": "Startbildschirm, Studios folgen Tabs, Whiteboard-Kommentare",
+  "A launch screen": "Ein Startbildschirm",
+  "OpenFini now greets you with a launch screen that shows real loading progress. You can turn it off in Settings.": "OpenFini begrüßt dich jetzt mit einem Startbildschirm, der den echten Ladefortschritt zeigt. In den Einstellungen lässt er sich abschalten.",
+  "Studios follow your tabs": "Studios folgen deinen Tabs",
+  "Each document tab remembers its studio. Go back to a tab and OpenFini switches to the studio it belongs to.": "Jeder Dokument-Tab merkt sich sein Studio. Wechselst du zurück zu einem Tab, schaltet OpenFini in das passende Studio.",
+  "Whiteboard comments": "Kommentare im Whiteboard",
+  "Comment on any element or spot of a board, with pins, threads and a comment tool.": "Kommentiere jedes Element und jede Stelle eines Boards, mit Pins, Threads und einem Kommentar-Werkzeug.",
+  "A sidebar with comments, outline, properties and a library of shapes and sticky notes.": "Eine Seitenleiste mit Kommentaren, Gliederung, Eigenschaften und einer Bibliothek aus Formen und Haftnotizen."
 }

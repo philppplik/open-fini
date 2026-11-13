@@ -6,6 +6,8 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.2] — Launch screen, studios follow tabs, whiteboard comments
+
 ### Added
 - **Launch screen** ([docs/launch-screen.md](docs/launch-screen.md), [ADR 0031](docs/adr/0031-launch-screen.md)): while OpenFini starts it shows a card with the release artwork, a thin progress bar driven by the real start-up stages (with a status line such as "Loading studios…"), the OpenFini mark and wordmark and the version. The desktop app shows it in a small frameless splash window and keeps the main window hidden until the app is ready (no empty frame), with a 10-second fallback; the browser and the PWA show the same card inline and fade it out. Light and dark, honors reduced motion, announced to screen readers. *Settings ▸ General ▸ Show launch screen* turns it off.
 - **Studios follow the document tabs** ([docs/studios.md](docs/studios.md#switching-studios-with-the-tabs)): every tab remembers the studio it was last used in, and activating it switches back to that studio, for example the Code studio for a website project and the Pixel studio for a photo. A studio chosen by hand is remembered for the active tab when it can edit the document. The memory survives session restore and travels with documents moved to another window; Vibe Studio stays open while you switch tabs, and its tool list follows the tab's studio. *Settings ▸ Studios ▸ Switch studio with the active tab* turns it off.
