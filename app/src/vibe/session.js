@@ -153,7 +153,8 @@ export class VibeSession extends Emitter {
   #advertise(s) {
     if (!s.compactTools) return null;
     const d = this.app.doc;
-    const context = d?.office ? d.office.kind || "document" : d?.web && !d.pages?.[0]?.root?.children?.length ? "code" : ["vector", "pixel", "layout"].includes(d?.studio) ? d.studio : this.app.studio;
+    // the studio of the active tab (remembered per tab, core/tab-studio.js), so a tab switch changes the listed tools
+    const context = d?.office ? d.office.kind || "document" : d ? this.app.docStudio?.(d) || this.app.studio : this.app.studio;
     const listed = advertisedTools(TOOL_GROUPS, context, this.restrict ? [...this.restrict] : []);
     const builtIn = new Set(Object.values(TOOL_GROUPS).flat());
     // custom, MCP and extension tools are few and the user added them on purpose: always listed

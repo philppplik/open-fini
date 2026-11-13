@@ -41,6 +41,7 @@ export function settingsSections(app) {
           title: "Start-up",
           items: [
             sw("restoreSession", "Restore my last session", "Reopen the documents you had open when you quit, from the copy autosaved on this device."),
+            sw("launchScreen", "Show launch screen", "Shows the OpenFini card with a progress bar while the app starts. Off: the window appears right away and fills in as it loads. Takes effect at the next start."),
             sw("showRecent", "Show recent files on the start page", "Lists the files you opened or saved lately. They are only a shortcut list; nothing leaves this device."),
             num("recentLimit", "Number of recent files to remember", 0, 50, 1, "", "0 turns the list off and removes the stored copies. Lowering it trims the list now."),
             { type: "language" },
@@ -76,8 +77,13 @@ export function settingsSections(app) {
       label: "Studios",
       icon: "layout-three-columns",
       lead: "Choose which studios the header shows (up to five) and their order. The rest stay in the More menu.",
-      keywords: "studios header more order reorder visible show hide vector pixel layout code vibe office shortcut alt",
-      groups: [],
+      keywords: "studios header more order reorder visible show hide vector pixel layout code vibe office shortcut alt tab switch follow document",
+      groups: [
+        {
+          title: "Tabs",
+          items: [sw("studioFollowsTab", "Switch studio with the active tab", "Each document tab remembers the studio you last used it in. Clicking the tab brings that studio back, for example the Code studio for a website and the Pixel studio for a photo. Off: the studio only changes when you choose one.")],
+        },
+      ],
       custom: () => studiosSettings(app),
     },
     {

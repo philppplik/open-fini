@@ -4042,5 +4042,13 @@
   "X position": "X-Position",
   "Y position": "Y-Position",
   "Yellow sticky note": "Gelbe Haftnotiz",
-  "Zoom to": "Heranzoomen"
+  "Zoom to": "Heranzoomen",
+  "Each document tab remembers the studio you last used it in. Clicking the tab brings that studio back, for example the Code studio for a website and the Pixel studio for a photo. Off: the studio only changes when you choose one.": "Jeder Dokument-Tab merkt sich das Studio, in dem du ihn zuletzt benutzt hast. Ein Klick auf den Tab holt dieses Studio zurück, zum Beispiel das Code-Studio für eine Website und das Pixel-Studio für ein Foto. Aus: Das Studio wechselt nur, wenn du eines auswählst.",
+  "Loading studios…": "Studios werden geladen …",
+  "Opening your documents…": "Deine Dokumente werden geöffnet …",
+  "Preparing the workspace…": "Arbeitsbereich wird vorbereitet …",
+  "Show launch screen": "Startbildschirm anzeigen",
+  "Shows the OpenFini card with a progress bar while the app starts. Off: the window appears right away and fills in as it loads. Takes effect at the next start.": "Zeigt beim Start die OpenFini-Karte mit einem Fortschrittsbalken. Aus: Das Fenster erscheint sofort und füllt sich beim Laden. Wirkt ab dem nächsten Start.",
+  "Switch studio with the active tab": "Studio mit dem aktiven Tab wechseln",
+  "Tabs": "Tabs"
 }

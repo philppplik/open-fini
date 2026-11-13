@@ -10,7 +10,7 @@ The OpenFini logo opens the application menu: About, Settings, Save All, Open Fo
 
 | Section | What it controls |
 | --- | --- |
-| General | Restore the last session on start; autosave and its delay; ask before closing unsaved documents; **save opened files in their original format when possible** ([[Save in Original Format]]); show recent files and how many to remember; language (Automatic, English (United States), Deutsch); how to make OpenFini the default for file types |
+| General | Restore the last session on start; show the launch screen while OpenFini starts; autosave and its delay; ask before closing unsaved documents; **save opened files in their original format when possible** ([[Save in Original Format]]); show recent files and how many to remember; language (Automatic, English (United States), Deutsch); how to make OpenFini the default for file types |
 | Appearance | Mode, color theme gallery, surface style (Solid, Glass, Sea glass) with blur, transparency, background and dim, window material and opacity (desktop app), accent color, density (compact, default, spacious), interface scale (80 to 160 percent), text size, font, corner radius, animation speed, canvas pointer size ([[Themes and Surface Styles]]) |
 | Accessibility | High contrast, reduced motion (follows the system by default), always-visible focus outlines, tooltips on or off, interface scale ([[Accessibility]]) |
 | Onboarding and help | Offer tours, hints in empty panels, restart the welcome or studio tour, reset tours and What's new, command palette tips |
@@ -24,7 +24,7 @@ The OpenFini logo opens the application menu: About, Settings, Save All, Open Fo
 | Layout and workspaces | Panels, dock side and width, built-in and saved workspaces |
 | Defaults for new things | New-document size, unit, resolution and background per studio; export and text defaults |
 | Profiles and backup | `.ofprofile` export and import, named profiles, reset everything |
-| Studios | Choose and order the (at most five) studios shown in the header |
+| Studios | Choose and order the (at most five) studios shown in the header; switch the studio with the active document tab ([[Studio Overview]]) |
 | Extensions | Run extensions, developer mode, the manager ([[Extensions]]) |
 | Profile and collaboration | Nickname, presence color, picture, activity feed, cursors, notifications ([[Collaboration]]) |
 | About | Version, license, source and documentation links, update checker (manual; optional daily check, off by default) |
@@ -47,6 +47,8 @@ In `localStorage` of the app profile on this device (key `openfini.prefs.v1`), e
 | `shortcuts`, `toolbox`, `menus`, `layout`, `workspaces`, `quickActions` | Customization data |
 | `codeLayout` | Code studio split layout |
 | `recentLimit`, `showRecent` | Recent files |
+| `launchScreen` | Launch card with progress bar while starting (default on) |
+| `studioFollowsTab` | Activating a tab brings back the studio it was last used in (default on) |
 
 ## For developers
 

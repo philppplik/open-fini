@@ -46,6 +46,8 @@ const defaultPrefs = () => ({
   // general
   language: "auto", // "auto" (system language) or a code from i18n/locales.js
   restoreSession: true,
+  launchScreen: true, // the launch card while OpenFini starts (src/launch.js reads this from storage before the app loads)
+  studioFollowsTab: true, // activating a document tab switches to the studio that tab was last used in (core/tab-studio.js)
   autosave: true,
   autosaveSeconds: 4,
   showRecent: true, // recent files on the start page
@@ -138,8 +140,13 @@ function loadPrefs() {
 export const STUDIO_ORDER = [...DEFAULT_VISIBLE_STUDIOS];
 
 export class App extends Emitter {
+  /** core/tab-studio.js, loaded right after start (it is not start-up code); null until then (tabs do not switch studios). */
+  #tabs = null;
+
   constructor() {
     super();
+    /** Resolves once the tab-to-studio memory is loaded (main.js awaits it before restoring the session). */
+    this.tabStudioReady = import("./tab-studio.js").then((m) => (this.#tabs = m)).catch(() => null); // missing: tabs simply keep the studio
     this.docs = [];
     /** @type {Doc|null} */
     this.doc = null;
@@ -266,14 +273,35 @@ export class App extends Emitter {
     return doc;
   }
 
-  activateDoc(doc) {
+  /**
+   * Makes `doc` the active tab. With "Switch studio with the active tab" on, the studio the tab was last used in comes
+   * back in the same step (no frame with the new document in the old studio). `followStudio: false` keeps the studio:
+   * for short programmatic activations such as Save All.
+   */
+  activateDoc(doc, { followStudio = true } = {}) {
     if (this.doc === doc) return;
+    const target = followStudio && this.#tabs ? this.#tabs.studioToFollow({ doc, current: this.studio, enabled: this.prefs.studioFollowsTab !== false, known: hasStudio }) : null;
     this.tool?.deactivate();
     this.doc = doc;
+    if (target) this.studio = target;
     this.emit("doc", doc);
+    if (target) this.emit("studio", target);
     this.emit("selection");
     this.tool?.activate();
+    // a tool the new studio does not have gives way to its default tool (as in setStudio)
+    const cls = target && this.tool && this.toolClasses.get(this.tool.id);
+    if (target && (!cls || !this.studioHasTool(target, cls))) this.setTool(this.defaultToolFor(target));
     this.emit("render");
+  }
+
+  /** The studio `doc` shows when its tab is activated (remembered, else natural). Vibe tools and pop-outs read it. */
+  docStudio(doc = this.doc) {
+    return this.#tabs ? this.#tabs.tabStudio(doc) : doc?.studio || null;
+  }
+
+  /** Restores the studio a tab remembered (session restore, pop-out handoff); values that do not fit are dropped. */
+  restoreTabStudio(doc, studio) {
+    this.#tabs?.restoreTabStudio(doc, studio);
   }
 
   closeDoc(doc) {
@@ -385,8 +413,15 @@ export class App extends Emitter {
     this.setPref("visibleStudios", resolveVisibleStudios(list, studioIds()));
   }
 
-  setStudio(id) {
-    if (this.studio === id || !hasStudio(id)) return;
+  /**
+   * Switches the studio. `user: true` marks a switch the user chose (studio bar, Studio menu, Alt+N, palette): the active
+   * tab then remembers this studio when it can edit the document (core/tab-studio.js). Programmatic switches (opening
+   * a file, the assistant's tools) never change what a tab remembers.
+   */
+  setStudio(id, { user = false } = {}) {
+    if (!hasStudio(id)) return;
+    if (user && this.doc && this.#tabs?.rememberStudio(this.doc, id)) this.emit("tabstudio", this.doc);
+    if (this.studio === id) return;
     this.studio = id;
     const cls = this.tool && this.toolClasses.get(this.tool.id);
     if (!cls || !this.studioHasTool(id, cls)) this.setTool(this.defaultToolFor(id));

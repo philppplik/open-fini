@@ -11,7 +11,7 @@ export function registerStudioCommands(app) {
         id: `studio.${s.id}`,
         label: `${s.label} Studio`,
         icon: studioIconSpec(s),
-        run: (a) => a.setStudio(s.id),
+        run: (a) => a.setStudio(s.id, { user: true }), // a chosen studio: the active tab remembers it (core/tab-studio.js)
         checked: (a) => a.studio === s.id,
         shortcut: slot >= 0 ? `Alt+${slot + 1}` : undefined,
       });

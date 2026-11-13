@@ -254,7 +254,7 @@ export function createCanvasPanel(vs) {
     const main = studioFor(doc);
     const m = STUDIOS.find((s) => s[0] === main);
     openMain.replaceChildren(iconEl(m[2]), h("span", t("Open in {studio}", { studio: t(m[1]) })));
-    openMain.onclick = () => app.setStudio(main);
+    openMain.onclick = () => app.setStudio(main, { user: true });
     empty(deviceBar);
     if (el.classList.contains("is-web")) for (const [id, label, , icon] of DEVICES) deviceBar.append(btn(icon, label, () => { device = id; paintChrome(); sizeSite(); }, { "aria-pressed": String(device === id) }));
     let layers = 0;
@@ -287,7 +287,7 @@ export function createCanvasPanel(vs) {
   openMore.addEventListener("click", () => {
     const r = openMore.getBoundingClientRect();
     const doc = app.doc;
-    showContextMenu(app, r.left, r.bottom + 4, STUDIOS.filter(([id]) => (id !== "office" || doc?.office) && (id !== "code" || doc?.web)).map(([id, label, icon]) => ({ label: t("Open in {studio}", { studio: t(label) }), icon, run: () => app.setStudio(id) })));
+    showContextMenu(app, r.left, r.bottom + 4, STUDIOS.filter(([id]) => (id !== "office" || doc?.office) && (id !== "code" || doc?.web)).map(([id, label, icon]) => ({ label: t("Open in {studio}", { studio: t(label) }), icon, run: () => app.setStudio(id, { user: true }) })));
   });
 
   function paintEmpty() {

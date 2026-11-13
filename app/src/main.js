@@ -18,6 +18,8 @@ import { initI18n, t, translateDom } from "./i18n/index.js";
 
 // Central logging first, so everything that goes wrong while starting is recorded (see docs/troubleshooting.md).
 installLogCapture();
+// launch screen progress (src/launch.js, a classic script that runs before this module; absent in tests and old pages)
+const launch = window.__ofLaunch;
 
 // Shoelace 2.20 calls ResizeObserver.unobserve(undefined) when a <sl-range>/<sl-select> is removed before its
 // first render (panels are rebuilt often). The call is harmless but throws; ignore non-element arguments.
@@ -43,7 +45,9 @@ await initI18n({
   },
 });
 window.openfini = app; // handy for debugging and automated tests
+app.launch = launch;
 
+launch?.stage("studios", t("Loading studios…"));
 registerAllTools(app);
 registerCommands(app);
 installCustomization(app, { defaults: getDefaultPrefs }); // before the key handler: rebound shortcuts must be in place
@@ -65,6 +69,7 @@ const reportError = (message) => {
 window.addEventListener("error", (e) => reportError(e.message));
 window.addEventListener("unhandledrejection", (e) => reportError(e.reason?.message || String(e.reason)));
 
+launch?.stage("interface", t("Preparing the workspace…"));
 createShell(app, document.getElementById("app"));
 applyTheme(app); // again, now that the layout exists (dock side and width)
 app.on("locale", () => translateDom(document)); // static chrome tagged with data-i18n-* follows a live language switch
@@ -73,8 +78,10 @@ ensureFont("Inter", 400);
 ensureFont("Inter", 700);
 
 // feature modules that need the shell to exist
-const { boot } = await import("./boot.js");
+launch?.stage("documents", t("Opening your documents…"));
+const [{ boot }] = await Promise.all([import("./boot.js"), app.tabStudioReady]); // tabs switch studios from here on
 await boot(app);
+launch?.done();
 // hyphenation patterns load after start-up (idle), so hyphenated text reflows at most once, right after opening
 (window.requestIdleCallback || ((cb) => setTimeout(cb, 200)))(() => import("./engine/dl.js").then((m) => m.ensureHyphenation()).then(() => window.dispatchEvent(new CustomEvent("openfini:fonts"))));
 try {

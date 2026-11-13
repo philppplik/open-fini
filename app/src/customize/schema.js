@@ -118,6 +118,8 @@ function validText(v) {
 export const SETTINGS = [
   // general
   { key: "restoreSession", section: "general", type: "boolean", label: "Restore my last session", check: bool },
+  { key: "launchScreen", section: "general", type: "boolean", label: "Show launch screen", check: bool },
+  { key: "studioFollowsTab", section: "general", type: "boolean", label: "Switch studio with the active tab", check: bool },
   { key: "autosave", section: "general", type: "boolean", label: "Autosave to this device", check: bool },
   { key: "autosaveSeconds", section: "general", type: "integer", label: "Autosave delay (seconds)", min: 2, max: 120, check: int(2, 120) },
   { key: "confirmClose", section: "general", type: "boolean", label: "Ask before closing unsaved documents", check: bool },

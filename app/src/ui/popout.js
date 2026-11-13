@@ -13,6 +13,7 @@
 // Invariants: a document is only closed in the source window after the receiving window confirmed ("adopted");
 // a failed handoff leaves the source untouched. Handoff envelopes live in IndexedDB under popout:<id> until adopted.
 // See docs/multi-window.md.
+import { tabStudio, restoreTabStudio } from "../core/tab-studio.js";
 import { t } from "../i18n/index.js";
 import { platform } from "../platform/index.js";
 import { windowControls } from "../platform/window-controls.js";
@@ -30,7 +31,8 @@ let me = null; // params of this window when it is a pop-out
 const waiters = new Set();
 
 export const isPopoutWindow = () => !!me;
-const docStudio = (doc) => (["pixel", "layout", "code"].includes(doc.studio) ? doc.studio : "vector");
+// the studio a document travels with: the one its tab remembers, else its natural one (core/tab-studio.js)
+const docStudio = (doc) => tabStudio(doc) || "vector";
 const post = (msg) => {
   try {
     channel?.postMessage(msg);
@@ -214,6 +216,7 @@ async function adopt(app, id) {
   doc.path = env.path;
   doc.saved = env.saved;
   if (env.untrusted) doc.untrusted = true;
+  restoreTabStudio(doc, env.studio); // the tab keeps the studio it was used in
   app.openDoc(doc);
   app.setStudio(docStudio(doc));
   requestAnimationFrame(() => app.cv?.fitPage());

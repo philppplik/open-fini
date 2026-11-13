@@ -294,7 +294,7 @@ export function registerBuiltinProviders() {
     priority: 50,
     matches: (c) => c.kind === "studio-button",
     items: (c) => [
-      { label: "Open studio", icon: "box-arrow-in-right", run: () => c.app.setStudio(c.data.studio) },
+      { label: "Open studio", icon: "box-arrow-in-right", run: () => c.app.setStudio(c.data.studio, { user: true }) },
       { label: "Open studio in new window", icon: "box-arrow-up-right", run: () => c.app.run("window.popoutStudio", { studio: c.data.studio }) },
     ],
   });

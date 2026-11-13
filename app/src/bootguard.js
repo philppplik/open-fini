@@ -61,6 +61,7 @@ function showPanel() {
   });
   box.append(title, p, row);
   wrap.append(box);
+  window.__ofLaunch?.reveal(); // the launch screen (and the hidden desktop window) must not hide this panel
   const mount = () => {
     document.body.append(wrap);
     first.focus();

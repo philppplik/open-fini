@@ -12,7 +12,10 @@ export async function boot(app) {
   // app lock: ask for the passphrase before anything reads the autosaved session (ui/app-lock.js)
   try {
     const { kvGetRaw } = await import("./core/storage.js");
-    if (await kvGetRaw("applock")) await (await import("./ui/app-lock.js")).gate(app);
+    if (await kvGetRaw("applock")) {
+      app.launch?.reveal(); // the passphrase prompt must be visible: drop the launch screen (and show the desktop window) first
+      await (await import("./ui/app-lock.js")).gate(app);
+    }
   } catch (err) {
     log.error("security", "The app lock could not be checked", err);
   }

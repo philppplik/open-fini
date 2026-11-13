@@ -10,11 +10,32 @@
         "minHeight": 560,
         "center": true,
         "resizable": true,
+        "visible": false,
         "transparent": true,
         "decorations": true,
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
         "backgroundColor": "#1c1d21",
+        "dragDropEnabled": false
+      },
+      {
+        "label": "splash",
+        "url": "splash.html",
+        "title": "OpenFini",
+        "width": 596,
+        "height": 354,
+        "center": true,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "closable": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "focus": false,
         "dragDropEnabled": false
       }
     ]
