@@ -172,6 +172,10 @@
   // ------------------------------------------------------------ main window
   var model = createBootProgress();
   var finished = false;
+  // The launch screen stays up for at least this long, so it never just flashes by while the app keeps preloading behind it.
+  var MIN_SHOWN_MS = 5000;
+  var shownAt = Date.now();
+  var holding = null;
   // Desktop: the card lives in the splash window (the main window is hidden until done()). Browser: the card is here.
   if (tauri || !enabled) {
     if (root) root.remove();
@@ -198,6 +202,7 @@
     if (finished) return;
     finished = true;
     clearTimeout(safety);
+    clearTimeout(holding);
     publish(full ? model.done() : model.state);
     if (tauri) invoke("launch_ready");
     var el = root;
@@ -224,7 +229,23 @@
       if (!finished) publish(model.progress(id, fraction, label));
     },
     done: function () {
-      finish(true);
+      if (finished || holding) return;
+      var wait = enabled ? MIN_SHOWN_MS - (Date.now() - shownAt) : 0;
+      if (wait <= 0) return finish(true);
+      // ready early: the app is usable behind the card and goes on preloading; the bar fills over the remaining time
+      var from = model.state.value;
+      var began = Date.now();
+      var label = model.state.label;
+      var tick = function () {
+        if (finished) return;
+        var k = Math.min(1, (Date.now() - began) / wait);
+        publish({ value: from + (0.98 - from) * k, busy: false, label: label, done: false });
+        if (k < 1) setTimeout(tick, 120);
+      };
+      tick();
+      holding = setTimeout(function () {
+        finish(true);
+      }, wait);
     },
     reveal: function () {
       finish(false);
