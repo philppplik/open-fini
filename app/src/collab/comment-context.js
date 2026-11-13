@@ -15,6 +15,7 @@
 //   fileText(path) → string | null                  Code studio file
 //   elementAt(path, sel) → { tag, outerHtml, startLine, endLine, text } | null   website element by element path
 //   blockText(path[]) → string | null               Office paragraph text for a path like [3] or [2,0,1,0]
+//   officeItem(anchor) → object | null              Office Suite item (whiteboard element or point): resolved details
 // Target.type: "document" | "page" | "layer" | "region" | "code" | "element" | "text".
 // Invariant: output is plain JSON (strings, numbers, booleans, arrays, objects) and bounded in size.
 
@@ -128,9 +129,12 @@ export function resolveTarget(anchor, env = {}) {
       }
       return out;
     }
-    case "item":
+    case "item": {
       // Office Suite apps (sheet cell, slide object, board item): identified by the app's record key
+      const own = env.officeItem?.(a);
+      if (own) return { type: "item", item: a.item, ...own, ...(quote ? { quote } : {}) };
       return { type: "item", exists: true, item: a.item, ...(quote ? { quote } : {}), note: "An item of an Office Suite document (cell, slide object or board item); its quote names it." };
+    }
     default:
       return { type: "document", exists: true };
   }

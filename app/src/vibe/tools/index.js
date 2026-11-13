@@ -75,7 +75,7 @@ export const TOOL_GROUPS = {
   "Scene understanding": ["scene_transcribe", "scene_set_transcript", "scene_transcript", "scene_detect_shots", "scene_analyze_audio", "scene_sample_frames", "scene_index_note", "scene_search"],
   "Scene automation": ["scene_cut_transcript", "scene_remove_silences", "scene_remove_fillers", "scene_auto_captions", "scene_highlight_reel", "scene_reframe", "scene_animate_clip", "scene_title", "scene_lower_third", "scene_slideshow", "scene_beat_cuts"],
   "Scene motion": ["scene_parent", "scene_behavior", "scene_stagger", "scene_keyframe_edit", "scene_clip_time", "scene_link", "scene_effect_order", "scene_animate_with_sound", "scene_beat_markers"],
-  Whiteboard: ["board_describe", "board_add_shape", "board_add_sticky", "board_add_text", "board_add_connector", "board_update", "board_delete", "board_arrange", "board_page", "board_import", "board_export", "board_add_table", "board_edit_table", "board_add_chart", "board_add_plot", "board_add_math", "board_add_subboard", "board_add_diagram", "board_draw"],
+  Whiteboard: ["board_describe", "board_add_shape", "board_add_sticky", "board_add_text", "board_add_connector", "board_update", "board_delete", "board_arrange", "board_page", "board_import", "board_export", "board_add_table", "board_edit_table", "board_add_chart", "board_add_plot", "board_add_math", "board_add_subboard", "board_add_diagram", "board_draw", "board_list_comments", "board_add_comment"],
   "Imported documents": ["get_import_report", "list_pdf_pages", "describe_document_pages", "extract_pdf_text"],
   "System and files": ["get_platform_info", "list_recent_files"],
   Extensions: ["list_extensions", "run_extension_command", "install_extension_from_url", "create_extension"],

@@ -6,6 +6,14 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Whiteboard comments: a *Comment* tool (`C`), *Add comment* in the context menu of elements and of the empty board, and comment mode (`Shift+C`) on the board. Comments attach to an element (the pin follows it when it moves, resizes or rotates, stays put when the element is deleted and re-attaches on undo) or to a point of a page. Numbered pins keep their size at every zoom, merge into clusters where they overlap, can be dragged to move the comment and show unread marks. Threads open at the pin with reply, edit, delete, resolve and reopen, @mentions in a room. Comments are saved in the document, work without a room and sync in one ([docs/office-board.md](docs/office-board.md#comments)).
+- Whiteboard sidebar (*View ▸ Sidebar*, `Ctrl+\`): docked, resizable and remembered, an overlay drawer on narrow windows, with Comments (filters, search, unread count, jump to the pin), Outline (pages, frames and elements: select, rename, hide, lock, zoom to, drag to reorder), Properties (position, size, angle, colors, line, text, arrowheads) and Library (shapes and sticky notes to click or drag in) ([docs/office-board.md](docs/office-board.md#sidebar)).
+- Vibe: `board_list_comments` and `board_add_comment`; the general comment tools resolve whiteboard comments to their element.
+
+### Changed
+- Whiteboard elements can be hidden (not drawn, hit or exported) and named from the outline.
+
 ## [1.1.1] — Deeper Scene Studio, collaboration window, hardening
 
 ### Security

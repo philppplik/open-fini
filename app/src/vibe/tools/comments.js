@@ -26,7 +26,9 @@ export async function commentEnv(app, doc) {
   const M = doc.office ? await import("../../engine/office/model.js") : null;
   const pages = [...doc.pages, ...(doc.masters || [])];
   const lineOf = (text, off) => text.slice(0, off).split("\n").length;
+  const board = doc.office?.kind === "board" ? await import("../../office/board/comments.js") : null;
   return {
+    officeItem: board ? (a) => board.describeBoardAnchor(a, doc.office.model) : undefined,
     findNode: (id) => doc.find(id) || null,
     pageName: (id) => pages.find((p) => p.id === id)?.name ?? null,
     nodeBounds: (n) => {
