@@ -9,6 +9,35 @@ default panels and the context bar — it never converts or changes your documen
 > browser and cannot be intercepted. Install the PWA or use the desktop app for the full shortcut set — the
 > same actions are always available from the menus.
 
+## Switching studios with the tabs
+
+Every document tab remembers the studio it was last used in. Clicking the tab (or closing the tab in front of it, or
+opening a file that is already open) brings that studio back in the same step, with its toolbox, panels, menus and
+workspace, and without losing the other studios' state. Example: a website project in the Code studio and a `.png` in
+the Pixel studio; going back to the website's tab switches to the Code studio, going to the photo switches to Pixel.
+
+- **Default:** a tab without a memory uses its natural studio: Office and Scene documents their studio, a website
+  project the Code studio, every other document the studio it was created in (an SVG Vector, an image Pixel).
+- **Choosing a studio by hand** (header button, Studio menu, `Alt+1` … `Alt+5`, command palette, the studio button's
+  *Open studio*, the Vibe Canvas panel's *Open in …*) updates the active tab's memory, but only when that studio can
+  edit the document: any canvas studio (Vector, Pixel, Layout) for a canvas document, also Code for a website
+  project, only Office for an Office document and only Scene for a scene. So an image can live in Pixel or Layout and
+  an SVG in a website project in Code or Vector; switching a photo to Code leaves its memory alone.
+- **Opening files** (File ▸ Open, recent files, drag and drop, the OS "Open with", the PWA file handler) opens the tab
+  in its natural studio; the switches the openers make on their own are never remembered.
+- **Vibe Studio** works across documents: in it the tabs choose what the assistant works on and Vibe stays open. The
+  assistant's tool list follows the tab's studio (`app.docStudio(doc)`). In every other studio the Vibe panel sees the
+  studio the tab brought back.
+- **Closing tabs:** closing the last tab of a studio activates the neighboring tab and its studio; closing the very
+  last tab keeps the current studio for the start page.
+- **Session restore and pop-out windows** keep the memory: it is part of the autosaved session and travels with a
+  document moved to another window (each window has its own tabs).
+- *Save All* and quitting with unsaved documents visit the tabs without switching studios.
+
+Turn it off in *Settings ▸ Studios ▸ Switch studio with the active tab* (preference `studioFollowsTab`, default on):
+tabs then never change the studio. Code: `app/src/core/tab-studio.js` (pure, tests in `tests/core/tab-studio.test.js`),
+`App.activateDoc(doc, { followStudio })` and `App.setStudio(id, { user })` in `app/src/core/app.js`.
+
 ## Common to all studios
 
 While no document is open (the start page) the menubar shows only File, View, Studio and Help; the studio menus appear when a document opens. The set is the `MINIMAL_MENUS` constant in `app/src/ui/menubar-select.js`.

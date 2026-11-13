@@ -26,7 +26,9 @@ Every window is a full OpenFini instance (own `App`, own memory). A pop-out is t
 4. Only after `adopted` (12 s timeout) does the source close its copy (Move). On timeout or a blocked window the source keeps the document. The two copies are independent afterwards.
 5. **Return** is the same protocol in the other direction (message `return`, answered with `adopted` by the main window).
 
-Move transfers the whole current state, so unsaved changes travel with it (a confirm explains this).
+Move transfers the whole current state, so unsaved changes travel with it (a confirm explains this). The envelope's `studio` is the studio the tab remembers (`tabStudio`, [studios.md](studios.md#switching-studios-with-the-tabs)); the receiving window restores it for the tab.
+
+The desktop app's launch splash window (label `splash`, [launch-screen.md](launch-screen.md)) is not a pop-out: it only shows the start-up card and is destroyed when the main window appears.
 
 ### Not losing work
 Pop-outs autosave to their own key `popout-session:<windowId>` (the main window keeps `session`). When a pop-out closes without returning (`closed` message) and at the next main start, the main window pings the channel; documents of vanished pop-outs that were unsaved reopen as tabs, then the key is deleted. Handoff and session keys are encrypted while the app lock is on.

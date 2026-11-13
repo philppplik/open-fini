@@ -173,11 +173,11 @@ export function registerFileCommands(app) {
     let n = 0;
     for (const d of [...a.docs]) {
       if (d.saved) continue;
-      a.activateDoc(d);
+      a.activateDoc(d, { followStudio: false }); // a short visit to save it: the studio stays
       await save(a, false);
       if (d.saved) n++;
     }
-    if (keep && a.docs.includes(keep)) a.activateDoc(keep);
+    if (keep && a.docs.includes(keep)) a.activateDoc(keep, { followStudio: false });
     a.toast(n ? t("Saved {n, plural, one {# document} other {# documents}}.", { n }) : t("Everything is already saved."), n ? "success" : "primary", 1800);
   }, { shortcut: "Mod+Alt+S", enabled: (a) => a.docs.length > 0, icon: "save2" });
   def("file.saveAs", "Save As…", (a) => save(a, true), { shortcut: "Mod+Shift+S", enabled: hasDoc });
@@ -263,7 +263,7 @@ export function registerFileCommands(app) {
       const r = await confirmDialog({ title: "Close document", message: `“${d.name}” has unsaved changes.`, ok: "Save", extra: "Don’t Save", cancel: "Cancel" });
       if (r === false) return;
       if (r === true) {
-        a.activateDoc(d);
+        a.activateDoc(d, { followStudio: false });
         await save(a, false);
         if (!d.saved) return;
       }
@@ -286,7 +286,7 @@ export function registerFileCommands(app) {
     if (r === false) return false;
     if (r === "extra") return true; // discard: the autosaved copies on this device are not touched
     for (const d of unsaved) {
-      app.activateDoc(d);
+      app.activateDoc(d, { followStudio: false });
       await save(app, false);
       if (!d.saved) return false; // a save was cancelled or failed: stay open
     }
@@ -345,7 +345,7 @@ export function registerFileCommands(app) {
     if (!app.docs.length) return;
     try {
       const entries = [];
-      for (const d of app.docs) entries.push({ name: d.name, studio: d.studio, saved: d.saved, path: d.path || null, source: sourceSnapshot(d.source), untrusted: !!d.untrusted && !d.scriptsOk, bytes: await saveOfini(d) });
+      for (const d of app.docs) entries.push({ name: d.name, studio: d.studio, tabStudio: d.tabStudio || null, saved: d.saved, path: d.path || null, source: sourceSnapshot(d.source), untrusted: !!d.untrusted && !d.scriptsOk, bytes: await saveOfini(d) });
       await saveSession(entries, app.docs.indexOf(app.doc), app.sessionKey); // pop-out windows use their own key
     } catch (err) {
       log.warn("storage", "Autosave failed", err);
@@ -354,18 +354,22 @@ export function registerFileCommands(app) {
   app.autosaveNow = autosave;
   app.on("docchange", schedule);
   app.on("docs", schedule);
+  app.on("tabstudio", schedule); // a tab remembers another studio: keep it for session restore
   app.restoreSession = async () => {
     if (app.popout) return false; // a pop-out gets its document by handoff, never the main session
     const s = await loadSession();
     if (!s?.docs?.length) return false;
+    await app.tabStudioReady;
     let n = 0;
-    for (const e of s.docs) {
+    for (const [i, e] of s.docs.entries()) {
+      app.launch?.progress("documents", i / s.docs.length);
       try {
         const doc = await loadOfini(e.bytes);
         doc.path = e.path;
         doc.saved = e.saved;
         if (e.source && typeof e.source.name === "string" && typeof e.source.kind === "string") doc.source = { ...e.source }; // the file location survives a restart; bytes and handles do not
         if (e.untrusted) doc.untrusted = true; // still protected: the user has not enabled its scripts
+        app.restoreTabStudio(doc, e.tabStudio); // the studio this tab was last used in (core/tab-studio.js)
         app.openDoc(doc, { activate: false });
         n++;
       } catch {
@@ -374,7 +378,7 @@ export function registerFileCommands(app) {
     }
     if (n) {
       app.activateDoc(app.docs[Math.min(s.active ?? 0, app.docs.length - 1)] || app.docs[0]);
-      app.setStudio(["pixel", "layout", "code", "office", "scene"].includes(app.doc.studio) ? app.doc.studio : "vector");
+      app.setStudio(app.docStudio(app.doc)); // the remembered studio of the active tab, else its natural one
       requestAnimationFrame(() => app.cv?.fitPage());
       app.toast("Restored your previous session.", "success", 2200);
     }

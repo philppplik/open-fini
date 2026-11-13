@@ -28,7 +28,7 @@ export function createStudioBar(app) {
       const s = STUDIOS[id];
       const b = h("button.of-studio", { type: "button", "data-studio": id, "data-tip": tip(s), "data-shortcut": `Alt+${i + 1}`, "aria-pressed": "false" }, iconEl(studioIconSpec(s)), h("span", s.label));
       markContext(b, "studio-button", { studio: id });
-      b.addEventListener("click", () => app.setStudio(id));
+      b.addEventListener("click", () => app.setStudio(id, { user: true }));
       buttons.set(id, b);
       el.append(b);
     });

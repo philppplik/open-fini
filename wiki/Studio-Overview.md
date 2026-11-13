@@ -18,6 +18,8 @@ OpenFini has six studios that share one document. This page compares them, expla
 
 Use the header buttons or `Alt+1` to `Alt+5` (following the header order). The Studio menu lists every studio, including those in *More*. The header shows at most five (preference `visibleStudios`, default Vector, Pixel, Layout, Code, Vibe); Office starts in the *More* menu. Opening a *More* studio shows it in the place of the *More* label until you pick another one. Add a studio to the header in *Settings ▸ Studios* (at least one, never more than five) to give it an `Alt` shortcut.
 
+Each document tab remembers the studio you last used it in: going back to a website's tab brings the Code studio back, going to a photo brings Pixel back. A studio you choose by hand is remembered for the active tab when it can edit that document (an image in Pixel or Layout, a website project in Code or a canvas studio). Vibe Studio stays open while you switch tabs. Turn this off in *Settings ▸ Studios ▸ Switch studio with the active tab*. Details: [docs/studios.md](https://github.com/philppplik/open-fini/blob/main/docs/studios.md#switching-studios-with-the-tabs).
+
 ## Shortcuts common to all studios
 
 `Mod` is `Ctrl` on Windows and Linux, `Cmd` on macOS. The complete generated list is on [[Keyboard Shortcuts]].

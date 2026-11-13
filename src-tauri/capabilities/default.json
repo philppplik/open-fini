@@ -71,6 +71,7 @@
     "clipboard-manager:allow-write-image",
     "allow-take-launch-files",
     "allow-quit-app",
+    "allow-launch-ready",
     "allow-oauth-loopback-start",
     "allow-oauth-loopback-wait",
     "allow-relay-start",

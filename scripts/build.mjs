@@ -95,6 +95,14 @@ function fileFromUrl(root, htmlDir, url) {
   return clean.startsWith("/") ? join(root, clean) : resolve(htmlDir, clean);
 }
 
+/**
+ * Writes the app version (package.json) into the launch card's empty `data-of-version` element, so the card shows
+ * it at first paint. Development pages stay empty and are filled at run time by src/launch.js.
+ */
+export function stampVersion(html, version) {
+  return html.replace(/(<[^>]*\bdata-of-version\b[^>]*>)(<\/span>)/g, (_, open, close) => `${open}v${String(version).replace(/[<>&"]/g, "")}${close}`);
+}
+
 // ------------------------------------------------------------------- the build
 
 /**
@@ -386,7 +394,10 @@ export async function build({
     const links = extraCss.map((href) => `<link rel="stylesheet" href="${href}">`).join("\n    ");
     rewritten = rewritten.replace(/<\/head>/i, `    ${links}\n  </head>`);
   }
-  await writeFile(indexPath, rewritten);
+  await writeFile(indexPath, stampVersion(rewritten, pkg.version));
+  // the desktop splash window shows the same launch card (docs/launch-screen.md)
+  const splashPath = join(out, "splash.html");
+  if (await exists(splashPath)) await writeFile(splashPath, stampVersion(await readFile(splashPath, "utf8"), pkg.version));
 
   await removeEmptyDirs(out);
 

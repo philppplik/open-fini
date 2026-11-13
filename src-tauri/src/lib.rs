@@ -28,7 +28,9 @@ mod webfetch;
 mod wire;
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::time::Duration;
 
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_fs::FsExt;
@@ -63,8 +65,46 @@ impl OpenQueue {
     }
 }
 
-/// Brings the main window to the front.
+/// Label of the launch splash window (`app/splash.html`, see `app.windows` in `tauri.conf.json`).
+const SPLASH_WINDOW: &str = "splash";
+/// The main window starts hidden behind the splash window. It is shown when the frontend says it is ready
+/// (`launch_ready`) or, at the latest, after this many seconds, so a failing start never leaves it invisible.
+const LAUNCH_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// Whether the main window was revealed yet (docs/launch-screen.md, ADR 0031).
+#[derive(Default)]
+struct Launch {
+    revealed: AtomicBool,
+}
+
+/// Shows the main window and closes the splash window, once. Every failure here is ignored: the splash window is
+/// decoration and must never keep the app from starting.
+fn reveal_main_window(app: &AppHandle) {
+    if app.state::<Launch>().revealed.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+    if let Some(splash) = app.get_webview_window(SPLASH_WINDOW) {
+        let _ = splash.destroy();
+    }
+}
+
+/// Called by the main window when the app is ready (or right away when the launch screen is turned off, or when a
+/// prompt such as the app lock must be visible). Idempotent.
+#[tauri::command]
+fn launch_ready(app: AppHandle) {
+    reveal_main_window(&app);
+}
+
+/// Brings the main window to the front. While the app is still starting (main window hidden behind the splash
+/// window) it stays hidden: `reveal_main_window` shows and focuses it when the app is ready.
 fn focus_main_window(app: &AppHandle) {
+    if !app.state::<Launch>().revealed.load(Ordering::SeqCst) {
+        return;
+    }
     if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
         let _ = window.unminimize();
         let _ = window.show();
@@ -168,6 +208,7 @@ pub fn run() {
 
     let app = builder
         .manage(OpenQueue::default())
+        .manage(Launch::default())
         .manage(oauth::Loopback::default())
         .manage(relay::Relay::default())
         .manage(preview_server::PreviewServer::default())
@@ -180,6 +221,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             take_launch_files,
             quit_app,
+            launch_ready,
             oauth::oauth_loopback_start,
             oauth::oauth_loopback_wait,
             relay::relay_start,
@@ -219,9 +261,18 @@ pub fn run() {
                 if let Some(collab) = window.app_handle().get_webview_window(COLLAB_WINDOW) {
                     let _ = collab.destroy();
                 }
+                if let Some(splash) = window.app_handle().get_webview_window(SPLASH_WINDOW) {
+                    let _ = splash.destroy();
+                }
             }
         })
         .setup(|app| {
+            // Fallback for the launch screen: whatever happens in the frontend, the main window shows.
+            let handle = app.handle().clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(LAUNCH_TIMEOUT);
+                reveal_main_window(&handle);
+            });
             let args = std::env::args_os()
                 .skip(1)
                 .map(|arg| arg.to_string_lossy().into_owned());

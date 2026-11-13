@@ -33,3 +33,4 @@ in place and are marked as such.
 | [0029](0029-scene-studio.md) | Scene Studio: one pure model, frame = f(model, time), 2D compositor with a WebGL pass, WebCodecs export with own containers | Accepted |
 | [0028](0028-vibe-code-mode.md) | Code mode for the Vibe assistant: `run_script` in an isolated worker, call gate, one undo step, dry run | Accepted |
 | [0030](0030-collab-native-window.md) | Collaboration always lives in its own OS window: one UI fed by snapshots, no in-app fallback | Accepted |
+| [0031](0031-launch-screen.md) | Launch screen: an inline card for the web, a separate splash window on the desktop | Accepted |
