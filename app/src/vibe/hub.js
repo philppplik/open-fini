@@ -201,7 +201,9 @@ export class VibeHub extends Emitter {
       return ai.createProvider({ kind: rec.kind, baseUrl: rec.baseUrl, getToken: openAIGetToken(id) });
     }
     if (!key && preset?.needsKey !== false) throw new Error(`No API key is stored for ${rec.label}. Add one in the Models tab.`);
-    return ai.createProvider({ kind: rec.kind, baseUrl: rec.baseUrl, apiKey: key, headers: rec.headers });
+    // Ollama connections made before the native API (kind "openai", …/v1) are served by the native provider too
+    const kind = rec.preset === "ollama" || rec.preset === "ollama-cloud" ? "ollama" : rec.kind;
+    return ai.createProvider({ kind, baseUrl: rec.baseUrl, apiKey: key, headers: rec.headers, ...(rec.preset === "ollama-cloud" ? { cloud: true } : {}) });
   }
 
   async imageCtx() {

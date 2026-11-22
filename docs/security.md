@@ -57,7 +57,16 @@ a clear message instead of failing silently:
 | `other` | Anything else (also used for unknown kinds) |
 
 Loopback addresses (`localhost`, `127.x.x.x`, `::1`) are not blocked, so local models (Ollama, LM Studio) keep
-working: nothing leaves the device. Offline mode does not stop links you click from opening in your browser; that
+working: nothing leaves the device.
+
+**Native Ollama command (desktop).** `ollama_fetch` (src-tauri/src/ollama.rs) lets the Ollama provider skip the web
+view's CORS rules. It is not a general proxy and does not widen the assistant's web tools (`web_get` still refuses
+every private address): it accepts only `GET`, `POST` and `DELETE`, only paths under `/api/` and `/v1/` (no `..`),
+only the headers `Authorization`, `Content-Type` and `Accept`, and only hosts that are this device or the local network
+(loopback, private, link-local and unique-local addresses, `localhost`, `*.local`, single-label names) over http or
+https, or `ollama.com` / `*.ollama.com` over https with public addresses. Names are resolved natively and every address
+must suit the class of the host, so a name that points somewhere else is refused. Redirects are not followed, there
+are no cookies, and the request size and response size are capped at 64 MiB. Offline mode does not stop links you click from opening in your browser; that
 is controlled by *Ask before opening links*.
 
 **For developers:** call `app.network.allowed(kind, url?)` or `app.network.assert(kind, url?)` (throws

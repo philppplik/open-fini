@@ -12,10 +12,41 @@ Open **Models** in Vibe Studio, choose *Add*, and pick a preset or enter any Ope
 | OpenAI | API key; image generation and editing through the Images API |
 | Anthropic | API key; native Messages API with tool use and extended thinking |
 | DeepSeek, xAI (Grok), Mistral, Groq, Together AI, Google Gemini | API key; OpenAI-compatible endpoints (Gemini through its OpenAI-compatible endpoint) |
-| Ollama, LM Studio | Local, no key. The server must allow the app's origin (for Ollama set `OLLAMA_ORIGINS`) |
+| Ollama | Local, no key, native API with model capabilities. The desktop app needs no setup; a browser needs `OLLAMA_ORIGINS` (see [Ollama setup](#ollama-setup)). Cloud models after `ollama signin` appear in the same list |
+| Ollama Cloud | API key from ollama.com/settings/keys, direct connection |
+| LM Studio | Local, no key. The server must allow the app's origin (enable CORS) |
 | Custom | Any OpenAI-compatible `/v1` server (llama.cpp, vLLM, a company gateway) or an Anthropic-compatible one: choose the *API type* and add extra headers (one `Name: value` per line). If the server has no model list, type the model id in the model picker |
 
 The offline **Demo** model needs no key and follows a script of real tool calls.
+
+## Ollama setup
+
+OpenFini talks to Ollama's native API (`/api/tags`, `/api/show`, `/api/ps`, `/api/chat`, `/api/pull`), not the `/v1`
+compatibility layer, so it sees every installed model with its capabilities (tools, vision, thinking, context length)
+and only offers tool use or images to models that support them. Add the connection in *Models ▸ Add ▸ Ollama (local)*.
+
+- **Detect** tries `http://127.0.0.1:11434`, `http://localhost:11434` and the address you typed. **Test connection**
+  says exactly what is wrong: not running, origin refused, plain http blocked on an https page, version too old
+  (tool use needs Ollama 0.3.0), or OK with the version. A pasted `/v1` address is accepted and converted.
+- **Desktop app (Windows, macOS, Linux):** requests go through the app's native side, so CORS and `OLLAMA_ORIGINS` do not
+  matter. Only your own computer, your local network and `ollama.com` can be reached this way, and only the
+  `/api/` and `/v1/` paths (see Security and Privacy). Ollama needs no special setup: start the Ollama app or
+  run `ollama serve`.
+- **Browser (PWA):** the page calls Ollama directly, and Ollama only answers origins listed in `OLLAMA_ORIGINS`.
+  Test connection shows the value for this page and the commands for your system:
+  - Windows: quit Ollama from the tray, run `setx OLLAMA_ORIGINS "https://your-origin"`, start Ollama again.
+  - macOS: `launchctl setenv OLLAMA_ORIGINS "https://your-origin"`, then restart the Ollama app.
+  - Linux: `sudo systemctl edit ollama.service`, add `Environment="OLLAMA_ORIGINS=https://your-origin"` under
+    `[Service]`, then `sudo systemctl daemon-reload && sudo systemctl restart ollama`.
+  - An https page cannot call `http://` servers on other machines (mixed content); `http://localhost` works in
+    Chrome, Edge and Firefox but not in Safari. Use the desktop app, or put Ollama behind https.
+- **Another machine:** set `OLLAMA_HOST=0.0.0.0` on the Ollama machine and use `http://<its-address>:11434` here.
+- **Models:** the list shows local models with size, parameters, quantization and capabilities, marks the ones
+  loaded in memory, and has a *Pull* field with progress for downloading by name. Chat requests use the model's
+  context length (at most 32768 tokens, to keep memory use sane) instead of Ollama's 4096 default.
+- **Ollama cloud:** after `ollama signin`, models ending in `:cloud` or `-cloud` run through your local Ollama and appear
+  in the *Cloud* group of the same connection. For a direct connection without the local app, add *Ollama Cloud
+  (ollama.com)* with an API key from ollama.com/settings/keys.
 
 ## Keys
 

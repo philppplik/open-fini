@@ -21,6 +21,7 @@ mod ftp;
 mod latex;
 mod netio;
 mod oauth;
+mod ollama;
 mod preview_server;
 mod relay;
 mod smtp;
@@ -245,6 +246,7 @@ pub fn run() {
             latex::latex_engines,
             latex::latex_compile,
             webfetch::web_get,
+            ollama::ollama_fetch,
             fileaccess::files_grants,
             fileaccess::files_grant_pick,
             fileaccess::files_grant_set_write,

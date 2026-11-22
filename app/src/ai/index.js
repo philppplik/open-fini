@@ -13,6 +13,8 @@ export {
   createAnthropicProvider,
   createMockProvider,
 } from "./providers/index.js";
+export { createOllamaFetch, isNativeOllamaUrl } from "./ollama-transport.js";
+export { testOllama, detectOllama, originFixes, detectOs, normalizeBase as normalizeOllamaBase, describeModel as describeOllamaModel, OLLAMA_DEFAULT_BASES } from "./providers/ollama.js";
 export { toWireMessages, fromWireMessages, toWireTools } from "./providers/openai.js";
 export { toAnthropicMessages, fromAnthropicContent } from "./providers/anthropic.js";
 export { planForPrompt, gradientPng } from "./providers/mock.js";

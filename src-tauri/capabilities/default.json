@@ -95,6 +95,7 @@
     "allow-latex-engines",
     "allow-latex-compile",
     "allow-web-get",
+    "allow-ollama-fetch",
     "allow-files-grants",
     "allow-files-grant-pick",
     "allow-files-grant-set-write",

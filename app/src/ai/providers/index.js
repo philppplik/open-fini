@@ -5,8 +5,9 @@ import { createAnthropicProvider } from "./anthropic.js";
 import { createMockProvider } from "./mock.js";
 import { createOpenCodeServerProvider } from "./opencode.js";
 import { createOpenAIResponsesProvider } from "./openai-responses.js";
+import { createOllamaProvider } from "./ollama.js";
 
-export { createOpenAIResponsesProvider, createOpenAIProvider, createAnthropicProvider, createMockProvider, createOpenCodeServerProvider };
+export { createOpenAIResponsesProvider, createOpenAIProvider, createAnthropicProvider, createMockProvider, createOpenCodeServerProvider, createOllamaProvider };
 export { ProviderError } from "../util.js";
 
 const caps = (o = {}) => ({ vision: true, tools: true, images: false, embeddings: false, ...o });
@@ -129,13 +130,24 @@ export const PROVIDER_PRESETS = [
   {
     id: "ollama",
     label: "Ollama (local)",
-    kind: "openai",
-    baseUrl: "http://localhost:11434/v1",
+    kind: "ollama",
+    baseUrl: "http://127.0.0.1:11434",
     keyUrl: "https://ollama.com/download",
     needsKey: false,
-    models: ["llama3.1", "qwen3", "gemma3", "llava"],
+    models: [],
     capabilities: caps({ embeddings: true }),
-    note: "Runs on your machine. Browsers need OLLAMA_ORIGINS to allow this app's origin; the desktop app does not.",
+    note: "Runs on your machine and lists every installed model, plus cloud models after “ollama signin”. The desktop app connects natively; a browser needs OLLAMA_ORIGINS to allow this page (Test connection shows the exact command).",
+  },
+  {
+    id: "ollama-cloud",
+    label: "Ollama Cloud (ollama.com)",
+    kind: "ollama",
+    baseUrl: "https://ollama.com",
+    keyUrl: "https://ollama.com/settings/keys",
+    needsKey: true,
+    models: [],
+    capabilities: caps({ embeddings: false }),
+    note: "Direct connection to ollama.com with an API key (the local app is not needed). Models that run on Ollama's cloud also appear in the local Ollama connection after “ollama signin”.",
   },
   {
     id: "lmstudio",
@@ -211,6 +223,7 @@ export function createProvider(cfg = {}) {
   if (kind === "anthropic") return createAnthropicProvider(merged);
   if (kind === "openai-responses") return createOpenAIResponsesProvider(merged);
   if (kind === "mock") return createMockProvider(merged);
+  if (kind === "ollama") return createOllamaProvider(merged);
   if (kind === "opencode-server") return createOpenCodeServerProvider(merged);
   throw new Error(`Unknown provider kind "${kind}".`);
 }

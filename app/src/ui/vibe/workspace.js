@@ -159,7 +159,7 @@ export function vibeStudio(app) {
           let models = [];
           try {
             const prov = await session.providerFor(row.id);
-            models = (await prov.listModels()).map((m) => m.id);
+            models = (await prov.listModels()).filter((m) => !m.embedding).map((m) => m.id);
           } catch (err) {
             // many custom endpoints have no model list: let the user type the model id instead
             const manual = h("input.of-side__search", { type: "text", placeholder: "Model id, e.g. my-model-7b", "aria-label": "Model id", spellcheck: false });
