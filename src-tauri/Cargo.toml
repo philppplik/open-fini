@@ -1,6 +1,6 @@
 [package]
 name = "openfini"
-version = "1.1.4"
+version = "1.2.0"
 description = "OpenFini - a lightweight, open-source creative suite (desktop shell)"
 authors = ["OpenFini contributors"]
 license = "MIT"
