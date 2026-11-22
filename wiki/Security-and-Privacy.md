@@ -45,6 +45,10 @@ An optional passphrase lock screen on start, after an idle time, when the window
 
 Honest limits: it protects data stored on the device (another person using the computer, a copied profile), not against malware or someone using the unlocked app. Open documents stay in memory while locked; the lock screen only covers the interface. Files you saved are **not** encrypted and settings are not encrypted (they contain no secrets). A forgotten passphrase cannot be recovered: the lock screen offers to delete the protected data and remove the lock, leaving your saved files untouched.
 
+## Computer use
+
+Off by default, desktop app on Windows and macOS only. The assistant can take screenshots and, if you allow it, use the mouse and keyboard in other apps. Each session is allowed in a system dialog (control, view only or not at all), ends after at most 60 minutes, and shows an always-on-top bar with *Stop*; `Ctrl+Alt+Shift+Esc` stops and `Esc` pauses. Every input action asks for approval. Screenshots go to the model provider you chose and are not stored. Password managers and security settings are blacked out and cannot be controlled, and the assistant cannot operate OpenFini's own windows. Honest limits: password fields cannot be detected, text on screen can try to steer the model, and clicks cannot be undone. Details: [security.md](https://github.com/philppplik/open-fini/blob/main/docs/security.md#computer-use-for-the-assistant).
+
 ## Untrusted files: protected mode
 
 On by default: a website project opened from a file or folder starts with preview scripts **off**; a banner offers *Enable scripts* for that project in this session. Projects you create in OpenFini are trusted. The preview is sandboxed either way (a frame without `allow-same-origin`, so page scripts cannot reach OpenFini).

@@ -27,7 +27,7 @@ in place and are marked as such.
 | [0020](0020-color-management.md) | Color management: compact ICC engine, no bundled CMYK profile, PDF/X with an honest preflight | Accepted |
 | [0021](0021-native-window-materials.md) | Native window materials (Mica, Acrylic, vibrancy) instead of Liquid glass refraction | Accepted |
 | [0022](0022-ai-orchestration-and-skill-packs.md) | AI orchestration (plan_work) and lazy skill packs | Accepted |
-| [0023](0023-computer-use.md) | Computer use for the assistant: risks, OS permissions and a staged plan (not built; stage 1 designed) | Proposed |
+| [0023](0023-computer-use.md) | Computer use for the assistant: risks, OS permissions, and the session-grant design that was built for Windows and macOS | Accepted |
 | [0024](0024-ofini-cli-and-tui.md) | An `ofini` command-line tool with an optional TUI | Layer 1 built (0032); rest proposed |
 | [0025](0025-code-studio-terminal.md) | A terminal in the Code studio without a shell or PTY (reuses the assistant's run-without-a-shell command) | Accepted |
 | [0029](0029-scene-studio.md) | Scene Studio: one pure model, frame = f(model, time), 2D compositor with a WebGL pass, WebCodecs export with own containers | Accepted |

@@ -38,7 +38,7 @@ registered tools (a test checks the tool names).
   **Activity**.
 * **Models and connections, Tools and MCP, Skills, Knowledge, Memory** moved to **Settings ▸ Artificial intelligence**
   (sub-tabs under *Vibe Studio*). Deep link for scripts and extensions:
-  `app.run("settings.open", { section: "ai", tab: "models" })` (`tab`: `models`, `tools`, `web`, `terminal`, `files`, `skills`, `knowledge`, `memory`, `voice`, `logging`). The
+  `app.run("settings.open", { section: "ai", tab: "models" })` (`tab`: `models`, `tools`, `web`, `terminal`, `files`, `computer`, `skills`, `knowledge`, `memory`, `voice`, `logging`). The
   old commands *Show Models and Connections* etc. open the same place.
 
 ## Mentions: `@`, `/` and `!`
@@ -465,7 +465,10 @@ MCP servers you add.
 - **Terminal** (desktop app, off by default): `run_command` runs one allow-listed program with an argv (no shell) in an
   opened folder, approved per call, with a live output panel and **Stop**. Policy and limits: *Settings ▸ Artificial
   intelligence ▸ Terminal* and [docs/security.md](security.md#terminal-access-for-the-assistant). There is no
-  interactive terminal panel in the Code studio, and no computer use ([ADR 0023](adr/0023-computer-use.md)).
+  interactive terminal panel in the Code studio.
+- **Computer use** (desktop app on Windows and macOS, off by default): `computer` (screenshot, zoom, mouse, keyboard
+  in other apps) and `computer_info`. Every session is allowed in a system dialog, input actions are approved one by
+  one, and an always-on-top bar with **Stop** stays visible. See [vibe-computer-use.md](vibe-computer-use.md).
 
 ## Web access
 

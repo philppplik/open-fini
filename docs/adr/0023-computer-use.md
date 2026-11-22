@@ -1,7 +1,7 @@
-# ADR 0023: Computer use for the assistant (design only, not built)
+# ADR 0023: Computer use for the assistant
 
-- Status: Proposed (nothing implemented; stage 1 designed in detail, see "Stage 1 design")
-- Date: 2026-11-05, extended 2026-11-06
+- Status: Accepted and implemented for Windows and macOS (see "Implementation"); the staged plan and the stage 1 design below are kept as history
+- Date: 2026-11-05, extended 2026-11-06, implemented 2026-11-13
 
 ## Context
 
@@ -94,6 +94,43 @@ no automatic redaction; the approval card with the visible image is the control,
 manual test plan per OS (window closed between pick and capture, HiDPI, multiple monitors, minimized window,
 protected content such as DRM video which capture APIs return black).
 
+## Implementation (2026-11-13)
+
+The owner asked for the assistant to "use the computer naturally" on Windows and macOS. That is more than the staged
+plan above (one picked window, then pointing, then input in that window), so the decision changed: **build full
+screen and input control, and move the safety from narrow capability to explicit, visible, revocable consent.**
+What was built is described in [docs/vibe-computer-use.md](../vibe-computer-use.md); the threat model is in
+[docs/security.md](../security.md#computer-use-for-the-assistant).
+
+How the invariants of the original decision fared:
+
+| Invariant | Implemented as |
+| --- | --- |
+| 1. Off by default, own switch, indicator, hotkey | Kept: *Settings ▸ Artificial intelligence ▸ Computer use*, an always-on-top indicator window with Stop, `Ctrl+Alt+Shift+Esc` registered only while a session is active. Added: Esc pauses. |
+| 2. Every input action approved, no "always allow", no typing into password or payment fields | Kept as the default. Changed: an opt-in per session (chosen by the person in the settings, stated in the grant dialog, never requestable by the model) lets clicks, scrolling and navigation keys run unasked; a moved mouse then pauses. The approval shows the action in words, not a screenshot crop. Password fields cannot be detected, so: policy in the prompt, refusal of card numbers, IBANs and keys, refusal to type into windows titled like sign-in or payment pages. |
+| 3. Screenshots shown before sending, limited to one window, redacted | Changed: a **session grant in a native dialog** (control / view only / no, time-limited) replaces the per-screenshot approval; the dialog states that screenshots go to the chosen provider. Full displays, not one window. Redaction is by deny list (password managers, security settings: blacked out). Nothing is stored. |
+| 4. Screen content is untrusted | Kept: label on every screenshot result and rules in the system prompt. |
+| 5. Separate Rust module with tests, no third-party daemon | Kept: `src-tauri/src/computer.rs`. |
+
+Decisions taken while building:
+
+- **The native side is the boundary.** Every command checks the grant (scope, expiry, pause, rate limits, action
+  budget) and the calling window; input into OpenFini's own windows is refused so the model cannot approve itself.
+  Per-action confirmation stays in the page because it needs the chat; a wrong page is contained by the grant.
+- **Crates instead of per-OS capture code:** xcap (Apache-2.0) for capture, displays and windows, enigo (MIT) for
+  input, image (MIT OR Apache-2.0) for scaling and JPEG, tauri-plugin-global-shortcut (MIT OR Apache-2.0) for the
+  hotkey; all only in Windows and macOS builds. The OS picker APIs of the stage 1 design are not used.
+- **Linux is left out:** xcap needs PipeWire, GBM and Wayland development packages the build machines lack, and
+  Wayland needs portal sessions. The commands answer "not supported".
+- **One generic tool, no native Anthropic tool type:** `computer` follows the common action schema and works with
+  every vision model; the native type needs one fixed display size and could not be verified.
+- **Not verified end to end:** real control of a Windows or macOS desktop was not exercised during development, and
+  macOS code is only compiled by the release workflow. A manual test plan per OS (several displays, HiDPI, elevated
+  windows, missing macOS permissions, Spaces and full-screen apps) is still owed before this is called stable.
+
 ## Consequences
+The assistant can operate other applications on Windows and macOS when the person allows a session. The paragraph
+below described the state before the implementation.
+
 The assistant can build, test and inspect projects through `run_command` and the existing tools, but cannot operate
 other applications. Users who need that today use an external agent of their choice; OpenFini does not integrate one.

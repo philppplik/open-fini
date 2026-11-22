@@ -38,7 +38,10 @@ project and are covered by the project license.
 
 | Component | License | Notes |
 | --- | --- | --- |
-| [Tauri](https://tauri.app) 2.x and its plugins (dialog, fs, opener, single-instance) | MIT or Apache-2.0 | `src-tauri/Cargo.toml`; the full Rust dependency license list is produced by `cargo about` / `cargo license` at release time |
+| [Tauri](https://tauri.app) 2.x and its plugins (dialog, fs, opener, single-instance, global-shortcut) | MIT or Apache-2.0 | `src-tauri/Cargo.toml`; the full Rust dependency license list is produced by `cargo about` / `cargo license` at release time |
+| [xcap](https://github.com/nashaofu/xcap) (screen capture, displays and windows for computer use; Windows and macOS builds only) | Apache-2.0 | `src-tauri/Cargo.toml` |
+| [enigo](https://github.com/enigo-rs/enigo) (synthetic mouse and keyboard input for computer use; Windows and macOS builds only) | MIT | `src-tauri/Cargo.toml` |
+| [image](https://github.com/image-rs/image) (scaling and JPEG encoding of screenshots; Windows and macOS builds only) | MIT or Apache-2.0 | `src-tauri/Cargo.toml` |
 | Operating-system WebView (WebView2, WKWebView, WebKitGTK) | OS vendor terms | Not redistributed |
 
 ## Build and test tooling (not shipped)
