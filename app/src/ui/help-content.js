@@ -86,7 +86,7 @@ export const AREA_HELP = [
   [".of-dock", "Panels", "Layers, color, history and more for the current studio. Click a tab to switch panels; drag a tab to dock, group or float it, and save the arrangement in Window ▸ Workspace."],
   [".of-status", "Status bar", "Zoom, cursor position and messages."],
   [".of-welcome", "Start page", "Create a document in any studio, open a file, or drop one onto the window."],
-  [".of-codeside-host", "Code studio sidebar", "Explorer, elements to insert, the page outline and assets."],
+  [".of-dockhost--left", "Code studio sidebar", "Explorer, elements to insert, the page outline and assets."],
   [".of-vibe", "Vibe Studio", "Chat with the assistant on the left; canvas, models, tools and skills on the right."],
   [".of-canvasarea", "Canvas", "Your page. Scroll to pan, Ctrl+scroll to zoom, hold Space to drag. Right-click for more commands."],
 ];

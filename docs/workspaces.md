@@ -1,9 +1,12 @@
 # Panels, docking and workspaces
 
-The panels of the Vector, Pixel and Layout studios (Color, Brush, Adjust, Transform, Appearance, Type, Layers,
-History, Histogram, Info, Navigator, Pages, Styles, Data, Comments) and the right-hand panels of the Code studio
-(Style, Settings, Comments) live in a flexible workspace, much like Photoshop or Illustrator. Until you move something
-it looks exactly like before: one column on the right with two tab groups. Design: [ADR 0033](adr/0033-docking-layout.md).
+The panels of every studio live in a flexible workspace, much like Photoshop or Illustrator: Vector, Pixel and Layout
+(Color, Brush, Adjust, Transform, Appearance, Type, Layers, History, Histogram, Info, Navigator, Pages, Styles, Data,
+Comments), Code (Explorer, Add, Navigator, Search, Source Control, Assets, Libraries on the left; Style, Settings,
+Comments on the right; Problems, Console, Terminal below), Scene (Media, Effects, Inspector), Vibe (Chats, Canvas,
+Activity) and the Office apps (Document: Outline, Styles; Presentation: Slides; Whiteboard: Comments, Outline,
+Properties, Library). Until you move something it looks as before: the design studios keep one column on the right
+with two tab groups, the others their familiar places. Each Office app has its own layout and its own workspaces. Design: [ADR 0033](adr/0033-docking-layout.md).
 
 ## User guide
 
@@ -61,7 +64,12 @@ Built-in workspaces:
 | Vector | Essentials, Typography (type and appearance over layers and history), Minimal (layers only) |
 | Pixel | Essentials, Photography (histogram/info/navigator, adjustments/color, layers/history), Painting (brush docked on the left, color and layers on the right) |
 | Layout | Essentials, Typography, Data, Review (comments over pages and history) |
-| Code | Essentials, Review (comments first), Focus (no side panels) |
+| Code | Essentials (Explorer and friends on the left, style panels on the right, Problems/Console/Terminal closed until Ctrl+J), Review (Explorer and Source Control, comments first, Problems below), Focus (editor and Explorer only) |
+| Scene | Essentials (Media and Effects left, Inspector right), Motion (Effects and a wider Inspector), Audio (Media and Inspector) |
+| Vibe | Essentials (Chats left, Canvas and Activity right) |
+| Office: Document | Essentials (Outline and Styles left), Review (Outline only) |
+| Office: Presentation | Essentials (Slides left) |
+| Office: Whiteboard | Essentials (the four panels tabbed on the right, closed until opened), Review (Comments and Outline) |
 
 A workspace stores the full arrangement: docks, splits and sizes, tab groups and the front tab, floating rectangles,
 collapsed docks and closed panels. Workspaces are kept with your other preferences (and in profile files, see
@@ -98,8 +106,19 @@ registerPanel("my-panel", {
 });
 ```
 
-Then add the id to a studio's `top` or `bottom` list (`app/src/studios/index.js`, or `registerStudio`). That list is
-the studio's panel set and its Essentials arrangement (top group over bottom group). `show()` is called when the panel
+Then add the id to a studio's `top` or `bottom` list (`app/src/studios/index.js`, or `registerStudio`). Those lists are
+the studio's panel set and, without more, its Essentials arrangement (top group over bottom group, on the right). A
+studio can instead give an `essentials` spec (`{ left, right, bottom: [[ids]], sizes }`, same shape as a preset) and a
+`closed` list of panels that start closed. A studio whose apps have their own panels (Office) lists them in `docks`
+and names the active one with `dockApp(app)`; the layout key is then `office:board` (`dockKeyOf(app)`, `dockDef(key)`
+in `studios/registry.js`).
+
+**Panels with per-document content.** The Code workspace, the Scene editor, the Office apps and Vibe are created per
+document, but a panel is created once. Register such a panel as a *slot panel* (`slotPanel("id")` in
+`panels/index.js`) and publish the content from the studio instance with `setPanelSlot(app, "id", { el, show? })`
+(`ui/panels/slots.js`; `null` takes it back). The element is moved, never rebuilt, so scroll, inputs and listeners
+survive a move. `app.dock.isOpen(id)`, `app.dock.reveal(id)`, `app.dock.hidePanel(id)` and
+`app.dock.toggleRegion("left")` let the studio react to the layout. `show()` is called when the panel
 becomes visible (front tab, fly-out, after a move), so a panel can refresh lazily. Keep panel state in the panel
 object, not in the DOM position: the element may be detached while the panel is a background tab or its dock is
 collapsed.
@@ -131,9 +150,8 @@ viewport })` is the loader for stored or imported JSON. `ui/docking/view.js` ren
 Preferences: `layout[studio] = { hidden, side, width, preset?, dock?, ws? }` and `workspaces[studio][name]` with the
 same shape (without `ws`); `dock` is only stored when the arrangement differs from the workspace preset.
 
-### Not migrated yet
+### Not built
 
-The Code studio's left sidebar (Explorer, Add, Navigator, Assets) and bottom panel (Problems, Console, Terminal), the
-Scene Studio panels, the Office apps' sidebars and Vibe keep their own layouts. They can join by registering their
-views as panels and listing them in their studio. Tearing a panel off into its own desktop window is not built (see
+The Scene timeline and the Code editor and preview stay in the central area (the engine's central area is the canvas), the
+Spreadsheet has no side panels, and tearing a panel off into its own desktop window is not built (see
 [ADR 0033](adr/0033-docking-layout.md) and [known-limits.md](known-limits.md)).

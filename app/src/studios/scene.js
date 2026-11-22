@@ -12,8 +12,10 @@ export const SCENE_STUDIO = {
   // File ▸ New in this studio creates an empty sequence (the start screen offers the templates)
   newDocument: (app) => import("../scene/host.js").then((m) => m.newScene(app, {})),
   tools: [],
-  top: [],
-  bottom: [],
+  // Media and Effects (left, tabbed) and the Inspector (right) are dockable around the viewer; the timeline stays below it
+  top: ["scene-media", "scene-effects"],
+  bottom: ["scene-inspector"],
+  essentials: { left: [["scene-media", "scene-effects"]], right: [["scene-inspector"]], sizes: { left: 232, right: 296 } },
 };
 
 /** Menus of the Scene Studio (merged into ui/menus.js MENUS). The commands register when the first scene mounts. */

@@ -19,13 +19,27 @@ export const PRESETS = {
     review: { right: [["comments"], ["pages", "history"]] },
   },
   code: {
-    review: { right: [["comments", "style", "element"]] },
+    review: { left: [["code-explorer", "code-git"]], right: [["comments", "style", "element"]], bottom: [["code-problems"]], sizes: { left: 300, bottom: 220 } },
+    focus: { left: [["code-explorer"]], sizes: { left: 300 } },
+  },
+  scene: {
+    motion: { left: [["scene-effects"]], right: [["scene-inspector"]], sizes: { left: 260, right: 360 } },
+    audio: { left: [["scene-media"]], right: [["scene-inspector"]], sizes: { left: 232, right: 340 } },
+  },
+  "office:document": {
+    review: { left: [["doc-outline"]], sizes: { left: 236 } },
+  },
+  "office:board": {
+    review: { right: [["board-comments", "board-outline"]], sizes: { right: 320 } },
   },
 };
 
-/** The Essentials arrangement of a studio: its `top` and `bottom` panel lists as two stacked groups on the right. */
+/**
+ * The Essentials arrangement of a studio: its `essentials` spec when it has one (Code, Scene, Office apps, Vibe), else
+ * its `top` and `bottom` panel lists as two stacked groups on the right.
+ */
 export function essentialsSpec(studio) {
-  return { right: [studio?.top || [], studio?.bottom || []] };
+  return studio?.essentials || { right: [studio?.top || [], studio?.bottom || []] };
 }
 
 /**

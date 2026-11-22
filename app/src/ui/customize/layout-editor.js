@@ -1,14 +1,20 @@
 // Settings > Layout and workspaces: panel visibility, dock side and width, and named workspaces per studio.
 import { h } from "../../core/util.js";
 import { button, numField } from "../controls.js";
-import { STUDIOS } from "../../studios/index.js";
+import { STUDIOS, dockKeyOf } from "../../studios/index.js";
 import { PANELS } from "../panels/index.js";
 
-const LAYOUT_STUDIOS = ["vector", "pixel", "layout", "code"];
+const LAYOUT_STUDIOS = ["vector", "pixel", "layout", "code", "scene", "vibe", "office:document", "office:slides", "office:board"];
+const APP_NAMES = { document: "Document", slides: "Presentation", board: "Whiteboard" };
+/** Name of a layout key: the studio, or the studio and its app. */
+const keyLabel = (key) => {
+  const [id, sub] = key.split(":");
+  return sub ? `${STUDIOS[id].label}: ${APP_NAMES[sub] || sub}` : STUDIOS[id].label;
+};
 
 export function layoutEditor(app) {
   const cz = app.customize;
-  let studio = LAYOUT_STUDIOS.includes(app.studio) ? app.studio : "vector";
+  let studio = LAYOUT_STUDIOS.includes(dockKeyOf(app)) ? dockKeyOf(app) : "vector";
   const root = h("div.of-cz");
 
   function panelsGroup() {
@@ -50,7 +56,7 @@ export function layoutEditor(app) {
   function workspacesGroup() {
     const active = cz.activeWorkspace(studio);
     const out = h("section.of-set__group", h("h3", "Workspaces"), h("p.of-set__hint", "A workspace remembers where every panel sits: docked, tabbed, floating or collapsed. Drag panels by their tabs to rearrange them, then save the layout here or in Window ▸ Workspace."));
-    const list = h("ul.of-cz__list", { "aria-label": `Workspaces of the ${STUDIOS[studio].label} studio` });
+    const list = h("ul.of-cz__list", { "aria-label": `Workspaces of ${keyLabel(studio)}` });
     for (const w of cz.workspaces(studio)) {
       const isActive = w.name === active;
       list.append(
@@ -80,7 +86,7 @@ export function layoutEditor(app) {
   function render() {
     const tabs = h("div.of-seg", { role: "group", "aria-label": "Studio" });
     for (const s of LAYOUT_STUDIOS) {
-      const b = h("button.of-seg__btn", { type: "button", "aria-pressed": String(s === studio) }, STUDIOS[s].label);
+      const b = h("button.of-seg__btn", { type: "button", "aria-pressed": String(s === studio) }, keyLabel(s));
       b.addEventListener("click", () => ((studio = s), render()));
       tabs.append(b);
     }

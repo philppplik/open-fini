@@ -1,41 +1,42 @@
-// Bottom panel of the Code studio: Problems (parser and syntax diagnostics), the preview's Console and the Terminal
-// (desktop app; lazy, ./terminal.js).
+// Bottom panels of the Code studio: Problems (parser and syntax diagnostics), the preview's Console and the Terminal
+// (desktop app; lazy, ./terminal.js). They are three separate dockable panels (code-problems, code-console and
+// code-terminal in ui/panels/index.js); this module owns their content for one workspace and the workspace publishes it
+// through the panel slots (ui/panels/slots.js).
 import { h, empty, frameScheduler } from "../../core/util.js";
 import { iconButton } from "../controls.js";
 import { fileIcon, lineCol } from "./util.js";
 import { t } from "../../i18n/index.js";
 
 const LEVEL_ICONS = { error: "x-circle-fill", warn: "exclamation-triangle-fill", warning: "exclamation-triangle-fill", info: "info-circle-fill", log: "chevron-right", debug: "chevron-right" };
+export const BOTTOM_PANELS = { problems: "code-problems", console: "code-console", terminal: "code-terminal" };
 
 export function createBottomPanel(ws) {
-  const state = { open: false, tab: "console" };
-  const tabs = h("div.of-bottom__tabs", { role: "tablist" });
-  const body = h("div.of-bottom__body");
-  const actions = h("div.of-bottom__actions");
-  const resize = h("div.of-bottom__resize", { role: "separator", "aria-orientation": "horizontal", title: "Drag to resize" });
-  const el = h("div.of-bottom.collapsed", resize, h("div.of-bottom__head", tabs, actions), body);
+  const mk = (kind) => {
+    const actions = h("div.of-bottom__actions");
+    const count = h("span.of-bottom__count");
+    const body = h(kind === "terminal" ? "div.of-bottom__body.of-bottom__body--term" : "div.of-bottom__body");
+    return { actions, count, body, el: h("div.of-bottom", h("div.of-bottom__head", count, actions), body) };
+  };
+  const panes = { problems: mk("problems"), console: mk("console"), terminal: mk("terminal") };
+  const visible = (kind) => !!ws.app.dock?.isOpen(BOTTOM_PANELS[kind]);
+  const anyOpen = () => Object.keys(panes).some(visible);
+  let term = null; // the Terminal (created on first use, kept while the workspace lives)
 
-  let term = null; // the Terminal tab (created on first use, kept while the workspace lives)
-  const count = (kind) => (kind === "terminal" ? 0 : kind === "problems" ? ws.problemCount() : ws.consoleLines.filter((l) => l.level === "error").length);
-
-  function renderTabs() {
-    empty(tabs);
-    for (const [id, label] of [["problems", t("Problems")], ["console", t("Console")], ["terminal", t("Terminal")]]) {
-      const n = count(id);
-      const b = h("button.of-bottom__tab", { type: "button", role: "tab", class: state.tab === id ? "active" : "", "aria-selected": String(state.tab === id) }, label, n ? h("span.of-badge", String(n)) : null);
-      b.addEventListener("click", () => show(id));
-      tabs.append(b);
-    }
-    empty(actions);
-    if (state.tab === "console") actions.append(iconButton({ icon: "trash3", label: "Clear console", onClick: () => ws.clearConsole() }));
-    if (state.tab === "terminal") actions.append(iconButton({ icon: "trash3", label: "Clear terminal", onClick: () => term?.clear() }));
-    actions.append(iconButton({ icon: "x-lg", label: "Close panel", onClick: () => toggle(false) }));
+  function renderHead(kind) {
+    const p = panes[kind];
+    empty(p.actions);
+    const n = kind === "problems" ? ws.problemCount() : kind === "console" ? ws.consoleLines.filter((l) => l.level === "error").length : 0;
+    p.count.textContent = n ? (kind === "problems" ? t("{n} problems", { n }) : t("{n} errors", { n })) : "";
+    if (kind === "console") p.actions.append(iconButton({ icon: "trash3", label: "Clear console", onClick: () => ws.clearConsole() }));
+    if (kind === "terminal") p.actions.append(iconButton({ icon: "trash3", label: "Clear terminal", onClick: () => term?.clear() }));
   }
 
-  function renderBody() {
+  function renderBody(kind) {
+    const body = panes[kind].body;
+    renderHead(kind);
+    if (kind === "terminal") return showTerminal();
     empty(body);
-    if (state.tab === "terminal") return showTerminal();
-    if (state.tab === "console") {
+    if (kind === "console") {
       if (!ws.consoleLines.length) body.append(h("div.of-empty", "Output of console.log() and runtime errors from the preview appear here."));
       for (const l of ws.consoleLines.slice(-300)) body.append(consoleLine(l));
       body.scrollTop = body.scrollHeight;
@@ -53,64 +54,41 @@ export function createBottomPanel(ws) {
   }
   async function showTerminal() {
     if (!term) term = (await import("./terminal.js")).createTerminal(ws);
-    if (state.tab !== "terminal") return;
-    body.append(term.el);
+    if (!panes.terminal.body.contains(term.el)) panes.terminal.body.append(term.el);
     term.show();
   }
   function consoleLine(l) {
     return h("div.of-console__line", { class: l.level }, h("sl-icon", { name: LEVEL_ICONS[l.level] || "chevron-right" }), h("pre", l.text), h("time", new Date(l.time).toLocaleTimeString("en-US", { hour12: false })));
   }
 
+  /** Brings a tab to the front, opening its panel when it is closed. */
   function show(tab) {
-    state.tab = tab;
-    body.classList.toggle("of-bottom__body--term", tab === "terminal");
-    toggle(true);
+    ws.app.dock?.reveal(BOTTOM_PANELS[tab]);
+    if (tab === "problems") ws.computeProblems();
   }
+  /** Ctrl+J: closes every bottom panel, or opens the Console. */
   function toggle(force) {
-    state.open = force ?? !state.open;
-    el.classList.toggle("collapsed", !state.open);
-    if (state.open) {
-      el.style.height = `${ws.web.settings.bottomH || 220}px`;
-      if (state.tab === "problems") ws.computeProblems();
-      renderTabs();
-      renderBody();
-    } else el.style.height = "";
-    ws.preview?.layout();
-    requestAnimationFrame(() => ws.preview?.layout());
+    const open = force ?? !anyOpen();
+    if (open) {
+      if (!anyOpen()) show("console");
+    } else for (const k of Object.keys(panes)) if (visible(k)) ws.app.dock?.hidePanel(BOTTOM_PANELS[k]);
   }
-
-  resize.addEventListener("pointerdown", (e) => {
-    resize.setPointerCapture(e.pointerId);
-    const startY = e.clientY;
-    const startH = el.getBoundingClientRect().height;
-    const mv = (ev) => {
-      const hh = Math.max(80, Math.min(window.innerHeight * 0.7, startH + (startY - ev.clientY)));
-      el.style.height = `${hh}px`;
-      ws.web.settings.bottomH = Math.round(hh);
-    };
-    const up = () => {
-      resize.removeEventListener("pointermove", mv);
-      resize.removeEventListener("pointerup", up);
-      ws.preview?.layout();
-    };
-    resize.addEventListener("pointermove", mv);
-    resize.addEventListener("pointerup", up);
-  });
 
   const refresh = frameScheduler(() => {
-    if (!state.open) return;
-    renderTabs();
-    if (state.tab !== "terminal") renderBody(); // the terminal keeps its own state and scroll position
+    for (const k of ["problems", "console"]) if (visible(k)) renderBody(k);
   });
   ws.on("console", (line) => {
-    if (!state.open) return;
-    if (line && state.tab === "console") {
+    if (!visible("console")) return;
+    const { body } = panes.console;
+    if (line) {
       body.querySelector(".of-empty")?.remove();
       body.append(consoleLine({ ...line, time: Date.now() }));
       body.scrollTop = body.scrollHeight;
-      renderTabs();
+      renderHead("console");
     } else refresh();
   });
   ws.on("problems", refresh);
-  return { el, toggle, show, isOpen: () => state.open };
+  /** Panel slot contents; show() draws a pane when its panel comes to the front. */
+  const slots = Object.fromEntries(Object.keys(panes).map((k) => [BOTTOM_PANELS[k], { el: panes[k].el, show: () => renderBody(k) }]));
+  return { slots, toggle, show, isOpen: anyOpen };
 }

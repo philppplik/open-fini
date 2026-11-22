@@ -11,6 +11,10 @@ import { t } from "../i18n/index.js";
 import { Doc } from "../core/doc.js";
 import { OfficeProject } from "../core/office.js";
 import { TEMPLATES, templateScene } from "./model.js";
+import { setPanelSlot } from "../ui/panels/slots.js";
+
+const SCENE_PANELS = ["scene-media", "scene-effects", "scene-inspector"];
+const clearPanels = (app) => SCENE_PANELS.forEach((id) => setPanelSlot(app, id, null));
 
 /** Scene documents use the generic project container of core/office.js with kind "scene" (docs/file-format.md). */
 export const isScene = (doc) => doc?.office?.kind === "scene";
@@ -74,6 +78,7 @@ export async function syncScene(app, into = area) {
   if (!isScene(doc)) {
     app.sceneUI?.deactivate();
     app.sceneUI = null;
+    clearPanels(app);
     area.replaceChildren(startScreen(app));
     app.emit("scenestatus");
     return;

@@ -157,3 +157,24 @@ export const studioIds = shared.studioIds;
 export const getStudio = shared.getStudio;
 export const hasStudio = shared.hasStudio;
 export const onStudioRegistered = shared.onStudioRegistered;
+
+/**
+ * The dock definition behind a layout key: a studio id ("code") or "studio:app" for a studio whose apps each have their
+ * own panels ("office:board", defined in the studio's `docks`). A definition has `top` and `bottom` (the panel set) and
+ * optionally `essentials` (the arrangement per region, see ui/docking/presets.js) and `closed` (panels that start closed).
+ */
+export function dockDef(key) {
+  const [id, sub] = String(key || "").split(":");
+  const s = STUDIOS[id];
+  return sub ? (s?.docks?.[sub] ? { label: s.label, ...s.docks[sub] } : null) : s || null;
+}
+
+/** The layout key of the current view: the studio id, or "studio:app" while an app with its own panels is active. */
+export function dockKeyOf(app) {
+  const s = STUDIOS[app.studio];
+  const sub = s?.dockApp?.(app);
+  return sub && s.docks?.[sub] ? `${s.id}:${sub}` : app.studio;
+}
+
+/** Every layout key that has a dock definition: the studios and their apps. */
+export const dockKeys = () => Object.keys(STUDIOS).flatMap((id) => [id, ...Object.keys(STUDIOS[id].docks || {}).map((k) => `${id}:${k}`)]);

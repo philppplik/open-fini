@@ -82,12 +82,12 @@
 .of-bside__tab span { overflow: hidden; text-overflow: ellipsis; }
 .of-bside__tab[aria-selected="true"] { color: var(--of-text); border-bottom-color: var(--of-accent); }
 .of-bside__tab:hover { color: var(--of-text); }
-.of-bside__tab:focus-visible, .of-bside button:focus-visible, .of-bside input:focus-visible, .of-bside select:focus-visible { outline: 2px solid var(--of-accent); outline-offset: -2px; }
+.of-bside__tab:focus-visible, .of-bside__panel button:focus-visible, .of-bside__panel input:focus-visible, .of-bside__panel select:focus-visible { outline: 2px solid var(--of-accent); outline-offset: -2px; }
 /* tabs show their icon; the selected one also its name (all names from 420 px on) */
 .of-bside__tab:not([aria-selected="true"]) { flex: none; padding: 7px 9px; }
 .of-bside__tab:not([aria-selected="true"]) span { display: none; }
 @container (min-width: 420px) { .of-bside__tab:not([aria-selected="true"]) { flex: 1; } .of-bside__tab:not([aria-selected="true"]) span { display: inline; } }
-.of-bside__panel { flex: 1; min-height: 0; overflow: auto; padding: 8px; }
+.of-bside__panel { height: 100%; min-height: 0; overflow: auto; padding: 8px; font-size: 12.5px; color: var(--of-text); container-type: inline-size; }
 .of-bside__panel[hidden] { display: none; }
 .of-bside__bar { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
 .of-bside__search, .of-bside__rename, .of-bside__num-in, .of-bside__select {

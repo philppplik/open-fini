@@ -14,6 +14,7 @@
 import { h } from "../core/util.js";
 import { t } from "../i18n/index.js";
 import { commitOffice } from "../core/office.js";
+import { setPanelSlot } from "../ui/panels/slots.js";
 import { platform } from "../platform/index.js";
 import { promptDialog, confirmDialog } from "../ui/dialogs.js";
 import * as M from "./model.js";
@@ -144,19 +145,11 @@ export function mountScene(host, doc, app) {
       addBtn("layers-half", "Adjustment", () => api.addAdjustment()),
       addBtn("plus-square-dotted", "Null object", () => api.addLayerAt("null"))),
     compBar);
-  const fxPane = h("div.of-scene-bin__pane", { hidden: true });
-  const binTab = (label, pane, other) => {
-    const b = h("button.of-scene-bin__tab", { type: "button", role: "tab", "aria-selected": String(!pane.hidden) }, t(label));
-    b.addEventListener("click", () => api.showBinTab(pane === fxPane ? "effects" : "media"));
-    return b;
-  };
-  const tabMedia = binTab("Media", mediaPane);
-  const tabFx = binTab("Effects", fxPane);
-  const bin = h("div.of-scene-bin", { role: "region", "aria-label": t("Media and effects") },
-    h("div.of-scene-bin__tabs", { role: "tablist" }, tabMedia, tabFx),
-    mediaPane,
-    fxPane,
-    h("datalist", { id: "of-scene-fonts" }, ["Inter", "Arial", "Georgia", "Times New Roman", "Courier New", "Impact", "Verdana", "Trebuchet MS", "Segoe UI", "Helvetica"].map((f) => h("option", { value: f }))));
+  const fxPane = h("div.of-scene-bin__pane");
+  // Media and Effects are separate dockable panels (docs/workspaces.md); the effects browser is built when it first shows
+  const mediaPanel = h("div.of-scene-bin", { role: "region", "aria-label": t("Media") }, mediaPane);
+  const fxPanel = h("div.of-scene-bin", { role: "region", "aria-label": t("Effects") }, fxPane);
+  const fontList = h("datalist", { id: "of-scene-fonts" }, ["Inter", "Arial", "Georgia", "Times New Roman", "Courier New", "Impact", "Verdana", "Trebuchet MS", "Segoe UI", "Helvetica"].map((f) => h("option", { value: f })));
 
   const toolBtns = new Map();
   let graph = null; // the graph editor (scene/graph.js), created on first use
@@ -375,17 +368,11 @@ export function mountScene(host, doc, app) {
     },
     showBinTab(which) {
       const fx = which === "effects";
-      if (fx && !browser) {
-        browser = createBrowser(api);
-        fxPane.append(browser.el);
-      }
-      mediaPane.hidden = fx;
-      fxPane.hidden = !fx;
-      tabMedia.setAttribute("aria-selected", String(!fx));
-      tabFx.setAttribute("aria-selected", String(fx));
+      if (fx) ensureBrowser();
+      app.dock?.reveal(fx ? "scene-effects" : "scene-media");
       if (fx) browser.focusSearch();
     },
-    revealInspector: () => inspector.reveal(),
+    revealInspector: () => (app.dock?.reveal("scene-inspector"), inspector.reveal()),
     seek(time, { scrub = false } = {}) {
       const m = model();
       state.t = M.snapT(m, Math.max(0, Number.isFinite(time) ? time : M.duration(m)));
@@ -605,6 +592,7 @@ export function mountScene(host, doc, app) {
     },
     activate() {
       active = true;
+      publishPanels();
       requestDraw();
     },
     deactivate() {
@@ -625,7 +613,13 @@ export function mountScene(host, doc, app) {
 
   // context-menu, keyboard and command actions (scene/actions.js); getters such as canPaste stay getters
   Object.defineProperties(api, Object.getOwnPropertyDescriptors(createActions(api)));
-  let browser = null; // the effects browser (scene/browser.js), created when its tab is first shown
+  let browser = null; // the effects browser (scene/browser.js), created when its panel is first shown
+  const ensureBrowser = () => {
+    if (!browser) {
+      browser = createBrowser(api);
+      fxPane.append(browser.el);
+    }
+  };
   const timeline = createTimeline(api);
   const inspector = createInspector(api);
   installSceneMenus();
@@ -633,7 +627,13 @@ export function mountScene(host, doc, app) {
   markContext(timeline.el, "scene-timeline", { ui: api });
   if (state.tlH) root.style.setProperty("--of-scene-tl-h", `${state.tlH}px`);
   // the bottom area: sequence tabs over the timeline, or over the graph editor when it is on
-  root.append(h("div.of-scene__top", bin, viewer, inspector.el), splitter, strip, h("div.of-scene__bottom", seqBar, timeline.el), live);
+  root.append(h("div.of-scene__top", viewer), splitter, strip, h("div.of-scene__bottom", seqBar, timeline.el), live, fontList);
+  /** Media, Effects and Inspector are dockable panels: this scene gives them its content (ui/panels/slots.js). */
+  function publishPanels() {
+    setPanelSlot(app, "scene-media", { el: mediaPanel });
+    setPanelSlot(app, "scene-effects", { el: fxPanel, show: ensureBrowser });
+    setPanelSlot(app, "scene-inspector", { el: inspector.el, show: () => inspector.render() });
+  }
   host.replaceChildren(root);
 
   function startAudio() {
@@ -744,20 +744,22 @@ export function mountScene(host, doc, app) {
     })));
   }
 
-  bin.addEventListener("dragover", (e) => {
+  mediaPanel.addEventListener("dragover", (e) => {
     if ([...e.dataTransfer.types].includes("Files")) {
       e.preventDefault();
       e.stopPropagation();
     }
   });
-  root.addEventListener("drop", async (e) => {
+  const onDropFiles = async (e) => {
     const files = [...(e.dataTransfer?.files || [])].filter((f) => mediaKind(f.name, f.type) || /\.(srt|vtt)$/i.test(f.name));
     if (!files.length) return;
     e.preventDefault();
     e.stopPropagation();
     const loaded = await Promise.all(files.map(async (f) => ({ name: f.name, mime: f.type, bytes: new Uint8Array(await f.arrayBuffer()) })));
     api.importFiles(loaded, { place: !timeline.el.contains(e.target) ? false : true });
-  }, true);
+  };
+  root.addEventListener("drop", onDropFiles, true);
+  mediaPanel.addEventListener("drop", onDropFiles, true); // the Media panel may be docked outside the editor
   root.addEventListener("dragover", (e) => {
     if ([...(e.dataTransfer?.types || [])].includes("Files")) {
       e.preventDefault();

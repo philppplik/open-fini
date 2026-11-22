@@ -1,11 +1,11 @@
-// Whiteboard sidebar (docs/office-board.md ▸ Sidebar): a docked, collapsible, resizable panel on the right of the
-// board with four tabs: Comments (every thread of the board, filter, search, unread marks, jump to the pin), Outline
+// Whiteboard panels (docs/office-board.md ▸ Sidebar, docs/workspaces.md): four dockable panels, tabbed together on the
+// right of the board by default: Comments (every thread of the board, filter, search, unread marks, jump to the pin), Outline
 // (pages, frames and elements: select, rename, hide, lock, zoom to, drag to reorder), Properties (the selection's
 // position, size, colors, text and connector style) and Library (shapes and sticky notes to click or drag in).
-// On narrow windows it is an overlay drawer. Open state, width and tab are remembered (preferences boardSidebar,
-// boardSidebarWidth, boardSidebarTab). Pure logic lives in comments.js and outline.js (unit tested).
+// They start closed. The last used panel is remembered (preference boardSidebarTab); where the panels sit and whether
+// they are open is part of the workspace (Window menu). Pure logic lives in comments.js and outline.js (unit tested).
 //
-// createBoardSidebar(ctx) → { el, refresh(what), show(tab), toggle(force), isOpen(), setNarrow(on), destroy() }
+// createBoardSidebar(ctx) → { slots, refresh(what), show(tab), toggle(force), isOpen(), destroy() }
 // ctx (from view.js): app, model(), page(), selection(), select(ids), reveal(id), gotoPage(id), commit(label, next),
 //   threads() → [Thread], pinNumbers() → Map, openThread(id), addComment(), myId(), seenAt(id), markSeen(id),
 //   insertItem(spec, at?), canComment()
@@ -24,8 +24,6 @@ export const TYPE_LABELS = {
 };
 const TYPE_ICONS = { rect: "square", ellipse: "circle", diamond: "diamond", line: "slash-lg", arrow: "arrow-right", pen: "pen", highlighter: "brush", text: "fonts", sticky: "sticky", image: "image", frame: "bounding-box", table: "table", chart: "bar-chart", plot: "graph-up", math: "calculator", portal: "window-stack" };
 const TABS = [["comments", N_("Comments"), "chat-quote"], ["outline", N_("Outline"), "layers"], ["properties", N_("Properties"), "sliders"], ["library", N_("Library"), "grid"]];
-const MIN_W = 220;
-const MAX_W = 520;
 const typeLabel = (type) => t(TYPE_LABELS[type] || type);
 const icon = (name) => h("sl-icon", { name, "aria-hidden": "true" });
 const fmt = (ts) => new Date(ts).toLocaleString([], { dateStyle: "short", timeStyle: "short" });
@@ -44,113 +42,40 @@ export function anchorText(anchor, model) {
 export function createBoardSidebar(ctx) {
   const { app } = ctx;
   let tab = TABS.some(([id]) => id === app.prefs.boardSidebarTab) ? app.prefs.boardSidebarTab : "comments";
-  let width = Math.max(MIN_W, Math.min(MAX_W, Number(app.prefs.boardSidebarWidth) || 280));
-  let narrow = false;
-  let open = app.prefs.boardSidebar === true;
   const filter = { status: "open", mine: false, query: "", pageOnly: false };
   let outlineQuery = "";
 
   // ---------------------------------------------------------------------------------------------- shell
-  const tabBtns = new Map();
+  // The four tabs are separate dockable panels (board-comments ...; docs/workspaces.md): the docking engine puts them
+  // where the user wants them, this module only renders into the panel bodies and publishes them through panel slots.
   const panels = new Map();
-  const tablist = h("div.of-bside__tabs", { role: "tablist", "aria-label": t("Whiteboard sidebar") });
-  for (const [id, label, ic] of TABS) {
-    const b = h("button.of-bside__tab", { type: "button", role: "tab", id: `of-bside-tab-${id}`, "aria-controls": `of-bside-panel-${id}`, "aria-selected": "false", tabIndex: -1, title: t(label) }, icon(ic), h("span", t(label)));
-    b.addEventListener("click", () => show(id));
-    tabBtns.set(id, b);
-    tablist.append(b);
-    panels.set(id, h("div.of-bside__panel", { role: "tabpanel", id: `of-bside-panel-${id}`, "aria-labelledby": `of-bside-tab-${id}`, hidden: true }));
-  }
-  tablist.addEventListener("keydown", (e) => {
-    const ids = TABS.map(([id]) => id);
-    const i = ids.indexOf(tab);
-    const k = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
-    if (k) {
-      e.preventDefault();
-      show(ids[(i + k + ids.length) % ids.length]);
-      tabBtns.get(tab).focus();
-    } else if (e.key === "Home" || e.key === "End") {
-      e.preventDefault();
-      show(e.key === "Home" ? ids[0] : ids[ids.length - 1]);
-      tabBtns.get(tab).focus();
-    }
-  });
-  const close = iconBtn("x-lg", t("Close sidebar"), () => toggle(false));
-  const handle = h("div.of-bside__resize", { role: "separator", tabIndex: 0, "aria-orientation": "vertical", "aria-label": t("Resize sidebar"), "aria-valuemin": MIN_W, "aria-valuemax": MAX_W });
-  const el = h("aside.of-bside", { "aria-label": t("Whiteboard sidebar") }, handle, h("div.of-bside__head", tablist, close), ...panels.values());
-  const scrim = h("div.of-bside__scrim", { "aria-hidden": "true" });
-  scrim.addEventListener("pointerdown", () => toggle(false));
-  el.addEventListener("keydown", (e) => {
-    e.stopPropagation(); // typing in the sidebar must not trigger board shortcuts
-    if (e.key === "Escape" && narrow && !e.defaultPrevented) {
-      e.preventDefault();
-      toggle(false);
-    }
-  });
+  for (const [id] of TABS) panels.set(id, h("div.of-bside__panel", { "aria-label": t(TABS.find((x) => x[0] === id)[1]) }));
+  const PANEL = Object.fromEntries(TABS.map(([id]) => [id, `board-${id}`]));
+  const shown = (id) => !!app.dock?.isOpen(PANEL[id]);
+  const anyOpen = () => TABS.some(([id]) => shown(id));
+  const el = h("aside.of-bside", { hidden: true });
+  const scrim = h("div.of-bside__scrim", { hidden: true });
+  el.addEventListener("keydown", (e) => e.stopPropagation()); // typing in the sidebar must not trigger board shortcuts
 
-  const setWidth = (w, save = true) => {
-    width = Math.round(Math.max(MIN_W, Math.min(MAX_W, w)));
-    el.style.setProperty("--of-bside-w", `${width}px`);
-    handle.setAttribute("aria-valuenow", String(width));
-    if (save) app.setPref("boardSidebarWidth", width);
-  };
-  setWidth(width, false);
-  handle.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0) return;
-    e.preventDefault();
-    const x0 = e.clientX;
-    const w0 = width;
-    handle.setPointerCapture(e.pointerId);
-    const move = (ev) => setWidth(w0 + (x0 - ev.clientX), false);
-    const up = () => {
-      handle.removeEventListener("pointermove", move);
-      handle.removeEventListener("pointerup", up);
-      handle.removeEventListener("pointercancel", up);
-      setWidth(width);
-    };
-    handle.addEventListener("pointermove", move);
-    handle.addEventListener("pointerup", up);
-    handle.addEventListener("pointercancel", up);
-  });
-  handle.addEventListener("keydown", (e) => {
-    const k = { ArrowLeft: 16, ArrowRight: -16 }[e.key];
-    if (k) (e.preventDefault(), setWidth(width + k));
-  });
-
+  /** Brings a panel to the front, opening it when it is closed. */
   function show(id) {
     if (!panels.has(id)) return;
     tab = id;
     app.setPref("boardSidebarTab", id);
-    for (const [k, b] of tabBtns) {
-      b.setAttribute("aria-selected", String(k === id));
-      b.tabIndex = k === id ? 0 : -1;
-    }
-    for (const [k, p] of panels) p.hidden = k !== id;
-    if (!open) toggle(true);
+    app.dock?.reveal(PANEL[id]);
     refresh(id);
   }
 
+  /** Opens the last used panel, or closes every panel of the whiteboard. */
   function toggle(force) {
-    open = force ?? !open;
-    el.hidden = !open;
-    el.classList.toggle("is-open", open);
-    scrim.hidden = !(open && narrow);
-    if (!narrow) app.setPref("boardSidebar", open);
-    ctx.onToggle?.(open);
-    if (open) {
-      refresh();
-      if (narrow) requestAnimationFrame(() => tabBtns.get(tab)?.focus());
-    } else if (narrow) ctx.focusBoard?.();
+    const on = force ?? !anyOpen();
+    if (on) {
+      if (!anyOpen()) show(tab);
+    } else for (const [id] of TABS) if (shown(id)) app.dock?.hidePanel(PANEL[id]);
+    ctx.onToggle?.(anyOpen());
   }
 
-  function setNarrow(on) {
-    if (narrow === !!on) return;
-    narrow = !!on;
-    el.classList.toggle("is-drawer", narrow);
-    if (narrow && open) toggle(false); // a drawer never opens by itself
-    else if (!narrow && app.prefs.boardSidebar === true && !open) toggle(true);
-    scrim.hidden = !(open && narrow);
-  }
+  const setNarrow = () => {}; // the docking engine handles narrow windows (docks slide in as overlays)
 
   // ---------------------------------------------------------------------------------------------- comments tab
   const cSearch = h("input.of-bside__search", { type: "search", placeholder: t("Search comments"), "aria-label": t("Search comments") });
@@ -464,45 +389,32 @@ export function createBoardSidebar(ctx) {
   let pending = new Set();
   let raf = 0;
   /** what: "comments" | "outline" | "properties" | undefined (all). Coalesced to one frame. */
+  const RENDER = { comments: () => renderComments(), outline: () => renderOutline(), properties: () => renderProperties(), library: () => renderLibrary() };
   function refresh(what) {
-    if (!open) return;
+    if (!anyOpen()) return;
     if (what) pending.add(what);
-    else pending = new Set(["comments", "outline", "properties", "library"]);
+    else pending = new Set(["all"]);
     if (raf) return;
     raf = requestAnimationFrame(() => {
       raf = 0;
       const want = pending;
       pending = new Set();
-      if (want.has(tab) || want.has("all")) {
-        if (tab === "comments") renderComments();
-        else if (tab === "outline") renderOutline();
-        else if (tab === "properties") renderProperties();
-        else renderLibrary();
-      }
+      for (const [id] of TABS) if ((want.has(id) || want.has("all")) && shown(id)) RENDER[id]();
     });
   }
 
-  el.hidden = true;
-  scrim.hidden = true;
-  if (open) {
-    open = false;
-    queueMicrotask(() => show(tab));
-  } else {
-    for (const [k, b] of tabBtns) {
-      b.setAttribute("aria-selected", String(k === tab));
-      b.tabIndex = k === tab ? 0 : -1;
-    }
-    for (const [k, p] of panels) p.hidden = k !== tab;
-  }
+  /** Panel slot contents: show() renders a panel when it comes to the front. */
+  const slots = Object.fromEntries(TABS.map(([id]) => [PANEL[id], { el: panels.get(id), show: () => RENDER[id]() }]));
 
   return {
     el,
     scrim,
+    slots,
     refresh,
     show,
     toggle,
     setNarrow,
-    isOpen: () => open,
+    isOpen: anyOpen,
     get tab() {
       return tab;
     },

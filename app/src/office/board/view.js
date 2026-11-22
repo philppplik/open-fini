@@ -20,6 +20,7 @@ import { measureText } from "./app.js";
 import { pinNumbers } from "../../collab/anchors.js";
 import { elementAnchor, pointAnchor, resolvePin, clusterPins, isBoardAnchor, anchorElementId, isUnread } from "./comments.js";
 import { createBoardSidebar, anchorText } from "./sidebar.js";
+import { setPanelSlot } from "../../ui/panels/slots.js";
 import * as M from "./model.js";
 
 const TOOLS = [
@@ -41,7 +42,6 @@ const TOOLS = [
   { id: "comment", icon: "chat-quote", label: N_("Comment"), key: "C" },
 ];
 const SEEN_KEY = "openfini.board.seen."; // + document id: { threadId: ms } (this device only)
-const NARROW = 760; // px of board width below which the sidebar is an overlay drawer
 const GRID = 20;
 const HANDLE = 8;
 const BINDABLE = (e) => e && !M.LINEAR.includes(e.type) && !M.INK.includes(e.type);
@@ -192,7 +192,6 @@ export function mountBoard(host, doc, app) {
       requestAnimationFrame(resize);
     },
   });
-  body.append(sidebar.scrim, sidebar.el);
   root.addEventListener("keydown", (e) => {
     if (mod(e) && e.key === "\\" && e.target !== stage) {
       e.preventDefault();
@@ -200,8 +199,6 @@ export function mountBoard(host, doc, app) {
       toggleSidebar();
     }
   });
-  const rootRo = new ResizeObserver(() => sidebar.setNarrow(root.clientWidth > 0 && root.clientWidth < NARROW));
-  rootRo.observe(root);
 
   // ------------------------------------------------------------------------------------------- camera
   const toWorld = (sx, sy) => [sx / view.zoom + view.x, sy / view.zoom + view.y];
@@ -1775,6 +1772,7 @@ export function mountBoard(host, doc, app) {
     /** Label of a board anchor for the comment popover ("Sticky note “Ideas”"). */
     anchorLabel: (a) => (a?.kind === "item" ? anchorText(a, model()) : null),
     activate() {
+      for (const [id, c] of Object.entries(sidebar.slots)) setPanelSlot(app, id, c);
       resize();
       renderPages();
       invalidate(true);
@@ -1787,7 +1785,6 @@ export function mountBoard(host, doc, app) {
       destroyed = true;
       offChange?.();
       ro.disconnect();
-      rootRo.disconnect();
       cm?.events.removeEventListener("change", onComments);
       sidebar.destroy();
       bar.destroy?.();

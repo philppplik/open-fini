@@ -46,7 +46,8 @@ Partial: content-aware fill and the object eraser switch from patch synthesis to
 
 ## Panels and workspaces
 
-- **Partial:** docking ([workspaces.md](workspaces.md), [ADR 0033](adr/0033-docking-layout.md)) covers the panels of the Vector, Pixel and Layout studios and the right-hand panels of the Code studio. Not migrated: the Code studio's left sidebar and bottom panel, the Scene Studio panels, the Office apps' sidebars and Vibe.
+- **Partial:** docking ([workspaces.md](workspaces.md), [ADR 0033](adr/0033-docking-layout.md)) covers every studio: Vector, Pixel, Layout, Code (sidebar, bottom and style panels), Scene (Media, Effects, Inspector), Vibe (Chats, Canvas, Activity) and the Office apps Document (Outline, Styles), Presentation (Slides) and Whiteboard (Comments, Outline, Properties, Library).
+- **Missing:** the Scene timeline and the Code editor/preview stay in the central area (the engine's central area is the canvas); only their side panels dock. The Spreadsheet has no panels to dock (its sheet tabs and formula bar are part of the grid). The Presentation app has a single panel, so it has no extra workspace; the ribbons and toolbars of the Office apps are not panels.
 - **Missing:** tearing a panel off into its own desktop window (floating panels stay inside the app window).
 - **Partial:** on narrow windows (960 px and less) the left and right docks slide in as overlays; floating panels and the bottom dock stay as they are.
 

@@ -49,7 +49,7 @@ export const TOURS = {
   code: {
     title: "Code studio",
     steps: [
-      { id: "side", target: ".of-codeside-host", placement: "right", title: "Your project", body: "Files, elements to drag into the page, the page outline and assets. Ctrl+P jumps to any file." },
+      { id: "side", target: ".of-dockhost--left", placement: "right", title: "Your project", body: "Files, elements to drag into the page, the page outline and assets. Ctrl+P jumps to any file." },
       { id: "editor", target: ".of-split__code", placement: "right", title: "The code", body: "HTML, CSS and JavaScript with completion and problem checking. Switch between Design, Split and Code views in the toolbar." },
       { id: "preview", target: ".of-split__preview", placement: "left", title: "Live preview you can edit", body: "Click an element to select it, drag to move it, and edit its style in the panel at the right. Changes are written back to your code." },
       { id: "style", target: ".of-dock", placement: "left", title: "Style and settings", body: "CSS properties of the selected element, grouped by topic, plus its attributes." },

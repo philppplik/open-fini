@@ -1,9 +1,8 @@
 /* OpenFini — Scene Studio (video editing and motion design). Layout: bin | viewer | inspector over the timeline. */
 
 .of-scenearea { display: none; }
-.of-layout[data-studio="scene"] { --of-tools-w: 0px; --of-dock-w: 0px; }
+.of-layout[data-studio="scene"] { --of-tools-w: 0px; }
 .of-layout[data-studio="scene"] .of-toolbox,
-.of-layout[data-studio="scene"] .of-dock,
 .of-layout[data-studio="scene"] .of-contextbar,
 .of-layout[data-studio="scene"] .cv,
 .of-layout[data-studio="scene"] .of-codearea,
@@ -19,7 +18,7 @@
 
 .of-scene-host { position: absolute; inset: 0; }
 .of-scene { position: absolute; inset: 0; display: grid; grid-template-rows: minmax(160px, 1fr) 5px auto minmax(120px, var(--of-scene-tl-h, 38%)); background: var(--of-bg-app); color: var(--of-text); outline: none; min-width: 0; font-size: 12.5px; }
-.of-scene__top { display: grid; grid-template-columns: 232px minmax(0, 1fr) 296px; min-height: 0; border-bottom: 1px solid var(--of-border-soft); }
+.of-scene__top { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 0; border-bottom: 1px solid var(--of-border-soft); }
 .of-scene__live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
 /* ---- shared small buttons */
@@ -29,7 +28,7 @@
 .of-scene-btn:focus-visible, .of-scene-bin__item:focus-visible, .of-scene-bin__add:focus-visible, .of-scene-start__card:focus-visible { outline: 2px solid var(--of-accent); outline-offset: 1px; }
 
 /* ---- media bin */
-.of-scene-bin { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--of-border-soft); background: var(--of-bg-panel); }
+.of-scene-bin { display: flex; flex-direction: column; min-height: 0; height: 100%; background: var(--of-bg-panel); }
 .of-scene-bin__head { display: flex; align-items: center; justify-content: space-between; padding: 6px 8px 6px 12px; }
 .of-scene-bin__head h3, .of-scene-insp__sec h3 { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--of-text-muted); }
 .of-scene-bin__list { flex: 1; overflow: auto; padding: 0 6px 6px; min-height: 40px; }
@@ -59,7 +58,7 @@
 .of-scene-meter i { display: block; height: 4px; width: 0; border-radius: 2px; background: linear-gradient(90deg, #22c55e 0 70%, #eab308 70% 90%, #ef4444 90%); background-size: 72px 4px; transition: width 60ms linear; }
 
 /* ---- inspector */
-.of-scene-insp { overflow: auto; border-left: 1px solid var(--of-border-soft); background: var(--of-bg-panel); padding-bottom: 12px; }
+.of-scene-insp { overflow: auto; height: 100%; background: var(--of-bg-panel); padding-bottom: 12px; }
 .of-scene-insp__sec { padding: 8px 10px 6px; border-bottom: 1px solid var(--of-border-soft); display: grid; gap: 5px; }
 .of-scene-insp__sec h3 { margin-bottom: 2px; }
 .of-scene-insp__row { display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; gap: 6px; }
@@ -172,11 +171,6 @@
 .of-scene-start__open h3 { margin: 0 0 4px; font-size: 13px; }
 .of-scene-start__doc { display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border: 0; border-radius: var(--of-radius-sm, 4px); background: none; color: var(--of-text); cursor: pointer; font: inherit; }
 .of-scene-start__doc:hover { background: var(--of-bg-hover); }
-
-@media (max-width: 900px) {
-  .of-scene__top { grid-template-columns: 0 minmax(0, 1fr) 0; }
-  .of-scene-bin, .of-scene-insp { display: none; }
-}
 
 /* ---- timeline resize bar, zoom slider */
 .of-scene__split { cursor: ns-resize; background: var(--of-bg-bar); border-top: 1px solid var(--of-border-soft); }

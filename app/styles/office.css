@@ -1,9 +1,8 @@
 /* OpenFini — Office Studio (word processor). The page stays white in both themes unless "Dark page" is on. */
 
 .of-officearea { display: none; }
-.of-layout[data-studio="office"] { --of-tools-w: 0px; --of-dock-w: 0px; }
+.of-layout[data-studio="office"] { --of-tools-w: 0px; }
 .of-layout[data-studio="office"] .of-toolbox,
-.of-layout[data-studio="office"] .of-dock,
 .of-layout[data-studio="office"] .of-contextbar,
 .of-layout[data-studio="office"] .cv,
 .of-layout[data-studio="office"] .of-codearea,
