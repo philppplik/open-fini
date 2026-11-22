@@ -68,7 +68,7 @@ user-chosen image is not supported yet; it would replace the `src` of the card's
 
 ## Minimum time on screen
 
-The launch screen stays up for at least five seconds (`MIN_SHOWN_MS` in `app/src/launch.js`), counted from the moment the
+The launch screen stays up for at least three seconds (`MIN_SHOWN_MS` in `app/src/launch.js`), counted from the moment the
 page starts. When the app is ready earlier it keeps preloading behind the card and the bar fills smoothly over the
 remaining time; then the card fades out (browser) or the splash window closes and the main window shows (desktop).
 `reveal()` (start-up errors, the app lock, the crash-loop panel) is never delayed, and the safety timers stay as they are.

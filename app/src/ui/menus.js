@@ -12,7 +12,7 @@ const DESIGN = ["vector", "pixel", "layout"];
 export const MENUS = [
   {
     label: "File",
-    items: ["file.new", "window.new", "file.open", "file.openFolder", { label: "Open Recent", dynamic: "recent" }, "-", "file.save", "file.saveAs", "file.saveAll", "-", "file.export", "file.preflight", { label: "Quick Export", items: ["file.exportPNG", "file.exportJPG", "file.exportWEBP", "file.exportSVG", "file.exportPDF", "file.exportOra"] }, "-", "file.place", "file.insertPdf", "file.extractPages", "file.importReport", { label: "Swatches", items: ["file.importPalette", "-", "file.exportPalette.gpl", "file.exportPalette.ase", "file.exportPalette.aco"] }, "file.docSetup", "color.settings", { label: "Convert Colors", items: ["color.toCmyk", "color.toRgb"] }, "-", "window.popoutStudio", "window.returnToMain", "-", "file.close"],
+    items: ["file.new", { label: "New Blank", dynamic: "newBlank" }, "window.new", "file.open", "file.openFolder", { label: "Open Recent", dynamic: "recent" }, "-", "file.save", "file.saveAs", "file.saveAll", "-", "file.export", "file.preflight", { label: "Quick Export", items: ["file.exportPNG", "file.exportJPG", "file.exportWEBP", "file.exportSVG", "file.exportPDF", "file.exportOra"] }, "-", "file.place", "file.insertPdf", "file.extractPages", "file.importReport", { label: "Swatches", items: ["file.importPalette", "-", "file.exportPalette.gpl", "file.exportPalette.ase", "file.exportPalette.aco"] }, "file.docSetup", "color.settings", { label: "Convert Colors", items: ["color.toCmyk", "color.toRgb"] }, "-", "window.popoutStudio", "window.returnToMain", "-", "file.close"],
   },
   {
     label: "Edit",

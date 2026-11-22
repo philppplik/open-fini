@@ -13,6 +13,12 @@ All notable changes to OpenFini are documented here. The format follows
 - Ollama on its native API: all installed models with size, parameters, quantization and capabilities (tools, vision, thinking, context length), loaded models, tool calls, images, thinking output, `keep_alive`, a context window taken from the model (up to 32768 tokens instead of Ollama's 4096 default), model pull with progress and clear errors (model not installed, sign-in needed, out of memory). Existing Ollama connections switch over automatically (a `/v1` address is accepted).
 - Models tab: Detect and Test connection for Ollama with a clear verdict (not running, origin refused, mixed content, version too old, OK) and, in a browser, the exact `OLLAMA_ORIGINS` command for Windows, macOS and Linux.
 - Ollama cloud: models served by the local daemon (`:cloud` / `-cloud`, after `ollama signin`) appear in a Cloud group, and an optional direct *Ollama Cloud (ollama.com)* connection uses an API key.
+- **Blank in every studio.** *File ▸ New Blank* and the command palette have *Blank Vector*, *Blank Pixel*, *Blank Layout*, *Blank Code*, *Blank Vibe*, *Blank Scene*, *Blank Document*, *Blank Spreadsheet*, *Blank Presentation* and *Blank Whiteboard*: one click makes a truly empty document (one empty page, slide, sheet or board; Code: a project with one empty `index.html`; Vibe: an empty chat). The New Document dialog has a *Blank* button, and the Code starter gallery lists *Blank* first.
+
+### Changed
+- The launch screen stays up for at least three seconds instead of five.
+- Settings sidebar: sections sit under group headings (App, Studios and tools, AI, Collaboration and privacy, Advanced), rows have one height, long names wrap instead of being cut off, the selected section is marked clearly, and on narrow windows the list becomes a dropdown.
+- Settings ▸ Toolbox and menus lists every studio. Studios without a toolbox of their own (Code, Vibe, Office, Scene) say so and point to their menus and the command palette.
 
 ## [1.1.3] — Command line tool, Doctor and launch screen timing
 

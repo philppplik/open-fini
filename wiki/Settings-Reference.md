@@ -20,7 +20,7 @@ The OpenFini logo opens the application menu: About, Settings, Save All, Open Fo
 | Security and privacy | Security check, offline mode, app lock, protected mode, ask before opening links, privacy tools, integrity check, collaboration (leave room), reset settings ([[Security and Privacy]]) |
 | Troubleshooting | Troubleshooting dialog, verbose logging, copy report, save bundle, report an issue, safe mode, reset app data ([[Troubleshooting and Logs]]) |
 | Keyboard shortcuts | Rebind any command or tool; conflicts; presets; import and export |
-| Toolbox and menus | Show, hide and reorder tools; hide menus and items; header quick actions |
+| Toolbox and menus | Show, hide and reorder tools; hide menus and items; header quick actions; every studio is listed (studios without a toolbox say so) |
 | Layout and workspaces | Panels, dock side and width, built-in and saved workspaces |
 | Defaults for new things | New-document size, unit, resolution and background per studio; export and text defaults |
 | Profiles and backup | `.ofprofile` export and import, named profiles, reset everything |

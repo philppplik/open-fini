@@ -4282,5 +4282,21 @@
   "Diagnose and repair with Doctor": "Mit Doctor prüfen und reparieren",
   "Check the app and your documents for problems, repair damaged projects and save a redacted report. Open Doctor from Help or Settings.": "Prüfe die App und deine Dokumente auf Probleme, repariere beschädigte Projekte und speichere einen bereinigten Bericht. Öffne Doctor über Hilfe oder die Einstellungen.",
   "A smoother launch screen": "Ein flüssigerer Startbildschirm",
-  "The launch screen stays visible for at least five seconds while the app loads behind it. Errors and the app lock still appear immediately.": "Der Startbildschirm bleibt mindestens fünf Sekunden sichtbar, während die App dahinter lädt. Fehler und die App-Sperre erscheinen weiterhin sofort."
+  "The launch screen stays visible for at least five seconds while the app loads behind it. Errors and the app lock still appear immediately.": "Der Startbildschirm bleibt mindestens fünf Sekunden sichtbar, während die App dahinter lädt. Fehler und die App-Sperre erscheinen weiterhin sofort.",
+  "An empty page, no starter content": "Eine leere Seite, ohne Startinhalte",
+  "An empty project: one empty index.html": "Ein leeres Projekt: eine leere index.html",
+  "Blank Code": "Leeres Code-Projekt",
+  "Blank Document": "Leeres Dokument",
+  "Blank Layout": "Leeres Layout",
+  "Blank Pixel": "Leeres Pixel-Dokument",
+  "Blank Presentation": "Leere Präsentation",
+  "Blank Scene": "Leere Scene-Sequenz",
+  "Blank Spreadsheet": "Leere Tabelle",
+  "Blank Vector": "Leeres Vektor-Dokument",
+  "Blank Vibe": "Leerer Vibe-Chat",
+  "Blank Whiteboard": "Leeres Whiteboard",
+  "New Blank": "Neu leer",
+  "Untitled website": "Unbenannte Website",
+  "Collaboration and privacy": "Zusammenarbeit und Datenschutz",
+  "Studios and tools": "Studios und Werkzeuge"
 }

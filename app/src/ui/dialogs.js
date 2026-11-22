@@ -230,7 +230,16 @@ export function newDocumentDialog(app, { studio = app.studio === "code" ? "vecto
   applyPreset(PRESETS[cat][0]);
   customBox.append(name, h("div.of-row", fw.el, fh.el), h("div.of-row", unit.el, dpi.el), h("div.of-row", pages.el, bleed.el), h("div.of-row", bg.el), transparent.el);
 
-  const body = h("div.of-newdoc", h("div.of-newdoc__studio", h("span.of-slider__label", t("Start in")), studioSeg.el), h("div.of-newdoc__cols", grid, customBox));
+  // one click: an empty document of the chosen studio, without choosing a size
+  const blankBtn = h("button.of-btn", { type: "button", class: "of-newdoc__blank" }, h("strong", t("Blank")), h("span", t("An empty page, no starter content")));
+  blankBtn.addEventListener("click", () => {
+    dialogRef?.close();
+    const doc = blankDocument(app, state.studio);
+    app.setStudio(state.studio);
+    app.openDoc(doc);
+    requestAnimationFrame(() => app.cv?.fitPage());
+  });
+  const body = h("div.of-newdoc", h("div.of-newdoc__studio", h("span.of-slider__label", t("Start in")), studioSeg.el), blankBtn, h("div.of-newdoc__cols", grid, customBox));
 
   const dialogRef = openDialog({
     title: t("New Document"),
@@ -257,6 +266,14 @@ export function newDocumentDialog(app, { studio = app.studio === "code" ? "vecto
       },
     ],
   });
+}
+
+/** A truly empty document of a canvas studio: first preset of its default category, one empty page, no content. */
+export function blankDocument(app, studio) {
+  const cat = studio === "layout" ? "Print" : studio === "pixel" ? "Photo" : "Screen";
+  const [, w, h2, unit, dpi] = PRESETS[cat][0];
+  const dd = app.prefs.newDocDefaults?.[studio] || {};
+  return createDocument(app, { studio, name: t("Untitled"), width: Math.round(toPx(w, unit, dpi)), height: Math.round(toPx(h2, unit, dpi)), unit, dpi, bg: dd.bg ?? "#ffffff", transparent: dd.transparent ?? false, pages: 1, bleed: 0 });
 }
 
 /** Creates a configured Doc (pixel studio documents start with an empty pixel layer). */

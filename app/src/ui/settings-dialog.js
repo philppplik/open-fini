@@ -16,6 +16,7 @@ import { openLink } from "./links.js";
 import { updateRows } from "./update-check.js";
 import { withCustomization, resetButton, sectionResetButton } from "./customize/sections.js";
 import { studiosSettings } from "./studio-settings.js";
+import { groupSections } from "./settings-nav.js";
 import { t, detected } from "../i18n/index.js";
 import { LOCALES, localeInfo } from "../i18n/locales.js";
 
@@ -456,16 +457,30 @@ export function settingsDialog(app, sectionId = "general", { tab = null } = {}) 
 
   const matches = (s) => !query || `${tr(s.label)} ${s.label} ${s.keywords || ""} ${s.groups.flatMap((g) => g.items.map((i) => `${tr(i.label) || ""} ${tr(i.hint) || ""}`)).join(" ")}`.toLowerCase().includes(query);
 
+  // narrow windows: the section list collapses into this dropdown (CSS shows one or the other)
+  const pick = h("select.of-set__pick", { "aria-label": t("Settings sections") });
+  pick.addEventListener("change", () => select(pick.value));
+  nav.prepend(pick);
+  function select(id) {
+    current = id;
+    renderNav();
+    renderBody();
+  }
   function renderNav() {
     empty(tabs);
-    for (const s of sections.filter(matches)) {
-      const b = h("button.of-set__tab", { type: "button", class: s.id === current ? "active" : "", "aria-current": s.id === current ? "page" : undefined }, iconEl(s.icon), h("span", tr(s.label)));
-      b.addEventListener("click", () => {
-        current = s.id;
-        renderNav();
-        renderBody();
-      });
-      tabs.append(b);
+    empty(pick);
+    for (const g of groupSections(sections.filter(matches))) {
+      tabs.append(h("div.of-set__group-title", { role: "presentation" }, tr(g.title)));
+      const og = h("optgroup", { label: tr(g.title) });
+      for (const s of g.sections) {
+        const label = tr(s.label);
+        const b = h("button.of-set__tab", { type: "button", title: label, class: s.id === current ? "active" : "", "aria-current": s.id === current ? "page" : undefined }, iconEl(s.icon), h("span", label));
+        b.addEventListener("click", () => select(s.id));
+        tabs.append(b);
+        og.append(h("option", { value: s.id }, label));
+      }
+      pick.append(og);
+      pick.value = current;
     }
   }
   function renderBody() {

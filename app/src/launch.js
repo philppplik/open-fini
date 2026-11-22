@@ -173,7 +173,7 @@
   var model = createBootProgress();
   var finished = false;
   // The launch screen stays up for at least this long, so it never just flashes by while the app keeps preloading behind it.
-  var MIN_SHOWN_MS = 5000;
+  var MIN_SHOWN_MS = 3000;
   var shownAt = Date.now();
   var holding = null;
   // Desktop: the card lives in the splash window (the main window is hidden until done()). Browser: the card is here.

@@ -4,7 +4,7 @@ Click the **OpenFini** logo in the header (or press `Mod+,`) for the application
 *Save All*, *Open Folder…*, *Keyboard Shortcuts*, *Documentation* and *Report an Issue…*.
 
 *Settings…* opens one dialog for **every studio**: a sidebar of sections on the left, the open section on the right,
-and a search box that filters sections and individual settings. The section list scrolls inside the sidebar (the search box stays pinned on top) and the content pane scrolls separately. Changes apply immediately and are stored on this
+and a search box that filters sections and individual settings. The sidebar groups the sections under headings (App, Studios and tools, AI, Collaboration and privacy, Advanced; `app/src/ui/settings-nav.js`); the list scrolls inside the sidebar (the search box stays pinned on top) and the content pane scrolls separately. On narrow windows the list becomes a dropdown. Changes apply immediately and are stored on this
 device (`localStorage`); *Security and privacy ▸ Reset all settings* restores the defaults.
 
 | Section | What it controls |
@@ -19,7 +19,7 @@ device (`localStorage`); *Security and privacy ▸ Reset all settings* restores 
 | **Security and privacy** | Security check, offline mode, app lock (passphrase, idle and hidden triggers), protected mode for website projects from files, ask before opening links, privacy tools (clear data, stored-data inventory, delete all), integrity check, reset settings. See [security.md](security.md) |
 | **Troubleshooting** | Open the troubleshooting dialog, verbose logging, copy report, save bundle, report an issue, safe mode, reset app data. See [troubleshooting.md](troubleshooting.md) |
 | **Keyboard shortcuts** | Editable: rebind any command or tool, conflicts, presets, import / export (see [Customization](customization.md)) |
-| **Toolbox and menus** | Show, hide and reorder tools per studio, hide menus and items, choose the header's quick actions |
+| **Toolbox and menus** | Show, hide and reorder tools per studio, hide menus and items, choose the header's quick actions. Every studio is listed; studios that work in their own workspace (Code, Vibe, Office, Scene) have no toolbox and say so, their commands are in the menus below |
 | **Layout and workspaces** | Panels, dock side and width, built-in and saved workspaces per studio |
 | **Defaults for new things** | New-document size, unit, resolution and background per studio; export and text defaults |
 | **Profiles and backup** | Export / import `.ofprofile`, named profiles, reset everything |
