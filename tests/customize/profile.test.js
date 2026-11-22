@@ -106,8 +106,9 @@ test("menus and workspaces", () => {
   const panels = { top: ["type", "appearance", "color"], bottom: ["layers", "history"] };
   const ws = builtinWorkspaces("vector", panels);
   assert.deepEqual(ws.map((w) => w.name), ["Essentials", "Typography", "Minimal"]);
-  assert.deepEqual(ws[1].state.hidden, ["color", "history"]);
-  assert.deepEqual(builtinWorkspaces("pixel", { top: ["color", "brush"], bottom: ["layers"] }).map((w) => w.name), ["Essentials", "Painting", "Retouching"]);
+  assert.deepEqual(ws[1].state.hidden, ["color"]);
+  assert.equal(ws[1].state.preset, "typography");
+  assert.deepEqual(builtinWorkspaces("pixel", { top: ["color", "brush"], bottom: ["layers"] }).map((w) => w.name), ["Essentials", "Photography", "Painting"]);
   const all = allWorkspaces("vector", panels, { Mine: { hidden: [], side: "left", width: null }, Minimal: { hidden: ["x"], side: "right", width: null } });
   assert.equal(all.length, 4);
   assert.equal(all.find((w) => w.name === "Minimal").builtin, false);
