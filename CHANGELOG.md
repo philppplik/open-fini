@@ -6,6 +6,8 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.4] — Ollama that works, computer use, blank projects
+
 ### Fixed
 - Ollama connections that never worked: the desktop app's web view origin (`http://tauri.localhost` on Windows) is refused by a default Ollama (`OLLAMA_ORIGINS`), so every request failed with a vague network error. Desktop requests now go through a native, streaming command that is restricted to your own computer, your local network and ollama.com, so no Ollama setting is needed. `localhost` resolves over IPv4 and IPv6.
 
