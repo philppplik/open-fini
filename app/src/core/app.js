@@ -98,6 +98,7 @@ const defaultPrefs = () => ({
   confirmExternal: true,
   aiEnabled: false,
   updateCheckAuto: false, // check GitHub for a newer release at start-up (once a day); off by default
+  updateAutoDownload: false, // desktop: also download (not install) a found update in the background
   updateLastCheck: 0,
   updateSeenVersion: "",
   offlineMode: false, // network kill-switch (core/network.js)

@@ -39,6 +39,9 @@ serde_json = "1"
 # Desktop only: a second launch hands its arguments to the running instance.
 [target.'cfg(any(target_os = "macos", windows, target_os = "linux"))'.dependencies]
 tauri-plugin-single-instance = "2.5"
+# In-app updates (src/updater.rs, docs/updates.md): signed updates from the GitHub release, then a relaunch.
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 
 # Computer use for the assistant (src/computer.rs, docs/vibe-computer-use.md): Windows and macOS only. Screen capture
 # (xcap, Apache-2.0), synthetic mouse and keyboard input (enigo, MIT), JPEG/PNG encoding and downscaling (image,

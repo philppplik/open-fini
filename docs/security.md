@@ -40,6 +40,16 @@ A live list of what is on or off, with a plain explanation and a fix button wher
 
 The same data is available to the Vibe assistant as the `get_security_status` tool (never returns keys).
 
+## In-app updates
+
+The desktop app updates through the official Tauri updater plugin ([updates.md](updates.md)). Only one endpoint is
+configured: the https GitHub release asset `latest.json`. Every update file must carry a minisign signature that verifies
+against the public key compiled into the app; the plugin refuses unsigned or mismatching files and, by default, versions
+that are not newer (no downgrade). The private key lives only in the owner's GitHub secrets, never in the repository. A build
+without a public key does not register the updater at all and only opens the release page. The check contacts github.com
+only, sends nothing about the user, honors Offline mode (kind `update`), runs at most once a day and only when switched on.
+Nothing is installed or restarted without the user choosing *Restart now*; open documents are autosaved first.
+
 ## Offline mode (network kill-switch)
 
 *Settings ▸ Security and privacy ▸ Offline mode* blocks every outbound feature at once. Each of them refuses with

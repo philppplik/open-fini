@@ -136,8 +136,12 @@ Packages are not signed. Users verify downloads with `SHA256SUMS.txt`. The workf
 build provenance attestation for the release assets (`gh attestation verify <file> --repo
 philppplik/open-fini`).
 
+## In-app updates (optional)
+
+With the secret `TAURI_SIGNING_PRIVATE_KEY` (and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`) and the variable
+`TAURI_UPDATER_PUBKEY` the workflow builds signed update artifacts and attaches `latest.json` to the release; without them it
+warns and releases as before. Setup and verification: [updates.md](updates.md).
+
 ## Not included yet
 
-- **Automatic updates** for the desktop app (needs the Tauri updater plugin and a signing key pair).
-  Users install new versions by hand; the PWA updates itself.
 - Flatpak, Snap, Homebrew, winget and Microsoft Store packages.

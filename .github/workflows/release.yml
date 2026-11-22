@@ -265,14 +265,30 @@ jobs:
             echo "Signing without notarization (APPLE_ID, APPLE_PASSWORD or APPLE_TEAM_ID missing)."
           fi
 
+      # ---- optional: in-app updates (needs secret TAURI_SIGNING_PRIVATE_KEY and variable TAURI_UPDATER_PUBKEY) ----
+      # Without them the release is built as before (no update artifacts, no latest.json) and this step only warns.
+      - name: Configure in-app updates
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_UPDATER_PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY }}
+        run: node scripts/updater-config.mjs
+
       - name: Build and upload the installers
         # tauri-apps/tauri-action v1, pinned to a commit
         uses: tauri-apps/tauri-action@1deb371b0cd8bd54025b384f1cd735e725c4060f
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          # Signs the update artifacts (.sig); only used when the step above switched in-app updates on.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
-          args: ${{ matrix.args }} ${{ env.TAURI_SIGN_ARGS }}
+          args: ${{ matrix.args }} ${{ env.TAURI_SIGN_ARGS }} ${{ env.TAURI_UPDATER_ARGS }}
+          # latest.json (the update manifest, merged across the matrix jobs) is attached next to the installers when
+          # signed update artifacts exist; Windows entries point to the NSIS installer.
+          uploadUpdaterJson: true
+          updaterJsonPreferNsis: true
           retryAttempts: 1
 
   pwa:
