@@ -12,16 +12,12 @@ import { getVibeHub } from "../../vibe/hub.js";
 import { chatRowExtras, chatListHead } from "./chat-list.js";
 import { nestChats } from "../../vibe/chat-ops.js";
 import { createChat } from "./chat.js";
+import { setPanelSlot } from "../panels/slots.js";
 import { createCanvasPanel } from "./panel-canvas.js";
 import { createActivityPanel } from "./panel-activity.js";
 import { createRunLog } from "./run-log.js";
 import { openAiSettings, AI_TABS } from "./settings-ai.js";
 import { getChangeRecorder } from "./change-recorder.js";
-
-const TABS = [
-  { id: "canvas", icon: "window", label: "Canvas" },
-  { id: "activity", icon: "list-check", label: "Activity" },
-];
 
 let instance = null;
 
@@ -30,7 +26,7 @@ export function vibeStudio(app) {
   if (instance) return instance;
   const hub = getVibeHub(app);
   const session = hub.view; // the active chat; forwards the active session's events (hub.js SessionView)
-  const vs = { app, session, hub, tab: "canvas", sideOpen: true, listOpen: true };
+  const vs = { app, session, hub, tab: "canvas" };
   // one Activity log per chat, recording from the first message on (even while the tab is closed or the chat is in the background)
   const timelines = new Map();
   const timelineOf = (s) => {
@@ -54,14 +50,12 @@ export function vibeStudio(app) {
     // the former Models / Tools / Skills / Knowledge tabs moved to Settings ▸ Artificial intelligence
     if (AI_TABS.some((x) => x.id === id)) return openAiSettings(app, id);
     vs.tab = id;
-    vs.sideOpen = true;
-    renderSide();
+    app.dock?.reveal(`vibe-${id}`);
   };
 
   const list = h("div.of-vlist");
   const chatHost = h("div.of-vmain");
-  const side = h("aside.of-vside");
-  const root = h("div.of-vibe", list, chatHost, side);
+  const root = h("div.of-vibe", chatHost);
   let chat = null;
 
   // ------------------------------------------------------------ chat list
@@ -100,25 +94,23 @@ export function vibeStudio(app) {
     if (hadFocus) list.querySelector(`[data-chat="${CSS.escape(hadFocus)}"]`)?.focus();
   }
 
-  // ------------------------------------------------------------ side panel
+  // ------------------------------------------------------------ dockable panels
+  // Chats, Canvas and Activity are panels of the docking engine (vibe-chats, vibe-canvas, vibe-activity; docs/workspaces.md).
+  // Canvas and Activity are built the first time they are shown and then only moved.
   const panels = new Map();
+  const slotFor = (id, make) => {
+    const el = h("div.of-vside__body");
+    return { el, show: () => {
+      if (!panels.has(id)) {
+        panels.set(id, make(vs));
+        el.replaceChildren(panels.get(id).el);
+      }
+      panels.get(id).show?.();
+    } };
+  };
+  const slots = { "vibe-chats": { el: list }, "vibe-canvas": slotFor("canvas", createCanvasPanel), "vibe-activity": slotFor("activity", createActivityPanel) };
   function renderSide() {
-    empty(side);
-    side.classList.toggle("collapsed", !vs.sideOpen);
-    const tabs = h("div.of-vside__tabs", { role: "tablist" }, TABS.map((t) => {
-      const b = h("button.of-vside__tab", { type: "button", role: "tab", class: t.id === vs.tab && vs.sideOpen ? "active" : "", "aria-selected": String(t.id === vs.tab), "data-tip": t.label, "aria-label": t.label }, iconEl(t.icon), h("span", t.label));
-      b.addEventListener("click", () => (t.id === vs.tab && vs.sideOpen ? ((vs.sideOpen = false), renderSide()) : vs.openTab(t.id)));
-      return b;
-    }));
-    side.append(tabs);
-    if (!vs.sideOpen) return;
-    if (!panels.has(vs.tab)) {
-      const make = { canvas: createCanvasPanel, activity: createActivityPanel }[vs.tab] || createCanvasPanel;
-      panels.set(vs.tab, make(vs));
-    }
-    const p = panels.get(vs.tab);
-    side.append(h("div.of-vside__body", p.el));
-    p.show?.();
+    for (const [id, c] of Object.entries(slots)) setPanelSlot(app, id, c);
   }
 
   // ------------------------------------------------------------ model picker popover
@@ -222,6 +214,7 @@ export function vibeStudio(app) {
     renderSide();
   });
 
+  renderSide();
   instance = { el: root, vs, session, ready, activate: () => chat?.focus() };
   app.vibe = instance;
   return instance;

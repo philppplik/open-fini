@@ -6,7 +6,7 @@
 // its state (scroll position, inputs, listeners) when it is docked, tabbed, floated or collapsed.
 import { h, downloadName } from "../../core/util.js";
 import { t } from "../../i18n/index.js";
-import { STUDIOS } from "../../studios/index.js";
+import { dockDef, dockKeyOf } from "../../studios/index.js";
 import { PANELS } from "../panels/index.js";
 import { iconEl } from "../toolbox.js";
 import { markContext, openContextMenu } from "../context-menu/index.js";
@@ -30,14 +30,15 @@ export function createDocking(app, hosts) {
   let busy = null; // an ongoing drag or keyboard move: { cancel() }
 
   const cz = () => app.customize;
-  const title = (pid) => PANELS[pid]?.title || pid;
+  const skey = () => dockKeyOf(app); // layout key: the studio, or "office:board" ... for apps with their own panels
+  const title = (pid) => (PANELS[pid] ? t(PANELS[pid].title) : pid); // panel titles are English in the registry
   const studioPanels = () => {
-    const s = STUDIOS[app.studio];
+    const s = dockDef(skey());
     return s ? [...new Set([...(s.top || []), ...(s.bottom || [])])].filter((id) => PANELS[id]) : [];
   };
-  const state = () => cz()?.layout(app.studio) || { hidden: [], side: "right", width: null };
+  const state = () => cz()?.layout(skey()) || { hidden: [], side: "right", width: null };
   const viewport = () => ({ w: window.innerWidth, h: window.innerHeight });
-  const base = (st = state()) => baseLayout(app.studio, STUDIOS[app.studio], st);
+  const base = (st = state()) => baseLayout(skey(), dockDef(skey()), st);
   const visibleOf = (st) => studioPanels().filter((id) => !st.hidden.includes(id));
 
   function inst(pid) {
@@ -65,7 +66,7 @@ export function createDocking(app, hosts) {
     const plain = M.reconcile(b, visibleOf(st), b);
     L = next;
     if (!cz()) return draw();
-    cz().setLayout(app.studio, { ...st, dock: M.sameLayout(next, plain) ? undefined : M.serialize(next) }, { keepDock: true }); // emits "layout" -> render()
+    cz().setLayout(skey(), { ...st, dock: M.sameLayout(next, plain) ? undefined : M.serialize(next) }, { keepDock: true }); // emits "layout" -> render()
   }
 
   function render() {
@@ -128,8 +129,8 @@ export function createDocking(app, hosts) {
     for (const pid of g.panels) {
       const def = PANELS[pid];
       const on = pid === g.active;
-      const b = h("button.of-dock__tab", { type: "button", role: "tab", id: `of-dktab-${pid}`, class: on ? "active" : "", "aria-selected": String(on), "aria-controls": bodyId, tabindex: on ? "0" : "-1", "data-tip": def.title, "aria-label": def.title, "data-panel": pid }, iconEl(def.icon), h("span", def.title));
-      markContext(b, "panel-header", { id: pid, title: def.title });
+      const b = h("button.of-dock__tab", { type: "button", role: "tab", id: `of-dktab-${pid}`, class: on ? "active" : "", "aria-selected": String(on), "aria-controls": bodyId, tabindex: on ? "0" : "-1", "data-tip": title(pid), "aria-label": title(pid), "data-panel": pid }, iconEl(def.icon), h("span", title(pid)));
+      markContext(b, "panel-header", { id: pid, title: title(pid) });
       b.addEventListener("click", () => {
         if (!suppressClick && !on) select(pid);
       });
@@ -614,9 +615,9 @@ export function createDocking(app, hosts) {
   function reset() {
     const c = cz();
     if (!c) return;
-    const name = c.activeWorkspace(app.studio) || c.baseWorkspace(app.studio);
-    if (name && c.applyWorkspace(app.studio, name)) return;
-    c.resetLayout(app.studio);
+    const name = c.activeWorkspace(skey()) || c.baseWorkspace(skey());
+    if (name && c.applyWorkspace(skey(), name)) return;
+    c.resetLayout(skey());
   }
 
   async function ask(opts) {
@@ -627,7 +628,7 @@ export function createDocking(app, hosts) {
   function workspaceItems() {
     const c = cz();
     if (!c || !studioPanels().length) return [];
-    const s = app.studio;
+    const s = skey();
     const list = c.workspaces(s);
     const cur = c.activeWorkspace(s) || c.baseWorkspace(s);
     const user = list.find((w) => w.name === cur && !w.builtin);
@@ -648,19 +649,19 @@ export function createDocking(app, hosts) {
   async function saveAs() {
     const name = await ask({ title: t("Save as New Workspace"), label: t("Workspace name"), ok: t("Save") });
     if (name == null) return;
-    const n = cz().saveWorkspace(app.studio, name);
+    const n = cz().saveWorkspace(skey(), name);
     app.toast(n ? t("Workspace “{name}” saved.", { name: n }) : t("Enter a name for the workspace (at most 24 workspaces per studio)."), n ? "success" : "warning", 2200);
   }
 
   async function rename(from) {
     const name = await ask({ title: t("Rename Workspace"), label: t("Workspace name"), value: from, ok: t("Rename") });
     if (name == null) return;
-    if (!cz().renameWorkspace(app.studio, from, name)) app.toast(t("That name is empty or already used."), "warning", 2200);
+    if (!cz().renameWorkspace(skey(), from, name)) app.toast(t("That name is empty or already used."), "warning", 2200);
   }
 
   async function remove(name) {
     const { confirmDialog } = await import("../dialogs.js");
-    if (await confirmDialog({ title: t("Delete Workspace"), message: t("Delete the workspace “{name}”? The current layout stays as it is.", { name }), ok: t("Delete"), danger: true })) cz().deleteWorkspace(app.studio, name);
+    if (await confirmDialog({ title: t("Delete Workspace"), message: t("Delete the workspace “{name}”? The current layout stays as it is.", { name }), ok: t("Delete"), danger: true })) cz().deleteWorkspace(skey(), name);
   }
 
   async function resetAll() {
@@ -670,8 +671,8 @@ export function createDocking(app, hosts) {
 
   async function exportWs() {
     const c = cz();
-    const name = c.activeWorkspace(app.studio) || c.baseWorkspace(app.studio) || STUDIOS[app.studio].label;
-    const data = { format: FORMAT, version: 1, studio: app.studio, name, state: { ...c.layout(app.studio), dock: M.serialize(L) } };
+    const name = c.activeWorkspace(skey()) || c.baseWorkspace(skey()) || dockDef(skey())?.label;
+    const data = { format: FORMAT, version: 1, studio: skey(), name, state: { ...c.layout(skey()), dock: M.serialize(L) } };
     const { platform } = await import("../../platform/index.js");
     try {
       await platform.saveFile({ suggestedName: downloadName(`${name} workspace`, "json"), bytes: new TextEncoder().encode(JSON.stringify(data, null, 2)), mime: "application/json", filters: [{ name: t("OpenFini workspace"), extensions: ["json"] }] });
@@ -684,14 +685,14 @@ export function createDocking(app, hosts) {
     const { platform } = await import("../../platform/index.js");
     const [file] = await platform.openFiles({ accept: [{ name: t("OpenFini workspace"), extensions: ["json"] }] });
     if (!file) return;
-    const res = parseWorkspace(new TextDecoder().decode(file.bytes), app.studio, studioPanels());
+    const res = parseWorkspace(new TextDecoder().decode(file.bytes), skey(), studioPanels());
     if (res.error) return app.toast(res.error, "danger", 5000);
     const c = cz();
     let name = res.name;
-    for (let i = 2; c.workspaces(app.studio).some((w) => w.name === name); i++) name = `${res.name} ${i}`.slice(0, 40);
-    const n = c.saveWorkspace(app.studio, name, res.state);
+    for (let i = 2; c.workspaces(skey()).some((w) => w.name === name); i++) name = `${res.name} ${i}`.slice(0, 40);
+    const n = c.saveWorkspace(skey(), name, res.state);
     if (!n) return app.toast(t("This studio already has 24 saved workspaces."), "warning", 3000);
-    c.applyWorkspace(app.studio, n);
+    c.applyWorkspace(skey(), n);
     app.toast(t("Workspace “{name}” imported.", { name: n }), "success", 2200);
   }
 
@@ -707,10 +708,19 @@ export function createDocking(app, hosts) {
   };
   window.addEventListener("resize", onResize);
   app.on("studio", () => (busy?.cancel(), render()));
+  app.on("officekind", () => (busy?.cancel(), render()));
   app.on("layout", render);
   render();
 
-  return { render, reveal, close, reset, panelMenu, panelItems, workspaceItems, keyMove: (pid) => keyMove({ pid }), get layout() { return L; } };
+  /** True while the panel is shown in a dock or floating window (not closed). */
+  const isOpen = (pid) => !!M.findPanel(L, pid);
+  /** Collapses (true), expands (false) or toggles a dock region to its icon strip. */
+  function toggleRegion(r, collapsed) {
+    const R = L.regions[r];
+    if (R?.root) commit(M.setCollapsed(L, r, collapsed ?? !R.collapsed));
+  }
+
+  return { render, reveal, close, isOpen, toggleRegion, reset, panelMenu, panelItems, workspaceItems, keyMove: (pid) => keyMove({ pid }), get layout() { return L; } };
 }
 
 /**
@@ -725,7 +735,7 @@ export function parseWorkspace(text, studio, panels) {
     return { error: t("This is not a workspace file.") };
   }
   if (!data || data.format !== FORMAT || typeof data.state !== "object" || !data.state) return { error: t("This is not a workspace file.") };
-  if (data.studio !== studio) return { error: t("This workspace belongs to the {studio} studio. Switch to it first.", { studio: STUDIOS[data.studio]?.label || String(data.studio).slice(0, 40) }) };
+  if (data.studio !== studio) return { error: t("This workspace belongs to the {studio} studio. Switch to it first.", { studio: dockDef(data.studio)?.label || String(data.studio).slice(0, 40) }) };
   const s = data.state;
   const known = new Set(panels);
   const state = {

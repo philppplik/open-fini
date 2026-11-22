@@ -137,9 +137,10 @@ export const visiblePanels = (ids, hidden) => (hidden?.length ? ids.filter((id) 
  */
 export function builtinWorkspaces(studio, panels) {
   const all = [...panels.top, ...panels.bottom];
+  const closed = panels.closed || [];
   // `preset` names the arrangement in ui/docking/presets.js (loaded with the dock); without one the panels keep the Essentials places
   const only = (preset, ...ids) => ({ hidden: all.filter((p) => !ids.includes(p)), side: "right", width: null, ...(preset ? { preset } : {}) });
-  const out = [{ name: "Essentials", description: "Every panel of the studio.", state: { hidden: [], side: "right", width: null } }];
+  const out = [{ name: "Essentials", description: closed.length ? "Every panel of the studio; the panels you open on demand start closed." : "Every panel of the studio.", state: { hidden: closed.slice(), side: "right", width: null } }];
   const add = (name, description, state) => out.push({ name, description, state });
   if (studio === "vector") {
     add("Typography", "Type, appearance, layers and history.", only("typography", "type", "appearance", "layers", "history"));
@@ -152,8 +153,15 @@ export function builtinWorkspaces(studio, panels) {
     add("Data", "Data, color and layers.", only("data", "data", "color", "layers"));
     add("Review", "Comments, pages and history.", only("review", "comments", "pages", "history"));
   } else if (studio === "code") {
-    add("Review", "Comments first, then style and settings.", only("review", "comments", "style", "element"));
-    add("Focus", "No side panels.", only(""));
+    add("Review", "Explorer and Source Control, comments first, then style and settings; Problems below.", only("review", "code-explorer", "code-git", "code-problems", "comments", "style", "element"));
+    add("Focus", "The editor with the Explorer, no other panels.", only("focus", "code-explorer"));
+  } else if (studio === "scene") {
+    add("Motion", "Effects and Inspector.", only("motion", "scene-effects", "scene-inspector"));
+    add("Audio", "Media and Inspector, a wider Inspector for levels and mixing.", only("audio", "scene-media", "scene-inspector"));
+  } else if (studio === "office:document") {
+    add("Review", "The outline on the left; styles hidden.", only("review", "doc-outline"));
+  } else if (studio === "office:board") {
+    add("Review", "Comments and outline, open on the right.", only("review", "board-comments", "board-outline"));
   }
   return out;
 }

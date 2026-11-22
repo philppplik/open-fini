@@ -69,10 +69,9 @@ export function createShell(app, root) {
   const welcome = createWelcome(app);
 
   // Code studio: its sidebar and workbench are mounted lazily (the module is loaded the first time it is needed)
-  const codeSide = h("div.of-codeside-host");
   const codeMain = h("div.of-codearea");
   const canvasArea = h("main.of-canvasarea", cv.el, codeMain, welcome.el);
-  const layout = h("div.of-layout", header, tabs.el, context.el, dock.hosts[0], toolbox.el, codeSide, canvasArea, dock.hosts[1], dock.el, status.el);
+  const layout = h("div.of-layout", header, tabs.el, context.el, dock.hosts[0], toolbox.el, canvasArea, dock.hosts[1], dock.el, status.el);
   root.append(layout);
   app.dock = dock;
   dock.start(layout); // lazy: the docking engine (ui/docking/)
@@ -142,12 +141,12 @@ export function createShell(app, root) {
     if (app.studio !== "code" || app.doc !== doc) return;
     const ws = mod.workspaceFor(app, doc);
     if (mountedCode !== ws) {
-      codeSide.replaceChildren(ws.side);
+      ws.publishPanels(); // the sidebar and bottom panels are dockable panels (ui/panels/slots.js)
       codeMain.replaceChildren(ws.main);
       mountedCode = ws;
       ws.on("built", () => {
         if (mountedCode !== ws) return;
-        codeSide.replaceChildren(ws.side);
+        ws.publishPanels();
         codeMain.replaceChildren(ws.main);
         app.emit("contextbar");
         app.emit("codeui", ws);
@@ -167,7 +166,7 @@ export function createShell(app, root) {
     if (!app.docs.length) {
       app.codeUI = null;
       mountedCode = null;
-      codeSide.replaceChildren();
+      import("./panels/slots.js").then((m) => m.clearPanelSlots(app, "code-"));
       codeMain.replaceChildren();
     }
   });

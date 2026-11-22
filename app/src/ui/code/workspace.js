@@ -19,7 +19,7 @@ import { createStart } from "./start.js";
 import { showContextMenu } from "../menus.js";
 import { openContextMenu } from "../context-menu/index.js";
 import { promptDialog, confirmDialog } from "../dialogs.js";
-import { iconEl } from "../toolbox.js";
+import { setPanelSlot } from "../panels/slots.js";
 import { openCommandPalette } from "./palette.js";
 import { updateReferences } from "./refs.js";
 import { importInto } from "./import.js";
@@ -51,15 +51,8 @@ export function disposeWorkspace(doc) {
 }
 
 const CONTAINER_TAGS = new Set(["div", "section", "header", "footer", "main", "nav", "article", "aside", "ul", "ol", "form", "body", "figure", "details", "fieldset", "dl", "blockquote", "li", "td", "th", "label", "button", "a", "span"]);
-const ACTIVITY = [
-  { id: "explorer", icon: "files", label: "Explorer", shortcut: "" },
-  { id: "add", icon: "plus-square", label: "Add elements", shortcut: "" },
-  { id: "outline", icon: "diagram-3", label: "Navigator", shortcut: "" },
-  { id: "search", icon: "search", label: "Search (Ctrl+Shift+F)", shortcut: "" },
-  { id: "git", icon: "signpost-split", label: "Source Control", shortcut: "" },
-  { id: "assets", icon: "images", label: "Assets", shortcut: "" },
-  { id: "libs", icon: "stack", label: "Libraries", shortcut: "" },
-];
+export const SIDE_PANELS = { explorer: "code-explorer", add: "code-add", outline: "code-navigator", search: "code-search", git: "code-git", assets: "code-assets", libs: "code-libs" };
+const ALL_CODE_PANELS = [...Object.values(SIDE_PANELS), "code-problems", "code-console", "code-terminal"];
 
 export class CodeWorkspace extends Emitter {
   constructor(app, doc) {
@@ -71,13 +64,11 @@ export class CodeWorkspace extends Emitter {
     this.hoverId = null;
     this.view = "split";
     this.sideTab = "explorer";
-    this.sideOpen = true;
     this.consoleLines = [];
     this.opStack = []; // visual operations: { files: [path] }
     this.redoStack = [];
     this.clip = null;
     this.styleSelector = null; // chosen selector in the style panel (".hero") or "" for inline
-    this.side = h("div.of-codeside");
     this.main = h("div.of-codemain");
     this.toolbar = h("div.of-codebar");
     this.built = false;
@@ -88,10 +79,9 @@ export class CodeWorkspace extends Emitter {
   // ------------------------------------------------------------ construction
 
   #buildStart() {
-    empty(this.side);
     empty(this.main);
     empty(this.toolbar);
-    this.side.append(h("div.of-side__pane", h("div.of-side__head", h("span.of-side__title", "Code studio")), h("div.of-empty", "No website project in this document yet.")));
+    this.startPane = { el: h("div.of-side__pane", h("div.of-side__head", h("span.of-side__title", "Code studio")), h("div.of-empty", "No website project in this document yet.")) };
     this.main.append(createStart(this));
     this.toolbar.append(h("span.of-codebar__hint", "Website projects live inside your document next to the design."));
     this.emit("built");
@@ -142,13 +132,8 @@ export class CodeWorkspace extends Emitter {
     this.bottom = createBottomPanel(this);
     this.toolbarApi = createToolbar(this);
 
-    // ---- sidebar: activity bar + active pane
-    this.activity = h("div.of-activity", { role: "tablist", "aria-label": "Sidebar", "aria-orientation": "vertical" });
-    this.paneHost = h("div.of-side__panes");
+    // ---- sidebar and bottom panes: separate dockable panels (docs/workspaces.md), published through panel slots
     this.panes = { explorer: this.explorer, add: this.elementsPanel, outline: this.outline, search: this.searchPanel, git: this.gitPane, assets: this.assetsPanel, libs: this.libsPane };
-    empty(this.side);
-    this.side.append(this.activity, this.paneHost);
-    this.#renderSide();
 
     // ---- workbench: editor | preview, bottom panel
     this.splitEl = h(
@@ -159,7 +144,7 @@ export class CodeWorkspace extends Emitter {
     );
     this.#wireSplitter();
     empty(this.main);
-    this.main.append(this.splitEl, this.bottom.el);
+    this.main.append(this.splitEl);
     empty(this.toolbar);
     this.toolbar.append(this.toolbarApi.el);
     this.setView(this.view, { silent: true });
@@ -189,8 +174,6 @@ export class CodeWorkspace extends Emitter {
     }
     this.preview.rebuild();
     this.preview.layout();
-    if (web.settings.kind === "document") this.sideOpen = false; // a single opened file: editor and preview only
-    this.#renderSide();
     this.#syncDocMode();
     this.preview.on("built", () => this.problemsSoon());
     this.computeProblems();
@@ -216,44 +199,34 @@ export class CodeWorkspace extends Emitter {
     return docKind(this.editors?.active);
   }
 
-  #renderSide() {
-    empty(this.activity);
-    for (const a of ACTIVITY) {
-      const b = h("button.of-activity__btn", { type: "button", role: "tab", class: a.id === this.sideTab && this.sideOpen ? "active" : "", "aria-selected": String(a.id === this.sideTab && this.sideOpen), "data-tip": a.label, "data-tip-pos": "right", "aria-label": a.label }, iconEl(a.icon));
-      b.addEventListener("click", () => (a.id === this.sideTab && this.sideOpen ? this.toggleSidebar(false) : this.showSide(a.id)));
-      this.activity.append(b);
-    }
-    this.activity.append(h("span.of-activity__spacer"));
-    const settings = h("button.of-activity__btn", { type: "button", "data-tip": "Editor settings", "data-tip-pos": "right", "aria-label": "Editor settings" }, iconEl("gear"));
-    settings.addEventListener("click", (e) => {
-      const r = settings.getBoundingClientRect();
-      showContextMenu(this.app, r.right + 6, r.top - 120, [
-        { label: "Word wrap", icon: "text-wrap", checked: !!this.web.settings.wordWrap, run: () => this.editors.setWordWrap(!this.web.settings.wordWrap) },
-        { label: `Tab size: ${this.web.settings.tabSize || 2}`, icon: "indent", run: () => this.cycleTabSize() },
-        { label: "Spacing guides on canvas", icon: "bounding-box-circles", checked: this.spacingGuides !== false, run: () => this.toggleSpacingGuides() },
-        "-",
-        { label: "Command palette", icon: "terminal", run: () => this.palette() },
-      ]);
-      e.stopPropagation();
-    });
-    this.activity.append(settings);
-    empty(this.paneHost);
-    this.paneHost.append(this.panes[this.sideTab].el);
-    this.panes[this.sideTab].show?.();
-    this.side.classList.toggle("collapsed", !this.sideOpen);
+  /** Gives the dockable Code panels (Explorer ... Terminal) the content of this workspace (ui/panels/slots.js). */
+  publishPanels() {
+    const slots = this.built ? { ...Object.fromEntries(Object.entries(this.panes).map(([k, p]) => [SIDE_PANELS[k], p])), ...this.bottom.slots } : { "code-explorer": this.startPane };
+    for (const id of ALL_CODE_PANELS) setPanelSlot(this.app, id, slots[id] || null);
   }
 
+  /** Editor settings menu (word wrap, tab size, spacing guides, command palette) next to the given point. */
+  editorSettingsMenu(x, y) {
+    showContextMenu(this.app, x, y, [
+      { label: "Word wrap", icon: "text-wrap", checked: !!this.web.settings.wordWrap, run: () => this.editors.setWordWrap(!this.web.settings.wordWrap) },
+      { label: `Tab size: ${this.web.settings.tabSize || 2}`, icon: "indent", run: () => this.cycleTabSize() },
+      { label: "Spacing guides on canvas", icon: "bounding-box-circles", checked: this.spacingGuides !== false, run: () => this.toggleSpacingGuides() },
+      "-",
+      { label: "Command palette", icon: "terminal", run: () => this.palette() },
+    ]);
+  }
+
+  /** Brings a sidebar panel (explorer, add, outline, search, git, assets, libs) to the front, opening it if needed. */
   showSide(tab) {
-    if (!this.built) return;
+    if (!this.built || !SIDE_PANELS[tab]) return;
     this.sideTab = tab;
-    this.sideOpen = true;
-    this.#renderSide();
+    this.app.dock?.reveal(SIDE_PANELS[tab]);
     this.emit("side", tab);
     if (tab === "search") this.searchPanel.focus?.();
   }
+  /** Ctrl+B: collapses or expands the left dock (to its icon strip). */
   toggleSidebar(force) {
-    this.sideOpen = force ?? !this.sideOpen;
-    this.#renderSide();
+    this.app.dock?.toggleRegion("left", force === undefined ? undefined : !force);
   }
 
   /**

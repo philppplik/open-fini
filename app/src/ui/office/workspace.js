@@ -1,5 +1,6 @@
 // Office Studio workspace: formatting toolbar, outline / styles sidebar, find & replace bar and the page editor.
 // Mounted by the Office Suite host (office/host.js) through the Document app (office/document/app.js), one per document.
+import { setPanelSlot } from "../panels/slots.js";
 import { h } from "../../core/util.js";
 import * as M from "../../engine/office/model.js";
 import { iconButton } from "../controls.js";
@@ -33,6 +34,8 @@ export class OfficeWorkspace {
   }
 
   activate() {
+    setPanelSlot(this.app, "doc-outline", { el: this.outlinePanel, show: () => this.#refreshPanels() });
+    setPanelSlot(this.app, "doc-styles", { el: this.stylesPanel, show: () => this.#refreshPanels() });
     this.editor.relayout();
     this.#refreshPanels();
     this.#updateToolbar();
@@ -162,17 +165,11 @@ export class OfficeWorkspace {
     // sidebar
     this.outlineList = h("ol.of-oside__outline", { "aria-label": "Document outline" });
     this.stylesList = h("ul.of-oside__styles", { "aria-label": "Styles" });
-    const tabBtn = (id, label) => {
-      const b = h("button.of-oside__tab", { type: "button", role: "tab", "aria-selected": "false", "data-tab": id }, label);
-      b.addEventListener("click", () => this.showPanel(id));
-      return b;
-    };
-    this.tabs = h("div.of-oside__tabs", { role: "tablist", "aria-label": "Sidebar" }, tabBtn("outline", "Outline"), tabBtn("styles", "Styles"));
-    this.outlinePanel = h("div.of-oside__panel", { role: "tabpanel", "aria-label": "Outline" }, this.outlineList);
+    // Outline and Styles are separate dockable panels (doc-outline, doc-styles; docs/workspaces.md)
+    this.outlinePanel = h("div.of-oside__panel", { "aria-label": "Outline" }, this.outlineList);
     const newStyle = h("button.of-btn.of-btn--default", { type: "button", onclick: () => import("./dialogs.js").then((m) => m.styleDialog(this.app, this, null)) }, "New style…");
     const updStyle = h("button.of-btn.of-btn--default", { type: "button", onclick: () => this.app.run("office.updateStyle") }, "Update from selection");
-    this.stylesPanel = h("div.of-oside__panel", { role: "tabpanel", "aria-label": "Styles" }, this.stylesList, h("div.of-oside__actions", newStyle, updStyle));
-    this.side = h("aside.of-oside", this.tabs, this.outlinePanel, this.stylesPanel);
+    this.stylesPanel = h("div.of-oside__panel", { "aria-label": "Styles" }, this.stylesList, h("div.of-oside__actions", newStyle, updStyle));
 
     this.find = createFindBar(this);
     this.scroller = h("div.of-office__scroll", this.editor.el);
@@ -185,22 +182,18 @@ export class OfficeWorkspace {
       }
     });
     this.main = h("div.of-office__main", this.find.el, this.scroller);
-    this.el = h("div.of-office", { "data-sidebar": this.app.prefs.officeSidebar === false ? "off" : "on" }, this.toolbar, h("div.of-office__body", this.side, this.main));
-    this.showPanel(this.prj.view.panel || "outline");
+    this.el = h("div.of-office", this.toolbar, h("div.of-office__body", this.main));
   }
 
+  /** Collapses or expands the left dock (the outline and styles panels) to its icon strip. */
   toggleSidebar(force) {
-    const on = force ?? this.el.dataset.sidebar === "off";
-    this.el.dataset.sidebar = on ? "on" : "off";
-    this.app.setPref("officeSidebar", on);
+    this.app.dock?.toggleRegion("left", force === undefined ? undefined : !force);
   }
 
+  /** Brings the "outline" or "styles" panel to the front, opening it if needed. */
   showPanel(id) {
     this.prj.view.panel = id;
-    for (const t of this.tabs.children) t.setAttribute("aria-selected", String(t.dataset.tab === id));
-    this.outlinePanel.hidden = id !== "outline";
-    this.stylesPanel.hidden = id !== "styles";
-    if (this.el.dataset.sidebar === "off") this.toggleSidebar(true);
+    this.app.dock?.reveal(id === "styles" ? "doc-styles" : "doc-outline");
   }
 
   #refreshPanels() {

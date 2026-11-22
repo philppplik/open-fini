@@ -12,6 +12,7 @@
 // "officekind" (menus) when the active app changes.
 // Invariants: an app instance is created at most once per document and destroyed when the document closes; a slow
 // app import never mounts into a document that is no longer active (token check).
+import { setPanelSlot } from "../ui/panels/slots.js";
 import { h } from "../core/util.js";
 import { t } from "../i18n/index.js";
 import { officeApps, officeApp, loadOfficeApp, officeKindOf } from "./index.js";
@@ -124,9 +125,12 @@ export async function syncOfficeSuite(app, area = lastArea) {
   inst.activate?.();
 }
 
+const OFFICE_PANELS = ["doc-outline", "doc-styles", "slides-thumbs", "board-comments", "board-outline", "board-properties", "board-library"];
+
 function setActive(app, inst) {
   const changed = app.officeUI !== inst;
   app.officeUI = inst;
+  if (changed) for (const id of OFFICE_PANELS) setPanelSlot(app, id, null); // the app publishes its panels again in activate()
   if (changed) {
     app.emit("officestatus");
     app.emit("officekind", inst?.kind || null);

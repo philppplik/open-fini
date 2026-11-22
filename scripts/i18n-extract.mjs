@@ -38,6 +38,8 @@ export const IMPLICIT = [
   // static content tables, translated by their renderers (tour.js, onboarding.js, shell.js, studio-bar.js, titlebar.js)
   { test: (p) => p === "ui/tour-steps.js" || p === "ui/whats-new.js", re: new RegExp(String.raw`\b(?:title|body|text):\s*${STR}`, "g") },
   { test: (p) => p === "studios/index.js", re: new RegExp(String.raw`\bblurb:\s*${STR}`, "g") },
+  // titles of the dockable panels (translated by the docking engine)
+  { test: (p) => p === "ui/panels/index.js", re: new RegExp(String.raw`\btitle:\s*${STR}`, "g") },
   { test: (p) => p === "ui/titlebar.js", re: new RegExp(String.raw`\bcontrolButton\(\s*"\w+"\s*,\s*${STR}`, "g") },
   { test: (p) => p === "ui/titlebar.js", re: new RegExp(String.raw`const label = on \? ${STR} : ${STR}`, "g") },
   // dialogs, import/export and the context menus: property texts and literal toasts (translated centrally by the helpers

@@ -13,7 +13,7 @@ import { registerStudio } from "./registry.js";
 import { OFFICE_STUDIO } from "./office.js";
 import { SCENE_STUDIO } from "./scene.js";
 
-export { STUDIOS, registerStudio, listStudios, studioIds, getStudio, hasStudio, onStudioRegistered } from "./registry.js";
+export { STUDIOS, registerStudio, listStudios, studioIds, getStudio, hasStudio, onStudioRegistered, dockDef, dockKeys, dockKeyOf } from "./registry.js";
 import { STUDIOS } from "./registry.js";
 
 export const CORE_TOOLS = [MoveTool, NodeTool, PenTool, PencilTool, RectTool, EllipseTool, PolygonTool, StarTool, PresetShapeTool, LineTool, HandTool, ZoomTool, EyedropperTool];
@@ -62,8 +62,9 @@ const BUILTIN = {
     top: ["appearance", "transform", "type", "data", "color"],
     bottom: ["pages", "layers", "styles", "history", "comments"],
   },
-  // The Code studio is a website workbench (code editor + visual designer). Its left sidebar, center stage and
-  // bottom panel are owned by ui/code/; only the right dock uses the regular panel registry.
+  // The Code studio is a website workbench (code editor + visual designer). Its center stage is owned by ui/code/; the
+  // sidebar (left), the bottom panels and the style panels (right) are dockable (docs/workspaces.md). The bottom panels
+  // start closed (Ctrl+J opens them).
   code: {
     id: "code",
     label: "Code",
@@ -72,9 +73,17 @@ const BUILTIN = {
     workspace: true,
     tools: [],
     top: ["style", "element", "comments"],
-    bottom: [],
+    bottom: ["code-explorer", "code-add", "code-navigator", "code-search", "code-git", "code-assets", "code-libs", "code-problems", "code-console", "code-terminal"],
+    essentials: {
+      left: [["code-explorer", "code-add", "code-navigator", "code-search", "code-git", "code-assets", "code-libs"]],
+      right: [["style", "element", "comments"]],
+      bottom: [["code-problems", "code-console", "code-terminal"]],
+      sizes: { left: 300, bottom: 220 },
+    },
+    closed: ["code-problems", "code-console", "code-terminal"],
   },
-  // Vibe Studio: an AI assistant that works inside the other studios. Its whole workspace is ui/vibe/.
+  // Vibe Studio: an AI assistant that works inside the other studios. Chats (left), Canvas and Activity (right) are
+  // dockable panels; the conversation in the middle is ui/vibe/.
   vibe: {
     id: "vibe",
     label: "Vibe",
@@ -82,8 +91,9 @@ const BUILTIN = {
     blurb: "Describe it — an AI builds it in your studios",
     workspace: true,
     tools: [],
-    top: [],
-    bottom: [],
+    top: ["vibe-chats"],
+    bottom: ["vibe-canvas", "vibe-activity"],
+    essentials: { left: [["vibe-chats"]], right: [["vibe-canvas", "vibe-activity"]], sizes: { left: 240, right: 380 } },
   },
 };
 

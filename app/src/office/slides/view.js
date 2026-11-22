@@ -6,7 +6,8 @@ import { h } from "../../core/util.js";
 import { t } from "../../i18n/index.js";
 import { commitOffice } from "../../core/office.js";
 import { officeItemAnchor } from "../../collab/anchors.js";
-import { ribbon, button, colorPicker, fontControls, splitPanels, dragGesture, officeContextMenu, openDialog } from "../toolkit/ui.js";
+import { setPanelSlot } from "../../ui/panels/slots.js";
+import { ribbon, button, colorPicker, fontControls, dragGesture, officeContextMenu, openDialog } from "../toolkit/ui.js";
 import * as M from "./model.js";
 import { MediaUrls, slideNode, scaledSlide, elementNode } from "./slide-dom.js";
 
@@ -148,7 +149,7 @@ export class SlidesView {
     this.bannerText = h("span");
     this.banner = h("div.of-sl-banner", { hidden: true, role: "status" }, h("sl-icon", { name: "layout-wtf", "aria-hidden": "true" }), this.bannerText, h("sl-button", { size: "small", onclick: () => this.run("slides.closeMaster") }, t("Close master view")));
     this.main = h("div.of-sl-main", this.banner, this.stage, this.notes);
-    this.split = splitPanels({ a: this.thumbs, b: this.main, size: 200, min: 120 });
+    this.split = { el: this.main }; // the slide thumbnails are a dockable panel (slides-thumbs, docs/workspaces.md)
     this.sorter = h("div.of-sl-sorter", { role: "listbox", "aria-label": t("Slide sorter"), hidden: true, tabindex: "0" });
     this.live = h("div.of-sl-sr", { "aria-live": "polite" });
     this.el = h("div.of-sl", this.ribbon, this.split.el, this.sorter, this.live);
@@ -978,6 +979,7 @@ export class SlidesView {
   // ------------------------------------------------------------------ suite contract
 
   activate() {
+    setPanelSlot(this.app, "slides-thumbs", { el: this.thumbs });
     this.refresh();
     requestAnimationFrame(() => this.fit());
   }

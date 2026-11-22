@@ -6,7 +6,7 @@ import * as M from "../../app/src/ui/docking/model.js";
 import { PRESETS, baseLayout, essentialsSpec } from "../../app/src/ui/docking/presets.js";
 import { parseWorkspace } from "../../app/src/ui/docking/view.js";
 import { PANELS } from "../../app/src/ui/panels/index.js";
-import { STUDIOS } from "../../app/src/studios/index.js";
+import { STUDIOS, dockDef, dockKeys, dockKeyOf } from "../../app/src/studios/index.js";
 import { builtinWorkspaces, snapshotLayout } from "../../app/src/customize/toolbox-model.js";
 import { validateSetting } from "../../app/src/customize/schema.js";
 
@@ -215,14 +215,21 @@ test("operations never mutate their input", () => {
 
 test("every built-in workspace uses registered panels and a known arrangement", () => {
   for (const [studio, presets] of Object.entries(PRESETS)) {
-    assert.ok(STUDIOS[studio], studio);
+    assert.ok(dockDef(studio), studio);
     for (const [id, spec] of Object.entries(presets)) {
       for (const r of M.REGIONS) for (const g of spec[r] || []) for (const p of g) assert.ok(PANELS[p], `${studio}/${id}: ${p} is not a registered panel`);
     }
   }
-  for (const [studio, s] of Object.entries(STUDIOS)) {
-    for (const p of [...(s.top || []), ...(s.bottom || [])]) assert.ok(PANELS[p], `${studio}: ${p}`);
-    const panels = { top: s.top || [], bottom: s.bottom || [] };
+  const keys = dockKeys();
+  for (const k of ["code", "scene", "vibe", "office:document", "office:slides", "office:board"]) assert.ok(keys.includes(k), `${k} has a dock definition`);
+  for (const studio of keys) {
+    const s = dockDef(studio);
+    const essentials = s.essentials ? M.REGIONS.flatMap((r) => (s.essentials[r] || []).flat()) : [...(s.top || []), ...(s.bottom || [])];
+    for (const p of [...(s.top || []), ...(s.bottom || []), ...essentials]) assert.ok(PANELS[p], `${studio}: ${p}`);
+    // the Essentials arrangement places exactly the studio's panels
+    assert.deepEqual([...essentials].sort(), [...(s.top || []), ...(s.bottom || [])].sort(), `${studio}: essentials lists the studio's panels`);
+    for (const p of s.closed || []) assert.ok(essentials.includes(p), `${studio}: closed panel ${p} is not in the arrangement`);
+    const panels = { top: s.top || [], bottom: s.bottom || [], closed: s.closed || [] };
     for (const w of builtinWorkspaces(studio, panels)) {
       if (w.state.preset) assert.ok(PRESETS[studio]?.[w.state.preset], `${studio}/${w.name}: unknown preset ${w.state.preset}`);
       // the arrangement shows exactly the panels the workspace keeps visible
@@ -230,9 +237,30 @@ test("every built-in workspace uses registered panels and a known arrangement", 
       const L = M.reconcile(baseLayout(studio, s, w.state), visible, baseLayout(studio, s, w.state));
       assert.deepEqual(M.panelIds(L).sort(), [...visible].sort(), `${studio}/${w.name}`);
       if (w.state.preset) assert.deepEqual(M.panelIds(baseLayout(studio, s, w.state)).sort(), [...visible].sort(), `${studio}/${w.name} preset lists other panels`);
-      assert.ok(validateSetting("workspaces", { [studio === "office" || studio === "scene" ? "vector" : studio]: { [w.name]: w.state } }).ok || !["vector", "pixel", "layout", "code", "vibe"].includes(studio));
+      assert.ok(validateSetting("workspaces", { [studio]: { [w.name]: w.state } }).ok, `${studio}/${w.name} does not validate`);
     }
   }
+});
+
+test("the Code, Scene, Office and Vibe studios open with today's arrangement", () => {
+  const code = baseLayout("code", dockDef("code"), {});
+  assert.deepEqual(groups(code).map((g) => [g.region, g.panels.length]), [["left", 7], ["right", 3], ["bottom", 3]]);
+  assert.deepEqual(dockDef("code").closed, ["code-problems", "code-console", "code-terminal"]);
+  const scene = baseLayout("scene", dockDef("scene"), {});
+  assert.deepEqual(groups(scene).map((g) => [g.region, g.panels]), [["left", ["scene-media", "scene-effects"]], ["right", ["scene-inspector"]]]);
+  assert.equal(scene.regions.left.size, 232);
+  const board = baseLayout("office:board", dockDef("office:board"), {});
+  assert.deepEqual(groups(board).map((g) => g.panels), [["board-comments", "board-outline", "board-properties", "board-library"]]);
+  assert.deepEqual(groups(baseLayout("vibe", dockDef("vibe"), {})).map((g) => [g.region, g.panels]), [["left", ["vibe-chats"]], ["right", ["vibe-canvas", "vibe-activity"]]]);
+  assert.equal(dockDef("office:sheet"), null);
+});
+
+test("an app of the Office suite has its own layout key", () => {
+  const app = { studio: "office", officeUI: { kind: "board" } };
+  assert.equal(dockKeyOf(app), "office:board");
+  assert.equal(dockKeyOf({ studio: "office", officeUI: { kind: "sheet" } }), "office");
+  assert.equal(dockKeyOf({ studio: "office", officeUI: null }), "office");
+  assert.equal(dockKeyOf({ studio: "pixel" }), "pixel");
 });
 
 test("Essentials looks like the 1.1 dock: the studio's top and bottom panels, right side, default width", () => {

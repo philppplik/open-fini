@@ -17,6 +17,18 @@ export const OFFICE_STUDIO = {
   tools: [],
   top: [],
   bottom: [],
+  // Each app has its own dockable panels and layout key ("office:document" ...); the Spreadsheet has none
+  dockApp: (app) => app.officeUI?.kind || null,
+  docks: {
+    document: { top: ["doc-outline", "doc-styles"], bottom: [], essentials: { left: [["doc-outline", "doc-styles"]], sizes: { left: 236 } } },
+    slides: { top: ["slides-thumbs"], bottom: [], essentials: { left: [["slides-thumbs"]], sizes: { left: 200 } } },
+    board: {
+      top: ["board-comments", "board-outline", "board-properties", "board-library"],
+      bottom: [],
+      essentials: { right: [["board-comments", "board-outline", "board-properties", "board-library"]], sizes: { right: 280 } },
+      closed: ["board-comments", "board-outline", "board-properties", "board-library"],
+    },
+  },
 };
 
 /** Menus of the Office Studio (merged into ui/menus.js MENUS). */

@@ -73,6 +73,7 @@ export function createToolbar(ws) {
   const browser = iconButton({ icon: "box-arrow-up-right", label: "Open preview in browser", onClick: () => ws.local().then((l) => l.openInBrowser()).catch((err) => ws.app.toast(err.message, "danger", 6000)) });
   const format = iconButton({ icon: "text-indent-left", label: "Format document (Shift+Alt+F)", onClick: () => ws.editors.format() });
   const palette = iconButton({ icon: "terminal", label: "Command palette (Ctrl+Shift+P)", onClick: () => ws.palette() });
+  const settingsBtn = iconButton({ icon: "gear", label: "Editor settings", onClick: () => { const r = settingsBtn.getBoundingClientRect(); ws.editorSettingsMenu(r.left, r.bottom + 4); } });
   const bottomBtn = iconButton({ icon: "layout-text-window-reverse", label: "Console and problems (Ctrl+J)", onClick: () => ws.bottom.toggle() });
   const publish = button("Publish", () => import("../export-dialog.js").then((m) => m.exportDialog(ws.app, { tab: "publish" })), { variant: "primary", icon: "upload", title: "Publish the website to Netlify, Vercel, GitHub Pages, WebDAV or your own server" });
   const badge = h("span.of-codebar__badge.hidden");
@@ -87,7 +88,7 @@ export function createToolbar(ws) {
     h("span.of-sep"),
     h("div.of-codebar__group.of-codebar__design", measure, mode, reload, browser),
     h("span.of-codebar__spacer"),
-    h("div.of-codebar__group", format, bottomWrap, palette, publish),
+    h("div.of-codebar__group", format, bottomWrap, palette, settingsBtn, publish),
   );
 
   function renderPages() {

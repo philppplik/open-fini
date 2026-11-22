@@ -2,6 +2,7 @@
 // (left, right, bottom) and forwards to the docking engine in ui/docking/, which is loaded right after start-up and
 // renders tab groups, splitters, floating panels and the Window menu. Until it is there, calls are queued.
 import { h } from "../core/util.js";
+import { dockKeyOf } from "../studios/registry.js";
 
 export function createDock(app) {
   const el = h("aside.of-dock", { "aria-label": "Panels" });
@@ -11,6 +12,7 @@ export function createDock(app) {
   const queue = [];
   const call = (name, ...args) => (engine ? engine[name]?.(...args) : (queue.push([name, args]), undefined));
   app.menuProviders = app.menuProviders || {};
+  app.dockKey = () => dockKeyOf(app); // the layout key of the current view (a studio id or "office:board" ...)
   app.menuProviders.dockPanels = () => engine?.panelItems() || [];
   app.menuProviders.workspaces = () => engine?.workspaceItems() || [];
   app.on("revealpanel", (id) => call("reveal", id));
@@ -37,5 +39,9 @@ export function createDock(app) {
     /** Menu entries for a panel (context menu of a panel tab and the group menu). */
     panelMenu: (id) => engine?.panelMenu(id) || [],
     resetPanels: () => call("reset"),
+    /** True while a panel is shown (not closed). */
+    isOpen: (id) => !!engine?.isOpen(id),
+    /** Collapses or expands a dock region ("left", "right", "bottom") to its icon strip; no flag toggles. */
+    toggleRegion: (region, collapsed) => call("toggleRegion", region, collapsed),
   };
 }

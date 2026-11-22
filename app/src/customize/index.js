@@ -7,7 +7,7 @@
 //   layout      panel visibility, dock side/width, named workspaces (toolbox-model.js)
 //   profiles    export/import, named profiles (profile.js)
 //   registry    registerSetting / registerToolboxEntry for extensions (registry.js)
-import { STUDIOS } from "../studios/index.js";
+import { STUDIOS, dockDef, dockKeyOf } from "../studios/index.js";
 import { buildEntries, setChords, resetChords, validateOverrides, presetOverrides, effective, parseKeymap, exportKeymap } from "./keymap.js";
 import { SETTINGS, customizationDefaults, validateSetting, getSettingDef, describeSettings } from "./schema.js";
 import { arrangeToolbox, visiblePanels, allWorkspaces, snapshotLayout, cleanWorkspaceName, filterMenuItems, isMenuHidden } from "./toolbox-model.js";
@@ -136,8 +136,9 @@ export function installCustomization(app, { defaults } = {}) {
     },
 
     // ---- layout and workspaces
-    panelIds: (studio) => ({ top: STUDIOS[studio]?.top || [], bottom: STUDIOS[studio]?.bottom || [] }),
-    layout: (studio) => snapshotLayout((app.prefs.layout || {})[studio]),
+    panelIds: (studio) => ({ top: dockDef(studio)?.top || [], bottom: dockDef(studio)?.bottom || [], closed: dockDef(studio)?.closed || [] }),
+    /** The layout of a studio (or "studio:app"); without a stored one, the panels that start closed are hidden. */
+    layout: (studio) => snapshotLayout((app.prefs.layout || {})[studio] ?? { hidden: dockDef(studio)?.closed || [] }),
     visiblePanels: (studio, ids) => visiblePanels(ids, ((app.prefs.layout || {})[studio] || {}).hidden),
     /** `ws` = name of the workspace this layout started from (kept when omitted; Window ▸ Workspace ▸ Reset). */
     setLayout(studio, state, { ws, keepDock = false } = {}) {
@@ -148,7 +149,8 @@ export function installCustomization(app, { defaults } = {}) {
       const name = ws === undefined ? prev.ws : ws;
       if (name) s.ws = name;
       const next = { ...(app.prefs.layout || {}) };
-      if (!s.hidden.length && s.side === "right" && s.width === null && !s.dock && !s.preset && !s.ws) delete next[studio];
+      const closed = dockDef(studio)?.closed || [];
+      if (s.hidden.length === closed.length && closed.every((p) => s.hidden.includes(p)) && s.side === "right" && s.width === null && !s.dock && !s.preset && !s.ws) delete next[studio];
       else next[studio] = s;
       app.setPref("layout", next);
       app.emit("layout", studio);
@@ -323,7 +325,7 @@ export function installCustomization(app, { defaults } = {}) {
   app.on("prefs", (key) => {
     if (key === "shortcuts" || key === "*") applyShortcuts();
     if (key === "layout" || key === "toolbox" || key === "*") {
-      app.emit("layout", app.studio);
+      app.emit("layout", dockKeyOf(app));
       app.emit("toolboxchanged");
     }
     if (key === "menus" || key === "*") app.emit("menuschanged");
@@ -338,7 +340,7 @@ export function installCustomization(app, { defaults } = {}) {
   app.registerCommand("customize.toolbox", { label: "Customize Toolbox and Menus…", icon: "tools", run: () => openSettings("toolbox") });
   app.registerCommand("customize.layout", { label: "Customize Layout and Workspaces…", icon: "layout-sidebar-inset", run: () => openSettings("layout") });
   app.registerCommand("customize.profiles", { label: "Profiles: Export, Import and Switch…", icon: "sliders2", run: () => openSettings("profiles") });
-  app.registerCommand("workspace.reset", { label: "Reset Layout of this Studio", icon: "arrow-counterclockwise", run: (a) => a.customize.resetLayout(a.studio) });
+  app.registerCommand("workspace.reset", { label: "Reset Layout of this Studio", icon: "arrow-counterclockwise", run: (a) => a.customize.resetLayout(dockKeyOf(a)) });
   app.registerCommand("workspace.save", {
     label: "Save Current Layout as Workspace…",
     icon: "save",
@@ -346,7 +348,7 @@ export function installCustomization(app, { defaults } = {}) {
       const { promptDialog } = await import("../ui/dialogs.js");
       const name = await promptDialog({ title: "Save workspace", label: "Name", value: "My workspace", ok: "Save" });
       if (name == null) return;
-      const n = a.customize.saveWorkspace(a.studio, name);
+      const n = a.customize.saveWorkspace(dockKeyOf(a), name);
       a.toast(n ? `Workspace “${n}” saved for the ${STUDIOS[a.studio].label} studio.` : "Enter a name for the workspace.", n ? "success" : "warning", 2200);
     },
   });
