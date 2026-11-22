@@ -4366,5 +4366,14 @@
   "New Blank": "Neu leer",
   "Untitled website": "Unbenannte Website",
   "Collaboration and privacy": "Zusammenarbeit und Datenschutz",
-  "Studios and tools": "Studios und Werkzeuge"
+  "Studios and tools": "Studios und Werkzeuge",
+  "Ollama that works, computer use, blank projects": "Ollama, das funktioniert, Computer Use, leere Projekte",
+  "Ollama that just works": "Ollama, das einfach funktioniert",
+  "Local Ollama models connect reliably in the desktop app, show what they can do (tools, images, thinking), can be pulled from inside OpenFini, and cloud models are supported.": "Lokale Ollama-Modelle verbinden sich in der Desktop-App zuverlässig, zeigen, was sie können (Tools, Bilder, Thinking), lassen sich direkt in OpenFini herunterladen, und Cloud-Modelle werden unterstützt.",
+  "Computer use for Vibe": "Computer Use für Vibe",
+  "In the desktop app on Windows and macOS, the assistant can see your screen and use mouse and keyboard, only after you allow it in a native dialog, with a stop button and an emergency hotkey.": "In der Desktop-App auf Windows und macOS kann der Assistent deinen Bildschirm sehen und Maus und Tastatur bedienen, nur nachdem du es in einem nativen Dialog erlaubt hast, mit Stopp-Knopf und Not-Aus-Tastenkürzel.",
+  "Blank projects everywhere": "Leere Projekte überall",
+  "Start a truly empty project in any studio from File > New Blank.": "Starte in jedem Studio ein wirklich leeres Projekt über File > New Blank.",
+  "Tidier settings": "Aufgeräumte Einstellungen",
+  "The settings sidebar is grouped, searchable and fits narrow windows. Toolbox and menus lists every studio.": "Die Seitenleiste der Einstellungen ist gruppiert, durchsuchbar und passt in schmale Fenster. Toolbox and menus listet jedes Studio."
 }

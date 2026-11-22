@@ -3,6 +3,16 @@
 
 export const WHATS_NEW = [
   {
+    version: "1.1.4",
+    title: "Ollama that works, computer use, blank projects",
+    items: [
+      { icon: "cpu", title: "Ollama that just works", text: "Local Ollama models connect reliably in the desktop app, show what they can do (tools, images, thinking), can be pulled from inside OpenFini, and cloud models are supported." },
+      { icon: "mouse", title: "Computer use for Vibe", text: "In the desktop app on Windows and macOS, the assistant can see your screen and use mouse and keyboard, only after you allow it in a native dialog, with a stop button and an emergency hotkey." },
+      { icon: "file-earmark", title: "Blank projects everywhere", text: "Start a truly empty project in any studio from File > New Blank." },
+      { icon: "gear", title: "Tidier settings", text: "The settings sidebar is grouped, searchable and fits narrow windows. Toolbox and menus lists every studio." },
+    ],
+  },
+  {
     version: "1.1.3",
     title: "Command line tool, Doctor and launch screen timing",
     items: [
