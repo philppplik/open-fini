@@ -1218,7 +1218,11 @@ pub async fn computer_grant_request(
         }
     );
     audit(&app, g.id, "grant", &detail, "", None);
-    native::register_stop(&app);
+    // another app may own the hotkey: say so in the log and to the page (Stop in the indicator still works)
+    if let Err(e) = native::register_stop(&app) {
+        audit(&app, g.id, "hotkey", "not registered", "", Some(&e));
+        notify(&app, "hotkey-unavailable", &e);
+    }
     open_indicator(&app);
     watch(app.clone(), g.id);
     notify(&app, "granted", "");
@@ -1329,6 +1333,18 @@ fn admit(app: &AppHandle, need: Need) -> Result<u64, String> {
     )?;
     g.check(need, now)?;
     Ok(g.id)
+}
+
+/// True while the grant `id` is still active, unexpired and not paused: checked again right before input is
+/// sent and between its steps, so Stop, the hotkey, Esc and the time limit also cut off an action that already
+/// passed `admit`.
+fn live(app: &AppHandle, id: u64) -> bool {
+    let now = Instant::now();
+    app.state::<Computer>()
+        .lock()
+        .grant
+        .as_ref()
+        .is_some_and(|g| g.id == id && g.paused.is_none() && !g.expired(now))
 }
 
 async fn blocking<T: Send + 'static>(
@@ -1563,7 +1579,8 @@ pub async fn computer_input(
     let (name, detail) = (action.name(), action.detail());
     let runner = app.clone();
     let out =
-        blocking(move || run_input(&runner, &action, confirmed.unwrap_or(false), &policy)).await;
+        blocking(move || run_input(&runner, id, &action, confirmed.unwrap_or(false), &policy))
+            .await;
     match &out {
         Ok(r) => audit(&app, id, name, &detail, &r.app, None),
         Err(e) => audit(&app, id, name, &detail, "", Some(e)),
@@ -1573,6 +1590,7 @@ pub async fn computer_input(
 
 fn run_input(
     app: &AppHandle,
+    id: u64,
     action: &Action,
     confirmed: bool,
     policy: &Policy,
@@ -1643,7 +1661,11 @@ fn run_input(
         }
     }
 
-    native::inject(app, steps)?;
+    if !live(app, id) {
+        return Err("Computer use was stopped or paused before the action ran. Do not retry until the user says so.".into());
+    }
+    let alive = app.clone();
+    native::inject(app, steps, move || live(&alive, id))?;
     std::thread::sleep(Duration::from_millis(120));
 
     let cursor = native::cursor().unwrap_or(before);
@@ -1734,14 +1756,14 @@ mod native {
         builder.plugin(tauri_plugin_global_shortcut::Builder::new().build())
     }
 
-    pub fn register_stop(app: &AppHandle) {
-        let _ = app
-            .global_shortcut()
+    pub fn register_stop(app: &AppHandle) -> Result<(), String> {
+        app.global_shortcut()
             .on_shortcut(stop_shortcut(), |app, _, event| {
                 if event.state == ShortcutState::Pressed {
                     super::hotkey_stop(app);
                 }
-            });
+            })
+            .map_err(err)
     }
 
     pub fn unregister_stop(app: &AppHandle) {
@@ -1970,10 +1992,26 @@ mod native {
         }
     }
 
-    fn run(steps: &[Step]) -> Result<(), String> {
+    /// Characters typed between two checks of the grant, so Stop interrupts long text.
+    const TEXT_CHUNK: usize = 24;
+
+    fn run(steps: &[Step], alive: &dyn Fn() -> bool) -> Result<(), String> {
         let mut e = enigo()?;
         for (i, step) in steps.iter().enumerate() {
-            if let Err(error) = perform(&mut e, step) {
+            let result = if !alive() {
+                Err("computer use was stopped or paused".to_string())
+            } else if let Step::Text(t) = step {
+                let chars: Vec<char> = t.chars().collect();
+                chars.chunks(TEXT_CHUNK).try_for_each(|c| {
+                    if !alive() {
+                        return Err("computer use was stopped or paused".to_string());
+                    }
+                    e.text(&c.iter().collect::<String>()).map_err(err)
+                })
+            } else {
+                perform(&mut e, step)
+            };
+            if let Err(error) = result {
                 // never leave a button or modifier held down
                 for undo in super::release_all(&steps[..i]) {
                     let _ = perform(&mut e, &undo);
@@ -1986,16 +2024,24 @@ mod native {
 
     /// Windows: SendInput works from any thread.
     #[cfg(windows)]
-    pub fn inject(_app: &AppHandle, steps: Vec<Step>) -> Result<(), String> {
-        run(&steps)
+    pub fn inject(
+        _app: &AppHandle,
+        steps: Vec<Step>,
+        alive: impl Fn() -> bool + Send + 'static,
+    ) -> Result<(), String> {
+        run(&steps, &alive)
     }
 
     /// macOS: the keyboard layout lookup behind key events must run on the main thread.
     #[cfg(target_os = "macos")]
-    pub fn inject(app: &AppHandle, steps: Vec<Step>) -> Result<(), String> {
+    pub fn inject(
+        app: &AppHandle,
+        steps: Vec<Step>,
+        alive: impl Fn() -> bool + Send + 'static,
+    ) -> Result<(), String> {
         let (tx, rx) = std::sync::mpsc::channel();
         app.run_on_main_thread(move || {
-            let _ = tx.send(run(&steps));
+            let _ = tx.send(run(&steps, &alive));
         })
         .map_err(err)?;
         rx.recv_timeout(std::time::Duration::from_secs(30))
@@ -2147,7 +2193,9 @@ mod native {
     pub fn plugin<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
         builder
     }
-    pub fn register_stop(_app: &AppHandle) {}
+    pub fn register_stop(_app: &AppHandle) -> Result<(), String> {
+        Ok(())
+    }
     pub fn unregister_stop(app: &AppHandle) {
         // keeps the hotkey handler referenced on platforms without the hotkey
         let _ = super::hotkey_stop as fn(&AppHandle);
@@ -2179,8 +2227,12 @@ mod native {
     pub fn cursor() -> Result<(i32, i32), String> {
         Err(super::unsupported())
     }
-    pub fn inject(_app: &AppHandle, steps: Vec<Step>) -> Result<(), String> {
-        let _ = super::release_all(&steps);
+    pub fn inject(
+        _app: &AppHandle,
+        steps: Vec<Step>,
+        alive: impl Fn() -> bool + Send + 'static,
+    ) -> Result<(), String> {
+        let _ = (super::release_all(&steps), alive());
         Err(super::unsupported())
     }
     pub fn escape_down() -> bool {
