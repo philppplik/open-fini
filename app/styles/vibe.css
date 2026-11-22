@@ -8,7 +8,7 @@
 .of-layout[data-studio="vibe"] .cv,
 .of-layout[data-studio="vibe"] .of-codearea,
 .of-layout[data-studio="vibe"] .of-codeside-host { display: none !important; }
-.of-layout[data-studio="vibe"] { grid-template-rows: var(--of-bar-h) var(--of-tabs-h) 0 minmax(0, 1fr) var(--of-status-h); }
+.of-layout[data-studio="vibe"] { grid-template-rows: var(--of-bar-h) var(--of-tabs-h) 0 minmax(0, 1fr) 0 var(--of-status-h); }
 .of-layout[data-studio="vibe"] .of-vibearea { display: block; position: absolute; inset: 0; }
 .of-layout[data-studio="vibe"] .of-status__range,
 .of-layout[data-studio="vibe"] .of-status__right .of-ibtn,

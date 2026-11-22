@@ -8,7 +8,7 @@ Almost everything about how OpenFini looks and where things sit can be changed: 
 | --- | --- | --- |
 | Keyboard shortcuts | Click a shortcut and press new keys for any command or tool | Two shortcuts per command (tools: one key); conflict handling with Swap, Unassign the other, Use for both or Cancel; search, studio filter, "changed only" and "conflicts only"; import and export a JSON keymap; presets Default, Classic, Compact, Editor-style |
 | Toolbox and menus | Show, hide and reorder tools per studio; hide whole menus or single items; choose the header's quick actions | Hidden items stay reachable from the command palette |
-| Layout and workspaces | Show or hide panels per studio, dock side and width, built-in and saved workspaces | Built-in workspaces include Essentials, Painting, Retouching, Typography, Minimal, Data and Focus (depending on the studio) |
+| Layout and workspaces | Show or hide panels per studio, dock side and width, built-in and saved workspaces | Built-in workspaces include Essentials, Photography, Painting, Typography, Minimal, Data, Review and Focus (depending on the studio) |
 | Appearance | Mode, theme, accent, density, interface scale, text size, font, corner radius, animation speed, canvas pointer size | See [[Themes and Surface Styles]] |
 | Canvas and editing | Canvas background, transparency checkerboard, grid, guide and selection colors, rulers, low-power mode | |
 | Defaults for new things | Size, unit, resolution and background of new documents per studio; default export format, scale and quality; default text style | |
@@ -57,6 +57,10 @@ Interface text size scales menus, panels and dialogs; icons and fixed controls f
 ## For extension authors
 
 `app.customize.registerSetting(...)` adds a control to Settings and `registerToolboxEntry(...)` adds a toolbox button; keybindings need only a command with a `shortcut` or `contributes.keybindings` ([[Extension SDK Reference]]).
+
+## Docking panels and workspaces
+
+Panels of the Vector, Pixel and Layout studios and the right side of the Code studio can be rearranged like in Photoshop: drag a panel by its tab to dock it next to another group, at a window edge or under the canvas, onto another group to make tabs, or onto the canvas to float it. Docks can be resized, collapsed to an icon strip and maximized per group. The **Window** menu lists every panel (check marks for visible ones) and *Window ▸ Workspace* switches, saves, renames, deletes, resets, exports and imports workspaces. Keyboard: *Move Panel…* (`Ctrl+Shift+M` on a panel tab) and *Dock Left/Right/Bottom* and *Float* in the panel menu. Details: `docs/workspaces.md` in the repository.
 
 ## See also
 

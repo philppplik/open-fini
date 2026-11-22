@@ -139,14 +139,22 @@ export function installCustomization(app, { defaults } = {}) {
     panelIds: (studio) => ({ top: STUDIOS[studio]?.top || [], bottom: STUDIOS[studio]?.bottom || [] }),
     layout: (studio) => snapshotLayout((app.prefs.layout || {})[studio]),
     visiblePanels: (studio, ids) => visiblePanels(ids, ((app.prefs.layout || {})[studio] || {}).hidden),
-    setLayout(studio, state) {
+    /** `ws` = name of the workspace this layout started from (kept when omitted; Window ▸ Workspace ▸ Reset). */
+    setLayout(studio, state, { ws, keepDock = false } = {}) {
       const s = snapshotLayout(state);
+      const prev = (app.prefs.layout || {})[studio] || {};
+      // a new dock side or width (Settings ▸ Layout) starts again from the workspace arrangement
+      if (s.dock && !keepDock && (s.side !== (prev.side === "left" ? "left" : "right") || s.width !== (Number.isFinite(prev.width) ? prev.width : null))) delete s.dock;
+      const name = ws === undefined ? prev.ws : ws;
+      if (name) s.ws = name;
       const next = { ...(app.prefs.layout || {}) };
-      if (!s.hidden.length && s.side === "right" && s.width === null) delete next[studio];
+      if (!s.hidden.length && s.side === "right" && s.width === null && !s.dock && !s.preset && !s.ws) delete next[studio];
       else next[studio] = s;
       app.setPref("layout", next);
       app.emit("layout", studio);
     },
+    /** Name of the workspace the current layout was applied from ("" = none). */
+    baseWorkspace: (studio) => ((app.prefs.layout || {})[studio] || {}).ws || "",
     resetLayout(studio) {
       const next = { ...(app.prefs.layout || {}) };
       if (studio) delete next[studio];
@@ -163,16 +171,29 @@ export function installCustomization(app, { defaults } = {}) {
     applyWorkspace(studio, name) {
       const w = api.workspaces(studio).find((x) => x.name === name);
       if (!w) return false;
-      api.setLayout(studio, w.state);
+      api.setLayout(studio, w.state, { ws: w.name, keepDock: true });
       return true;
     },
-    saveWorkspace(studio, name) {
+    /** Saves the current layout (or `state`, e.g. an imported file) as a workspace; returns the clean name or "". */
+    saveWorkspace(studio, name, state) {
       const n = cleanWorkspaceName(name);
       if (!n) return "";
       const all = { ...(app.prefs.workspaces || {}) };
-      all[studio] = { ...(all[studio] || {}), [n]: snapshotLayout(api.layout(studio)) };
+      if (Object.keys(all[studio] || {}).length >= 24 && !has(all[studio], n)) return "";
+      all[studio] = { ...(all[studio] || {}), [n]: snapshotLayout(state || api.layout(studio)) };
       app.setPref("workspaces", all);
-      app.emit("layout", studio);
+      if (!state) api.setLayout(studio, api.layout(studio), { ws: n, keepDock: true });
+      else app.emit("layout", studio);
+      return n;
+    },
+    renameWorkspace(studio, from, to) {
+      const n = cleanWorkspaceName(to);
+      const list = (app.prefs.workspaces || {})[studio];
+      if (!n || !list || !has(list, from) || (n !== from && has(list, n))) return "";
+      const renamed = Object.fromEntries(Object.entries(list).map(([k, v]) => [k === from ? n : k, v]));
+      app.setPref("workspaces", { ...(app.prefs.workspaces || {}), [studio]: renamed });
+      if (api.baseWorkspace(studio) === from) api.setLayout(studio, api.layout(studio), { ws: n, keepDock: true });
+      else app.emit("layout", studio);
       return n;
     },
     deleteWorkspace(studio, name) {

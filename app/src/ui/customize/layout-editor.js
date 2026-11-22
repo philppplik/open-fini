@@ -42,14 +42,14 @@ export function layoutEditor(app) {
     return h(
       "section.of-set__group",
       h("h3", "Dock"),
-      h("div.of-set__row", h("div", h("div.of-set__label", "Dock side"), h("div.of-set__hint", "Which side of the canvas the panels sit on. On narrow windows the dock always slides in from the right.")), h("div.of-set__ctl", side)),
+      h("div.of-set__row", h("div", h("div.of-set__label", "Dock side"), h("div.of-set__hint", "Which side of the canvas the panels sit on. Changing the side or the width puts the panels back where the workspace keeps them. On narrow windows the dock slides in.")), h("div.of-set__ctl", side)),
       h("div.of-set__row", h("div", h("div.of-set__label", "Dock width"), h("div.of-set__hint", "The default is 304 px.")), h("div.of-set__ctl", width.el, lay.width !== null ? button("Default", () => cz.setLayout(studio, { ...cz.layout(studio), width: null })) : null)),
     );
   }
 
   function workspacesGroup() {
     const active = cz.activeWorkspace(studio);
-    const out = h("section.of-set__group", h("h3", "Workspaces"), h("p.of-set__hint", "A workspace remembers which panels are shown and where the dock sits. Switch instantly, or save your own."));
+    const out = h("section.of-set__group", h("h3", "Workspaces"), h("p.of-set__hint", "A workspace remembers where every panel sits: docked, tabbed, floating or collapsed. Drag panels by their tabs to rearrange them, then save the layout here or in Window ▸ Workspace."));
     const list = h("ul.of-cz__list", { "aria-label": `Workspaces of the ${STUDIOS[studio].label} studio` });
     for (const w of cz.workspaces(studio)) {
       const isActive = w.name === active;

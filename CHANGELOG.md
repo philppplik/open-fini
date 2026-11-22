@@ -6,6 +6,12 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Docking panels and workspaces** ([docs/workspaces.md](docs/workspaces.md), [ADR 0033](docs/adr/0033-docking-layout.md)): in the Vector, Pixel and Layout studios and the right side of the Code studio, drag a panel by its tab to dock it beside another group, at the left or right window edge or under the canvas, to merge it into a tab group (and reorder tabs), or onto the canvas to float it; highlighted drop guides show where it lands. Drag the empty end of a tab row to move a whole group. Resizable splitters and dock edges, collapse a dock to an icon strip with fly-out panels, maximize and restore a group, close and reopen panels from the new **Window** menu (check marks for visible panels). *Window ▸ Workspace*: switch, save as new, rename, delete, reset, reset all, export and import a workspace file. New built-in workspaces: Pixel *Photography* and *Painting*, Layout *Review*, Code *Review*. Keyboard: arrow keys in tab rows, *Move Panel…* (`Ctrl+Shift+M` on a tab) with announced targets, *Dock Left/Right/Bottom* and *Float* in the panel menus; ARIA tabs, tab panels and separators; touch and pen through Pointer Events. Untouched layouts look exactly like before.
+
+### Changed
+- Panel modules load right after start-up together with the docking engine instead of in the start-up bundle (start-up JavaScript about 16 KiB smaller). The Pixel workspace *Retouching* is now *Photography*.
+
 ## [1.1.4] — Ollama that works, computer use, blank projects
 
 ### Fixed

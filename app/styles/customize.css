@@ -13,15 +13,9 @@
 .of-radius-sharp .of-ibtn, .of-radius-sharp .of-btn, .of-radius-sharp .of-tool, .of-radius-sharp .of-studio { border-radius: 0; }
 .of-header__actions--empty { display: none; }
 
-/* dock on the left (wide windows only; narrow windows use the sliding dock) */
+/* empty docks take no room (the dock side setting mirrors the docking layout: ui/docking/presets.js) */
 @media (min-width: 961px) {
-  .of-layout[data-dock="left"] {
-    grid-template-columns: var(--of-dock-w) var(--of-tools-w) minmax(0, 1fr);
-    grid-template-areas: "header header header" "tabs tabs tabs" "context context context" "dock tools canvas" "status status status";
-  }
-  .of-layout:has(.of-dock--empty) { grid-template-columns: var(--of-tools-w) minmax(0, 1fr) 0; }
-  .of-layout[data-dock="left"]:has(.of-dock--empty) { grid-template-columns: 0 var(--of-tools-w) minmax(0, 1fr); }
-  .of-dock--empty { display: none; }
+  .of-dock--empty, .of-dockhost--empty { display: none; }
 }
 
 /* ---- settings panes */

@@ -137,19 +137,23 @@ export const visiblePanels = (ids, hidden) => (hidden?.length ? ids.filter((id) 
  */
 export function builtinWorkspaces(studio, panels) {
   const all = [...panels.top, ...panels.bottom];
-  const only = (...ids) => ({ hidden: all.filter((p) => !ids.includes(p)), side: "right", width: null });
+  // `preset` names the arrangement in ui/docking/presets.js (loaded with the dock); without one the panels keep the Essentials places
+  const only = (preset, ...ids) => ({ hidden: all.filter((p) => !ids.includes(p)), side: "right", width: null, ...(preset ? { preset } : {}) });
   const out = [{ name: "Essentials", description: "Every panel of the studio.", state: { hidden: [], side: "right", width: null } }];
+  const add = (name, description, state) => out.push({ name, description, state });
   if (studio === "vector") {
-    out.push({ name: "Typography", description: "Type, appearance and layers.", state: only("type", "appearance", "layers") });
-    out.push({ name: "Minimal", description: "Layers only.", state: only("layers") });
+    add("Typography", "Type, appearance, layers and history.", only("typography", "type", "appearance", "layers", "history"));
+    add("Minimal", "Layers only.", only("", "layers"));
   } else if (studio === "pixel") {
-    out.push({ name: "Painting", description: "Color, brush and layers.", state: only("color", "brush", "layers") });
-    out.push({ name: "Retouching", description: "Adjustments, histogram, info and layers.", state: only("adjustments", "histogram", "info", "layers", "history") });
+    add("Photography", "Histogram, info, adjustments, color, layers and history.", only("photography", "histogram", "info", "navigator", "adjustments", "color", "layers", "history"));
+    add("Painting", "Brush on the left; color, layers and history on the right.", only("painting", "brush", "color", "layers", "history"));
   } else if (studio === "layout") {
-    out.push({ name: "Typography", description: "Type, styles, pages and layers.", state: only("type", "styles", "pages", "layers") });
-    out.push({ name: "Data", description: "Data, color and layers.", state: only("data", "color", "layers") });
+    add("Typography", "Type, styles, pages and layers.", only("typography", "type", "styles", "pages", "layers"));
+    add("Data", "Data, color and layers.", only("data", "data", "color", "layers"));
+    add("Review", "Comments, pages and history.", only("review", "comments", "pages", "history"));
   } else if (studio === "code") {
-    out.push({ name: "Focus", description: "No side panels.", state: only() });
+    add("Review", "Comments first, then style and settings.", only("review", "comments", "style", "element"));
+    add("Focus", "No side panels.", only(""));
   }
   return out;
 }
@@ -166,10 +170,15 @@ export function allWorkspaces(studio, panels, saved = {}) {
   return list;
 }
 
-/** What a workspace stores: hidden panels, dock side and dock width. */
+/**
+ * What a workspace stores: hidden panels, dock side and dock width, and optionally the preset arrangement (`preset`)
+ * and the full docking layout (`dock`, ui/docking/model.js; validated again when it is shown).
+ */
 export function snapshotLayout(layout) {
   const s = { hidden: (layout?.hidden || []).slice(), side: layout?.side === "left" ? "left" : "right" };
   s.width = Number.isFinite(layout?.width) ? layout.width : null;
+  if (typeof layout?.preset === "string" && layout.preset) s.preset = layout.preset;
+  if (layout?.dock && typeof layout.dock === "object") s.dock = JSON.parse(JSON.stringify(layout.dock));
   return s;
 }
 

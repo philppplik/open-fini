@@ -10,7 +10,7 @@
 .of-layout[data-studio="scene"] .of-codeside-host,
 .of-layout[data-studio="scene"] .of-officearea,
 .of-layout[data-studio="scene"] .of-vibearea { display: none !important; }
-.of-layout[data-studio="scene"] { grid-template-rows: var(--of-bar-h) var(--of-tabs-h) 0 minmax(0, 1fr) var(--of-status-h); }
+.of-layout[data-studio="scene"] { grid-template-rows: var(--of-bar-h) var(--of-tabs-h) 0 minmax(0, 1fr) 0 var(--of-status-h); }
 .of-layout[data-studio="scene"] .of-scenearea { display: block; position: absolute; inset: 0; }
 .of-layout[data-studio="scene"] .of-welcome { display: none; }
 .of-layout[data-studio="scene"] .of-status__range,

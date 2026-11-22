@@ -44,6 +44,12 @@ Partial: content-aware fill and the object eraser switch from patch synthesis to
 - Time-remapped video clips are seeked frame by frame while playing (the preview may stutter); reversed clips play no reversed sound.
 - The timeline's context menus, keyframe rows and effects browser were exercised in a browser with synthetic events; real pointer drags of keyframes (Alt-scale) and the sound-driven tools on real footage are not verified.
 
+## Panels and workspaces
+
+- **Partial:** docking ([workspaces.md](workspaces.md), [ADR 0033](adr/0033-docking-layout.md)) covers the panels of the Vector, Pixel and Layout studios and the right-hand panels of the Code studio. Not migrated: the Code studio's left sidebar and bottom panel, the Scene Studio panels, the Office apps' sidebars and Vibe.
+- **Missing:** tearing a panel off into its own desktop window (floating panels stay inside the app window).
+- **Partial:** on narrow windows (960 px and less) the left and right docks slide in as overlays; floating panels and the bottom dock stay as they are.
+
 ## Performance and size budget
 
 - Budgets in `scripts/size-budget.json` have been raised repeatedly (start-up 350 KiB, shell 1704+, total 2635+ KiB, plus the sheet-depth increase). Start-up is close to its cap.

@@ -35,3 +35,4 @@ in place and are marked as such.
 | [0030](0030-collab-native-window.md) | Collaboration always lives in its own OS window: one UI fed by snapshots, no in-app fallback | Accepted |
 | [0031](0031-launch-screen.md) | Launch screen: an inline card for the web, a separate splash window on the desktop | Accepted |
 | [0032](0032-ofini-cli.md) | The `ofini` command line tool reuses the pure engine modules in Node; rendering stays in the app | Accepted |
+| [0033](0033-docking-layout.md) | Docking layout with our own small engine: a pure layout tree plus a DOM renderer | Accepted |

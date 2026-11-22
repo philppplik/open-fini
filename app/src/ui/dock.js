@@ -1,144 +1,41 @@
-// Right dock: two stacked tab areas whose panels depend on the studio.
-import { h, empty } from "../core/util.js";
-import { STUDIOS } from "../studios/index.js";
-import { PANELS } from "./panels/index.js";
-import { iconEl } from "./toolbox.js";
-import { markContext } from "./context-menu/index.js";
+// Panel docks around the canvas (ADR 0033, docs/workspaces.md). This start-up module only creates the three dock hosts
+// (left, right, bottom) and forwards to the docking engine in ui/docking/, which is loaded right after start-up and
+// renders tab groups, splitters, floating panels and the Window menu. Until it is there, calls are queued.
+import { h } from "../core/util.js";
 
 export function createDock(app) {
-  const topArea = makeArea();
-  const bottomArea = makeArea();
-  const split = h("div.of-dock__split", { role: "separator", "aria-orientation": "horizontal" });
-  const el = h("aside.of-dock", { "aria-label": "Panels" }, topArea.el, split, bottomArea.el);
-  const instances = new Map(); // panel id → {el, update}
-  const active = { top: null, bottom: null };
+  const el = h("aside.of-dock", { "aria-label": "Panels" });
+  const left = h("aside.of-dockhost.of-dockhost--left", { "aria-label": "Left panels" });
+  const bottom = h("section.of-dockhost.of-dockhost--bottom", { "aria-label": "Bottom panels" });
+  let engine = null;
+  const queue = [];
+  const call = (name, ...args) => (engine ? engine[name]?.(...args) : (queue.push([name, args]), undefined));
+  app.menuProviders = app.menuProviders || {};
+  app.menuProviders.dockPanels = () => engine?.panelItems() || [];
+  app.menuProviders.workspaces = () => engine?.workspaceItems() || [];
+  app.on("revealpanel", (id) => call("reveal", id));
 
-  function panelInstance(id) {
-    if (!instances.has(id)) {
-      const def = PANELS[id];
-      instances.set(id, def ? def.create(app) : { el: h("div", "Missing panel") });
-    }
-    return instances.get(id);
+  /** Loads the engine; `layout` is the .of-layout element (the hosts are already inside it). */
+  function start(layout) {
+    import("./docking/view.js")
+      .then((m) => {
+        engine = m.createDocking(app, { right: el, left, bottom, layout });
+        for (const [name, args] of queue.splice(0)) engine[name]?.(...args);
+      })
+      .catch((err) => console.error(err));
   }
 
-  function renderArea(area, ids, key) {
-    const list = ids.filter((id) => PANELS[id]);
-    if (!list.includes(active[key])) active[key] = list[0] || null;
-    empty(area.tabs);
-    empty(area.body);
-    for (const id of list) {
-      const def = PANELS[id];
-      const b = h("button.of-dock__tab", { type: "button", class: id === active[key] ? "active" : "", "data-tip": def.title, "aria-label": def.title }, iconEl(def.icon), h("span", def.title));
-      markContext(b, "panel-header", { id, title: def.title });
-      b.addEventListener("click", () => {
-        active[key] = id;
-        renderArea(area, ids, key);
-      });
-      area.tabs.append(b);
-    }
-    if (active[key]) {
-      const inst = panelInstance(active[key]);
-      area.body.append(inst.el);
-      inst.show?.();
-    }
-    area.el.classList.toggle("hidden", !list.length);
-  }
-
-  // Panel layout tweaks made through the panel tabs' context menu (hide, move). They last for the session.
-  const hiddenIds = new Set(); // `${studio}:${panel id}`
-  const movedIds = new Map(); // `${studio}:${panel id}` -> "top" | "bottom"
-  const keyOf = (id) => `${app.studio}:${id}`;
-  function lay() {
-    const s = STUDIOS[app.studio];
-    const top = [];
-    const bottom = [];
-    const vis = (ids) => (app.customize ? app.customize.visiblePanels(app.studio, ids) : ids); // hidden panels (Settings > Layout)
-    for (const [list, area] of [[vis(s.top), "top"], [vis(s.bottom), "bottom"]]) {
-      for (const id of list) {
-        if (hiddenIds.has(keyOf(id))) continue;
-        ((movedIds.get(keyOf(id)) || area) === "top" ? top : bottom).push(id);
-      }
-    }
-    return { top, bottom };
-  }
-
-  function render() {
-    const s = lay();
-    renderArea(topArea, s.top, "top");
-    renderArea(bottomArea, s.bottom, "bottom");
-    split.classList.toggle("hidden", !s.top.length || !s.bottom.length);
-    el.classList.toggle("of-dock--empty", !s.top.length && !s.bottom.length);
-  }
-
-  // vertical splitter between the two areas
-  split.addEventListener("pointerdown", (e) => {
-    split.setPointerCapture(e.pointerId);
-    const r = el.getBoundingClientRect();
-    const mv = (ev) => {
-      const frac = Math.min(0.8, Math.max(0.2, (ev.clientY - r.top) / r.height));
-      topArea.el.style.flex = `${frac} 1 0`;
-      bottomArea.el.style.flex = `${1 - frac} 1 0`;
-    };
-    const up = () => {
-      split.removeEventListener("pointermove", mv);
-      split.removeEventListener("pointerup", up);
-    };
-    split.addEventListener("pointermove", mv);
-    split.addEventListener("pointerup", up);
-  });
-
-  app.on("studio", render);
-  app.on("layout", render);
-  app.on("revealpanel", (id) => {
-    hiddenIds.delete(keyOf(id));
-    const s = lay();
-    if (s.top.includes(id)) active.top = id;
-    else if (s.bottom.includes(id)) active.bottom = id;
-    else return;
-    render();
-  });
-  render();
   return {
     el,
-    render,
-    /** Brings a panel to the front in whichever area owns it. */
-    reveal(id) {
-      hiddenIds.delete(keyOf(id));
-      const s = lay();
-      if (s.top.includes(id)) active.top = id;
-      else if (s.bottom.includes(id)) active.bottom = id;
-      else return;
-      render();
-    },
-    hidePanel(id) {
-      hiddenIds.add(keyOf(id));
-      render();
-    },
-    showPanel(id) {
-      hiddenIds.delete(keyOf(id));
-      this.reveal(id);
-    },
-    /** Moves a panel to the other area (top <-> bottom). */
-    movePanel(id) {
-      const s = lay();
-      movedIds.set(keyOf(id), s.top.includes(id) ? "bottom" : "top");
-      active[s.top.includes(id) ? "bottom" : "top"] = id;
-      render();
-    },
-    visibleCount: () => lay().top.length + lay().bottom.length,
-    canMove: (id) => lay().top.includes(id) || lay().bottom.includes(id),
-    hiddenPanels: () => [...STUDIOS[app.studio].top, ...STUDIOS[app.studio].bottom].filter((id) => hiddenIds.has(keyOf(id)) && PANELS[id]).map((id) => ({ id, title: PANELS[id].title })),
-    isCustomized: () => [...hiddenIds, ...movedIds.keys()].some((k) => k.startsWith(`${app.studio}:`)),
-    resetPanels() {
-      for (const k of [...hiddenIds]) if (k.startsWith(`${app.studio}:`)) hiddenIds.delete(k);
-      for (const k of [...movedIds.keys()]) if (k.startsWith(`${app.studio}:`)) movedIds.delete(k);
-      render();
-    },
+    hosts: [left, bottom],
+    start,
+    render: () => call("render"),
+    /** Brings a panel to the front, opening it when it is closed. */
+    reveal: (id) => call("reveal", id),
+    hidePanel: (id) => call("close", id),
+    showPanel: (id) => call("reveal", id),
+    /** Menu entries for a panel (context menu of a panel tab and the group menu). */
+    panelMenu: (id) => engine?.panelMenu(id) || [],
+    resetPanels: () => call("reset"),
   };
-}
-
-function makeArea() {
-  const tabs = h("div.of-dock__tabs", { role: "tablist" });
-  const body = h("div.of-dock__body");
-  return { el: h("section.of-dock__area", tabs, body), tabs, body };
 }
