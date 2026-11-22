@@ -6,6 +6,8 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] — Docking panels, workspaces, in-app updates
+
 ### Fixed
 - Icons that showed as blank squares (for example in Scene Studio and What's new) because they were missing from the bundled icon set; `scripts/vendor-icons.mjs` was rerun against Bootstrap Icons 1.11.3.
 

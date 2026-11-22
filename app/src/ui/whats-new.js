@@ -3,6 +3,16 @@
 
 export const WHATS_NEW = [
   {
+    version: "1.2.0",
+    title: "Docking panels, workspaces, in-app updates",
+    items: [
+      { icon: "layout-three-columns", title: "Dockable panels in every studio", text: "Drag panels to dock them at an edge, stack them as tabs, float them or collapse them to icons. Drop guides show where a panel lands." },
+      { icon: "window-stack", title: "Workspaces", text: "Switch between built-in arrangements per studio, save your own, and export or import them. Everything is in the new Window menu." },
+      { icon: "arrow-repeat", title: "Updates inside the app", text: "The desktop app can download and install new versions itself, with progress and a restart button, once signed releases are switched on." },
+      { icon: "image", title: "Missing icons fixed", text: "Icons that showed as blank squares are back." },
+    ],
+  },
+  {
     version: "1.1.4",
     title: "Ollama that works, computer use, blank projects",
     items: [

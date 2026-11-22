@@ -4478,5 +4478,14 @@
   "Inspector": "Inspektor",
   "Navigator": "Navigator",
   "Nothing to show here yet.": "Hier gibt es noch nichts anzuzeigen.",
-  "Source Control": "Versionsverwaltung"
+  "Source Control": "Versionsverwaltung",
+  "Docking panels, workspaces, in-app updates": "Andockbare Panels, Workspaces, Updates in der App",
+  "Dockable panels in every studio": "Andockbare Panels in jedem Studio",
+  "Drag panels to dock them at an edge, stack them as tabs, float them or collapse them to icons. Drop guides show where a panel lands.": "Ziehe Panels an einen Rand, staple sie als Tabs, lass sie schweben oder klappe sie zu Icons ein. Hinweise beim Ziehen zeigen, wo ein Panel landet.",
+  "Workspaces": "Workspaces",
+  "Switch between built-in arrangements per studio, save your own, and export or import them. Everything is in the new Window menu.": "Wechsle zwischen fertigen Anordnungen pro Studio, speichere eigene und exportiere oder importiere sie. Alles steckt im neuen Window-Menü.",
+  "Updates inside the app": "Updates in der App",
+  "The desktop app can download and install new versions itself, with progress and a restart button, once signed releases are switched on.": "Die Desktop-App kann neue Versionen selbst herunterladen und installieren, mit Fortschritt und Neustart-Knopf, sobald signierte Releases eingeschaltet sind.",
+  "Missing icons fixed": "Fehlende Icons behoben",
+  "Icons that showed as blank squares are back.": "Icons, die als leere Kästchen erschienen, sind wieder da."
 }
