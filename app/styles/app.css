@@ -90,14 +90,16 @@ h1, h2, h3 { margin: 0; }
 .of-layout {
   display: grid;
   height: 100%;
-  grid-template-columns: var(--of-tools-w) minmax(0, 1fr) var(--of-dock-w);
-  grid-template-rows: var(--of-bar-h) var(--of-tabs-h) var(--of-context-h) minmax(0, 1fr) var(--of-status-h);
+  /* dock regions (ui/docking/): left and bottom are 0 until panels are docked there (styles/docking.css) */
+  grid-template-columns: var(--of-dockl-w, 0px) var(--of-tools-w) minmax(0, 1fr) var(--of-dock-w);
+  grid-template-rows: var(--of-bar-h) var(--of-tabs-h) var(--of-context-h) minmax(0, 1fr) var(--of-dockb-h, 0px) var(--of-status-h);
   grid-template-areas:
-    "header header header"
-    "tabs tabs tabs"
-    "context context context"
-    "tools canvas dock"
-    "status status status";
+    "header header header header"
+    "tabs tabs tabs tabs"
+    "context context context context"
+    "dockl tools canvas dock"
+    "dockl tools dockb dock"
+    "status status status status";
 }
 .of-header { grid-area: header; }
 .of-doctabs { grid-area: tabs; }
@@ -794,7 +796,7 @@ sl-dialog::part(title) { font-size: 15px; font-weight: 650; }
 @media (max-width: 960px) {
   :root { --of-dock-w: 288px; }
   .of-dock-toggle { display: inline-grid; }
-  .of-layout { grid-template-columns: var(--of-tools-w) minmax(0, 1fr); grid-template-areas: "header header" "tabs tabs" "context context" "tools canvas" "status status"; }
+  .of-layout { grid-template-columns: var(--of-tools-w) minmax(0, 1fr); grid-template-areas: "header header" "tabs tabs" "context context" "tools canvas" "tools dockb" "status status"; }
   .of-dock {
     position: fixed;
     right: 0;

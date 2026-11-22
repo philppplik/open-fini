@@ -72,9 +72,10 @@ export function createShell(app, root) {
   const codeSide = h("div.of-codeside-host");
   const codeMain = h("div.of-codearea");
   const canvasArea = h("main.of-canvasarea", cv.el, codeMain, welcome.el);
-  const layout = h("div.of-layout", header, tabs.el, context.el, toolbox.el, codeSide, canvasArea, dock.el, status.el);
+  const layout = h("div.of-layout", header, tabs.el, context.el, dock.hosts[0], toolbox.el, codeSide, canvasArea, dock.hosts[1], dock.el, status.el);
   root.append(layout);
   app.dock = dock;
+  dock.start(layout); // lazy: the docking engine (ui/docking/)
   import("./tool-pill.js").then((m) => m.mountToolPill(app, canvasArea)).catch((err) => console.error(err)); // lazy: floating context actions
 
   // Vibe Studio (the AI workspace) is also loaded on first use; it does not need an open document

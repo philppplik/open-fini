@@ -9,7 +9,7 @@
 .of-layout[data-studio="office"] .of-codearea,
 .of-layout[data-studio="office"] .of-codeside-host,
 .of-layout[data-studio="office"] .of-vibearea { display: none !important; }
-.of-layout[data-studio="office"] { grid-template-rows: var(--of-bar-h) var(--of-tabs-h) 0 minmax(0, 1fr) var(--of-status-h); }
+.of-layout[data-studio="office"] { grid-template-rows: var(--of-bar-h) var(--of-tabs-h) 0 minmax(0, 1fr) 0 var(--of-status-h); }
 .of-layout[data-studio="office"] .of-officearea { display: block; position: absolute; inset: 0; }
 .of-layout[data-studio="office"]:not(.no-doc) .of-welcome { display: none; }
 .of-layout[data-studio="office"] .of-status__range,

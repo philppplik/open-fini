@@ -247,18 +247,7 @@ export function registerBuiltinProviders() {
     id: "core.panel-header",
     priority: 50,
     matches: (c) => c.kind === "panel-header",
-    items: (c) => {
-      const dock = c.app.dock;
-      const { id, title } = c.data;
-      const hidden = dock?.hiddenPanels?.() || [];
-      return [
-        { label: `Hide “${title}”`, icon: "eye-slash", disabled: dock.visibleCount?.() <= 1, run: () => dock.hidePanel(id) },
-        { label: "Move to the other area", icon: "arrow-down-up", run: () => dock.movePanel(id), disabled: !dock.canMove?.(id) },
-        "-",
-        { label: "Show panel", icon: "layout-sidebar-inset-reverse", items: hidden.map((p) => ({ label: p.title, run: () => dock.showPanel(p.id) })), hidden: !hidden.length },
-        { label: "Reset panel layout", icon: "arrow-counterclockwise", run: () => dock.resetPanels(), disabled: !dock.isCustomized?.() },
-      ];
-    },
+    items: (c) => c.app.dock?.panelMenu?.(c.data.id) || [], // dock, float, close, maximize ... (ui/docking/view.js)
   });
 
   registerContextProvider({

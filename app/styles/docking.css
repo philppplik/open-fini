@@ -1,0 +1,124 @@
+/* Docking layout (ui/docking/, ADR 0033): dock regions, tab groups, splitters, floating panels, icon strips, drop guides.
+   The right region reuses the .of-dock, .of-dock__tabs, .of-dock__tab and .of-dock__body styles of app.css. */
+
+.of-dockhost--left { grid-area: dockl; }
+.of-dockhost--bottom { grid-area: dockb; }
+.of-dock, .of-dockhost { position: relative; }
+.of-dockhost {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--of-bg-panel);
+}
+.of-dockhost--left { border-right: 1px solid var(--of-border-soft); }
+.of-dockhost--bottom { border-top: 1px solid var(--of-border-soft); }
+.of-dock > .of-dkgroup, .of-dock > .of-dksplit, .of-dockhost > .of-dkgroup, .of-dockhost > .of-dksplit { flex: 1 1 0; }
+
+/* splits: column = groups stacked, row = groups side by side */
+.of-dksplit { display: flex; min-width: 0; min-height: 0; }
+.of-dksplit--column { flex-direction: column; }
+.of-dksplit--row { flex-direction: row; }
+.of-dkgroup { min-width: 0; min-height: 0; }
+.of-dksash--v { width: 5px; flex: none; cursor: col-resize; background: var(--of-bg-app); touch-action: none; }
+.of-dksash { touch-action: none; }
+.of-dksash--v:hover, .of-dksash:focus-visible, .of-dkedge:focus-visible { background: var(--of-accent-soft); outline: none; }
+
+/* group header (.of-dock__tabs): the scrolling tab list with a drag grip filling its empty end, then the options button */
+.of-dkgroup .of-dock__tab { touch-action: none; }
+.of-dkgroup > .of-dock__tabs { overflow: visible; }
+.of-dkgroup__tablist { display: flex; gap: 2px; flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.of-dkgroup__grip { flex: 1 1 auto; min-width: 12px; cursor: grab; touch-action: none; }
+.of-dkgroup__menu {
+  flex: none;
+  align-self: center;
+  width: 22px;
+  height: 22px;
+  margin: 0 0 3px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--of-radius-sm, 4px);
+  color: var(--of-text-dim);
+  opacity: 0.55;
+}
+.of-dkgroup__menu:hover, .of-dkgroup__menu:focus-visible { opacity: 1; background: var(--of-hover); }
+.of-dkgroup.is-max { flex: 1 1 0 !important; }
+
+/* inner edge of a region: resizes the region */
+.of-dkedge { position: absolute; z-index: 3; touch-action: none; }
+.of-dock > .of-dkedge { left: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; }
+.of-dkedge--left { right: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; }
+.of-dkedge--bottom { top: -3px; left: 0; right: 0; height: 6px; cursor: row-resize; }
+.of-dkedge:hover { background: var(--of-accent-soft); }
+
+/* collapsed region: an icon strip; a click flies the panel out */
+.of-dkstrip { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; overflow: auto; scrollbar-width: none; flex: 1 1 auto; background: var(--of-bg-bar); }
+.of-dkstrip--bottom { flex-direction: row; padding: 0 4px; }
+.of-dkstrip__btn { width: 30px; height: 30px; flex: none; display: inline-grid; place-items: center; border-radius: var(--of-radius-sm, 4px); color: var(--of-text-dim); }
+.of-dkstrip__btn:hover, .of-dkstrip__btn[aria-expanded="true"] { color: var(--of-text); background: var(--of-hover); }
+.of-dkstrip__expand { opacity: 0.7; }
+.of-dkflyout, .of-dkfloat {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  background: var(--of-bg-panel);
+  border: 1px solid var(--of-border);
+  border-radius: var(--of-radius, 8px);
+  box-shadow: var(--of-shadow);
+  overflow: hidden;
+}
+.of-dkflyout { z-index: 56; }
+.of-dkflyout__head { display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 10px; font-size: 12px; background: var(--of-bg-bar); border-bottom: 1px solid var(--of-border-soft); }
+.of-dkflyout__head span { flex: 1; }
+.of-dkflyout > .of-dock__body { flex: 1 1 auto; }
+
+/* floating groups */
+.of-dkfloats { position: absolute; inset: 0 auto auto 0; width: 0; height: 0; z-index: 45; }
+.of-dkfloat > .of-dkgroup { flex: 1 1 0; display: flex; flex-direction: column; }
+.of-dkfloat .of-dkgroup__grip { cursor: move; }
+.of-dkfloat__resize { position: absolute; right: 0; bottom: 0; width: 14px; height: 14px; cursor: nwse-resize; touch-action: none; background: linear-gradient(135deg, transparent 50%, var(--of-border) 50%, var(--of-border) 60%, transparent 60%, transparent 72%, var(--of-border) 72%, var(--of-border) 82%, transparent 82%); }
+.of-layout.no-doc .of-dkfloats, .of-layout.no-doc .of-dockhost { opacity: 0.45; pointer-events: none; }
+
+/* drag feedback: the drop guide and the label that follows the pointer */
+.of-dkdrop {
+  position: fixed;
+  z-index: 60;
+  display: none;
+  pointer-events: none;
+  border: 2px solid var(--of-accent);
+  border-radius: var(--of-radius-sm, 4px);
+  background: color-mix(in srgb, var(--of-accent) 18%, transparent);
+  transition: left 0.08s ease, top 0.08s ease, width 0.08s ease, height 0.08s ease;
+}
+.of-dkdrop.is-on { display: grid; place-items: center; }
+.of-dkdrop__label { padding: 3px 8px; border-radius: 999px; background: var(--of-accent); color: var(--of-on-accent, #fff); font-size: 11.5px; white-space: nowrap; }
+.of-dkghost { position: fixed; z-index: 61; pointer-events: none; padding: 4px 10px; border-radius: 6px; background: var(--of-bg-panel); border: 1px solid var(--of-border); box-shadow: var(--of-shadow); font-size: 12px; }
+.of-dk-dragging, .of-dk-dragging * { cursor: grabbing !important; user-select: none; }
+.of-dklive { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* glass surfaces */
+:root[data-surface] .of-dockhost, :root[data-surface] .of-dkfloat, :root[data-surface] .of-dkflyout { background: var(--of-glass-fill-panel, var(--of-bg-panel)); border-color: var(--of-glass-edge, var(--of-border)); }
+:root[data-surface] .of-dkstrip { background: transparent; }
+:root[data-surface] .of-dkfloat, :root[data-surface] .of-dkflyout { backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2); }
+
+/* narrow windows: the left dock slides in like the right one; bottom docks stay under the canvas */
+@media (max-width: 960px) {
+  .of-dockhost--left {
+    position: fixed;
+    left: 0;
+    top: calc(var(--of-bar-h) + var(--of-tabs-h) + var(--of-context-h));
+    bottom: var(--of-status-h);
+    width: var(--of-dockl-w, 0px);
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.18s ease;
+    box-shadow: var(--of-shadow);
+  }
+  .dock-open .of-dockhost--left { transform: none; }
+  .of-dockhost--empty { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .of-dkdrop, .of-dockhost--left { transition: none; }
+}
+.of-reduce-motion .of-dkdrop { transition: none; }

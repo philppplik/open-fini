@@ -83,7 +83,7 @@ export const AREA_HELP = [
   [".of-doctabs", "Documents", "Your open documents. Click to switch, the dot marks unsaved changes, the plus makes a new one."],
   [".of-contextbar", "Context bar", "Options for the active tool or the selected object."],
   [".of-toolbox", "Toolbox", "Pick a tool. A small triangle marks a group: press and hold or right-click to see the others."],
-  [".of-dock", "Panels", "Layers, color, history and more for the current studio. Click a tab to switch panels."],
+  [".of-dock", "Panels", "Layers, color, history and more for the current studio. Click a tab to switch panels; drag a tab to dock, group or float it, and save the arrangement in Window ▸ Workspace."],
   [".of-status", "Status bar", "Zoom, cursor position and messages."],
   [".of-welcome", "Start page", "Create a document in any studio, open a file, or drop one onto the window."],
   [".of-codeside-host", "Code studio sidebar", "Explorer, elements to insert, the page outline and assets."],
