@@ -19,6 +19,9 @@ function thumb(t) {
   );
 }
 
+/** The "Blank" choice: a project with one empty index.html and nothing else (no sample page, styles or scripts). */
+export const EMPTY_TEMPLATE = { id: "empty", name: N_("Blank"), description: N_("An empty project: one empty index.html"), category: "Blank", accent: "#8a8f98", files: { "index.html": "" } };
+
 /** Files of a template or starter (starters load their files on demand). */
 export async function templateFiles(t) {
   if (t.files) return { ...t.files };
@@ -27,7 +30,7 @@ export async function templateFiles(t) {
   return full.files;
 }
 
-const GROUPS = { "Basic websites": N_("Basic websites"), "Frameworks, Markdown and PWA": N_("Frameworks, Markdown and PWA"), "Static sites": N_("Static sites"), "Apps and PWAs": N_("Apps and PWAs"), Games: N_("Games"), Libraries: N_("Libraries") };
+const GROUPS = { Blank: N_("Blank"), "Basic websites": N_("Basic websites"), "Frameworks, Markdown and PWA": N_("Frameworks, Markdown and PWA"), "Static sites": N_("Static sites"), "Apps and PWAs": N_("Apps and PWAs"), Games: N_("Games"), Libraries: N_("Libraries") };
 const groupLabel = (g) => (GROUPS[g] ? tr(GROUPS[g]) : g);
 
 /** Template gallery; calls onPick(template) on selection and onCreate(template) on double click. */
@@ -41,13 +44,13 @@ export function templateGallery({ onPick, onCreate, selected = "landing-page" } 
   let lastGroup = "";
   // plain HTML templates first, then framework, Markdown and PWA starters, then the starters loaded on demand
   const order = (c) => STARTER_CATEGORIES.indexOf(c);
-  const all = [...TEMPLATES.map((t) => ({ t, group: t.framework ? "Frameworks, Markdown and PWA" : "Basic websites" })), ...[...STARTERS].sort((a, b) => order(a.category) - order(b.category)).map((t) => ({ t, group: t.category }))];
+  const all = [{ t: EMPTY_TEMPLATE, group: "Blank" }, ...TEMPLATES.map((t) => ({ t, group: t.framework ? "Frameworks, Markdown and PWA" : "Basic websites" })), ...[...STARTERS].sort((a, b) => order(a.category) - order(b.category)).map((t) => ({ t, group: t.category }))];
   for (const { t, group } of all) {
     if (group !== lastGroup) {
       grid.append(h("h3.of-tpls__group", groupLabel(group)));
       lastGroup = group;
     }
-    const c = h("button.of-tpl", { type: "button", "aria-pressed": "false" }, thumb(t), h("strong", t.name), h("span", t.description), t.libs?.length ? h("em.of-tpl__libs", tr(N_("Uses {libs}"), { libs: t.libs.join(", ") })) : null);
+    const c = h("button.of-tpl", { type: "button", "aria-pressed": "false" }, thumb(t), h("strong", t.id === "empty" ? tr(t.name) : t.name), h("span", t.id === "empty" ? tr(t.description) : t.description), t.libs?.length ? h("em.of-tpl__libs", tr(N_("Uses {libs}"), { libs: t.libs.join(", ") })) : null);
     c.addEventListener("click", () => select(t));
     c.addEventListener("dblclick", () => onCreate?.(t));
     cards.set(t.id, c);
@@ -157,4 +160,14 @@ export function newWebsiteDialog(app) {
     app.openDoc(doc);
     app.setStudio("code");
   }
+}
+
+/** File > New Blank > Blank Code: a new document with an empty index.html. */
+export function newEmptyWebsite(app) {
+  const doc = new Doc({ name: tr(N_("Untitled website")), width: 1280, height: 800, studio: "code" });
+  ensureWeb(doc, { ...EMPTY_TEMPLATE.files });
+  doc.history.clear();
+  doc.saved = false;
+  app.openDoc(doc);
+  app.setStudio("code");
 }

@@ -40,6 +40,8 @@ tabs then never change the studio. Code: `app/src/core/tab-studio.js` (pure, tes
 
 ## Common to all studios
 
+**Blank documents.** *File ▸ New Blank* and the command palette (`Blank Vector`, `Blank Pixel`, `Blank Layout`, `Blank Code`, `Blank Vibe`, `Blank Scene`, `Blank Document`, `Blank Spreadsheet`, `Blank Presentation`, `Blank Whiteboard`) create a truly empty document with no starter content: one empty page, slide, sheet or board, a Code project with one empty `index.html`, an empty Vibe chat. A studio registered later can provide `newBlank(app)` in its definition (`app/src/commands/new-blank.js`).
+
 While no document is open (the start page) the menubar shows only File, View, Studio and Help; the studio menus appear when a document opens. The set is the `MINIMAL_MENUS` constant in `app/src/ui/menubar-select.js`.
 
 | Action | Shortcut |

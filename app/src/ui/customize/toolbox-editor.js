@@ -3,17 +3,19 @@
 import { h } from "../../core/util.js";
 import { button } from "../controls.js";
 import { iconEl } from "../toolbox.js";
-import { STUDIOS, toolboxFor } from "../../studios/index.js";
+import { STUDIOS, toolboxFor, listStudios } from "../../studios/index.js";
 import { MENUS } from "../menus.js";
 import { editorRows, moveKey, moveKeyBefore, setToolVisible, setUngrouped, menuCommandIds } from "../../customize/toolbox-model.js";
 import { QUICK_ACTIONS } from "../../customize/schema.js";
 import { BUILTIN_LABELS } from "./quick-actions.js";
 
-const TOOL_STUDIOS = ["vector", "pixel", "layout"];
+/** Every registered studio is listed; those without a canvas toolbox explain where their commands live. */
+const studioList = () => listStudios().map((s) => s.id);
+export const hasToolbox = (id) => toolboxFor(id).length > 0;
 
 export function toolboxEditor(app) {
   const cz = app.customize;
-  let studio = TOOL_STUDIOS.includes(app.studio) ? app.studio : "vector";
+  let studio = studioList().includes(app.studio) ? app.studio : "vector";
   const root = h("div.of-cz");
 
   const checkbox = (checked, label, onChange) => {
@@ -26,15 +28,23 @@ export function toolboxEditor(app) {
   // ---------------------------------------------------------------- tools
   function toolsGroup() {
     const entries = toolboxFor(studio);
-    const cfg = cz.toolboxConfig(studio);
-    const rows = editorRows(entries, cfg, (id) => app.toolClasses.has(id));
-    const keys = rows.map((r) => r.key);
     const tabs = h("div.of-seg", { role: "group", "aria-label": "Studio" });
-    for (const s of TOOL_STUDIOS) {
+    for (const s of studioList()) {
       const b = h("button.of-seg__btn", { type: "button", "aria-pressed": String(s === studio) }, STUDIOS[s].label);
       b.addEventListener("click", () => ((studio = s), render()));
       tabs.append(b);
     }
+    if (!entries.length) {
+      return h(
+        "section.of-set__group",
+        h("h3", "Tools"),
+        h("div.of-cz__bar", tabs),
+        h("p.of-set__hint", `The ${STUDIOS[studio].label} studio has no toolbox of its own: it works in its own workspace, so there are no tools to hide or reorder. Its commands live in its menus (listed under Menus below) and in the command palette (Ctrl+K).`),
+      );
+    }
+    const cfg = cz.toolboxConfig(studio);
+    const rows = editorRows(entries, cfg, (id) => app.toolClasses.has(id));
+    const keys = rows.map((r) => r.key);
     const list = h("ul.of-cz__list", { "aria-label": `Tools of the ${STUDIOS[studio].label} studio` });
     let dragKey = null;
     rows.forEach((r, i) => {
@@ -143,7 +153,7 @@ export function toolboxEditor(app) {
   const offs = [];
   const live = (fn) => () => (document.body.contains(root) ? fn() : offs.forEach((o) => o()));
   for (const ev of ["toolboxchanged", "menuschanged", "quickactions"]) offs.push(app.on(ev, live(render)));
-  offs.push(app.on("studio", live(() => TOOL_STUDIOS.includes(app.studio) && studio !== app.studio && ((studio = app.studio), render()))));
+  offs.push(app.on("studio", live(() => studioList().includes(app.studio) && studio !== app.studio && ((studio = app.studio), render()))));
   render();
   return root;
 }
