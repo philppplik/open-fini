@@ -162,6 +162,59 @@ grants, through symbolic links, to multiply hard-linked files (Unix) and to the 
 every access to an audit log without file contents. Every listing, read and write is approved in the chat; file text
 is wrapped as untrusted data. Details and limits: [vibe-files.md](vibe-files.md).
 
+## Computer use for the assistant
+
+Off by default and only in the desktop app on Windows and macOS (*Settings ▸ Artificial intelligence ▸ Computer use*;
+[vibe-computer-use.md](vibe-computer-use.md), [ADR 0023](adr/0023-computer-use.md)). The assistant can take
+screenshots of the screen and, with your permission, use the mouse and keyboard in other apps. This is the most
+powerful thing the assistant can do, so the rules are stricter than for any other tool.
+
+**What the desktop side enforces** (`src-tauri/src/computer.rs`, on every call, whatever the page sends):
+
+- **A session grant from a native dialog.** Only the desktop app opens it; its text is fixed in the app and states
+  the scope, the time limit, that screenshots go to the AI provider you chose and are not stored, and how to stop.
+  You answer *Allow control*, *View only* or *Don't allow*. Without a grant every command fails.
+- **Scope, time and budget.** A view-only grant never allows input. A grant ends after its time limit (at most 60
+  minutes), allows 600 input actions in total, at most 120 per minute and one per 100 ms.
+- **Stop and pause.** The always-on-top indicator has **Stop**; **Ctrl+Alt+Shift+Esc** is a global hotkey while a
+  session is active; **Esc** pauses input until you resume. In a session where you allowed low-risk actions without
+  asking, moving the mouse pauses as well.
+- **No self-approval.** Input into OpenFini's own windows is refused (approval cards, dialogs, the indicator), so the
+  assistant cannot click *Allow* for itself.
+- **Deny list.** Password managers, authenticators and security settings are blacked out in screenshots and refuse
+  input; you can add apps and window-title words (not while a session is active), and restrict input to an allow
+  list. On Windows, elevated windows are refused with an explanation (UIPI would drop the input silently).
+- **No typing into sign-in or payment windows** (judged by the window title: a heuristic).
+- **Caller check.** The commands are in a capability of the main window only (`capabilities/computer-use.json`) and
+  check the calling window's label again; the indicator window may only read the status, pause, resume and stop.
+- **Action log.** Every grant, screenshot and action is appended to `computer-use-audit.jsonl`; screenshots and typed
+  text are never written to it.
+
+**What the page enforces** (`app/src/vibe/tools/computer.js`, `computer-policy.js`):
+
+- Every input action asks for approval in the transcript, in every approval mode, with no "Always allow". Only a
+  session you started in the settings with the opt-in runs clicks, scrolling and navigation keys unasked; typing,
+  shortcuts, Enter and drags always ask. The assistant cannot request that opt-in.
+- The first input action after a grant is not run; the model has to take a screenshot and send it again.
+- Text that looks like a card number, an IBAN or an API or private key is refused.
+- At most 40 input actions per request (setting), repeats are stopped, and a screen that does not change is reported
+  to the model.
+- The tools are not offered to the model in the browser build.
+
+**Prompt injection.** Anything on screen becomes model input: a web page, a mail or a chat message can contain text
+written to steer the assistant. Every screenshot result is labeled as untrusted data, and the system prompt says that
+only your chat messages are instructions and that on-screen requests must be reported to you, not followed. This
+lowers the risk and does not remove it; the per-action approval is the control that holds. Read each approval before
+you allow it, and do not use the "without asking" option on pages you do not trust.
+
+**Limits, stated plainly.** Screenshots contain whatever is visible (other people's messages, notifications, private
+documents) and leave your device for the model provider. Password fields cannot be detected, so "never type secrets"
+is a policy the model follows plus the checks above, not a guarantee. Clicks can do irreversible things (send, buy,
+delete) and OpenFini cannot undo them. The per-action confirmation runs in the page: a compromised web view inside an
+active session with the control scope could send input without asking; it could not start a session, widen its
+scope, outlast its time limit, or act while paused. Not supported on Linux. Real control of a desktop has not been
+verified end to end yet ([known-limits.md](known-limits.md)).
+
 ## ZIP files
 
 Every ZIP OpenFini unpacks is read with limits, because the ZIP library allocates what each entry header declares:

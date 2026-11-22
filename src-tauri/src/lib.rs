@@ -11,10 +11,12 @@
 //! clients (`ftp.rs`, `smtp.rs`; shared plumbing in `netio.rs` and `wire.rs`), native window materials
 //! (`effects.rs`), the Code studio's local preview server (`preview_server.rs`) and LaTeX compiling with an
 //! installed TeX engine (`latex.rs`), the assistant's native web GET (`webfetch.rs`) and its per-folder local file
-//! access with an audit log (`fileaccess.rs`).
+//! access with an audit log (`fileaccess.rs`) and computer use: screenshots and mouse and keyboard
+//! input behind a session grant (`computer.rs`).
 
 mod cli;
 mod cmd;
+mod computer;
 mod effects;
 mod fileaccess;
 mod ftp;
@@ -207,6 +209,8 @@ pub fn run() {
         }));
     }
 
+    builder = computer::plugin(builder);
+
     let app = builder
         .manage(OpenQueue::default())
         .manage(Launch::default())
@@ -215,6 +219,7 @@ pub fn run() {
         .manage(preview_server::PreviewServer::default())
         .manage(cmd::Procs::default())
         .manage(fileaccess::FileGrants::default())
+        .manage(computer::Computer::default())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())
@@ -256,6 +261,21 @@ pub fn run() {
             fileaccess::files_write,
             fileaccess::files_audit,
             fileaccess::files_audit_clear,
+            computer::computer_status,
+            computer::computer_grant_request,
+            computer::computer_stop,
+            computer::computer_pause,
+            computer::computer_resume,
+            computer::computer_open_settings,
+            computer::computer_policy,
+            computer::computer_policy_set,
+            computer::computer_displays,
+            computer::computer_windows,
+            computer::computer_screenshot,
+            computer::computer_cursor,
+            computer::computer_input,
+            computer::computer_audit,
+            computer::computer_audit_clear,
         ])
         // The Collaboration window is a remote view of the main window's room: it never outlives it.
         .on_window_event(|window, event| {

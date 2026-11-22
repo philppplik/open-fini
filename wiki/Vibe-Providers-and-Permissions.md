@@ -60,7 +60,7 @@ Keys are stored only on this device and sent only to the base URL you entered. *
 | Balanced (default) | Reads and edits the document freely; asks before risky actions (deleting files, overwriting, running custom tools or MCP tools) |
 | Auto | Runs everything except custom tools it just wrote and MCP tools, which still ask |
 
-Any tool can be set to *Always allow*. The approval card shows the exact arguments. Whatever the mode, the assistant only touches OpenFini documents: it has no access to your files, shell or network except through the connections and MCP servers you add. Pushes, pulls and publishing always show a dialog, even in Auto. A chat can have its own model and mode (right-click the chat).
+Any tool can be set to *Always allow*. The approval card shows the exact arguments. Whatever the mode, the assistant only touches OpenFini documents: it has no access to your files, shell or network except through the connections and MCP servers you add. Pushes, pulls and publishing always show a dialog, even in Auto. Computer use (desktop app on Windows and macOS, off by default) is the exception to "only OpenFini documents": after you allow a session in a system dialog the assistant can see the screen and, action by action with your approval, use the mouse and keyboard in other apps ([computer use](https://github.com/philppplik/open-fini/blob/main/docs/vibe-computer-use.md)). A chat can have its own model and mode (right-click the chat).
 
 ## Engine settings (Models ▸ Engine)
 

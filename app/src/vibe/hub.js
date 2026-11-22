@@ -90,6 +90,8 @@ export class VibeHub extends Emitter {
     this.activeId = null;
     this.activate(this.create().id);
     this.lock.on(() => this.emit("lock", this.lock));
+    // the emergency hotkey of computer use (Ctrl+Alt+Shift+Esc, desktop app) stops every chat as well
+    globalThis.window?.__TAURI__?.event?.listen?.("openfini://computer", (e) => e.payload?.kind === "ended" && e.payload.reason === "hotkey" && this.stopAll())?.catch?.(() => {});
   }
 
   // ------------------------------------------------------------ sessions
@@ -170,6 +172,8 @@ export class VibeHub extends Emitter {
   }
   /** Global kill switch: stops every chat and every sub-agent. */
   stopAll() {
+    // a computer use session ends with it (desktop app; src-tauri/src/computer.rs)
+    globalThis.window?.__TAURI__?.core?.invoke?.("computer_stop")?.catch?.(() => {});
     let n = 0;
     for (const s of this.sessions.values()) {
       if (s.running) {

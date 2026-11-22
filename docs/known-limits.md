@@ -23,7 +23,7 @@ Legend: **Unverified** = built and unit-tested but never run in the real environ
 
 ## Vibe / AI
 
-- **Computer use:** design only (ADR 0023), not implemented.
+- **Computer use** ([vibe-computer-use.md](vibe-computer-use.md)): desktop app on Windows and macOS only (not Linux, not the browser). Real control of a desktop has not been verified end to end yet; macOS code is compiled by the release workflow only. No control of elevated windows or the secure desktop on Windows. Password fields cannot be detected (policy, card/IBAN/key detection and a window-title heuristic instead). Deny-listed windows are blacked out by their bounds; nothing else on screen is redacted. No native Anthropic computer tool type, no view-only screen sharing in the browser.
 - **RAG:** no OCR engine is bundled; scanned PDF pages are skipped unless an extension registers an `ocr` engine ([engines.md](engines.md)).
 - **Voice:** no local speech recognizer is bundled (pluggable `stt` engine; whisper.cpp WebAssembly not built). Spoken replies do not use registered `tts` engines yet.
 - Not built from the post-1.0 batch: integrated terminal console in the Code studio, `ofini` CLI/TUI.

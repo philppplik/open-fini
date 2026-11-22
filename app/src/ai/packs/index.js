@@ -18,6 +18,7 @@ export const PACK_SKILLS = [
   ["studio-guide-board", G, "How to work on the whiteboard: elements, connectors, frames, arrange and checking the layout."],
   ["studio-guide-scene", G, "How to work in the Scene Studio: timeline model, understanding footage, editing tools, motion presets and checking frames."],
   ["studio-guide-vibe", G, "How Vibe itself works: skills, sub-agents, plan_work orchestration, blackboard, approvals and verification."],
+  ["studio-guide-computer", G, "How to operate the user's computer with the computer tool: screenshot first, one action at a time, verify, keyboard first, and when to stop and ask."],
   ["openfini-overview", K, "What OpenFini is: idea, philosophy and the big picture, for questions like what is OpenFini or why does it exist."],
   ["openfini-studios", K, "What each OpenFini studio includes and when to use which."],
   ["openfini-formats", K, "Which file types OpenFini opens, imports and exports (generated from the format registries)."],

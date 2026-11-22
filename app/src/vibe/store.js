@@ -31,6 +31,7 @@ export const DEFAULT_SETTINGS = () => ({
   disabledTools: [],
   terminal: null, // Settings ▸ Artificial intelligence ▸ Terminal; defaults in vibe/terminal-policy.js (off)
   webAccess: null, // Settings ▸ Artificial intelligence ▸ Web access; defaults in vibe/web-access.js (off)
+  computerUse: null, // Settings ▸ Artificial intelligence ▸ Computer use; defaults in vibe/computer-policy.js (off, desktop app on Windows and macOS)
   localFiles: null, // Settings ▸ Artificial intelligence ▸ Local files; defaults in vibe/tools/local-files.js (off, desktop only)
   voice: null, // Settings ▸ Artificial intelligence ▸ Voice; defaults in vibe/speech.js (spoken replies off)
   autoAllow: [],
