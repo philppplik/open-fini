@@ -28,6 +28,7 @@ const COMMANDS: &[&str] = &[
     "latex_engines",
     "latex_compile",
     "web_get",
+    "ollama_fetch",
     "files_grants",
     "files_grant_pick",
     "files_grant_set_write",

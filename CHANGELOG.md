@@ -6,6 +6,14 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Ollama connections that never worked: the desktop app's web view origin (`http://tauri.localhost` on Windows) is refused by a default Ollama (`OLLAMA_ORIGINS`), so every request failed with a vague network error. Desktop requests now go through a native, streaming command that is restricted to your own computer, your local network and ollama.com, so no Ollama setting is needed. `localhost` resolves over IPv4 and IPv6.
+
+### Added
+- Ollama on its native API: all installed models with size, parameters, quantization and capabilities (tools, vision, thinking, context length), loaded models, tool calls, images, thinking output, `keep_alive`, a context window taken from the model (up to 32768 tokens instead of Ollama's 4096 default), model pull with progress and clear errors (model not installed, sign-in needed, out of memory). Existing Ollama connections switch over automatically (a `/v1` address is accepted).
+- Models tab: Detect and Test connection for Ollama with a clear verdict (not running, origin refused, mixed content, version too old, OK) and, in a browser, the exact `OLLAMA_ORIGINS` command for Windows, macOS and Linux.
+- Ollama cloud: models served by the local daemon (`:cloud` / `-cloud`, after `ollama signin`) appear in a Cloud group, and an optional direct *Ollama Cloud (ollama.com)* connection uses an API key.
+
 ## [1.1.3] — Command line tool, Doctor and launch screen timing
 
 ### Added

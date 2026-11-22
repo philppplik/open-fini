@@ -88,7 +88,8 @@ bodies are parsed. Providers never retry; the agent layer does. `AbortSignal` ab
 | `together` | openai | `https://api.together.xyz/v1` | yes | |
 | `mistral` | openai | `https://api.mistral.ai/v1` | yes | |
 | `google-gemini` | openai | `https://generativelanguage.googleapis.com/v1beta/openai` | yes | `models/` id prefix is stripped |
-| `ollama` | openai | `http://localhost:11434/v1` | no | browsers need `OLLAMA_ORIGINS` |
+| `ollama` | ollama | `http://127.0.0.1:11434` | no | native API (`/api/chat`, `/api/show`); desktop: no CORS; browsers need `OLLAMA_ORIGINS` |
+| `ollama-cloud` | ollama | `https://ollama.com` | yes | direct Ollama cloud |
 | `lmstudio` | openai | `http://localhost:1234/v1` | no | enable CORS for the web build |
 | `custom` | openai | user supplied | optional | vLLM, LiteLLM, llama.cpp, ... |
 

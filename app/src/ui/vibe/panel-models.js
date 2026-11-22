@@ -7,6 +7,7 @@ import { promptDialog, confirmDialog } from "../dialogs.js";
 import { platform } from "../../platform/index.js";
 import { iconEl } from "../toolbox.js";
 import { createRoutesCard, createHealthRow } from "./panel-routes.js";
+import { createOllamaTools } from "./ollama-ui.js";
 
 const mask = (k) => (k ? `${k.slice(0, 4)}…${k.slice(-3)}` : "no key");
 
@@ -92,7 +93,16 @@ export function createModelsPanel(vs) {
         status.className = "of-vstatus bad";
       }
     });
-    const rows = [field("Provider", presetSel), field("Name", label), field("Base URL", url, "OpenAI-compatible servers: the URL that ends in /v1."), customRows, field("API key", key, "Stored on this device only. Sent only to the base URL above."), h("div.of-vrow", keyLink), note];
+    // Ollama: detect, test with a verdict, per-OS fix, models with capabilities, pull
+    const ollamaBox = h("div");
+    const ollamaFor = (id) => {
+      empty(ollamaBox);
+      if (id !== "ollama" && id !== "ollama-cloud") return;
+      ollamaBox.append(createOllamaTools({ getBase: () => url.value.trim(), setBase: (v) => (url.value = v), getKey: () => key.value.trim(), cloud: id === "ollama-cloud" }).el);
+    };
+    presetSel.addEventListener("change", () => ollamaFor(presetSel.value));
+    ollamaFor(preset0.id);
+    const rows = [field("Provider", presetSel), field("Name", label), field("Base URL", url, "OpenAI-compatible servers: the URL that ends in /v1. Ollama: the server address, e.g. http://127.0.0.1:11434."), customRows, field("API key", key, "Stored on this device only. Sent only to the base URL above."), h("div.of-vrow", keyLink), note];
     if (preset0.id === "openrouter" || !existing) {
       if (!platform.isDesktop) {
         rows.push(h("button.of-btn", { type: "button", onclick: async () => {
@@ -103,7 +113,7 @@ export function createModelsPanel(vs) {
         } }, iconEl("box-arrow-in-right"), "Sign in with OpenRouter"));
       }
     }
-    rows.push(h("div.of-vrow", test, h("button.of-btn", { type: "button", onclick: render }, "Close")), status);
+    rows.push(ollamaBox, h("div.of-vrow", test, h("button.of-btn", { type: "button", onclick: render }, "Close")), status);
     onPreset();
     return h("div.of-vform", ...rows);
   }
