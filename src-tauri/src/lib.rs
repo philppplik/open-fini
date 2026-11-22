@@ -27,6 +27,7 @@ mod ollama;
 mod preview_server;
 mod relay;
 mod smtp;
+mod updater;
 mod webfetch;
 mod wire;
 
@@ -211,6 +212,17 @@ pub fn run() {
 
     builder = computer::plugin(builder);
 
+    // In-app updates (docs/updates.md): relaunch after an install, and the updater plugin only when this build carries
+    // a minisign public key; without one the frontend finds no updater and points to the release page.
+    let context = tauri::generate_context!();
+    #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+    {
+        builder = builder.plugin(tauri_plugin_process::init());
+        if updater::configured(context.config()) {
+            builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+        }
+    }
+
     let app = builder
         .manage(OpenQueue::default())
         .manage(Launch::default())
@@ -227,6 +239,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             take_launch_files,
             quit_app,
+            updater::update_install_kind,
             launch_ready,
             oauth::oauth_loopback_start,
             oauth::oauth_loopback_wait,
@@ -301,7 +314,7 @@ pub fn run() {
             deliver_paths(app.handle(), paths_from_args(args, None));
             Ok(())
         })
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("failed to build the OpenFini application");
 
     app.run(|app_handle, event| {

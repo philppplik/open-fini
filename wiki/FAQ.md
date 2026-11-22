@@ -56,7 +56,7 @@ Short answers to the questions people ask most, with links to the pages that exp
 
 **macOS says the app is damaged.** Run `xattr -cr /Applications/OpenFini.app` once.
 
-**Does it update itself?** The desktop app does not; check *Settings ▸ About*. The PWA updates in the background.
+**Does it update itself?** The desktop app can: *Help ▸ Check for Updates* downloads a signed update and restarts (once the release carries update signatures; otherwise it opens the release page; package-manager installs update there). The PWA updates in the background. See `docs/updates.md`.
 
 ## Contributing
 

@@ -4,6 +4,7 @@
 const COMMANDS: &[&str] = &[
     "take_launch_files",
     "quit_app",
+    "update_install_kind",
     "launch_ready",
     "oauth_loopback_start",
     "oauth_loopback_wait",
