@@ -135,6 +135,42 @@ Run marks are `b`, `i`, `u`, `s`, `va` (`"sub"` / `"super"`), `color`, `highligh
 Covered cells of a merge are simply absent (HTML-style `colspan` / `rowspan`). Readers validate the object with
 `normalizeDoc()`, which drops unknown fields and clamps values.
 
+### Proto designs
+
+A Proto Studio design (Labs; [concept](concepts/proto-studio.md#3-document-model), [ADR 0034](adr/0034-proto-studio.md))
+uses the same container: `"studio": "proto"` and `"office": { "kind": "proto", …model }`, media bytes under
+`office/proto/media/<id>.<ext>`. The model is pure JSON with its own integer `schema` (currently 1):
+
+```jsonc
+"office": {
+  "kind": "proto",
+  "schema": 1,
+  "meta": { "title": "Checkout", "created": "2026-12-01T10:00:00Z", "unit": "px", "app": "OpenFini" },
+  "pages": { "p1": { "id": "p1", "name": "Screens", "ord": "V", "bg": "#f4f4f5", "flows": [] } },
+  "nodes": { "n1": { "id": "n1", "type": "frame", "name": "Home", "page": "p1", "parent": null, "ord": "V", "w": { "mode": "fixed", "value": 390 }, "h": { "mode": "fixed", "value": 844 }, "layout": { "type": "flex", "dir": "column", "gap": 8 } } },
+  "vars": { "collections": {}, "items": {} },
+  "styles": {},
+  "breakpoints": [{ "id": "base", "w": 1280 }, { "id": "md", "w": 991 }, { "id": "sm", "w": 478 }],
+  "code": { "links": {}, "tokensFile": null },
+  "media": { "m3": { "id": "m3", "mime": "image/png", "name": "bag.png", "w": 640, "h": 480, "file": "office/proto/media/m3.png" } }
+}
+```
+
+* **Nodes** are a flat map; `parent` is a node id or `null` for a top-level layer of its `page`, and `ord` is a
+  fractional order key ([`collab/fractional.js`](../app/src/collab/fractional.js): base-62 digits, never ending in `0`);
+  siblings sort by `ord`, then by id. Every field and its CSS meaning: the concept's
+  [§3.2 to §3.5](concepts/proto-studio.md#32-nodes). Fields with a default may be omitted (`engine/proto/schema.js` ▸
+  `FIELD_DEFAULTS`).
+* **Validation** (`engine/proto/validate.js`) checks types, references (pages, parents, components, variables, styles,
+  collections and modes), parent, component and alias cycles, and the limits (200,000 layers, nesting depth 64, 64 KiB
+  per layer, 20 modes and 2,000 variables per collection, 64 options per variant property, 16 MiB per media item).
+  Interactions and flows that point at a removed layer, and fills whose media is missing, are warnings. The File Doctor,
+  `ofini validate` and `ofini info` run it.
+* **Unknown fields are kept** (forward compatibility within a schema). A model with a newer `schema` opens read-only;
+  older ones are upgraded step by step by `engine/proto/migrate.js`.
+* **Stable serialization**: writers store the canonical form (`engine/proto/serialize.js`): known fields in a fixed
+  order, id maps sorted by id, other keys sorted, so `ofini unpack --pretty` gives small diffs.
+
 ## Comments
 
 `"comments"` (optional, additive since 0.7.0, no format version bump: older readers ignore it) holds the comment threads

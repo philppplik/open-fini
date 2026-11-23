@@ -6,6 +6,9 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Proto Studio engine, part 1 (Labs, unreleased engine work; no user interface yet)** ([concept](docs/concepts/proto-studio.md), [ADR 0034](docs/adr/0034-proto-studio.md), task T1): the versioned Proto document model in `engine/proto/` (schema 1 with frames, auto layout, grid, components, variables, styles and prototype data; validation of types, references, cycles and limits; migrations; stable serialization) and its single operation layer `ops.js` (create, update with a field allow-list, move and reparent with fractional order keys, delete, duplicate, wrap in flex or grid, pages), where every operation returns an exact inverse. Proto documents (`"studio": "proto"`, office kind `proto`) save and load as `.ofini` ([file format](docs/file-format.md#proto-designs)), and `ofini info`, `ofini validate` and the File Doctor check and summarize them.
+
 ## [1.3.0] — Live sharing everywhere, panel windows, more file types
 
 ### Fixed

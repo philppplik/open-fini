@@ -1,0 +1,137 @@
+{
+  "schema": 1,
+  "meta": { "title": "Checkout", "created": "2026-12-01T10:00:00Z", "unit": "px", "app": "OpenFini 1.3.0" },
+  "pages": {
+    "p1": { "id": "p1", "name": "Screens", "ord": "V", "bg": "#f4f4f5", "flows": [{ "id": "f1", "name": "Checkout", "start": "n1" }] },
+    "p2": { "id": "p2", "name": "Components", "ord": "k", "bg": "#ffffff", "flows": [] }
+  },
+  "nodes": {
+    "n1": {
+      "id": "n1", "type": "frame", "name": "Checkout", "page": "p1", "parent": null, "ord": "V",
+      "x": 0, "y": 0, "w": { "mode": "fixed", "value": 390 }, "h": { "mode": "fixed", "value": 844 },
+      "tag": "main", "modes": { "c1": "light" },
+      "layout": { "type": "flex", "dir": "column", "wrap": false, "gap": { "$var": "v9" }, "pad": [24, 24, 24, 24], "align": "stretch", "justify": "start" },
+      "clip": true, "scroll": "y",
+      "fills": [{ "type": "solid", "color": { "$var": "v1" }, "opacity": 1 }]
+    },
+    "n2": {
+      "id": "n2", "type": "text", "name": "Total", "page": "p1", "parent": "n1", "ord": "V", "pos": "flow",
+      "w": { "mode": "fill" }, "h": { "mode": "hug" }, "tag": "h1",
+      "text": {
+        "runs": [{ "t": "Total ", "s": {} }, { "t": "$42.00", "s": { "weight": 700 } }],
+        "style": { "font": "Inter", "size": 16, "weight": 400, "lineHeight": { "pct": 150 }, "tracking": 0, "align": "left", "case": "none", "decoration": "none", "color": { "$var": "v3" } },
+        "autoSize": "height", "maxLines": null
+      },
+      "style": { "text": "s2" }
+    },
+    "n3": {
+      "id": "n3", "type": "frame", "name": "Card", "page": "p1", "parent": "n1", "ord": "k", "pos": "flow",
+      "w": { "mode": "fill", "min": 240, "max": 480 }, "h": { "mode": "hug" },
+      "tag": "article", "a11y": { "label": "Product card", "role": null },
+      "layout": { "type": "grid", "gap": 8, "rowGap": 8, "pad": [16, 16, 16, 16], "grid": { "cols": [{ "fr": 1 }, { "px": 240 }, { "auto": true }, { "minmax": [200, { "fr": 1 }] }], "rows": [{ "auto": true }], "areas": null, "autoFlow": "row", "dense": false } },
+      "fills": [{ "type": "linear", "angle": 135, "stops": [{ "at": 0, "color": "#6366f1" }, { "at": 1, "color": "#a855f7" }] }],
+      "strokes": [{ "color": "#e4e4e7", "w": 1, "align": "inside", "dash": null, "sides": [1, 1, 1, 1] }],
+      "radius": [12, 12, 12, 12],
+      "effects": [{ "type": "shadow", "x": 0, "y": 4, "blur": 16, "spread": -2, "color": "#0000001f" }],
+      "style": { "effect": "s9" }
+    },
+    "n4": {
+      "id": "n4", "type": "image", "name": "Hero", "page": "p1", "parent": "n3", "ord": "V", "pos": "flow",
+      "w": { "mode": "fixed", "value": 320 }, "h": { "mode": "fixed", "value": 180 },
+      "cell": { "col": 1, "colSpan": 2, "row": 1, "rowSpan": 1, "alignSelf": "start", "justifySelf": "stretch" },
+      "fills": [{ "type": "image", "media": "m3", "fit": "cover", "pos": [0.5, 0.5] }], "alt": "A shopping bag"
+    },
+    "n5": {
+      "id": "n5", "type": "instance", "name": "Pay button", "page": "p1", "parent": "n1", "ord": "r", "pos": "flow",
+      "w": { "mode": "hug" }, "h": { "mode": "hug" },
+      "of": "n20", "variant": { "size": "lg" }, "props": { "label": "Pay now" },
+      "over": { "n22": { "fills": [{ "type": "solid", "color": "#ffffff" }] } },
+      "proto": [
+        { "on": { "type": "click" }, "do": [{ "act": "navigate", "to": "n40", "tr": { "type": "smart", "dur": 300, "ease": "ease-out" } }] },
+        { "on": { "type": "hover" }, "do": [{ "act": "variant", "set": { "state": "hover" } }] },
+        { "on": { "type": "afterDelay", "ms": 2000 }, "do": [{ "act": "if", "cond": { "var": "v30", "op": "==", "value": true }, "then": [{ "act": "navigate", "to": "n40" }], "else": [] }] }
+      ]
+    },
+    "n40": {
+      "id": "n40", "type": "frame", "name": "Done", "page": "p1", "parent": null, "ord": "k",
+      "x": 440, "y": 0, "w": { "mode": "fixed", "value": 390 }, "h": { "mode": "fixed", "value": 844 },
+      "layout": { "type": "none" }, "clip": true, "fills": [{ "type": "solid", "color": "#ffffff" }]
+    },
+    "n6": {
+      "id": "n6", "type": "vector", "name": "Check", "page": "p1", "parent": "n40", "ord": "V",
+      "x": 183, "y": 410, "w": { "mode": "fixed", "value": 24 }, "h": { "mode": "fixed", "value": 24 }, "pos": "abs", "cx": "center", "cy": "center",
+      "d": "M4 12l5 5L20 6", "rule": "nonzero", "strokes": [{ "color": "#16a34a", "w": 2, "align": "center" }]
+    },
+    "n20": {
+      "id": "n20", "type": "componentSet", "name": "Button", "page": "p2", "parent": null, "ord": "V",
+      "x": 0, "y": 0, "w": { "mode": "hug" }, "h": { "mode": "hug" },
+      "layout": { "type": "flex", "dir": "column", "gap": 16, "pad": [16, 16, 16, 16] },
+      "props": {
+        "size": { "type": "variant", "options": ["sm", "md", "lg"], "default": "md" },
+        "state": { "type": "variant", "options": ["default", "hover", "disabled"], "default": "default" },
+        "label": { "type": "text", "default": "Button" },
+        "icon": { "type": "swap", "default": "n90", "preferred": ["n90"] },
+        "showIcon": { "type": "bool", "default": false },
+        "content": { "type": "slot" }
+      }
+    },
+    "n21": {
+      "id": "n21", "type": "component", "name": "size=md, state=default", "page": "p2", "parent": "n20", "ord": "V", "pos": "flow",
+      "w": { "mode": "hug" }, "h": { "mode": "hug" },
+      "layout": { "type": "flex", "dir": "row", "gap": 8, "pad": [8, 16, 8, 16], "align": "center", "justify": "center" },
+      "fills": [{ "type": "solid", "color": { "$var": "v2" } }], "radius": 8, "tag": "button",
+      "variant": { "size": "md", "state": "default" },
+      "bind": { "n22.text": "label", "n23.visible": "showIcon", "n23.of": "icon" }
+    },
+    "n22": {
+      "id": "n22", "type": "text", "name": "Label", "page": "p2", "parent": "n21", "ord": "k", "pos": "flow",
+      "w": { "mode": "hug" }, "h": { "mode": "hug" },
+      "text": { "runs": [{ "t": "Button", "s": {} }], "style": { "font": "Inter", "size": 14, "weight": 600, "color": "#ffffff" }, "autoSize": "width" }
+    },
+    "n23": {
+      "id": "n23", "type": "instance", "name": "Icon", "page": "p2", "parent": "n21", "ord": "V", "pos": "flow",
+      "w": { "mode": "fixed", "value": 16 }, "h": { "mode": "fixed", "value": 16 }, "visible": false, "of": "n90"
+    },
+    "n24": {
+      "id": "n24", "type": "component", "name": "size=lg, state=default", "page": "p2", "parent": "n20", "ord": "k", "pos": "flow",
+      "w": { "mode": "hug" }, "h": { "mode": "hug" },
+      "layout": { "type": "flex", "dir": "row", "gap": 8, "pad": [12, 24, 12, 24], "align": "center", "justify": "center" },
+      "fills": [{ "type": "solid", "color": { "$var": "v2" } }], "radius": 10,
+      "variant": { "size": "lg", "state": "default" }
+    },
+    "n90": {
+      "id": "n90", "type": "component", "name": "Icon/Check", "page": "p2", "parent": null, "ord": "k",
+      "x": 240, "y": 0, "w": { "mode": "fixed", "value": 16 }, "h": { "mode": "fixed", "value": 16 }, "layout": { "type": "none" }
+    },
+    "n91": {
+      "id": "n91", "type": "vector", "name": "Path", "page": "p2", "parent": "n90", "ord": "V",
+      "w": { "mode": "fixed", "value": 16 }, "h": { "mode": "fixed", "value": 16 }, "cx": "scale", "cy": "scale",
+      "d": "M2 8l4 4 8-8", "rule": "evenodd", "fills": [], "strokes": [{ "color": "#18181b", "w": 1.5 }]
+    }
+  },
+  "vars": {
+    "collections": {
+      "c1": { "name": "Color", "modes": [{ "id": "light", "name": "Light" }, { "id": "dark", "name": "Dark" }], "default": "light" },
+      "c2": { "name": "Brand B", "extends": "c1", "modes": [{ "id": "light", "name": "Light" }, { "id": "dark", "name": "Dark" }], "default": "light" },
+      "c3": { "name": "Space", "modes": [{ "id": "base", "name": "Base" }], "default": "base" }
+    },
+    "items": {
+      "v1": { "name": "color/bg/surface", "coll": "c1", "type": "color", "values": { "light": "#ffffff", "dark": "#18181b" }, "scopes": ["fill"], "code": { "css": "--color-bg-surface" } },
+      "v2": { "name": "color/brand", "coll": "c1", "type": "color", "values": { "light": "#4f46e5", "dark": { "$var": "v7" } } },
+      "v3": { "name": "color/text", "coll": "c1", "type": "color", "values": { "light": "#18181b", "dark": "#fafafa" } },
+      "v7": { "name": "color/brand/bright", "coll": "c1", "type": "color", "values": { "light": "#818cf8", "dark": "#818cf8" } },
+      "v9": { "name": "space/4", "coll": "c3", "type": "number", "unit": "px", "values": { "base": 16 } },
+      "v12": { "name": "shadow/color", "coll": "c1", "type": "color", "values": { "light": "#0000001f", "dark": "#00000066" } },
+      "v30": { "name": "state/paid", "coll": "c3", "type": "bool", "values": { "base": false } }
+    }
+  },
+  "styles": {
+    "s2": { "name": "Body/Regular", "kind": "text", "value": { "font": "Inter", "size": 16, "weight": 400, "lineHeight": { "pct": 150 } } },
+    "s9": { "name": "Elevation/2", "kind": "effect", "value": [{ "type": "shadow", "x": 0, "y": 4, "blur": 16, "spread": -2, "color": { "$var": "v12" } }] }
+  },
+  "breakpoints": [{ "id": "base", "w": 1280 }, { "id": "md", "w": 991 }, { "id": "sm", "w": 478 }],
+  "code": { "links": {}, "tokensFile": null },
+  "media": {
+    "m3": { "id": "m3", "mime": "image/png", "name": "bag.png", "w": 2, "h": 2 }
+  }
+}
