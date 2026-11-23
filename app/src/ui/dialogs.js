@@ -24,8 +24,8 @@ export function openDialog(options = {}) {
   return options.key ? keyedDialogs.open(options.key, (release) => buildDialog(options, release)) : buildDialog(options);
 }
 
-function buildDialog({ title, body, buttons = [], width = 520, cls = "", onClose } = {}, release) {
-  const dlg = h("sl-dialog", { label: t(title), class: `of-dialog ${cls}` });
+function buildDialog({ title, body, buttons = [], width = 520, cls = "", onClose, noHeader = false } = {}, release) {
+  const dlg = h("sl-dialog", { label: t(title), class: `of-dialog ${cls}`, "no-header": noHeader || undefined });
   dlg.style.setProperty("--width", `${width}px`); // custom properties need setProperty, not style["--x"]
   dlg.append(body);
   const footer = h("div", { slot: "footer", class: "of-dialog__footer" });

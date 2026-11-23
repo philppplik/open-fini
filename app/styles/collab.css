@@ -14,7 +14,7 @@
 .of-collab-tabs { display: flex; gap: 2px; padding: 4px 6px 0; border-bottom: 1px solid var(--of-border-soft, var(--of-border)); }
 .of-collab-tab { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--of-text-dim, var(--of-text)); font: inherit; cursor: pointer; border-radius: 4px 4px 0 0; }
 .of-collab-tab:hover { background: var(--of-hover); color: var(--of-text); }
-.of-collab-tab[aria-selected="true"] { color: var(--of-text); border-bottom-color: var(--of-accent); }
+.of-collab-tab[aria-selected="true"] { color: var(--of-text); background: var(--of-accent-soft); }
 .of-collab-tab__badge:empty { display: none; }
 .of-collab-tab__badge { min-width: 16px; padding: 0 4px; border-radius: 8px; background: var(--of-accent); color: var(--of-on-accent, #fff); font-size: 10px; text-align: center; }
 
@@ -197,7 +197,7 @@ html.of-comment-mode .of-stage, html.of-comment-mode .cm-editor, html.of-comment
 .of-collab-win[data-mode="rail"] .of-collab-nav, .of-collab-win[data-mode="wide"] .of-collab-nav { width: 150px; padding: 6px; gap: 2px; border-right: 1px solid var(--of-border-soft, var(--of-border)); background: var(--of-bg-bar, var(--of-bg-raised)); overflow-y: auto; }
 .of-collab-win[data-mode="rail"] .of-collab-tabs, .of-collab-win[data-mode="wide"] .of-collab-tabs { flex-direction: column; padding: 0; border-bottom: 0; gap: 2px; }
 .of-collab-win[data-mode="rail"] .of-collab-tab, .of-collab-win[data-mode="wide"] .of-collab-tab { width: 100%; border-bottom: 0; border-left: 3px solid transparent; border-radius: var(--of-radius-sm, 4px); padding: 7px 8px; justify-content: flex-start; }
-.of-collab-win[data-mode="rail"] .of-collab-tab[aria-selected="true"], .of-collab-win[data-mode="wide"] .of-collab-tab[aria-selected="true"] { border-left-color: var(--of-accent); background: var(--of-accent-soft, var(--of-active)); }
+.of-collab-win[data-mode="rail"] .of-collab-tab[aria-selected="true"], .of-collab-win[data-mode="wide"] .of-collab-tab[aria-selected="true"] { background: var(--of-accent-soft, var(--of-active)); }
 .of-collab-win[data-mode="rail"] .of-collab-tab__badge, .of-collab-win[data-mode="wide"] .of-collab-tab__badge { margin-left: auto; }
 .of-collab-win[data-mode="rail"] .of-collab-nav__actions, .of-collab-win[data-mode="wide"] .of-collab-nav__actions { display: flex; flex-direction: column; gap: 2px; margin-top: auto; padding-top: 6px; border-top: 1px solid var(--of-border-soft, var(--of-border)); }
 .of-collab-tab--action { border-left: 3px solid transparent; }
