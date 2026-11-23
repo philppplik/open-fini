@@ -8,6 +8,7 @@
 
 import { hostMatches } from "./web-hosts.js";
 import { webFetch, nativeWebAvailable } from "./native-web.js";
+import { stripComments, stripElements, stripTags } from "../engine/web/strip.js";
 export { parseDomainList, hostMatches, hostsOf, allAllowed } from "./web-hosts.js";
 
 export const DEFAULT_WEB = () => ({
@@ -206,12 +207,12 @@ const decode = (s) => s.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, e) => {
 export function extractReadable(html, { baseUrl, maxChars = 20000 } = {}) {
   let s = String(html);
   const title = decode((/<title[^>]*>([\s\S]*?)<\/title>/i.exec(s)?.[1] || "").replace(/\s+/g, " ").trim());
-  s = s.replace(/<!--[\s\S]*?-->/g, "").replace(/<(script|style|noscript|template|svg|iframe|object|embed|canvas|form|select|button)\b[\s\S]*?<\/\1\s*>/gi, "");
+  s = stripElements(stripComments(s), ["script", "style", "noscript", "template", "svg", "iframe", "object", "embed", "canvas", "form", "select", "button"]);
   const main = /<(article|main)\b[^>]*>([\s\S]*)<\/\1\s*>/i.exec(s);
   if (main && main[2].length > 500) s = main[2];
-  else s = s.replace(/<(nav|header|footer|aside)\b[\s\S]*?<\/\1\s*>/gi, "");
+  else s = stripElements(s, ["nav", "header", "footer", "aside"]);
   s = s.replace(/<a\b[^>]*?href\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*>([\s\S]*?)<\/a\s*>/gi, (m, a, b, text) => {
-    const label = text.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+    const label = stripTags(text).replace(/\s+/g, " ").trim();
     let href = (a ?? b ?? "").trim();
     if (!label || /^(#|javascript:|data:|mailto:)/i.test(href)) return label;
     try {
@@ -221,14 +222,13 @@ export function extractReadable(html, { baseUrl, maxChars = 20000 } = {}) {
     }
     return `[${label}](${href})`;
   });
-  s = s
-    .replace(/<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1\s*>/gi, (m, n, t) => `\n\n${"#".repeat(Number(n))} ${t.replace(/<(?!\/?a\b)[^>]+>/g, "").replace(/\s+/g, " ").trim()}\n\n`)
+  s = stripTags(s
+    .replace(/<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1\s*>/gi, (m, n, t) => `\n\n${"#".repeat(Number(n))} ${stripTags(t).replace(/\s+/g, " ").trim()}\n\n`)
     .replace(/<li\b[^>]*>/gi, "\n- ")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(p|div|section|tr|ul|ol|table|blockquote|pre|figure|figcaption|dd|dt)\s*>/gi, "\n\n")
     .replace(/<\/t[dh]\s*>/gi, " | ")
-    .replace(/<img\b[^>]*?alt\s*=\s*"([^"]+)"[^>]*>/gi, "[image: $1]")
-    .replace(/<[^>]+>/g, "");
+    .replace(/<img\b[^>]*?alt\s*=\s*"([^"]+)"[^>]*>/gi, "[image: $1]"));
   s = decode(s).replace(/[ \t\f\v]+/g, " ").replace(/ *\n */g, "\n").replace(/\n{3,}/g, "\n\n").trim();
   const clipped = s.length > maxChars;
   return { title, text: clipped ? `${s.slice(0, maxChars)}\n… [truncated]` : s, truncated: clipped, chars: s.length };
@@ -296,7 +296,7 @@ export function searchEndpoint(w, images, native = nativeWebAvailable()) {
   return "https://en.wikipedia.org/w/api.php";
 }
 
-const strip = (s) => decode(String(s || "").replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim();
+const strip = (s) => decode(stripTags(String(s || ""))).replace(/\s+/g, " ").trim();
 
 /** Web search. Returns [{ title, url, snippet }]. */
 export async function webSearch(query, web, { fetchImpl = webFetch, signal, limit = 8, native = nativeWebAvailable() } = {}) {

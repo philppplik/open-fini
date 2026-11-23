@@ -731,7 +731,7 @@ export function boardToMarkdown(model, { title = "", connections = true } = {}) 
       bullets(rest);
     }
     for (const tb of tables) {
-      const cell = (c) => String(c).replace(/\|/g, "\\|").replace(/\s+/g, " ").trim();
+      const cell = (c) => String(c).replace(/[\\|]/g, "\\$&").replace(/\s+/g, " ").trim();
       const [head, ...body] = tb.header ? tb.rows : [tb.rows[0].map(() => ""), ...tb.rows];
       out.push(`| ${head.map(cell).join(" | ")} |`, `| ${head.map(() => "---").join(" | ")} |`, ...body.map((r) => `| ${r.map(cell).join(" | ")} |`), "");
       items++;

@@ -4509,5 +4509,6 @@
   "Syntax grammars": "Syntax-Grammatiken",
   "Themes, snippets, syntax grammars and language settings work for every extension. The code of web extensions runs in a sandbox against a subset of the VS Code API, and their views become dockable panels; extensions that need Node.js only add their declarative parts. Extensions come from Open VSX (open-vsx.org), not the Visual Studio Marketplace, whose terms allow its extensions only in Microsoft's products. Drop a .vsix file here to install it.": "Farbdesigns, Snippets, Syntax-Grammatiken und Spracheinstellungen funktionieren bei jeder Erweiterung. Der Code von Web-Erweiterungen läuft in einer Sandbox gegen einen Teil der VS-Code-API, und ihre Ansichten werden zu andockbaren Bedienfeldern; Erweiterungen, die Node.js brauchen, steuern nur ihre deklarativen Teile bei. Erweiterungen kommen von Open VSX (open-vsx.org), nicht aus dem Visual Studio Marketplace, dessen Bedingungen seine Erweiterungen nur in Microsoft-Produkten erlauben. Lege hier eine .vsix-Datei ab, um sie zu installieren.",
   "This view could not be loaded.": "Diese Ansicht konnte nicht geladen werden.",
-  "Views": "Ansichten"
+  "Views": "Ansichten",
+  "This browser blocks the storage the sign-in needs during the redirect. Allow site data for OpenFini or use the desktop app.": "Dieser Browser blockiert den Speicher, den die Anmeldung während der Weiterleitung braucht. Erlauben Sie Websitedaten für OpenFini oder verwenden Sie die Desktop-App."
 }

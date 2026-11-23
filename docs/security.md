@@ -20,6 +20,7 @@ someone watching your screen.
 ## OAuth sign-ins (OpenAI account, MCP servers)
 
 * Tokens are stored only in the key vault (sealed with your passphrase when enabled), never in URLs, logs or `localStorage`; the log redaction covers tokens, codes and JWTs. Sign out revokes the refresh token and removes the record.
+* In the browser, the sign-in data that has to survive the redirect to the provider (PKCE verifier, state, client registration; no tokens) is encrypted with a one-time AES-GCM key that cannot be exported: the key object waits in IndexedDB, the ciphertext in this tab's `sessionStorage`, both are removed on return and refused after 15 minutes. This keeps it out of clear text at rest; script running inside OpenFini's own origin could still use the key, which no browser-only design prevents. The desktop app keeps this data in memory only.
 * Desktop callbacks use a one-shot listener on `127.0.0.1` (exact path, loopback `Host` header, exact `state`, two minutes). Another local program that can read your browser history or intercept localhost traffic as your user is not defended against.
 * MCP sign-in refuses authorization servers without PKCE S256, non-https endpoints and metadata for another resource or issuer. A malicious MCP server can still ask you to sign in to its own authorization server: only sign in to servers you trust; tools from MCP servers always ask first in Balanced mode.
 * The OpenAI ID token is not signature-checked in the webview (see [openai-account-auth.md](openai-account-auth.md)); it comes straight from OpenAI's token endpoint over TLS and its claims are checked.
@@ -347,7 +348,17 @@ the check whenever one is updated and update this table.
 (`.github/dependabot.yml`: npm, cargo and GitHub Actions, weekly, grouped); `cargo audit` is not part of CI.
 
 Code scanning (CodeQL for JavaScript, Rust and Actions) runs on every pull request and weekly. Do not dismiss an alert without a
-comment that explains why the code is safe; prefer restructuring so the analysis understands it.
+comment that explains why the code is safe; prefer restructuring so the analysis understands it. The shared helpers for
+the usual findings: `scriptLiteral` (`engine/web/local-serve.js`) for data placed in generated `<script>` code,
+`stripTags` / `stripComments` / `stripElements` (`engine/web/strip.js`, repeat until stable) for markup removed from
+plain text, `sanitizeHtml` (`engine/web/markdown.js`) for HTML that is rendered, and `vibe/oauth-pending.js` for sign-in
+data that must survive a web redirect.
+
+Known intentional finding: `rust/disabled-certificate-check` in `src-tauri/src/netio.rs` (`tls()`). Certificate checks
+are only relaxed for the *probe* connection, which sends nothing and only reads the certificate so you can compare its
+fingerprint, and for a certificate you accepted earlier, which must then match that SHA-256 fingerprint exactly
+(trust on first use for self-signed FTPS / SMTP servers, [ADR 0018](adr/0018-built-in-network-services.md)). Normal
+connections use the system trust store and the host name. These alerts are dismissed as "won't fix" with this reason.
 
 ## What the logs contain
 

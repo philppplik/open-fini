@@ -9,7 +9,7 @@
 // - Preview File…: shows Markdown, SVG, images, PDF, JSON, CSV, text or HTML files that are not part of the project.
 import { h } from "../../core/util.js";
 import { t } from "../../i18n/index.js";
-import { buildPreview, diffStamps, isTextPath, mimeOf, renderMarkdown, standaloneKind, csvToHtml, jsonToHtml, rewriteRefs, fetchShim, validPort, buildDocumentPage, normalizePath } from "../../engine/web/index.js";
+import { buildPreview, diffStamps, isTextPath, mimeOf, renderMarkdown, standaloneKind, csvToHtml, jsonToHtml, rewriteRefs, fetchShimCode, escapeText, escapeAttr, validPort, buildDocumentPage, normalizePath } from "../../engine/web/index.js";
 import { invokeNet, nativeNetAvailable, bytesToBase64 } from "../../platform/native-net.js";
 import { localSources } from "../open-folder.js";
 import { confirmDialog, openDialog } from "../dialogs.js";
@@ -197,9 +197,9 @@ export class LocalPreview {
     const res = buildPreview(this.web.source, page, { makeScriptUrl: (code) => scriptUrl(code), makeAssetUrl: toDataUrl, annotate: false });
     const table = {};
     for (const p of this.web.paths) if (/\.(json|txt|csv|md|xml|svg)$/i.test(p)) table[p] = toDataUrl(p, this.web.bytes(p), mimeOf(p));
-    const shim = fetchShim(table, page).replace(/^<script>([\s\S]*)<\/script>$/, (m, code) => `<script src="${scriptUrl(code)}"></script>`);
+    const shim = `<script src="${escapeAttr(scriptUrl(fetchShimCode(table, page)))}"></script>`;
     const html = res.html.replace(/<head([^>]*)>/i, (m) => m + shim);
-    const wrapper = `<!doctype html><meta charset="utf-8"><title>${page.replace(/</g, "")}</title><style>html,body,iframe{margin:0;border:0;width:100%;height:100%;display:block}</style><iframe sandbox="allow-scripts allow-forms allow-modals allow-popups" srcdoc="${html.replace(/&/g, "&amp;").replace(/"/g, "&quot;")}"></iframe>`;
+    const wrapper = `<!doctype html><meta charset="utf-8"><title>${escapeText(page)}</title><style>html,body,iframe{margin:0;border:0;width:100%;height:100%;display:block}</style><iframe sandbox="allow-scripts allow-forms allow-modals allow-popups" srcdoc="${escapeAttr(html)}"></iframe>`;
     const url = URL.createObjectURL(new Blob([wrapper], { type: "text/html" }));
     window.open(url, "_blank", "noopener");
     setTimeout(() => URL.revokeObjectURL(url), 60000);

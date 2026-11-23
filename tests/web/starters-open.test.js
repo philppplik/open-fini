@@ -31,7 +31,7 @@ test("every starter loads, every local reference resolves, pages parse cleanly",
         assert.deepEqual(parsed.errors.filter((e) => e.severity === "error"), [], `${meta.id}/${path}`);
         for (const ref of localRefsOfHtml(text)) assert.ok(t.files[resolveRef(path, ref).path], `${meta.id}/${path} -> ${ref}`);
         // only the library starters load anything from the network
-        const external = [...text.matchAll(/(?:src|href)="(https?:[^"]+)"/g)].map((m) => m[1]).filter((u) => isExternalRef(u) && !u.startsWith("https://www.openstreetmap.org"));
+        const external = [...text.matchAll(/(?:src|href)="(https?:[^"]+)"/g)].map((m) => m[1]).filter((u) => isExternalRef(u) && new URL(u).hostname !== "www.openstreetmap.org");
         if (!meta.libs) assert.deepEqual(external, [], meta.id);
       }
       if (/\.js$/.test(path)) assert.doesNotThrow(() => new vm.Script(text.replace(/^import .*$/gm, "")), `${meta.id}/${path} has a syntax error`);
