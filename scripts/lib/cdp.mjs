@@ -59,9 +59,12 @@ export async function launchBrowser() {
   if (!exe) throw new Error("No Chrome, Edge or Chromium found. Set CHROME_PATH to the browser executable.");
   const profile = await mkdtemp(join(tmpdir(), "ofini-shots-"));
   const child = spawn(exe, ["--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run",
-    "--no-default-browser-check", "--hide-scrollbars", "--mute-audio", "--force-color-profile=srgb", "about:blank"], { stdio: "ignore" });
+    "--no-default-browser-check", "--hide-scrollbars", "--mute-audio", "--force-color-profile=srgb",
+    // Ubuntu 24.04 runners forbid the unprivileged user namespaces Chrome's sandbox needs; the pages are our own
+    ...(process.platform === "linux" ? ["--no-sandbox"] : []), "about:blank"], { stdio: "ignore" });
   const portFile = join(profile, "DevToolsActivePort");
-  for (let i = 0; i < 100 && !existsSync(portFile); i++) await sleep(100);
+  for (let i = 0; i < 300 && !existsSync(portFile); i++) await sleep(100);
+  if (!existsSync(portFile)) throw new Error(`${exe} did not start (no DevToolsActivePort after 30 s)`);
   const [port, path] = (await readFile(portFile, "utf8")).split(/\r?\n/);
   const cdp = new Cdp(`ws://127.0.0.1:${port}${path}`);
   await cdp.open();

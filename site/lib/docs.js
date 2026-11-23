@@ -74,6 +74,19 @@ export function githubSlug(text) {
     .replace(/\s/g, "-");
 }
 
+/**
+ * Plain text of an HTML fragment (headings, the first paragraph). Tags are stripped until nothing changes and angle
+ * brackets are dropped after decoding, so the result can never form markup (it is escaped again where it is used).
+ */
+export function textOf(html) {
+  let s = String(html);
+  for (let prev = ""; prev !== s; ) {
+    prev = s;
+    s = s.replace(/<[^<>]*>/g, "");
+  }
+  return decode(s).replace(/[<>]/g, "");
+}
+
 const decode = (s) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&");
 
 /**
@@ -128,7 +141,7 @@ export function renderDoc(root, page, docs, pageUrl) {
   const seen = new Map();
   const headings = [];
   let html = r.html.replace(/<h([1-6])>([\s\S]*?)<\/h\1>/g, (m, level, inner) => {
-    const text = decode(inner.replace(/<[^>]+>/g, "")).trim();
+    const text = textOf(inner).trim();
     let id = githubSlug(text) || "section";
     const n = seen.get(id) ?? 0;
     seen.set(id, n + 1);
@@ -140,7 +153,7 @@ export function renderDoc(root, page, docs, pageUrl) {
   const title = headings.find((h) => h.level === 1)?.text || page.slug;
   html = a11yFixes(html);
   const first = /<p>([\s\S]*?)<\/p>/.exec(html);
-  const description = first ? decode(first[1].replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim().slice(0, 180) : title;
+  const description = first ? textOf(first[1]).replace(/\s+/g, " ").trim().slice(0, 180) : title;
   const status = page.group === "adr" || page.group === "concepts" ? /^\s*\**Status:?\**:?\s*\**\s*([^\n.*(—]+)/im.exec(source)?.[1]?.trim() : undefined;
   return { html, title, headings, description, status };
 }

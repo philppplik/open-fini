@@ -20,7 +20,7 @@ function parseArgs(argv) {
     const a = argv[i];
     if (a === "--axe") o.axe = resolve(argv[++i]);
     else if (a === "--dist") o.dist = resolve(argv[++i]);
-    else if (a === "--only") o.only = new RegExp(argv[++i]);
+    else if (a === "--only") o.only = argv[++i]; // a substring of the page path
     else throw new Error(`Unknown argument: ${a}`);
   }
   if (!o.axe) throw new Error("--axe <path to axe.min.js> is required (npm install axe-core into a temporary folder)");
@@ -45,7 +45,7 @@ async function main() {
   const base = `http://127.0.0.1:${server.address().port}`;
   const files = (await htmlFiles(o.dist)).map((f) => relative(o.dist, f).split(sep).join("/").replace(/index\.html$/, ""));
   const targets = files
-    .filter((p) => !o.only || o.only.test(p))
+    .filter((p) => !o.only || p.includes(o.only))
     .flatMap((p) => (/^(de\/)?docs\//.test(p) ? [[p, "light"]] : [[p, "light"], [p, "dark"]]));
   const browser = await launchBrowser();
   let failures = 0;
