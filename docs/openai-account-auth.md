@@ -87,9 +87,27 @@ tokens ("sign in again"), a network error keeps them.
 Flow, MCP: probe the server unauthenticated -> `401` + `WWW-Authenticate` (`resource_metadata`, `scope`) -> discovery
 (refuses servers that do not advertise PKCE S256, non-https endpoints, a `resource` or issuer that does not match) ->
 dynamic registration as a public client (or a manually entered client id via `oauthClientId` on the server record) ->
-authorize with `resource` -> loopback listener (desktop) or redirect back to `?vibe_oauth=mcp` (web/PWA; PKCE verifier
-and state wait in `sessionStorage` only until return) -> token exchange -> `McpClient` sends the bearer token and
-refreshes on 401.
+authorize with `resource` -> loopback listener (desktop) or redirect back to `?vibe_oauth=mcp` (web/PWA; PKCE verifier,
+state and client registration wait sealed until return, see below) -> token exchange -> `McpClient` sends the bearer
+token and refreshes on 401.
+
+### Where secrets wait during a web redirect
+
+The web/PWA sign-ins (MCP servers and OpenRouter) leave the page, so the PKCE verifier, `state` and the client
+registration (which can include a client secret) must survive one navigation. `app/src/vibe/oauth-pending.js` seals them
+with `sealOnce` (`ai/vault.js`): a fresh AES-GCM-256 key generated as *not extractable*, kept as a `CryptoKey` object in
+IndexedDB (`<name>.key`), and the ciphertext in this tab's `sessionStorage` (`<name>`). On return both are deleted before
+decryption; a record older than 15 minutes, sealed with another tab's key, or damaged is refused ("The sign-in
+expired"). If the browser blocks IndexedDB the sign-in stops with a message instead of falling back to clear text.
+
+Trade-offs considered:
+
+| Option | Why not (or why) |
+| --- | --- |
+| Clear JSON in `sessionStorage` (before) | readable on disk in session-restore data and by anything that dumps storage (CodeQL `js/clear-text-storage-of-sensitive-data`) |
+| The vault (`vibeStore.secrets`) | when the passphrase vault or app lock is on, the vault is locked again after the redirect reload, so the record could not be read without asking for the passphrase mid-sign-in |
+| OS keychain | only possible in the desktop app, which never needs it: its loopback flow keeps the record in memory. Tokens there stay in the vault like API keys; moving all vault secrets to the OS keychain is a separate decision (new native dependency) |
+| One-time key in IndexedDB + ciphertext in `sessionStorage` (chosen) | no clear text at rest, one use, short lifetime. It does not protect against script running in OpenFini's own origin, which could call the same key; no browser-only design can |
 
 ## Security notes
 

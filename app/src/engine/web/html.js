@@ -640,3 +640,13 @@ export function escapeAttr(text, quote = '"') {
   const t = String(text).replace(/&/g, "&amp;");
   return quote === "'" ? t.replace(/'/g, "&#39;") : t.replace(/"/g, "&quot;");
 }
+
+/**
+ * Escapes every character that is special anywhere in HTML (& < > " '), for text that is placed into an attribute
+ * holding a whole document (`srcdoc`) or wherever the context is not known.
+ * @param {string} text
+ * @returns {string}
+ */
+export function escapeHtmlAll(text) {
+  return String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}

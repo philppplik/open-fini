@@ -744,7 +744,7 @@ export function minifyText(lang, text, opts) {
       case "html": {
         let out = minifyHtml(src);
         if (o.minifyInlineScripts !== false) {
-          out = out.replace(/(<script\b([^>]*)>)([\s\S]*?)(<\/script\s*>)/gi, (all, open, attrs, body, close) => {
+          out = out.replace(/(<script\b([^>]*)>)([\s\S]*?)(<\/script\b[^>]*>)/gi, (all, open, attrs, body, close) => {
             if (/\bsrc\s*=/i.test(attrs) || !body.trim()) return all;
             const type = (/\btype\s*=\s*["']?([^"'\s>]+)/i.exec(attrs)?.[1] || "").toLowerCase();
             if (type && type !== "module" && !type.includes("javascript")) return all;

@@ -12,6 +12,7 @@
 //                                      removed (its name is returned).
 import { readZip } from "../office/zip.js";
 import { isExternalRef, resolveRef, normalizePath } from "./paths.js";
+import { stripComments } from "./strip.js";
 
 const ATTR = /\s(?:src|href|poster|data-src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi;
 const SRCSET = /\ssrcset\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
@@ -21,7 +22,7 @@ const isLocal = (ref) => !!ref && !isExternalRef(ref) && !/^(#|data:|mailto:|tel
 
 /** @param {string} html */
 export function localRefsOfHtml(html) {
-  const s = String(html ?? "").replace(/<!--[\s\S]*?-->/g, "");
+  const s = stripComments(String(html ?? ""));
   const out = new Set();
   const add = (ref) => {
     const r = String(ref || "").trim().split(/[?#]/)[0];

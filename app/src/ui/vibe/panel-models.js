@@ -6,6 +6,7 @@ import { PROVIDER_PRESETS, createPkce, openRouterAuthUrl, isHttpUrl, badBaseUrlM
 import { promptDialog, confirmDialog } from "../dialogs.js";
 import { platform } from "../../platform/index.js";
 import { iconEl } from "../toolbox.js";
+import { t } from "../../i18n/index.js";
 import { createRoutesCard, createHealthRow } from "./panel-routes.js";
 import { createOllamaTools } from "./ollama-ui.js";
 
@@ -108,7 +109,12 @@ export function createModelsPanel(vs) {
         rows.push(h("button.of-btn", { type: "button", onclick: async () => {
           if (!app.network.allowed("oauth")) return app.toast(app.network.message("oauth"), "warning", 5000);
           const pk = await createPkce();
-          sessionStorage.setItem("vibe.pkce", JSON.stringify(pk));
+          const { savePending, pendingStores } = await import("../../vibe/oauth-pending.js");
+          try {
+            await savePending("vibe.pkce", pk, pendingStores());
+          } catch {
+            return app.toast(t("This browser blocks the storage the sign-in needs during the redirect. Allow site data for OpenFini or use the desktop app."), "warning", 6000);
+          }
           location.href = openRouterAuthUrl({ callbackUrl: `${location.origin}${location.pathname}?vibe_oauth=openrouter`, challenge: pk.challenge });
         } }, iconEl("box-arrow-in-right"), "Sign in with OpenRouter"));
       }

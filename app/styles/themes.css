@@ -71,20 +71,20 @@ sl-switch { --width: 32px; --height: 18px; --thumb-size: 14px; }
 
 .of-themes { display: flex; flex-direction: column; gap: 14px; margin: 2px 0 4px; }
 .of-themes__group { display: flex; flex-direction: column; gap: 8px; }
-.of-themes__group h4 { margin: 0; font-size: 11px; font-weight: 600; color: var(--of-text-dim); }
+.of-themes__group h4 { margin: 0; font-size: var(--of-fs-xs); font-weight: 600; color: var(--of-text-dim); }
 .of-themes__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; }
 .of-theme {
   position: relative; display: flex; flex-direction: column; gap: 8px; padding: 8px; text-align: left;
-  border: 1px solid var(--of-border); border-radius: 10px; background: var(--of-bg-raised); color: var(--of-text); cursor: pointer;
+  border: 1px solid var(--of-border); border-radius: var(--of-radius-card); background: var(--of-bg-raised); color: var(--of-text); cursor: pointer;
   transition: border-color 0.12s, box-shadow 0.12s, transform 0.12s;
 }
 .of-theme:hover { border-color: var(--of-text-faint); }
 .of-theme:focus-visible { outline: 2px solid var(--of-accent); outline-offset: 2px; }
 .of-theme[aria-checked="true"] { border-color: var(--of-accent); box-shadow: 0 0 0 1px var(--of-accent); }
-.of-theme__name { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; }
+.of-theme__name { display: flex; align-items: center; gap: 6px; font-size: var(--of-fs-md); font-weight: 600; }
 .of-theme__name sl-icon { margin-left: auto; color: var(--of-accent); font-size: 14px; opacity: 0; }
 .of-theme[aria-checked="true"] .of-theme__name sl-icon { opacity: 1; }
-.of-theme__desc { font-size: 11px; line-height: 1.35; color: var(--of-text-dim); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.7em; }
+.of-theme__desc { font-size: var(--of-fs-xs); line-height: 1.35; color: var(--of-text-dim); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.7em; }
 /* mini preview of the app chrome, painted with the theme's own colors via local variables */
 .of-theme__pv { display: grid; grid-template-columns: 14% 1fr 28%; grid-template-rows: 15% 1fr; aspect-ratio: 16 / 10; border-radius: 6px; overflow: hidden; border: 1px solid var(--t-border); background: var(--t-app); }
 .of-theme__pv > i { display: block; }
@@ -101,7 +101,7 @@ sl-switch { --width: 32px; --height: 18px; --thumb-size: 14px; }
 .of-theme__pv .pv-dock b { height: 4px; border-radius: 2px; background: var(--t-text); opacity: 0.85; width: 80%; }
 .of-theme__pv .pv-dock b + b { background: var(--t-dim); opacity: 0.7; width: 60%; }
 .of-theme__pv .pv-dock b + b + b { background: var(--t-accent); opacity: 1; width: 40%; }
-.of-themes__more { font-size: 11.5px; color: var(--of-text-dim); }
+.of-themes__more { font-size: var(--of-fs-sm); color: var(--of-text-dim); }
 
 /* code.css asks for the standard thin scrollbar on a few scrollers; in Chromium that would bypass the themed
    ::-webkit-scrollbar rules above, so those scrollers go back to "auto" there. */
