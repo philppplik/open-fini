@@ -157,7 +157,7 @@
 .of-odesign__card.active { border-color: var(--of-accent, #3b82f6); box-shadow: 0 0 0 1px var(--of-accent, #3b82f6); }
 .of-odesign__swatches { display: flex; gap: 3px; }
 .of-odesign__swatches span { width: 18px; height: 12px; border-radius: 2px; border: 1px solid rgba(0, 0, 0, 0.1); }
-.of-odesign__h { margin: 12px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--of-text-dim); }
+.of-odesign__h { margin: 12px 0 6px; font-size: 12px; color: var(--of-text-dim); }
 .of-odesign__tbl { border-collapse: collapse; width: 100%; font-size: 9px; }
 .of-odesign__tbl td { height: 8px; border: 1px solid var(--b, #ccc); }
 .of-oreview__list { list-style: none; margin: 0; padding: 0; max-height: 50vh; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
@@ -185,7 +185,7 @@
 
 /* ---- dialogs */
 .of-onew, .of-oform { display: flex; flex-direction: column; gap: 10px; }
-.of-onew__h { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--of-text-dim); margin: 6px 0 0; }
+.of-onew__h { font-size: 12px; color: var(--of-text-dim); margin: 6px 0 0; }
 .of-onew__templates, .of-onew__sizes { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
 .of-ofield { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--of-text-dim); flex: 1; min-width: 110px; }
 .of-ofield textarea.of-oinput { height: auto; padding: 6px; resize: vertical; }

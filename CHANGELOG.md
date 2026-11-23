@@ -28,6 +28,10 @@ All notable changes to OpenFini are documented here. The format follows
 - Active tabs and list rows use a soft accent tint instead of a one-sided accent line (document, dock, Scene, Code, Office, Collaboration and Diagnostics tabs, settings sidebar).
 - A panel that is reopened (or docks back) returns at its place in the tab order of the panels it is grouped with in the workspace, instead of as the last tab.
 - Desktop: the main window is now created by the app at start-up (same settings as before) so it can open panel windows.
+- Quieter interface ([UI polish audit](docs/concepts/ui-polish-audit.md)): no colored glow under the active studio button and tool, no accent wash behind the start screen, section labels in sentence case instead of uppercase with wide letter spacing, card icons in the text color instead of the accent, one calm hover (surface step) for start-screen, Vibe, Scene and Office cards, lighter headings, a neutral "Thinking…" shimmer, and no one-sided accent bars on the tour invitation, pinned Vibe messages or collaboration mentions.
+
+### Fixed
+- Scene Studio: muted text and hover backgrounds used two undefined color tokens, so secondary text showed at full strength and rows had no hover state.
 
 
 ## [1.2.0] — Docking panels, workspaces, in-app updates

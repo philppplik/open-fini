@@ -13,7 +13,7 @@
 .of-ext-item .of-ext-badge { position: absolute; top: 8px; right: 8px; }
 .of-ext-pane { overflow: auto; padding: 0 4px 12px 2px; min-width: 0; }
 .of-ext-detail h2 { margin: 0; font-size: 16px; }
-.of-ext-detail h3 { margin: 18px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--of-text-dim); }
+.of-ext-detail h3 { margin: 18px 0 6px; font-size: 12px; color: var(--of-text-dim); }
 .of-ext-detail__head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 .of-ext-detail__head small { color: var(--of-text-dim); }
 .of-ext-detail__ctl { display: flex; align-items: center; gap: 10px; flex: none; }
@@ -32,7 +32,7 @@
 
 /* consent */
 .of-ext-consent h3 { margin: 0; font-size: 16px; }
-.of-ext-consent h4 { margin: 14px 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--of-text-dim); }
+.of-ext-consent h4 { margin: 14px 0 6px; font-size: 12px; color: var(--of-text-dim); }
 .of-ext-consent small { color: var(--of-text-dim); }
 .of-ext-consent__src { color: var(--of-text-dim); font-size: 12px; word-break: break-all; }
 .of-ext-consent__warn, .of-ext-warn { padding: 8px 10px; border-radius: var(--of-radius-sm); background: var(--of-bg-input); border: 1px solid var(--of-border-soft); font-size: 12px; }

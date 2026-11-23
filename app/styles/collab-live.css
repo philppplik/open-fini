@@ -14,7 +14,7 @@
 .of-live-bar { position: fixed; z-index: 800; left: 50%; bottom: calc(var(--of-status-h, 24px) + 12px); transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100vw - 32px); padding: 4px 6px 4px 12px; border: 1px solid var(--of-accent); border-radius: 999px; background: var(--of-bg-panel); color: var(--of-text); box-shadow: var(--of-shadow, 0 6px 16px rgba(0, 0, 0, 0.25)); font: 12px/1.3 var(--of-font, system-ui, sans-serif); white-space: nowrap; }
 .of-live-bar > sl-icon { color: var(--of-accent-strong, var(--of-accent)); }
 .of-live-bar__text { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
-.of-live-bar__beta, .of-live-bar__note { font-size: 10.5px; padding: 1px 6px; border-radius: 999px; background: var(--of-accent-soft, var(--of-hover)); color: var(--of-text); text-transform: uppercase; letter-spacing: 0.04em; }
+.of-live-bar__beta, .of-live-bar__note { font-size: 11px; padding: 1px 6px; border-radius: 999px; background: var(--of-accent-soft, var(--of-hover)); color: var(--of-text); }
 .of-live-bar__note { background: color-mix(in srgb, var(--of-danger, #e5484d) 16%, transparent); text-transform: none; letter-spacing: 0; }
 .of-live-bar .of-collab-btn { padding: 2px 8px; border-radius: 999px; }
 

@@ -71,7 +71,7 @@ sl-switch { --width: 32px; --height: 18px; --thumb-size: 14px; }
 
 .of-themes { display: flex; flex-direction: column; gap: 14px; margin: 2px 0 4px; }
 .of-themes__group { display: flex; flex-direction: column; gap: 8px; }
-.of-themes__group h4 { margin: 0; font-size: 11px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--of-text-dim); }
+.of-themes__group h4 { margin: 0; font-size: 11px; font-weight: 600; color: var(--of-text-dim); }
 .of-themes__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 10px; }
 .of-theme {
   position: relative; display: flex; flex-direction: column; gap: 8px; padding: 8px; text-align: left;

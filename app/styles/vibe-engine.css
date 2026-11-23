@@ -60,7 +60,7 @@
 .of-vskill small { display: block; color: var(--of-text-dim); font-size: 11.5px; line-height: 1.4; }
 .of-vskill__meta { color: var(--of-text-faint) !important; font-size: 10.5px !important; }
 .of-vskill__actions { display: flex; gap: 4px; align-items: center; align-self: start; flex-wrap: wrap; justify-content: flex-end; }
-.of-badge { display: inline-block; padding: 0 6px; font-size: 10px; line-height: 16px; border-radius: 999px; background: var(--of-hover); color: var(--of-text-dim); text-transform: uppercase; letter-spacing: 0.03em; }
+.of-badge { display: inline-block; padding: 0 6px; font-size: 11px; line-height: 16px; border-radius: 999px; background: var(--of-hover); color: var(--of-text-dim); }
 .of-badge.builtin { background: color-mix(in srgb, var(--of-accent) 14%, transparent); color: var(--of-text); }
 .of-badge.user { background: color-mix(in srgb, var(--of-ok) 16%, transparent); color: var(--of-text); }
 .of-badge.draft { background: color-mix(in srgb, var(--of-warn, #b45309) 18%, transparent); color: var(--of-text); }

@@ -32,7 +32,7 @@
 /* ---- invitations (never modal) */
 .of-nudge {
   position: fixed; z-index: 5500; right: 16px; bottom: calc(var(--of-status-h, 26px) + 14px); width: min(320px, calc(100vw - 32px)); padding: 14px 16px 10px;
-  background: var(--of-bg-raised); color: var(--of-text); border: 1px solid var(--of-border); border-left: 3px solid var(--of-accent); border-radius: 10px; box-shadow: var(--of-shadow);
+  background: var(--of-bg-raised); color: var(--of-text); border: 1px solid var(--of-border); border-radius: 10px; box-shadow: var(--of-shadow);
   animation: of-nudge-in 0.22s ease;
 }
 .of-nudge strong { font-size: 13.5px; }
@@ -65,7 +65,7 @@ html.of-whatsthis, html.of-whatsthis * { cursor: help !important; }
 .of-tip__desc { flex-basis: 100%; display: block; margin-top: 3px; max-width: 230px; font-size: 11px; line-height: 1.4; opacity: 0.8; white-space: normal; }
 
 /* ---- command palette extras (base styles are in code.css) */
-.of-palette__section { padding: 8px 10px 3px; font: 650 10.5px var(--of-font); letter-spacing: 0.07em; text-transform: uppercase; color: var(--of-text-faint); }
+.of-palette__section { padding: 8px 10px 3px; font: 600 11px var(--of-font); color: var(--of-text-faint); }
 .of-palette__tag { margin-left: auto; padding: 1px 7px; border-radius: 999px; background: var(--of-hover); color: var(--of-text-dim); font-size: 10.5px; flex: none; }
 .of-palette__tag + .of-palette__hint { margin-left: 0; }
 .of-palette__item.active .of-palette__tag { background: color-mix(in srgb, var(--of-on-accent) 18%, transparent); color: var(--of-on-accent); }

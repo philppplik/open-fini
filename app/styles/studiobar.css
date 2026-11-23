@@ -87,6 +87,6 @@ sl-dropdown[open] > .of-studio--more:not(.active) { color: var(--of-text); backg
 .of-studiopick__move:hover:not(:disabled) { background: var(--of-hover); color: var(--of-text); }
 .of-studiopick__move:disabled { opacity: 0.3; cursor: default; }
 .of-studiopick__check input { width: 16px; height: 16px; accent-color: var(--of-accent); cursor: pointer; }
-.of-studiopick__sub { margin: 14px 0 6px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--of-text-faint); }
+.of-studiopick__sub { margin: 14px 0 6px; font-size: 11px; color: var(--of-text-faint); }
 .of-studiopick__msg { min-height: 1.4em; margin: 0 0 8px; font-size: 12.5px; }
 .of-studiopick__msg.is-warning { color: var(--of-warning, #e0a030); }
