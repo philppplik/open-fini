@@ -36,15 +36,19 @@ describe("vscode manifest", () => {
 
     const grammar = norm({ contributes: { snippets: [{ language: "js", path: "s.json" }], grammars: [{ language: "x", scopeName: "source.x", path: "x.tmLanguage.json" }] } });
     const g = compatibility(grammar);
-    assert.equal(g.level, "partial");
-    assert.match(g.label, /TextMate/);
+    assert.equal(g.level, "full", "TextMate grammars are highlighted now");
+    assert.ok(g.declarative.includes("1 syntax grammar"));
+    const icons = compatibility(norm({ contributes: { snippets: [{ language: "js", path: "s.json" }], iconThemes: [{ id: "i", path: "i.json" }] } }));
+    assert.equal(icons.level, "partial");
+    assert.match(icons.label, /file icon themes/);
 
     const web = norm({ browser: "./dist/web.js", contributes: { commands: [{ command: "a", title: "A" }] } });
     assert.equal(compatibility(web, { code: "const v=require('vscode');v.window.showInformationMessage('x')" }).level, "full");
-    const webBad = compatibility(web, { code: "n.window.createWebviewPanel(1);n.debug.registerDebugAdapterDescriptorFactory()" });
+    assert.equal(compatibility(web, { code: "n.window.createWebviewPanel(1);n.window.registerTreeDataProvider('a',p);n.window.createQuickPick()" }).level, "full", "webviews, tree views and quick picks are implemented");
+    const webBad = compatibility(web, { code: "n.window.createTerminal(1);n.debug.registerDebugAdapterDescriptorFactory()" });
     assert.equal(webBad.level, "partial");
-    assert.deepEqual(webBad.apis, ["debug.registerDebugAdapterDescriptorFactory", "window.createWebviewPanel"]);
-    assert.match(webBad.label, /uses unsupported APIs: debug\.register.*window\.createWebviewPanel/);
+    assert.deepEqual(webBad.apis, ["debug.registerDebugAdapterDescriptorFactory", "window.createTerminal"]);
+    assert.match(webBad.label, /uses unsupported APIs: debug\.register.*window\.createTerminal/);
 
     const node = norm({ main: "./out/ext.js", contributes: { commands: [{ command: "a", title: "A" }] } });
     const n = compatibility(node, { names: ["bin/x.node"] });

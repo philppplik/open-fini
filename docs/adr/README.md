@@ -36,3 +36,4 @@ in place and are marked as such.
 | [0031](0031-launch-screen.md) | Launch screen: an inline card for the web, a separate splash window on the desktop | Accepted |
 | [0032](0032-ofini-cli.md) | The `ofini` command line tool reuses the pure engine modules in Node; rendering stays in the app | Accepted |
 | [0033](0033-docking-layout.md) | Docking layout with our own small engine: a pure layout tree plus a DOM renderer | Accepted |
+| [0034](0034-proto-studio.md) | Proto Studio: UI design and prototyping on a real HTML and CSS canvas, one operation layer for editor, Vibe, MCP and CLI | Proposed |

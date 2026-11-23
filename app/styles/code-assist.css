@@ -32,7 +32,7 @@
 .of-synset { display: grid; gap: 10px; }
 .of-synset__head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .of-synset__head sl-select { min-width: 240px; flex: 1; }
-.of-synset__group { display: block; padding: 6px 12px 2px; color: var(--of-text-faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+.of-synset__group { display: block; padding: 6px 12px 2px; color: var(--of-text-faint); font-size: var(--of-fs-xs); }
 .of-synsample { margin: 0; padding: 10px 12px; border-radius: var(--of-radius); border: 1px solid; font: 12px/1.6 var(--of-mono); overflow-x: auto; white-space: pre; }
 .of-synset__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 12px; }
 .of-synset__slot { display: flex; align-items: center; gap: 6px; min-height: 26px; color: var(--of-text-dim); }

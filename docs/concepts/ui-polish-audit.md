@@ -56,7 +56,7 @@ Severity: **High** is visible on every screen or breaks something, **Medium** is
 | M3 | Cards lift on hover (`translateY(-2px)`) and turn the border accent | start screen cards | Fixed: surface step and a quieter border; the same hover now on Vibe ideas, Scene start and Office launcher cards |
 | M4 | One-sided accent bars left over after #129: onboarding invitation, pinned Vibe messages, collaboration mentions | `onboarding.css`, `vibe-ui.css`, `vibe-bubbles.css`, `collab.css` | Fixed: hairline ring or soft tint |
 | M5 | Heavy headings (700) on the start screen, default bold on the Vibe, Scene and Office titles | `.of-welcome h1`, `.of-vempty h1`, `.of-scene-start h2`, `.of-launch__head h1` | Fixed: 600 with slight tracking on display sizes |
-| M6 | Uppercase tracked labels in the Code studio (sidebar titles, bottom tabs, add categories, style sections, template and library groups) | `app/styles/code.css`, `code-frameworks.css`, `code-assist.css` | Open (S), held back while the Code studio is being changed |
+| M6 | Uppercase tracked labels in the Code studio (sidebar titles, bottom tabs, add categories, style sections, template and library groups) | `app/styles/code.css`, `code-frameworks.css`, `code-assist.css` | Fixed |
 | M7 | Office templates show an empty box with a 24 px glyph as the "thumbnail", twenty times in a grid: reads as placeholder card soup | `app/src/office/` launcher, `.of-launch__tplthumb` | Fixed |
 | M8 | The type scale has 25 font sizes, including 10.5, 11.5, 12.5, 13.5 and 16.5 px (148 × 12 px, 63 × 12.5 px, 58 × 11.5 px) | all `app/styles/*.css` | Fixed |
 | M9 | Font weights 550, 560, 620 and 650 next to 600 and 700 | all `app/styles/*.css` | Fixed |

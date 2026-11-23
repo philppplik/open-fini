@@ -170,12 +170,12 @@ function vscodeRuntime() {
       }
       static file(p) { return new U("file", "", `/${String(p).replace(/\\/g, "/").replace(/^\/+/, "")}`); }
       static joinPath(base, ...parts) {
-        const segs = base.path.split("/");
+        const segs = base.path.split("/").filter(Boolean);
         for (const p of parts.join("/").split("/")) {
           if (p === "..") segs.pop();
           else if (p && p !== ".") segs.push(p);
         }
-        return base.with({ path: segs.join("/").replace(/^(?!\/)/, "/") });
+        return base.with({ path: `/${segs.join("/")}` });
       }
       static from(c) { return new U(c.scheme, c.authority, c.path, c.query, c.fragment); }
       static isUri(x) { return x instanceof U; }
@@ -560,6 +560,43 @@ function vscodeRuntime() {
         return null;
       case "ping":
         return "pong";
+      case "tree.children":
+        return treeChildren(String(p.viewId), p.parent || null);
+      case "tree.select": {
+        const t = trees.get(String(p.viewId));
+        const el = t?.elements.get(p.handle);
+        if (t && el !== undefined) {
+          t.view.selection = [el];
+          t.view._sel.fire({ selection: [el] });
+        }
+        return null;
+      }
+      case "view.visible": {
+        const t = trees.get(String(p.viewId));
+        if (t) {
+          t.view.visible = !!p.visible;
+          t.view._vis.fire({ visible: !!p.visible });
+        }
+        return null;
+      }
+      case "webviewView.resolve": {
+        const provider = webviewViews.get(String(p.viewId));
+        if (!provider) return false;
+        const handle = String(p.handle);
+        const webview = new Webview(handle, {});
+        const onDispose = new EventEmitter();
+        const view = { viewType: String(p.viewId), webview, title: undefined, description: undefined, badge: undefined, visible: true, show: () => call("view.reveal", { viewId: String(p.viewId) }).catch(() => {}), onDidDispose: onDispose.event, onDidChangeVisibility: new EventEmitter().event, _disposed: () => onDispose.fire() };
+        panels.set(handle, view);
+        await provider.resolveWebviewView(view, { state: undefined }, token());
+        return true;
+      }
+      case "webview.message":
+        webviews.get(String(p.handle))?._msg.fire(p.message);
+        return null;
+      case "webview.disposed":
+        panels.get(String(p.handle))?._disposed();
+        webviews.delete(String(p.handle));
+        return null;
       default:
         throw new Error(`Unknown host call ${m}`);
     }
@@ -609,9 +646,172 @@ function vscodeRuntime() {
     channels.set(ch.name, ch);
     return ch;
   };
-  const statusItem = () => {
-    const it = { text: "", tooltip: "", command: undefined, color: undefined, backgroundColor: undefined, alignment: 1, priority: 0, name: "", show: () => call("window.status", { text: String(it.text), item: true }).catch(() => {}), hide: () => call("window.status", { text: "", item: true }).catch(() => {}), dispose: () => it.hide() };
+  // status bar items: real items in OpenFini's status bar (shown while the Code studio is open); property changes are
+  // sent once per microtask
+  const statusItem = (a, b, c) => {
+    const id = typeof a === "string" ? a : `item${++handles}`;
+    const alignment = typeof a === "string" ? b : a;
+    const priority = typeof a === "string" ? c : b;
+    const st = { text: "", tooltip: "", command: undefined, color: undefined, backgroundColor: undefined, name: "", accessibilityInformation: undefined };
+    let visible = false;
+    let queued = false;
+    const push = () => {
+      if (queued) return;
+      queued = true;
+      queueMicrotask(() => {
+        queued = false;
+        const cmd = typeof st.command === "string" ? { command: st.command, arguments: [] } : wireCommand(st.command);
+        call("status.item", { id, visible, text: String(st.text ?? ""), tooltip: md(st.tooltip), command: cmd, alignment: alignment === 2 ? "right" : "left", priority: typeof priority === "number" ? priority : 0, name: String(st.name || ""), kind: st.backgroundColor?.id === "statusBarItem.errorBackground" ? "error" : st.backgroundColor?.id === "statusBarItem.warningBackground" ? "warning" : "" }).catch(() => {});
+      });
+    };
+    const it = { id, alignment: alignment === 2 ? 2 : 1, priority, show: () => ((visible = true), push()), hide: () => ((visible = false), push()), dispose: () => ((visible = false), push()) };
+    for (const k of Object.keys(st)) Object.defineProperty(it, k, { enumerable: true, get: () => st[k], set: (v) => ((st[k] = v), visible && push()) });
     return it;
+  };
+
+  // ---------------------------------------------------------------- tree views (native rows in a dockable panel)
+  const trees = new Map(); // viewId -> { provider, elements: Map(handle -> element), view }
+  class TreeItem {
+    constructor(labelOrUri, collapsibleState = 0) {
+      if (Uri.isUri(labelOrUri)) this.resourceUri = labelOrUri;
+      else this.label = labelOrUri;
+      this.collapsibleState = collapsibleState;
+    }
+  }
+  const iconOf = (ic) => (!ic ? null : ic instanceof ThemeIcon ? { theme: String(ic.id) } : Uri.isUri(ic) || typeof ic === "string" ? { uri: String(ic) } : ic.dark || ic.light ? { uri: String(ic.dark || ic.light) } : null);
+  async function treeChildren(viewId, parent) {
+    const t = trees.get(viewId);
+    if (!t) return [];
+    const el = parent ? t.elements.get(parent) : undefined;
+    if (parent && el === undefined) return [];
+    const kids = (await t.provider.getChildren(el)) || [];
+    const out = [];
+    for (const k of kids.slice(0, 2000)) {
+      const item = await t.provider.getTreeItem(k);
+      const handle = `${viewId}/${++handles}`;
+      t.elements.set(handle, k);
+      const label = typeof item.label === "string" ? item.label : item.label?.label ?? (item.resourceUri ? item.resourceUri.path.split("/").pop() : "");
+      out.push({ handle, label: String(label), description: typeof item.description === "string" ? item.description : "", tooltip: md(item.tooltip), collapsible: item.collapsibleState | 0, icon: iconOf(item.iconPath), command: wireCommand(item.command), contextValue: String(item.contextValue || "") });
+    }
+    return out;
+  }
+  function treeView(viewId, o = {}) {
+    const provider = o.treeDataProvider;
+    if (!provider || typeof provider.getChildren !== "function" || typeof provider.getTreeItem !== "function") throw new TypeError("A tree view needs a treeDataProvider with getChildren and getTreeItem.");
+    const onVis = new EventEmitter();
+    const onSel = new EventEmitter();
+    const st = { title: undefined, description: undefined, message: undefined, badge: undefined };
+    const view = {
+      visible: false,
+      selection: [],
+      onDidChangeVisibility: onVis.event,
+      onDidChangeSelection: onSel.event,
+      onDidExpandElement: new EventEmitter().event,
+      onDidCollapseElement: new EventEmitter().event,
+      onDidChangeCheckboxState: new EventEmitter().event,
+      reveal: () => call("view.reveal", { viewId }).then(() => undefined),
+      dispose: () => trees.delete(viewId),
+      _vis: onVis,
+      _sel: onSel,
+    };
+    for (const k of Object.keys(st)) Object.defineProperty(view, k, { enumerable: true, get: () => st[k], set: (v) => { st[k] = v; call("view.update", { viewId, title: st.title ?? null, description: st.description ?? null, message: st.message ?? null, badge: st.badge ? { value: st.badge.value | 0, tooltip: String(st.badge.tooltip || "") } : null }).catch(() => {}); } });
+    trees.set(viewId, { provider, elements: new Map(), view });
+    provider.onDidChangeTreeData?.(() => call("view.refresh", { viewId }).catch(() => {}));
+    call("view.register", { viewId, kind: "tree" }).catch((e) => log("warn", e.message));
+    return view;
+  }
+
+  // ---------------------------------------------------------------- webviews (sandboxed frames in dockable panels)
+  const webviews = new Map(); // handle -> webview
+  class Webview {
+    constructor(handle, options = {}) {
+      this._h = handle;
+      this._html = "";
+      this.options = options || {};
+      this.cspSource = "data:"; // extension files are inlined as data: URIs by the host
+      this._msg = new EventEmitter();
+      this.onDidReceiveMessage = this._msg.event;
+      webviews.set(handle, this);
+    }
+    get html() { return this._html; }
+    set html(v) {
+      this._html = String(v ?? "");
+      call("webview.html", { handle: this._h, html: this._html, scripts: this.options.enableScripts !== false }).catch((e) => log("warn", e.message));
+    }
+    postMessage(m) {
+      return call("webview.post", { handle: this._h, message: JSON.parse(JSON.stringify(m ?? null)) }).then(() => true, () => false);
+    }
+    asWebviewUri(uri) { return uri; }
+  }
+  const panels = new Map(); // handle -> panel or view (dispose/visibility events)
+  function webviewPanel(viewType, title, show, options) {
+    const handle = `wv${++handles}`;
+    const webview = new Webview(handle, options);
+    const onDispose = new EventEmitter();
+    const onState = new EventEmitter();
+    let t = String(title || viewType);
+    const panel = {
+      viewType: String(viewType),
+      webview,
+      options: options || {},
+      active: true,
+      visible: true,
+      viewColumn: 1,
+      iconPath: undefined,
+      get title() { return t; },
+      set title(v) { t = String(v); call("webview.title", { handle, title: t }).catch(() => {}); },
+      onDidDispose: onDispose.event,
+      onDidChangeViewState: onState.event,
+      reveal: () => call("view.reveal", { handle }).catch(() => {}),
+      dispose() {
+        if (!webviews.has(handle)) return;
+        webviews.delete(handle);
+        panels.delete(handle);
+        call("webview.dispose", { handle }).catch(() => {});
+        onDispose.fire();
+      },
+      _disposed: () => {
+        webviews.delete(handle);
+        panels.delete(handle);
+        onDispose.fire();
+      },
+    };
+    panels.set(handle, panel);
+    call("webview.panel", { handle, viewType: panel.viewType, title: t }).catch((e) => log("warn", e.message));
+    return panel;
+  }
+  const webviewViews = new Map(); // viewId -> provider
+  const quickInput = (kind) => {
+    const ev = { accept: new EventEmitter(), hide: new EventEmitter(), value: new EventEmitter(), sel: new EventEmitter(), active: new EventEmitter(), button: new EventEmitter(), itemButton: new EventEmitter() };
+    const q = {
+      title: undefined, step: undefined, totalSteps: undefined, enabled: true, busy: false, ignoreFocusOut: false, value: "", placeholder: "", prompt: "", password: false, validationMessage: undefined,
+      items: [], activeItems: [], selectedItems: [], canSelectMany: false, matchOnDescription: false, matchOnDetail: false, keepScrollPosition: false, buttons: [],
+      onDidAccept: ev.accept.event, onDidHide: ev.hide.event, onDidChangeValue: ev.value.event, onDidChangeSelection: ev.sel.event, onDidChangeActive: ev.active.event, onDidTriggerButton: ev.button.event, onDidTriggerItemButton: ev.itemButton.event,
+      show() {
+        // shown on the next task, so items and properties set right after show() (the usual pattern) are included
+        setTimeout(async () => {
+          if (kind === "pick") {
+            const arr = q.items.slice(0, 500);
+            const res = await call("window.pick", { items: arr.map(toPickItem), placeHolder: String(q.placeholder || q.title || ""), canPickMany: !!q.canSelectMany }).catch(() => null);
+            if (res === null || res === undefined) return ev.hide.fire();
+            q.selectedItems = q.canSelectMany ? res.map((i) => arr[i]).filter(Boolean) : [arr[res]].filter(Boolean);
+            q.activeItems = q.selectedItems.slice(0, 1);
+            ev.sel.fire(q.selectedItems);
+            ev.active.fire(q.activeItems);
+            ev.accept.fire();
+          } else {
+            const v = await call("window.input", { prompt: String(q.prompt || q.title || ""), value: String(q.value || ""), placeHolder: String(q.placeholder || ""), password: !!q.password, title: String(q.title || "") }).catch(() => null);
+            if (v === null || v === undefined) return ev.hide.fire();
+            q.value = v;
+            ev.value.fire(v);
+            ev.accept.fire();
+          }
+        }, 0);
+      },
+      hide: () => ev.hide.fire(),
+      dispose() {},
+    };
+    return q;
   };
   const toPickItem = (x) => (typeof x === "string" ? { label: x } : { label: String(x?.label ?? ""), description: x?.description ? String(x.description) : "", detail: x?.detail ? String(x.detail) : "", picked: !!x?.picked });
 
@@ -665,6 +865,20 @@ function vscodeRuntime() {
       }
     },
     createTextEditorDecorationType: () => ({ key: `deco${++handles}`, dispose() {} }),
+    createQuickPick: () => quickInput("pick"),
+    createInputBox: () => quickInput("input"),
+    registerTreeDataProvider(viewId, provider) {
+      const v = treeView(String(viewId), { treeDataProvider: provider });
+      return new Disposable(() => v.dispose());
+    },
+    createTreeView: (viewId, o) => treeView(String(viewId), o || {}),
+    createWebviewPanel: (viewType, title, show, options) => webviewPanel(viewType, title, show, options),
+    registerWebviewViewProvider(viewId, provider) {
+      if (!provider || typeof provider.resolveWebviewView !== "function") throw new TypeError("A webview view provider needs resolveWebviewView.");
+      webviewViews.set(String(viewId), provider);
+      call("view.register", { viewId: String(viewId), kind: "webview" }).catch((e) => log("warn", e.message));
+      return new Disposable(() => webviewViews.delete(String(viewId)));
+    },
   };
 
   const fs = {
@@ -772,7 +986,8 @@ function vscodeRuntime() {
     },
     async executeCommand(id, ...args) {
       if (commands.has(id)) return commands.get(id)(...args);
-      if (id === "setContext") return undefined;
+      if (id === "setContext") return undefined; // `when` clauses are not evaluated: every contributed command and view is shown
+      if (typeof id === "string" && id.endsWith(".focus") && (trees.has(id.slice(0, -6)) || webviewViews.has(id.slice(0, -6)))) return call("view.reveal", { viewId: id.slice(0, -6) }).then(() => undefined);
       if (id === "vscode.open" || id === "vscode.openFolder") throw unsupported(`commands.executeCommand("${id}")`);
       if (BUILTIN[id]) return call("commands.execute", { id: BUILTIN[id] });
       throw unsupported(`commands.executeCommand("${id}")`);
@@ -815,7 +1030,10 @@ function vscodeRuntime() {
   const api = {
     version: CFG.compatVersion,
     Disposable, EventEmitter, Position, Range, Selection, TextEdit, SnippetString, Uri, WorkspaceEdit, MarkdownString, CompletionItem, CompletionList, Hover, Diagnostic, CodeAction, CodeActionKind, ThemeColor, ThemeIcon, CancellationTokenSource,
-    CompletionItemKind,
+    CompletionItemKind, TreeItem,
+    TreeItemCollapsibleState: enumOf(["None", "Collapsed", "Expanded"]),
+    QuickPickItemKind: Object.freeze({ Separator: -1, Default: 0 }),
+    QuickInputButtons: Object.freeze({ Back: { iconPath: new ThemeIcon("arrow-left") } }),
     CompletionTriggerKind: enumOf(["Invoke", "TriggerCharacter", "TriggerForIncompleteCompletions"]),
     DiagnosticSeverity: enumOf(["Error", "Warning", "Information", "Hint"]),
     LanguageStatusSeverity: enumOf(["Information", "Warning", "Error"]),

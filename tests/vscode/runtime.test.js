@@ -109,7 +109,7 @@ describe("vscode API shim", () => {
   it("reports and refuses unsupported APIs with a helpful error", async () => {
     const code = `const vscode = require("vscode");
 exports.activate = async () => {
-  try { vscode.window.createWebviewPanel("x", "y", 1); } catch (e) { globalThis.err1 = e.message; }
+  try { vscode.window.createTerminal("x"); } catch (e) { globalThis.err1 = e.message; }
   try { vscode.debug.startDebugging(); } catch (e) { globalThis.err2 = e.message; }
   try { require("child_process"); } catch (e) { globalThis.err3 = e.message; }
   try { await vscode.workspace.fs.writeFile(vscode.Uri.file("a"), new Uint8Array()); } catch (e) { globalThis.err4 = e.message; }
@@ -117,13 +117,13 @@ exports.activate = async () => {
 };`;
     const f = frame(code);
     assert.equal((await f.ready).error, undefined);
-    assert.match(f.ctx.err1, /vscode\.window\.createWebviewPanel is not supported in OpenFini/);
+    assert.match(f.ctx.err1, /vscode\.window\.createTerminal is not supported in OpenFini/);
     assert.match(f.ctx.err2, /vscode\.debug\.startDebugging is not supported/);
     assert.match(f.ctx.err3, /without Node\.js/);
     assert.match(f.ctx.err4, /read-only/);
     assert.equal(f.ctx.thenable, "undefined", "the module is not mistaken for a promise");
     const reported = f.requests.filter((r) => r.m === "api.unsupported").map((r) => r.p.api);
-    assert.ok(reported.includes("window.createWebviewPanel") && reported.includes("debug.startDebugging"));
+    assert.ok(reported.includes("window.createTerminal") && reported.includes("debug.startDebugging"));
   });
 
   it("blocks fetch unless the user allowed the origin", async () => {
@@ -159,5 +159,93 @@ exports.activate = () => {};`);
   it("reports activation errors instead of hanging", async () => {
     const f = frame(`exports.activate = () => { throw new Error("boom"); };`);
     assert.match((await f.ready).error, /boom/);
+  });
+
+  it("tree views: the host asks for children, items carry labels, icons and commands, refresh is forwarded", async () => {
+    const code = `const vscode = require("vscode");
+exports.activate = (ctx) => {
+  const changed = new vscode.EventEmitter();
+  const provider = {
+    onDidChangeTreeData: changed.event,
+    getChildren: (el) => (el ? [el + ".1", el + ".2"] : ["a", "b"]),
+    getTreeItem: (el) => {
+      const it = new vscode.TreeItem(el, el.includes(".") ? vscode.TreeItemCollapsibleState.None : vscode.TreeItemCollapsibleState.Collapsed);
+      it.description = "d-" + el;
+      it.iconPath = new vscode.ThemeIcon("file");
+      it.command = { command: "toy.open", title: "Open", arguments: [el] };
+      return it;
+    },
+  };
+  const view = vscode.window.createTreeView("toy.view", { treeDataProvider: provider });
+  view.message = "Hello";
+  globalThis.fire = () => changed.fire();
+  vscode.commands.registerCommand("toy.open", (x) => (globalThis.opened = x));
+};`;
+    const f = frame(code);
+    assert.equal((await f.ready).error, undefined);
+    assert.ok(f.requests.some((r) => r.m === "view.register" && r.p.viewId === "toy.view" && r.p.kind === "tree"));
+    const roots = await f.invoke("tree.children", { viewId: "toy.view", parent: null });
+    assert.deepEqual(roots.map((r) => [r.label, r.description, r.collapsible, r.icon.theme, r.command.command]), [["a", "d-a", 1, "file", "toy.open"], ["b", "d-b", 1, "file", "toy.open"]]);
+    const kids = await f.invoke("tree.children", { viewId: "toy.view", parent: roots[0].handle });
+    assert.deepEqual(kids.map((k) => [k.label, k.collapsible]), [["a.1", 0], ["a.2", 0]]);
+    await new Promise((r) => setTimeout(r, 10));
+    assert.ok(f.requests.some((r) => r.m === "view.update" && r.p.message === "Hello"));
+    f.ctx.fire();
+    await new Promise((r) => setTimeout(r, 10));
+    assert.ok(f.requests.some((r) => r.m === "view.refresh"));
+    await f.invoke("command.run", { id: "toy.open", args: ["a.2"] });
+    assert.equal(f.ctx.opened, "a.2");
+  });
+
+  it("webview panels and webview views: html, messages both ways, dispose", async () => {
+    const code = `const vscode = require("vscode");
+exports.activate = (ctx) => {
+  const p = vscode.window.createWebviewPanel("toy.preview", "Preview", vscode.ViewColumn.One, { enableScripts: true });
+  const media = vscode.Uri.joinPath(ctx.extensionUri, "media", "main.js");
+  p.webview.html = "<html><head></head><body><script src='" + p.webview.asWebviewUri(media) + "'></script></body></html>";
+  p.webview.onDidReceiveMessage((m) => { globalThis.got = m; p.webview.postMessage({ echo: m }); });
+  p.onDidDispose(() => (globalThis.disposed = true));
+  vscode.window.registerWebviewViewProvider("toy.side", { resolveWebviewView(view) { view.webview.html = "<p>side</p>"; globalThis.resolved = true; } });
+};`;
+    const f = frame(code);
+    assert.equal((await f.ready).error, undefined);
+    await new Promise((r) => setTimeout(r, 10));
+    const panel = f.requests.find((r) => r.m === "webview.panel");
+    assert.equal(panel.p.title, "Preview");
+    const html = f.requests.find((r) => r.m === "webview.html" && r.p.handle === panel.p.handle);
+    assert.match(html.p.html, /openfini-ext:\/\/pub\.ext\/media\/main\.js/);
+    await f.invoke("webview.message", { handle: panel.p.handle, message: { hi: 1 } });
+    await new Promise((r) => setTimeout(r, 10));
+    assert.deepEqual(f.ctx.got, { hi: 1 });
+    assert.ok(f.requests.some((r) => r.m === "webview.post" && r.p.message.echo.hi === 1));
+    assert.equal(await f.invoke("webviewView.resolve", { viewId: "toy.side", handle: "view:toy.side" }), true);
+    assert.equal(f.ctx.resolved, true);
+    assert.ok(f.requests.some((r) => r.m === "webview.html" && r.p.handle === "view:toy.side"));
+    await f.invoke("webview.disposed", { handle: panel.p.handle });
+    assert.equal(f.ctx.disposed, true);
+  });
+
+  it("status bar items, quick pick and input box objects", async () => {
+    const code = `const vscode = require("vscode");
+exports.activate = () => {
+  const s = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 5);
+  s.text = "$(sync~spin) Syncing";
+  s.command = "toy.sync";
+  s.show();
+  const qp = vscode.window.createQuickPick();
+  qp.onDidAccept(() => (globalThis.picked = qp.selectedItems.map((i) => i.label)));
+  qp.show();
+  qp.items = [{ label: "one" }, { label: "two" }];
+  const ib = vscode.window.createInputBox();
+  ib.onDidAccept(() => (globalThis.typed = ib.value));
+  ib.show();
+};`;
+    const f = frame(code, { handlers: { "window.pick": () => 1, "window.input": () => "hello" } });
+    assert.equal((await f.ready).error, undefined);
+    await new Promise((r) => setTimeout(r, 30));
+    const st = f.requests.find((r) => r.m === "status.item");
+    assert.deepEqual([st.p.text, st.p.alignment, st.p.priority, st.p.visible, st.p.command.command], ["$(sync~spin) Syncing", "right", 5, true, "toy.sync"]);
+    assert.equal(JSON.stringify(f.ctx.picked), JSON.stringify(["two"]), "items set after show() are offered");
+    assert.equal(f.ctx.typed, "hello");
   });
 });
