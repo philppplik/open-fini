@@ -709,7 +709,7 @@ class CollabController {
   async shareDoc(doc) {
     if (!doc) return;
     const s = this.#requireRoom("file-offer");
-    const bytes = await saveOfini(doc);
+    const bytes = await saveOfini(doc, { embedMedia: true }); // a copy for other people: referenced media goes inside
     const name = `${(doc.name || "Document").replace(/[\\/:*?"<>|]+/g, "_")}.ofini`;
     const info = await s.sendFile(bytes, { name, purpose: "doc", doc: doc.id, note: doc.name });
     await s.chat("", { file: { fid: info.fid, name: info.name, mime: info.mime, size: info.size } }).catch(() => {});

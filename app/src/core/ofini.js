@@ -31,10 +31,20 @@ async function bytesToCanvas(bytes, mime = "image/png") {
   return c;
 }
 
-/** Serializes a document to .ofini bytes. */
-export async function saveOfini(doc) {
+/**
+ * Serializes a document to .ofini bytes. `embedMedia`: referenced Scene media (core/office.js) is written into the
+ * file and its paths dropped, for copies that leave this computer (sharing, sending).
+ */
+export async function saveOfini(doc, { embedMedia = false } = {}) {
   const files = { mimetype: [strToU8(OFINI_MIME), { level: 0 }] };
-  files["document.json"] = strToU8(JSON.stringify(doc.toJSON()));
+  let officeEntries = null;
+  if (doc.office) doc.office.saving = { base: doc.path ? String(doc.path).replace(/[\\/][^\\/]*$/, "") || null : null, embed: !!embedMedia };
+  try {
+    files["document.json"] = strToU8(JSON.stringify(doc.toJSON()));
+    officeEntries = doc.office ? doc.office.entries() : null;
+  } finally {
+    if (doc.office) doc.office.saving = null;
+  }
   for (const a of Object.values(doc.assets)) {
     if (a.bytes) files[`assets/${a.id}.${EXT[a.mime] || "bin"}`] = [a.bytes, { level: 0 }];
   }
@@ -60,7 +70,7 @@ export async function saveOfini(doc) {
   await Promise.all(jobs);
   if (doc.web) for (const [name, bytes] of Object.entries(doc.web.entries())) files[name] = [bytes, { level: bytes.length > 512 ? 6 : 0 }];
   if (doc.web?.gitFiles) for (const [name, bytes] of Object.entries(doc.web.gitEntries())) files[name] = [bytes, { level: 0 }]; // history travels with the file; objects are already zlib-compressed
-  if (doc.office) for (const [name, bytes] of Object.entries(doc.office.entries())) files[name] = [bytes, { level: 0 }]; // Office Studio images
+  if (officeEntries) for (const [name, bytes] of Object.entries(officeEntries)) files[name] = [bytes, { level: 0 }]; // Office Studio images
   try {
     const page = doc.pages[0];
     const s = Math.min(1, 256 / Math.max(page.w, page.h));

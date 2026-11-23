@@ -15,6 +15,7 @@ import { createExactRenderer } from "./frames.js";
 import { renderAudio, encodeWav } from "./audio.js";
 import { muxMp4, muxWebm } from "./mux.js";
 
+const N_ = (s) => s; // marks texts for the catalog (scripts/i18n-extract.mjs); the export dialog translates the notes
 const even = (n) => Math.max(2, Math.round(n / 2) * 2);
 
 /** H.264 codec string for a frame size: High profile at the lowest level that fits. */
@@ -143,6 +144,8 @@ export async function exportScene(store, model, opts = {}) {
   const scale = Math.max(0.05, Math.min(4, opts.scale || 1));
   const fps = Math.max(1, Math.min(model.fps, opts.fps || model.fps));
   const notes = [];
+  // referenced media that is offline (scene/media-refs.js) renders like a missing source: say so instead of a silent gap
+  if (Object.values(model.media || {}).some((x) => typeof x.path === "string" && x.path && !x.bytes?.length)) notes.push(N_("Some linked media files are offline; their clips are missing from the export. Relink them in the Media panel."));
   const renderer = createExactRenderer(store);
   const frameCount = Math.max(1, Math.round((to - from) * fps));
   const frameAt = async (i) => {

@@ -177,6 +177,39 @@ export const platform = {
     }
   },
 
+  /** Reads a file by its absolute path (it must be in the fs scope: common user folders, or picked in a dialog). */
+  async readFile(path) {
+    return (await readPath(path)).bytes;
+  },
+
+  /** Files below a folder as { path, size } (no contents; dot folders skipped, symbolic links not followed). */
+  async listFiles(root, { maxDepth = 4, maxFiles = 20000 } = {}) {
+    const { fs } = api();
+    const sep = root.includes("\\") && !root.includes("/") ? "\\" : "/";
+    const join = (a, b) => (/[\\/]$/.test(a) ? a + b : a + sep + b);
+    const out = [];
+    const walk = async (dir, depth) => {
+      let entries = [];
+      try {
+        entries = await fs.readDir(dir);
+      } catch {
+        return;
+      }
+      for (const e of entries) {
+        if (out.length >= maxFiles || e.isSymlink || e.name.startsWith(".")) continue;
+        const p = join(dir, e.name);
+        if (e.isDirectory) {
+          if (depth < maxDepth) await walk(p, depth + 1);
+        } else if (e.isFile) {
+          const size = await fs.stat(p).then((s) => s.size, () => 0);
+          out.push({ path: p, size });
+        }
+      }
+    };
+    await walk(root, 0);
+    return out;
+  },
+
   async saveFile({ suggestedName = "Untitled", bytes, bytesFor, filters = [] } = {}) {
     let path;
     try {
