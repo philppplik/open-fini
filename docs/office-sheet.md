@@ -192,6 +192,10 @@ focus; the screen reader gets the active cell and its value through a live regio
 `collabAdapter.records` flattens the workbook into `cell:<sheet id>!A1` records (one per cell) and `sheet:<id>`
 records (name, position, sizes, merges, freeze, filter, rules, charts, tables, validation, groups, page setup,
 sparklines); `meta:title` and `meta:names` (defined names) are shared, the active sheet is not. Concurrent edits of different cells merge; the same cell goes to the later writer.
+Cells that arrive before their sheet are kept and applied when the sheet arrives; Undo and Redo revert only your own
+cells. Other members see your active cell (a marker with your name). Limit: inserting or deleting rows and columns
+renumbers every cell below or to the right (each becomes a record change), so a cell someone edits at the same moment
+can end up in the shifted position of the old address.
 
 ## Known limits
 

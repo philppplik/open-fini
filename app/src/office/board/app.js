@@ -4,7 +4,7 @@
 // Contract members: create (templates), open (.excalidraw, .tldraw), save (excalidraw, tldraw, png, svg, pdf),
 // mount (office/board/view.js), describe, aiAdapter (describe; the tools are the static board_* group in
 // vibe/tools/office-board.js), collabAdapter (one record per element, page, image: last writer wins per element).
-import { templateBoard, normalizeBoard, describeBoard, boardRecords, applyBoardRecords, sortedPages } from "./model.js";
+import { templateBoard, normalizeBoard, describeBoard, boardRecords, applyBoardRecords, sortedPages, MEDIA_INLINE } from "./model.js";
 import { FONT_FAMILY } from "./render.js";
 
 /** The model as stored; normalized once when a document opens (older files, Vibe edits, collaborators). */
@@ -86,5 +86,6 @@ export default {
   collabAdapter: {
     records: (model) => boardRecords(model?.version === 1 ? model : normalizeBoard(model)),
     applyRecords: (model, changes) => applyBoardRecords(model?.version === 1 ? model : normalizeBoard(model), changes),
+    inlineMedia: MEDIA_INLINE, // larger images travel as chunk records (collab/office-sync.js)
   },
 };

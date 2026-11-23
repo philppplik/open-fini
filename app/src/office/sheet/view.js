@@ -235,6 +235,24 @@ export class SheetView {
     return { x: this.colX(ch.c), y: this.rowY(ch.r), w: ch.w, h: ch.h };
   }
 
+  // collaboration presence (ui/collab/runtime.js and overlay.js): the active cell as a record key, and where another
+  // member's active cell is on screen
+  presenceCaret() {
+    return { path: `cell:${this.sheet.id}!${rcKey(this.sel.r, this.sel.c)}` };
+  }
+  presenceRect(path) {
+    const m = /^cell:(.+)!([A-Z]{1,3}\d+)$/.exec(String(path || ""));
+    if (!m || m[1] !== this.sheet.id || !this.gridEl.isConnected) return null;
+    const { r, c } = keyRC(m[2]);
+    if (r < 0) return null;
+    const b = this.cellRect(r, c);
+    const g = this.gridEl.getBoundingClientRect();
+    const left = g.left + b.x * this.zoom;
+    const top = g.top + b.y * this.zoom;
+    if (left < g.left || top < g.top || left > g.right || top > g.bottom) return null;
+    return { left, top, height: b.h * this.zoom, width: b.w * this.zoom };
+  }
+
   // ---------------------------------------------------------------------------------------------------- painting
 
   paint() {

@@ -104,6 +104,16 @@ dialogs in `ui/office/design-ui.js`; every action is one undo step.
 
 The export dialog lists what was converted.
 
+### Editing together
+
+In a collaboration room, *Share as linked live document* (document tab context menu or *File ▸ Share with
+Collaboration Room…*) lets everybody with the Editor role edit the document at the same time
+([collaboration.md](collaboration.md#live-editing-edit-together-beta)). Every block (paragraph, table, break) is a
+record with a stable id (`collab/doc-records.js`): edits of different paragraphs merge, inserted paragraphs keep one
+order on every computer, your caret stays in its paragraph when others insert above it, and Undo reverts only your own
+step. Two people typing in the **same paragraph** at the same moment do not merge character by character: the later
+edit of that paragraph wins (you get a notice). Other members' carets are shown.
+
 ### Keyboard shortcuts
 
 | Action | Shortcut |

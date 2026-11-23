@@ -4,8 +4,10 @@
 //
 // Contract members implemented here: create, open, save, mount, describe, find (through the workspace's own bar),
 // aiAdapter (describe + system note; its tools are the static office_* group in vibe/tools/office.js), commentAnchors
-// (text ranges, collab/anchors.js ▸ officeAnchor). No collabAdapter: word-processing documents are shared as copies.
+// (text ranges, collab/anchors.js ▸ officeAnchor), collabAdapter (stateful: one record per block with a stable id per
+// shared document, collab/doc-records.js; docs/collaboration.md ▸ Live editing).
 import * as M from "../../engine/office/model.js";
+import { DocRecords } from "../../collab/doc-records.js";
 
 /** Normalizes a stored model once (files from disk, older versions, Vibe edits). */
 export function ensureModel(prj) {
@@ -74,5 +76,6 @@ export default {
 
   describe,
   aiAdapter: { describe },
+  collabAdapter: { bind: () => new DocRecords(), prepare: ensureModel, inlineMedia: 0 },
 };
 

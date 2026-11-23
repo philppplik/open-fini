@@ -157,8 +157,9 @@ restarts the timer, `Esc` ends. Fade and slide-in transitions use the Web Animat
 ## Collaboration
 
 `collabAdapter.records` flattens the deck into `meta:deck`, `slide:<id>` (with `ord`), `obj:<slide>/<element>` (with
-`z`) and `media:<id>` records. Pictures up to 45 KiB travel inside their record; larger pictures stay with their author
-and show as "Picture not available" for others until the document is shared as a copy.
+`z`) and `media:<id>` records. Pictures up to 45 KiB travel inside their record; larger pictures travel as chunk
+records (`blob:<id>/<i>`, collab/office-sync.js) and appear for the others once every chunk has arrived. Share it with
+*Share as linked live document* ([collaboration.md](collaboration.md#live-editing-edit-together-beta)).
 
 ## Vibe
 

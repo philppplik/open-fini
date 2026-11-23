@@ -269,6 +269,10 @@ function caretRect(app, p) {
       if (!r || r.top < box.top || r.bottom > box.bottom) return null;
       return { left: r.left, top: r.top, height: r.bottom - r.top };
     }
+    if (p.studio === "office" && typeof app.officeUI?.presenceRect === "function") {
+      if (app.officeUI.doc?.id !== p.doc) return null;
+      return app.officeUI.presenceRect(p.caret.path);
+    }
     if (p.studio === "office") {
       const ed = app.officeUI?.editor;
       if (!ed || app.officeUI.doc?.id !== p.doc) return null;

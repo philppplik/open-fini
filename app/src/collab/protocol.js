@@ -233,7 +233,7 @@ const SHAPES = {
   activity: [{ doc: V.id(), docName: V.text(LIMITS.docName), page: V.id(), pageName: V.text(LIMITS.label), label: V.text(LIMITS.label, { min: 1 }), count: V.int(1, 100000), nodes: V.arr(V.id(), LIMITS.ids) }, ["doc", "label", "count"]],
   // live editing (docs/collaboration.md ▸ Live editing): the envelope is checked here, every entry of `ops` by
   // validateTreeOp / validateTextOp before it is applied
-  op: [{ doc: V.id(), kind: V.oneOf("tree", "text", "office"), path: V.str(LIMITS.opPath, { min: 1, re: PATH_RE }), ops: V.arr(V.plain(), LIMITS.ops) }, ["doc", "kind", "ops"]],
+  op: [{ doc: V.id(), kind: V.oneOf("tree", "text", "office", "pixel"), path: V.str(LIMITS.opPath, { min: 1, re: PATH_RE }), ops: V.arr(V.plain(), LIMITS.ops) }, ["doc", "kind", "ops"]],
   share: [{ doc: V.id(), docName: V.text(LIMITS.docName), kind: V.oneOf("tree", "text", "office", "snapshot"), a: V.oneOf("start", "stop", "pause", "resume"), studio: STUDIO }, ["doc", "kind", "a"]],
   live: [{ doc: V.id(), a: V.oneOf("req", "have", "bye", "sent"), to: V.member(), fid: V.id() }, ["doc", "a"]],
   state: [{ host: V.member(), roles: V.map((k, p) => V.member()(k, p), V.oneOf(...ROLES), LIMITS.members * 4), defaultRole: V.oneOf("viewer", "commenter", "editor"), chat: V.arr(V.obj({ from: V.member(), nick: V.text(LIMITS.nick), color: V.str(7, { re: COLOR_RE }), ts: V.int(0, 1e14), msg: CHAT }, ["from", "ts", "msg"]), LIMITS.stateChat) }, ["host", "roles", "defaultRole"]],

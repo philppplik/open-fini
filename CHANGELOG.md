@@ -6,6 +6,19 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- **Collaboration live sync in the Office apps and the Whiteboard** ([docs/collaboration.md](docs/collaboration.md#live-editing-edit-together-beta)): an element, cell or object that arrived before its page or sheet was dropped and the next edit of any member then deleted it for everybody; local edits are now the records that changed since the last look, and refused records are retried, so delivery order no longer matters. Undo and Redo after someone else's edit restored the whole older document and sent that to the room; they now revert only your own step. One oversized record (a very long freehand stroke) made receivers reject the whole message; records are now checked one by one and oversized ones are kept back with a notice (*Resync* brings them). Large edits (a filter on a big layer, a pasted picture) burst past the rate limits and parts were dropped on the way; outgoing live edits are now paced.
+- Members who join after the sharer left still get the card of a live document.
+
+### Added
+- **Share live for every studio with a live model**: *Share as linked live document* is now offered for the Document (word processor), Spreadsheet, Presentation and Whiteboard apps and the Scene Studio, not only *Share a copy*. The word processor merges per paragraph and keeps your caret in its paragraph when others insert above it; the Scene Studio merges per clip. Which documents stay copy-only and why: [docs/collaboration.md ▸ What can be shared live](docs/collaboration.md#what-can-be-shared-live).
+- **Pixel strokes are live**: the bitmaps of pixel layers travel as 128 px tiles while editing together (last writer wins per tile; a resize or crop wins over concurrent strokes on the old size). They used to travel only with *Resync*.
+- Pictures and media larger than about 45 KiB in Presentation, Whiteboard, Document and Scene travel live in chunks instead of showing as placeholders for the others.
+- Other members' active cell is shown in the Spreadsheet.
+
+### Changed
+- Live editing protocol: the `op` message has a new kind `pixel`, and Documents and Scenes are shared with kind `office`. Older versions reject those messages and open such documents as copies; everybody in a room should use the same version.
+
 ## [1.2.0] — Docking panels, workspaces, in-app updates
 
 ### Fixed

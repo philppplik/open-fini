@@ -11,11 +11,11 @@ Decision record: [ADR 0010](adr/0010-collaboration-e2e-relay.md). Security summa
 | Live in a room | Not live (by design, in this release) |
 | --- | --- |
 | Chat: messages, @mentions with autocomplete and notification, replies, threads, reactions, edit/delete, typing indicator, links that jump to a layer, page or code line | — |
-| **Edit together (beta)** for documents shared *live*: Vector, Layout and the layer structure of Pixel documents (properties, add, delete, move, reorder, pages, masters, text stories, swatches, styles), Code studio projects and one-file text documents (character-level merge in every text file). See [Live editing](#live-editing-edit-together-beta). | Pixel **bitmaps** and placed image data are not live: they travel with the snapshot when a document is opened and on *Resync*. Office documents are shared as snapshots only. Creating text files is live; deleting or renaming files is not. |
+| **Edit together (beta)** for documents shared *live*: Vector, Layout and Pixel documents (properties, add, delete, move, reorder, pages, masters, text stories, swatches, styles, and the **bitmaps of pixel layers** in 128 px tiles), Code studio projects and one-file text documents (character-level merge in every text file), every Office app (Document, Spreadsheet, Presentation, Whiteboard) and Scene Studio documents. See [What can be shared live](#what-can-be-shared-live) and [Live editing](#live-editing-edit-together-beta). | Placed image data of Vector and Layout documents (image assets) is not live: it travels with the snapshot and on *Resync*. In the Code studio, creating text files is live; deleting or renaming files and binary files are not. Office kinds added by extensions without a collaboration adapter are shared as copies. |
 | Files (encrypted, chunked, up to 25 MB, allow-listed types, never opened automatically) | Documents shared as a *copy* are snapshots: members choose *Open*, *Open as copy* or *Update my copy* (a version of the old copy is saved first). |
 | Activity feed: "Hana · Move · 3 layers on Page 2 · Jump · Show", generated from each member's own edits (can be turned off); it is the "who changed what" feed of live documents too | Undo across people: Undo only reverts your own steps. |
 | Comments on layers, pages, text and code lines: threads, replies, resolve/reopen, @mentions, synced between members who have the same document (same document id) open | Comments written before you joined are only in documents you share. |
-| Presence: pointer with name and tool, selection halos (Vector, Pixel, Layout), carets in the Code and Office editors, current studio, document and page | Presence in the Vibe studio (it shows the studio only). |
+| Presence: pointer with name and tool, selection halos (Vector, Pixel, Layout), carets in the Code editor and the word processor, the active cell in the Spreadsheet, current studio, document and page | Presence in the Vibe studio, the Presentation, the Whiteboard and the Scene Studio (they show the studio and document only). |
 | Follow a member: their studio, document, page and viewport (Esc or moving the canvas stops) | Following inside the Office editor (its scroll position is not shared). |
 
 Comments and versions also work **without** a room: comments are saved in the document; versions are snapshots on this device.
@@ -176,7 +176,13 @@ app/src/collab/                 pure, Node-tested (tests/collab/)
   tree-crdt.js     Edit together: replicated tree of LWW registers, flatten/diff of documents, op validation
   tree-apply.js    applies a tree CRDT view to a live document without touching undo history
   text-crdt.js     Edit together: RGA sequence CRDT for text files, textDiff, op validation
+  office-records.js  Edit together: last-writer-wins map of keyed records (Office apps, scenes)
+  office-sync.js   Edit together: records engine (local diff, reconcile, Undo/Redo rebase, media chunks)
+  doc-records.js   Edit together: word-processor blocks as records with stable ids, caret remapping
+  pixel-sync.js    Edit together: pixel layer bitmaps as 128 px tiles (hash, deflate, LWW per tile and size)
   fractional.js    fractional ordering keys
+app/src/core/live-kinds.js      which documents can be shared live (used by the start-up share commands)
+app/src/scene/collab.js         the Scene Studio's records adapter
   qr.js            tiny QR encoder (relay terminal and join-link QR codes)
 app/src/ui/collab/              lazy UI (loads on the first collab.* command)
   runtime.js       controller (app.collab): rooms, presence, activity, comments, versions, files, follow, jumps
@@ -248,8 +254,8 @@ decrypting. Unknown types or fields, wrong types, oversize strings and arrays ar
 | `file-chunk` | `fid, i, data (base64, 48 KiB raw)` | commenter |
 | `comment` | `doc, op {op: add/reply/edit/delete/resolve/reopen/drop, …}` | commenter |
 | `activity` | `doc, docName, page, pageName, label, count, nodes[]` | editor |
-| `op` | `doc, kind (tree/text), path? (text file), ops[]` (≤ 512 ops; every op validated by `validateTreeOp` / `validateTextOp`) | editor |
-| `share` | `doc, docName, kind (tree/text/snapshot), a (start/stop/pause/resume), studio?`; stop only counts from the sharer, pause/resume from the sharer or the host | editor |
+| `op` | `doc, kind (tree/text/office/pixel), path? (text file), ops[]` (≤ 512 ops; every op validated by `validateTreeOp` / `validateTextOp` / `validateRecordOp` / `validatePixelOp`; record and pixel ops one by one, so one bad op does not drop the message) | editor |
+| `share` | `doc, docName, kind (tree/text/office/snapshot), a (start/stop/pause/resume), studio?`; stop only counts from the sharer, pause/resume from the sharer or the host | editor |
 | `live` | `doc, a (req/have/bye), to?` (request a snapshot from one member; announce or leave a live document) | viewer |
 | `state` | `host, roles{}, defaultRole, chat[]` (recent chat for newcomers) | host |
 | `role {member, role}`, `remove {member}`, `rotate {epoch, wraps{}, removed[]}` | | host |
@@ -296,6 +302,31 @@ remove members: start a new room. Same-device rooms share one profile (nickname)
 
 ## Live editing (Edit together, beta)
 
+### What can be shared live
+
+*Share as linked live document* is offered for every document whose model has a live binding
+(`core/live-kinds.js ▸ liveKindOf`); everything else offers *Share a copy (snapshot)* only.
+
+| Studio / document | Live | Merge unit (concurrent edits of different units merge) | Not live |
+| --- | --- | --- | --- |
+| Vector, Layout | yes (tree) | field of a layer, page, story, swatch, style | image asset bytes (snapshot, *Resync*) |
+| Pixel | yes (tree + pixel tiles) | layer field; 128 × 128 px tile of a layer's bitmap | — (a resize or crop sends the whole layer) |
+| Code studio projects, one-file text documents | yes (text) | character | deleting and renaming files, binary files |
+| Office ▸ Document (word processor) | yes (records) | paragraph / block | — (the same paragraph: later edit wins) |
+| Office ▸ Spreadsheet | yes (records) | cell; sheet settings | — (row/column inserts renumber cells) |
+| Office ▸ Presentation | yes (records) | slide settings, object | — |
+| Office ▸ Whiteboard | yes (records) | element, page | elements over 64 KiB JSON (*Resync*) |
+| Scene Studio | yes (records) | clip, track list, marker list, composition | analysis results over 64 KiB |
+| Office kinds registered by extensions without a `collabAdapter` | copy only | — | everything: there is no record model to merge |
+| Vibe studio, settings, workspaces | not documents | — | — |
+
+Copy-only documents stay copy-only for a reason: without a record (or tree, or text) model there is no unit two
+people can change independently, so a live share could only replace the whole document on every keystroke.
+
+Mixed versions: members running a version before this one reject the `pixel` op kind and cannot open a live Document or
+Scene (they get it as a copy, with a notice); they still work with every other live document. Everybody in a room
+should use the same version.
+
 ### Using it
 
 * **Share** the open document with one gesture: right-click the document tab, the empty canvas, a file or tab in the
@@ -304,7 +335,8 @@ remove members: start a new room. Same-device rooms share one profile (nickname)
   (`collab.shareDocument`, `collab.shareLive`, `collab.shareCopy`, `collab.stopSharing`, `collab.resync`). Without a room,
   the Collaboration window opens on *Start a room*; the document is shared as soon as you are in.
 * **Receivers** get a card "Mia shared “Poster” — *Open live* / *Open copy* / *Ignore*" (and a line in the chat). Nothing
-  opens without a click and a confirmation. Members who join later are told about live documents automatically.
+  opens without a click and a confirmation. Members who join later are told about live documents automatically, also
+  after the sharer left (then the member with the smallest id who still has it open announces it).
 * While a document is live, its tab shows a people badge with the number of people, and a bar "Editing together ·
   N people · beta" sits above the status bar with *Pause*/*Resume* (sharer and host), *Resync* and *Stop sharing*/*Leave*.
 * **Roles**: editors edit; commenters and viewers watch. A non-editor's local change to a live document is rolled back to
@@ -315,7 +347,10 @@ remove members: start a new room. Same-device rooms share one profile (nickname)
   later write wins on every device; if it replaced a value you set in the last 6 seconds you get a notice, and a version
   "Before merging an edit from …" of your document (as it was just before) is saved automatically (at most one per
   document every 2 minutes) under *Versions*. Text never conflicts: concurrent typing merges character by character.
-* **Undo** only reverts your own steps; other people's edits are never in your undo history.
+* **Undo** only reverts your own steps; other people's edits are never in your undo history. In the Office apps and
+  the Scene Studio, Undo and Redo apply only the records of your step on top of the current document, so edits other
+  people made after your step stay (Undo used to restore the whole older document and send that to the room).
+  Pixel: Undo restores the rectangle of your stroke, including what others painted inside it since.
 
 ### Design
 
@@ -355,6 +390,28 @@ Inserts whose origin has not arrived wait in a pending list; deletes of unknown 
 (`TextBinding`): project text changes (`web` `text` events) are turned into one replace (`textDiff`) per file and batch;
 remote changes go to CodeMirror through `CodeEditors.applyRemote` with `addToHistory: false` (selections and cursors are
 mapped through the change) or straight into the project when the file is not open.
+
+**Office documents and scenes (`collab/office-sync.js`, `office-records.js`, `doc-records.js`, `scene/collab.js`).**
+The app's `collabAdapter` flattens the immutable model into keyed records (`cell:<sheet>!B3`, `obj:<slide>/<id>`,
+`el:<id>`, `blk:<id>`, `clip:<id>` …), each a last-writer-wins register with a Lamport clock (`office` ops
+`{k, v, c, s}`). Local edits are the records that changed since the binding last looked at the model (not "shared
+view minus model": that used to turn a record the model could not take yet, such as an element whose page was still on
+its way, into a delete for everybody). Remote ops are reconciled key by key; keys the model refused are retried with
+the next message, so delivery order does not matter. Undo/Redo go through `prj.rebase` (see the Office Suite guide).
+Media bigger than what the adapter inlines travel as immutable chunk records `blob:<media id>/<i>` (45 KiB) and are
+assembled when complete; the snapshot's `collab-live.json` leaves them out (the archive has the bytes). The word
+processor's blocks have no ids in the model, so `doc-records.js` keeps one per block object (WeakMap) and matches edited
+blocks by position between unchanged neighbors; the caret is mapped through remote edits (`remapBlockIndex`).
+
+**Pixel tiles (`collab/pixel-sync.js`).** After a local step that touched a pixel layer, its bitmap is hashed in
+128 × 128 tiles and changed tiles are sent as `pixel` ops `{o:"px", id, W, H, s, x, y, w, h, d, c}` (`d` = deflated
+RGBA, base64). Each tile is a last-writer-wins register (`c`); the layer size is a register of its own (`s`), so a resize
+or crop wins over strokes made concurrently on the old size on every replica. Received tiles are hashed as read back
+from the canvas, so they are never sent back. Tiles that arrive before their layer wait for it.
+
+**Pacing.** Outgoing op messages leave in order through one queue per window, at most 40 messages and 1.5 MiB per
+second (burst 20): a filter on a large layer or a pasted picture used to burst past the receivers' rate limit
+(120 messages/s) and the relay's (4 MiB/s), and the excess was silently dropped.
 
 **Initial sync and catch-up.** *Open live* sends `live {a:"req", to}` to the sharer (or any member who has it). That
 member flushes its pending ops and sends the `.ofini` snapshot as an encrypted file transfer (`purpose: "live"`, `to`
@@ -551,10 +608,12 @@ control; the fingerprint words detect a relay that tries to impersonate members.
   Old clients reject unknown types (they show up as rejected frames), so keep new types optional.
 * **A new transport**: implement the interface in `transport.js` and route it in `createTransport`; run
   `tests/collab/session.test.js` against it with a fake.
-* **Live editing of a new document kind**: write a binding in `ui/collab/live.js` with `stateJSON()`, `flush()`,
-  `receive(sender, msg)`, `replaceState(doc, state)`, `detach()`, reuse the tree or text CRDT if the model fits, extend
-  `docKind`, and add a convergence test (seeded random histories, shuffled delivery) before wiring the UI. Office documents
-  are the obvious next candidate (paragraph runs as text CRDTs plus a tree for blocks).
+* **Live editing of a new document kind**: if its model is immutable JSON, give it a `collabAdapter` (records) and add
+  its kind to `core/live-kinds.js`; the Office binding does the rest. Otherwise write a binding in `ui/collab/live.js`
+  with `stateJSON()`, `flush()`, `receive(sender, msg)`, `replaceState(doc, state)`, `detach()`, reuse the tree or text
+  CRDT if the model fits, extend `docKind`, and add a convergence test (seeded random histories, shuffled delivery)
+  before wiring the UI. Character-level merging inside one word-processor paragraph (a text CRDT per paragraph) is the
+  obvious next step.
 * **Undo across people / garbage collection**: both need causal metadata (version vectors) the protocol does not carry yet.
 * **Strings**: the extractor picks up literal toasts and dialog texts in `ui/collab/` (`scripts/i18n-extract.mjs`).
 
@@ -568,6 +627,12 @@ control; the fingerprint words detect a relay that tries to impersonate members.
 * Manual check: two tabs of the dev server (`node scripts/serve.mjs --port 4300`) with a *This device* room, then with
   `npm run relay` and a relay room: join, chat with a mention, reply and thread, a file, a comment resolved in the other
   tab, the cursor visible in the other tab, follow, save and restore a version.
+* `tests/collab/office-sync.test.js`: two and three in-memory peers per Office app and the Scene Studio: an element or
+  cell delivered before its page or sheet (no lost data, no delete sent by the next edit), random shuffled spreadsheet
+  histories, Undo/Redo after a remote edit through the real `commitOffice`, paragraph merges, concurrent inserts,
+  splits and deletes in the word processor, late joiners from the snapshot state, chunked media, oversized values,
+  rollback for non-editors. `tests/collab/pixel-sync.test.js`: tiles merge, same-tile last writer wins in any order,
+  resize against concurrent strokes, hostile pixel ops.
 * `tests/collab/tree-crdt.test.js`, `text-crdt.test.js`: property-based convergence (3000 + 1500 seeded random histories
   with 2–4 replicas, shuffled and duplicated delivery, identical documents required), conflict policy, hostile ops, and
   500 random concurrent histories through real `core/doc.js` documents (flatten → diff → ops → applyView, no echo,

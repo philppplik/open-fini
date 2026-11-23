@@ -32,6 +32,8 @@ export class OfficeProject extends Emitter {
     this.rev = 0;
     /** Per-session view state (not saved): zoom, layout, panels. Apps may add their own keys. */
     this.view = { zoom: 1, layout: "print", panel: "outline" };
+    /** Set by a live-editing binding: (current, from, to) → model that applies the step from → to on top of current. */
+    this.rebase = null;
   }
 
   /** Replaces the model (callers go through commitOffice for undo). */
@@ -84,8 +86,10 @@ export function commitOffice(doc, label, next, { coalesce = null, sel = null, se
     label,
     () =>
       doc._do({
-        redo: () => prj.set(next, { sel, origin: "redo", label }),
-        undo: () => prj.set(before, { sel: selBefore, origin: "undo", label }),
+        // while the document is edited together (ui/collab/live.js), `prj.rebase` applies only this step on top of
+        // the current model, so Undo/Redo keep the edits other people made in between
+        redo: () => prj.set(prj.rebase && prj.model !== before ? prj.rebase(prj.model, before, next) : next, { sel, origin: "redo", label }),
+        undo: () => prj.set(prj.rebase && prj.model !== next ? prj.rebase(prj.model, next, before) : before, { sel: selBefore, origin: "undo", label }),
         meta: true,
         bytes: 256,
       }),
