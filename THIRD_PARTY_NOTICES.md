@@ -18,6 +18,7 @@ libraries are shipped next to them in `app/vendor/**`.
 | ↳ [Lezer](https://lezer.codemirror.net) parser system and grammars (`@lezer/*`), style-mod, w3c-keyname, crelt | bundled | MIT | `app/vendor/codemirror` | © Marijn Haverbeke and others |
 | [KaTeX](https://katex.org) (math in the Markdown and LaTeX previews, loaded only when a document has formulas; woff2 fonts only) | 0.19.0 | MIT | `app/vendor/katex` | © 2013-2020 Khan Academy and other contributors |
 | ↳ `@codemirror/legacy-modes` (stex, yaml, toml, properties stream modes, part of the CodeMirror bundle) | 6.5.5 | MIT | `app/vendor/codemirror` | © Marijn Haverbeke and others |
+| ↳ `@codemirror/legacy-modes` (Python, shell, PowerShell, C family, Go, Rust, Ruby, Lua, SQL, Swift and about 30 more stream modes, loaded on demand) | 6.5.5 | MIT | `app/vendor/codemirror-modes` | © Marijn Haverbeke and others |
 | [pdf.js](https://mozilla.github.io/pdf.js/) (legacy build, loaded only when a PDF is opened) | 6.4.299 | Apache-2.0 | `app/vendor/pdfjs` (worker, WebAssembly decoders for JPEG 2000 / JBIG2 / color management with their own licenses in `wasm/`, ICC profile) | © Mozilla Foundation and pdf.js contributors; OpenJPEG (BSD-2-Clause), the PDFium-derived JBIG2 decoder (BSD-3-Clause) and qcms (MIT), see `app/vendor/pdfjs/wasm/LICENSE_*` |
 | [fflate](https://github.com/101arrowz/fflate) | 0.8.3 | MIT | `app/vendor/fflate` | © 2023 Arjun Barrett |
 | [polygon-clipping](https://github.com/mfogel/polygon-clipping) | 0.15.7 | MIT | `app/vendor/polygon-clipping` (bundled) | © 2018 Mike Fogel |

@@ -1,6 +1,7 @@
 // Small helpers shared by the Code studio modules.
 import { h } from "../../core/util.js";
 import { applyChanges } from "../../engine/web/edit.js";
+import { codeLanguageOf } from "../../engine/web/code-langs.js";
 
 const FILE_ICONS = {
   html: "filetype-html",
@@ -21,6 +22,11 @@ const FILE_ICONS = {
   avif: "file-earmark-image",
   ico: "file-earmark-image",
   bmp: "file-earmark-image",
+  tif: "file-earmark-image",
+  tiff: "file-earmark-image",
+  tga: "file-earmark-image",
+  psd: "file-earmark-image",
+  cur: "file-earmark-image",
   woff: "fonts",
   woff2: "fonts",
   ttf: "fonts",
@@ -53,7 +59,7 @@ const FILE_ICONS = {
 
 export function fileIconName(path) {
   const ext = path.split(".").pop().toLowerCase();
-  return FILE_ICONS[ext] || "file-earmark";
+  return FILE_ICONS[ext] || codeLanguageOf(path)?.icon || "file-earmark"; // source code: engine/web/code-langs.js
 }
 
 export const fileIcon = (path) => h("sl-icon.of-fileicon", { name: fileIconName(path), "data-ext": path.split(".").pop().toLowerCase() });

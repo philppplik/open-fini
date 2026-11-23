@@ -11,7 +11,8 @@ export async function openTextDocument(app, file) {
   const name = sanitizeFileName(file.name) || "document.txt";
   const { text, bom, eol } = decodeText(file.bytes); // LF text for the editors; BOM and line ending are written back by File ▸ Save
   const isPage = /\.html?$/i.test(name);
-  const doc = new Doc({ name: name.replace(/\.[^.]+$/, ""), width: 1280, height: 800, studio: "code" });
+  // ".gitignore" and "Dockerfile" keep their whole name; "notes.txt" becomes "notes"
+  const doc = new Doc({ name: name.replace(/(.)\.[^.]+$/, "$1"), width: 1280, height: 800, studio: "code" });
   ensureWeb(doc, { [name]: text }, { entry: name, settings: { kind: isPage ? "site" : "document", view: "split", openFiles: [name], activeFile: name, sourcePath: file.path || null } });
   doc.history.clear();
   doc.saved = true;

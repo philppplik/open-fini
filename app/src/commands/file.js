@@ -53,9 +53,9 @@ export function registerFileCommands(app) {
       if (kind === "psd" || kind === "psb") return imp.openPsd(app, file);
       if (kind === "idml") return imp.openIdml(app, file);
     }
-    // TIFF, animated GIF, OpenRaster, Krita, ICO / CUR and GPL / ASE / ACO palettes (core/import-raster.js)
+    // TIFF, animated GIF, OpenRaster, Krita, ICO / CUR, TGA and GPL / ASE / ACO palettes (core/import-raster.js)
     const rb = file.bytes;
-    if (/\.(tiff?|gif|ora|kra|ico|cur|gpl|ase|aco)$/i.test(file.name) || (rb[0] === 0x47 && rb[1] === 0x49 && rb[2] === 0x46) || (rb[0] === 0x49 && rb[1] === 0x49 && rb[2] === 0x2a && rb[3] === 0) || (rb[0] === 0x4d && rb[1] === 0x4d && rb[2] === 0 && rb[3] === 0x2a)) {
+    if (/\.(tiff?|gif|ora|kra|ico|cur|tga|icb|vda|vst|tpic|gpl|ase|aco)$/i.test(file.name) || (rb[0] === 0x47 && rb[1] === 0x49 && rb[2] === 0x46) || (rb[0] === 0x49 && rb[1] === 0x49 && rb[2] === 0x2a && rb[3] === 0) || (rb[0] === 0x4d && rb[1] === 0x4d && rb[2] === 0 && rb[3] === 0x2a)) {
       const r = await (await import("../core/import-raster.js")).openRasterFormat(app, file);
       if (r !== undefined) return r;
     }

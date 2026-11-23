@@ -24,6 +24,8 @@ Conventions (same as `docs/engine-contracts.md`)
 | Module | Purpose |
 | --- | --- |
 | `paths.js` | project path helpers, MIME types, language detection |
+| `code-langs.js` | the table of text and source-code file types (extensions, exact names, MIME, icon, highlighter) |
+| `embed.js` | smart embedding: the reference that brings one project file into another (`<img>`, `url()`, `import` …) |
 | `bytes.js` | *(extension)* base64 / UTF-8 / data URL helpers shared by preview and site |
 | `html.js` | offset-preserving HTML parser, tree helpers, diagnostics |
 | `css.js` | offset-preserving CSS parser, selector/media helpers, formatter, minifier |
@@ -76,8 +78,8 @@ resolveRef(fromFile, ref)   // -> { path, query: string, hash: string } | null
                             // percent escapes in the path are decoded ('my%20pic.png' -> 'my pic.png'); '?x=1' alone resolves to fromFile
 relativeRef(fromFile, toPath)   // path from the folder of fromFile to toPath, e.g. ('pages/a.html','css/s.css') -> '../css/s.css'
 mimeOf(path)                // html css js mjs json svg png jpg jpeg gif webp avif ico woff woff2 ttf otf txt md xml webmanifest mp4 webm mp3 wav ogg pdf ...
-isTextPath(path)            // true for text-like extensions (html htm css js mjs json svg txt md xml webmanifest csv ...)
-languageOf(path)            // 'html' | 'css' | 'javascript' | 'json' | 'markdown' | 'xml' | 'text'   (svg -> 'xml')
+isTextPath(path)            // true for text-like extensions and every type of code-langs.js (also Dockerfile, .gitignore, LICENSE)
+languageOf(path)            // the id of the path's code-langs.js row: 'html' | 'css' | 'javascript' | 'json' | 'markdown' | 'xml' | 'python' | 'shell' ... | 'text'   (svg -> 'xml')
 sanitizeFileName(name)      // removes characters invalid on Windows/macOS/Linux, trims dots/spaces, prefixes reserved device names ('con' -> '_con'); '' if nothing is left
 uniquePath(path, existing: Iterable<string>)   // 'a.css' -> 'a-2.css' when taken (compared case-insensitively, like Windows and macOS)
 isExternalRef(ref)          // (extension) true for scheme: and //host references

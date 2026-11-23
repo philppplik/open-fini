@@ -1,5 +1,7 @@
 // Web engine (Code studio): everything in one place. See docs/web-engine.md.
 export * from "./paths.js";
+export * from "./code-langs.js";
+export * from "./embed.js";
 export * from "./bytes.js";
 export * from "./html.js";
 export * from "./css.js";

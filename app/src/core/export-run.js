@@ -139,6 +139,13 @@ async function rasterFile(app, st, job, info, meta) {
     const color = st.colorMode === "cmyk" ? "cmyk" : gray ? "gray" : alpha ? "rgba" : "rgb";
     return encodeTiff(img, { color, toCmyk, compression: st.tiffCompression, ppi, icc, meta: meta ? { title: meta.title, description: meta.description, author: meta.author, rights: meta.rights, software: "OpenFini", date: meta.date, xmp: xmpPacket(meta) } : { software: "OpenFini" } });
   }
+  if (st.format === "ico") {
+    const { icoFromImage } = await import("../engine/export/ico.js");
+    const { luma } = await import("../engine/export/png.js");
+    if (gray) for (let i = 0; i < img.data.length; i += 4) img.data[i] = img.data[i + 1] = img.data[i + 2] = luma(img.data[i], img.data[i + 1], img.data[i + 2]);
+    const sizes = String(st.icoSizes || "").split(/[\s,;]+/).map(Number).filter((n) => Number.isInteger(n) && n >= 1 && n <= 256);
+    return icoFromImage(img, { sizes });
+  }
   // canvas encoders: JPEG, WebP, AVIF
   if (gray) {
     const { luma } = await import("../engine/export/png.js");

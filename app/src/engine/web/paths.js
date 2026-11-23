@@ -1,5 +1,6 @@
 // Project path helpers, MIME types and language detection for the Code studio.
 // Pure string code: runs in browsers, workers and Node.js. See docs/web-engine.md.
+import { CODE_LANGUAGES, codeLanguageOf, isCodeFileName } from "./code-langs.js";
 
 /**
  * Normalizes a project path: converts backslashes, strips the leading slash, resolves '.' and '..'.
@@ -134,8 +135,10 @@ const MIME = {
   ogv: "video/ogg", mov: "video/quicktime", mp3: "audio/mpeg", wav: "audio/wav", ogg: "audio/ogg", m4a: "audio/mp4", flac: "audio/flac",
   pdf: "application/pdf", zip: "application/zip", wasm: "application/wasm", ts: "text/typescript", tsx: "text/typescript",
   jsx: "text/javascript", vtt: "text/vtt", tex: "application/x-tex", latex: "application/x-tex", bib: "application/x-bibtex", mdx: "text/markdown", yaml: "application/yaml", yml: "application/yaml", toml: "application/toml", tsv: "text/tab-separated-values", rss: "application/rss+xml", atom: "application/atom+xml",
+  tif: "image/tiff", tiff: "image/tiff", tga: "image/x-tga", psd: "image/vnd.adobe.photoshop", cur: "image/x-icon",
 };
 
+// extensions that are text without being source code in code-langs.js (subtitles, web manifests ...)
 const TEXT_EXT = new Set([
   "html", "htm", "css", "js", "mjs", "cjs", "jsx", "ts", "tsx", "json", "map", "svg", "txt", "md", "markdown", "xml", "webmanifest",
   "csv", "vtt", "rss", "atom", "yml", "yaml", "toml", "ini", "conf", "log",
@@ -143,6 +146,7 @@ const TEXT_EXT = new Set([
 ]);
 
 const extOf = (path) => extname(path).slice(1).toLowerCase();
+const MIME_OF_LANG = new Map(CODE_LANGUAGES.flatMap((l) => l.ext.map((e) => [e, l.mime])));
 
 /**
  * MIME type for a path (by extension, lower-cased). Falls back to application/octet-stream.
@@ -150,7 +154,8 @@ const extOf = (path) => extname(path).slice(1).toLowerCase();
  * @returns {string}
  */
 export function mimeOf(path) {
-  return MIME[extOf(path)] || "application/octet-stream";
+  const ext = extOf(path);
+  return MIME[ext] || MIME_OF_LANG.get(ext) || codeLanguageOf(path)?.mime || "application/octet-stream";
 }
 
 /**
@@ -159,30 +164,17 @@ export function mimeOf(path) {
  * @returns {boolean}
  */
 export function isTextPath(path) {
-  const b = basename(path).toLowerCase();
-  if (b === ".gitignore" || b === ".htaccess" || b === "license" || b === "readme") return true;
-  return TEXT_EXT.has(extOf(path));
+  return TEXT_EXT.has(extOf(path)) || isCodeFileName(path);
 }
 
 /**
- * Editor language id for a path.
+ * Editor language id for a path: the `id` of its row in engine/web/code-langs.js ("html", "css", "javascript",
+ * "json", "markdown", "xml", "latex", "yaml", "toml", "properties", "python", "shell" ...), "text" when unknown.
  * @param {string} path
- * @returns {'html'|'css'|'javascript'|'json'|'markdown'|'xml'|'latex'|'yaml'|'toml'|'properties'|'text'}
+ * @returns {string}
  */
 export function languageOf(path) {
-  switch (extOf(path)) {
-    case "html": case "htm": case "tmpl": return "html";
-    case "css": return "css";
-    case "js": case "mjs": case "cjs": case "jsx": case "ts": case "tsx": return "javascript";
-    case "json": case "map": case "webmanifest": return "json";
-    case "md": case "markdown": case "mdx": return "markdown";
-    case "tex": case "latex": case "sty": case "cls": case "bib": return "latex";
-    case "yml": case "yaml": return "yaml";
-    case "toml": return "toml";
-    case "ini": case "conf": case "properties": return "properties";
-    case "xml": case "svg": case "rss": case "atom": return "xml";
-    default: return "text";
-  }
+  return codeLanguageOf(path)?.id || "text";
 }
 
 const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
