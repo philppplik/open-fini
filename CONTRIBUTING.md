@@ -67,7 +67,7 @@ Read the [developer guide](docs/development.md) (module map, recipes, Git workfl
 
 ## Good first contributions
 
-* Pick an item from the [roadmap](docs/roadmap.md) marked as missing.
+* Pick an item from the [roadmap](docs/roadmap.md) or the [known limits](docs/known-limits.md).
 * Add an adjustment or filter: implement an `EffectModule` in `app/src/engine/pixel` (see
   `docs/engine-contracts.md` §1.2) — it appears in the menus and panels automatically.
 * Add a preset shape in `app/src/engine/vector/presets.js`.

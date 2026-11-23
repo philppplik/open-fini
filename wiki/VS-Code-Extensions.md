@@ -23,7 +23,7 @@ OpenFini runs untrusted code only in sandboxed frames without Node.js, a languag
 
 ## Following progress
 
-Watch the repository's pull requests and the `docs/roadmap.md` file ([[Roadmap and Known Limits]]). If you want to help, open an issue to discuss the approach first ([[Contributing]]).
+Watch the repository's pull requests and [[Roadmap and Known Limits]]. If you want to help, open an issue to discuss the approach first ([[Contributing]]).
 
 ## See also
 

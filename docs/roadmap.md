@@ -1,110 +1,41 @@
-# Roadmap and known gaps
+# Roadmap
 
-OpenFini 0.1 is an honest foundation: the studios, engines and tooling are real and tested, but a
-full professional suite is a very large surface. This page lists what is **missing or approximate today**
-so you can decide whether OpenFini fits your work — and where contributions are most valuable.
+OpenFini is at 1.2 (see [CHANGELOG.md](../CHANGELOG.md) for what each release shipped). This page is the short entry
+point: where the plan lives, what is known to be missing, and how to help. It is not a backlog of its own.
 
-## Color and image fidelity
+## What is planned
 
-- sRGB, 8 bits per channel only. No CMYK, ICC profiles, 16/32-bit or HDR editing, spot colors or overprint.
-  PDF output is DeviceRGB.
-- No RAW decoding. The **Develop** and **Tone Mapping** effects work on decoded 8-bit images.
-- Selective Color and Color Balance use an RGB-based approximation, not true CMYK.
+The plan toward the next major release (2.0) is [concepts/roadmap-next-major.md](concepts/roadmap-next-major.md): themes,
+a prioritized list (R1 to R22) with one-pull-request tasks, and four release waves.
 
-## Vector studio
+| Wave | Version | Focus |
+| --- | --- | --- |
+| 0 | 1.2.x | Publish and sign the releases, close the code-scanning alerts, refresh this page |
+| 1 | 1.3 | Desktop smoke tests and an Office/PDF interop corpus in CI, Pixel live filters off the main thread, OpenFini as an MCP server, referenced media in the Scene Studio |
+| 2 | 1.4 | Live boolean shapes, OpenType features and variable fonts, Office interop depth, optional local engines (captions, OCR, segmentation), a TypeScript worker and PTY terminal in the Code studio, canvas accessibility |
+| 3 | 2.0 | 16-bit tiled Pixel layers (a file format change), RAW decoding, footnotes and tagged PDF, tracking and stabilization in Scene, touch layouts |
 
-- No live (non-destructive) compound shapes: boolean operations are destructive (undo restores).
-- Missing: symbols, constraint-based artboards, shape builder, contour / offset tool, gradient mesh, hatch
-  fills, pressure-sensitive vector strokes, vector brushes, path-on-text, text on shapes, clipping to text.
-- SVG import ignores filters, masks, clip paths and patterns (reported as notes); SVG export flattens live
-  effects it cannot express.
+A new **Proto Studio** for interface design and prototyping (frames, components, variants, auto layout, prototype
+links) is designed separately: [concepts/proto-studio.md](concepts/proto-studio.md) (proposed, not built yet). The
+2.0 plan only references it where items overlap, such as components, constraints and live booleans.
 
-## Pixel studio
+These are plans, not promises: the order can change with feedback and contributions.
 
-- Missing: smart / AI selection, refine-edge brush, patch tool, perspective and warp transforms of layers,
-  channels, brush textures and dynamics, symmetry painting, macros / batch processing, frequency separation.
-- Live adjustment and filter layers run in JavaScript on the viewport pixels (tens of milliseconds for simple
-  adjustments, over 100 ms for heavy filters on large windows; half-resolution drafts while dragging).
-  Moving them to a Web Worker / WebAssembly is the highest-impact performance task.
-- Histogram analysis and the clipping overlay run on the main thread (strips for large pages, proxies for live
-  updates): no Web Worker, no waveform / vectorscope, no color management or soft proof; Levels and Curves work on
-  8-bit sRGB only.
-- Layers are single canvases: documents above roughly 50 megapixels per layer depend on the WebView's
-  canvas memory. Tiled layer storage would lift this.
+## What is missing today
 
-## Layout studio
+[known-limits.md](known-limits.md) is the single list of what OpenFini does not do yet, does only partly, or has never
+been verified on real hardware, per area. The studio guides add detail where it matters (for example
+[code-studio.md](code-studio.md#limitations), [scene-studio.md](scene-studio.md#limits) and
+[office-suite.md](office-suite.md#roadmap-office-depth)). When an item is done it is removed there and noted in
+`CHANGELOG.md`.
 
-- Tables and charts are real objects (see [layout-tables-charts.md](layout-tables-charts.md)). Still missing: inline rich text inside one cell, table splitting that keeps a live link between the pieces, footers / totals rows as a table feature (use formulas), secondary chart axes, trend lines and 3D charts, tagged-PDF alt text.
-- No footnotes, indexes, cross references, books / sections or per-page numbering formats.
-- The layout engine supports text wrap around shapes, baseline grids and exclusions, but there is no UI for
-  them yet (the data model and engine are ready).
-- No OpenType features (ligatures, small caps from the font, alternates), right-to-left or complex scripts.
-  Hyphenation is US English only.
-- PDF: standard fonts and embedded fonts. TrueType outlines are subset (unused glyph outlines removed, glyph ids
-  kept); OpenType/CFF fonts are embedded whole. No PDF/X, no tagged PDF, no forms, no CMYK.
-- Fonts: installed fonts display on screen, but PDF export can only **embed fonts you added through the
-  Type panel** (*Add font file…*, one file per family — add bold and italic cuts as separate families).
-  All other families fall back to the standard PDF fonts (Helvetica, Times, Courier). WOFF2 is not read.
-
-## Code studio
-
-- The visual designer edits **one page at a time**; there are no shared partials, symbols / components or CMS
-  collections. Repeating a header on every page means repeating its markup (or generating pages in a build step
-  outside OpenFini).
-- No interactions / animation editor, no forms backend, no image optimization pipeline (images are copied as-is).
-- The canvas draws a selection, hover, margin / padding guides and drop indicators; it does not (yet) offer resize
-  handles, grid / flex visual overlays or element-level drag handles for spacing.
-- Editor: syntax highlighting, completions and diagnostics come from CodeMirror's parsers — there is no language
-  server, no type checking, no Git integration, no extensions; the terminal (desktop) runs one program per line without a shell or TTY. Emmet covers the common subset of
-  abbreviations (HTML structure, attributes, numbering, CSS shorthands), not filters or custom snippets.
-- The preview resolves project files only: dynamic `import()` of computed paths and `fetch()` of project files do
-  not work in it, and in the **desktop** app network requests from the preview are blocked by the Content-Security-Policy
-  (the web version has no such limit). Scripts from CDNs are limited to jsDelivr, cdnjs and unpkg.
-- Opening very large projects (thousands of files) is not optimized: the explorer lists everything and the
-  document stores every file in memory.
-- JavaScript source edits cannot be formatted automatically beyond re-indentation; minification of JavaScript is
-  not part of the site export.
-
-## Vibe studio
-
-- Providers other than OpenAI-compatible servers and Anthropic are not built in (Gemini is used through its
-  OpenAI-compatible endpoint). Subscription logins (ChatGPT, Claude.ai) are not possible: only API keys.
-- The engine is tested with fake servers and recorded protocol shapes; real providers differ in details (tool-call
-  streaming, image APIs, model lists) and may need fixes as they change.
-- MCP: Streamable HTTP with bearer headers only. stdio servers need `npm run mcp:gateway`; no OAuth for MCP servers,
-  no resources or prompts yet, only tools.
-- No voice input yet, no web browsing tool, no automatic image-to-vector tracing by the model (use *Image Trace*).
-- Long projects: context is compacted automatically; very large documents are summarized, not sent whole.
-- Not yet: OpenFini as an MCP *server* so that external agents (Claude Code, …) can drive an open OpenFini window.
-
-## File compatibility
-
-- Reads and writes `.ofini`; imports SVG, PNG, JPEG, WebP, GIF, BMP, AVIF; exports PNG, JPEG, WebP, SVG, PDF.
-- OpenFini deliberately does **not** read or write other applications' proprietary document formats (see
-  [clean-room policy](clean-room.md)). Import of open formats such as PDF pages, PSD layers or IDML is
-  welcome as a contribution if implemented from public specifications.
-
-## Platform and distribution
-
-- Desktop builds are **unsigned** until signing certificates are configured (see
-  [release process](release-process.md)); there is no auto-update yet.
-- Rust compilation, installer bundling and the Windows ARM64 / macOS Intel cross-builds are verified by CI on
-  GitHub rather than on the maintainer's machine — please report packaging problems.
-- Touch-first layouts for phones are not designed; tablets work in landscape.
-
-## Accessibility and localization
-
-- The canvas is pointer-driven; keyboard-only drawing and screen-reader descriptions of canvas objects are
-  not implemented.
-- The interface is US English only; strings are not yet extracted for translation.
-
-## Ideas for later
-
-Plugin API · scripting / macros · cloud-free sync via files · real-time collaboration · variable-font
-axes · color-managed workflows · WebGPU acceleration as an *optional* fast path · more studios
-(Photo-stacking, Animation).
+The headline gaps that people switching from other tools notice first: Pixel editing is 8 bits per channel with no
+RAW decoding, boolean shapes are destructive, there are no OpenType features or right-to-left text, the Layout
+studio has no footnotes or tagged PDF, the Code studio has no language server or full terminal, and the canvas is
+pointer-driven (no keyboard drawing or screen-reader descriptions of objects).
 
 ## How to help
 
-Pick any item above, open an issue to discuss the approach, and read [CONTRIBUTING.md](../CONTRIBUTING.md).
-Small, well-tested pure modules under `app/src/engine/` are the easiest way to start.
+Pick an item from the roadmap or from [known-limits.md](known-limits.md), open an issue to agree on the approach, and
+read [CONTRIBUTING.md](../CONTRIBUTING.md). Small, well-tested pure modules under `app/src/engine/` are the easiest way
+to start. Tasks in the roadmap list their files and acceptance criteria, so each one can become one pull request.
