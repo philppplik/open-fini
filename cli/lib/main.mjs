@@ -111,6 +111,11 @@ function infoLines(c, r) {
   if (i.pixelLayers) rows.push(["pixels", plural(i.pixelLayers, "pixel layer")]);
   if (i.websiteFiles) rows.push(["website", plural(i.websiteFiles, "file")]);
   if (i.officeMedia) rows.push(["media", plural(i.officeMedia, "file")]);
+  if (i.proto) {
+    const p = i.proto;
+    rows.push(["design", `${plural(p.pages, "page")}, ${plural(p.frames, "frame")}, ${plural(p.nodes, "layer")}, ${plural(p.components, "component")}, ${plural(p.instances, "instance")} (Proto schema ${p.schema})`]);
+    rows.push(["tokens", `${plural(p.variables, "variable")} in ${plural(p.collections, "collection")}, ${plural(p.styles, "style")}, ${plural(p.flows, "flow")}`]);
+  }
   if (i.comments) rows.push(["comments", String(i.comments)]);
   rows.push(["preview", i.thumbnail ? "yes" : "no"]);
   for (const [k, v] of rows) lines.push(`  ${c.dim(k.padEnd(8))} ${v}`);
@@ -316,7 +321,7 @@ async function cmdFormats(flags, args, ctx) {
     return 0;
   }
   const { importableExtensions } = await import("./project.mjs");
-  const kinds = [["design (vector, pixel, layout)", "svg, pdf, txt"], ["website (code)", "zip"], ["document", "docx, odt, rtf, html, md, txt, pdf"], ["sheet", "xlsx, ods, csv, tsv, pdf"], ["slides", "pptx, odp, pdf"], ["board", "excalidraw, tldraw, svg, pdf"], ["scene", "(project only)"]];
+  const kinds = [["design (vector, pixel, layout)", "svg, pdf, txt"], ["website (code)", "zip"], ["document", "docx, odt, rtf, html, md, txt, pdf"], ["sheet", "xlsx, ods, csv, tsv, pdf"], ["slides", "pptx, odp, pdf"], ["board", "excalidraw, tldraw, svg, pdf"], ["scene", "(project only)"], ["proto", "(project only)"]];
   const imports = [...new Set(importableExtensions().map((e) => e[0]))].join(", ");
   if (ctx.out.json) ctx.out.data({ export: Object.fromEntries(kinds.map(([k, v]) => [k, v.split(", ")])), always: ["ofini", "json"], import: imports.split(", "), needsApp: ["png", "jpg", "webp", "avif", "gif", "tiff", "mp4", "webm", "psd"] });
   else {

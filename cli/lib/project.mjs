@@ -96,7 +96,7 @@ export function readOfini(bytes, name = "document.ofini") {
 export async function officeModel(doc) {
   const prj = doc.office;
   if (!prj) return null;
-  if (prj.kind === "scene") return prj.model;
+  if (prj.kind === "scene" || prj.kind === "proto") return prj.model;
   const mod = await import(`../../app/src/office/${prj.kind}/app.js`).catch(() => null);
   const ensure = mod?.ensureModel || mod?.ensureDeck || mod?.ensureBoard;
   if (ensure) ensure(prj);
@@ -166,7 +166,7 @@ function wrapOffice(model, kind, name) {
   const page = model?.page;
   const w = page?.width ? Math.round(page.width * PX) : model?.width || 1280;
   const h = page?.height ? Math.round(page.height * PX) : model?.height || 720;
-  const doc = new Doc({ name, studio: kind === "scene" ? "scene" : "office", width: w, height: h, pages: 1 });
+  const doc = new Doc({ name, studio: kind === "scene" || kind === "proto" ? kind : "office", width: w, height: h, pages: 1 });
   doc.office = new OfficeProject(model, kind);
   return doc;
 }

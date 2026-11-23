@@ -4504,5 +4504,9 @@
   "Inline as data URI": "Als Data-URI einfügen",
   "Only files up to {size} KB can be inlined as a data URI.": "Nur Dateien bis {size} KB können als Data-URI eingefügt werden.",
   "Open in Spreadsheet": "In Tabellenkalkulation öffnen",
-  "Pixel sizes stored in the icon, separated by commas (1 to 256). Sizes larger than the exported image are left out.": "Im Symbol gespeicherte Pixelgrößen, durch Kommas getrennt (1 bis 256). Größen über der exportierten Bildgröße werden ausgelassen."
+  "Pixel sizes stored in the icon, separated by commas (1 to 256). Sizes larger than the exported image are left out.": "Im Symbol gespeicherte Pixelgrößen, durch Kommas getrennt (1 bis 256). Größen über der exportierten Bildgröße werden ausgelassen.",
+  "Proto design, {where}: {problem}": "Proto-Design, {where}: {problem}",
+  "The Proto design cannot be read: {problem}": "Das Proto-Design kann nicht gelesen werden: {problem}",
+  "The Proto design has {count} more problems.": "Das Proto-Design hat {count} weitere Probleme.",
+  "The Proto design was saved by a newer version of OpenFini (schema {schema}); this version opens it read-only.": "Das Proto-Design wurde mit einer neueren Version von OpenFini gespeichert (Schema {schema}); diese Version öffnet es schreibgeschützt."
 }

@@ -91,6 +91,7 @@ With several files the worst code wins; one unreadable file does not stop the ot
 | Presentation | `pptx`, `odp`, `pdf` |
 | Whiteboard | `excalidraw`, `tldraw`, `svg`, `pdf` |
 | Scene | project only |
+| Proto (Labs) | project only (`ofini info` and `ofini validate` check the design; code export follows with `ofini proto`) |
 | Every project | `ofini`, `json` (the document content, indented) |
 
 `convert` reads `.ofini` and the formats the Office apps open: `.docx`, `.odt`, `.rtf`, `.html`, `.md`, `.txt`,

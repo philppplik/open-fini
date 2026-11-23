@@ -15,6 +15,8 @@ import { zipSync } from "../../../vendor/fflate/fflate.js";
 import { FORMAT_VERSION, writeVersion } from "../ofini-migrate.js";
 import { formatMessage } from "../../i18n/format.js";
 import { uid } from "../util.js";
+import { loadModel } from "../../engine/proto/format.js";
+import { summarize } from "../../engine/proto/tree.js";
 
 const N_ = (s) => s; // marks text for the i18n extractor (this module does not import the i18n runtime)
 
@@ -503,6 +505,7 @@ function analyze(bytes, { name = "document.ofini", limits = DOCTOR_LIMITS, apply
   };
   const officeFiles = new Set();
   const office = isObj(json.office) ? json.office : null;
+  let proto = null;
   if (office) for (const m of Object.values(isObj(office.media) ? office.media : {})) if (isObj(m) && typeof m.file === "string") officeFiles.add(m.file);
   const webFiles = new Set();
   const web = isObj(json.web) ? json.web : null;
@@ -561,6 +564,7 @@ function analyze(bytes, { name = "document.ofini", limits = DOCTOR_LIMITS, apply
       } else if (E[m.file].length > LARGE_PART) add("asset-large", "info", N_("The picture “{asset}” is {size} MiB; large embedded files slow down saving, autosave and collaboration."), { asset: m.name || mid, size: MiB(E[m.file].length) });
     }
     if (office.kind === "scene") checkScene(office, { add, fixNow, st });
+    if (office.kind === "proto") proto = checkProto(office, { add });
   } else if (json.office !== undefined && json.office !== null) {
     const f = add("structure", "warning", N_("The document field “{field}” is missing or has the wrong type."), { field: "office" }, "structure");
     if (fixNow(f)) delete json.office, (st.jsonDirty = true);
@@ -595,12 +599,33 @@ function analyze(bytes, { name = "document.ofini", limits = DOCTOR_LIMITS, apply
     pixelLayers: used.pixels.size,
     websiteFiles: web && Array.isArray(web.files) ? web.files.length : 0,
     officeMedia: office ? Object.keys(isObj(office.media) ? office.media : {}).length : 0,
+    ...(proto ? { proto } : {}),
     comments: Array.isArray(json.comments) ? json.comments.length : 0,
     thumbnail: !!E["thumbnail.png"],
     parts: st.order.filter((k) => E[k]).length,
     unpackedBytes: totalBytes,
   };
   return done();
+}
+
+/**
+ * Proto Studio designs (engine/proto/validate.js): schema, references, cycles and limits. Nothing is repaired here; the
+ * first problems are listed (the full list: `ofini proto validate` once T13 lands). Returns the summary for `info`.
+ */
+function checkProto(model, { add }) {
+  let res;
+  try {
+    res = loadModel(model);
+  } catch (e) {
+    add("proto-invalid", "error", N_("The Proto design cannot be read: {problem}"), { problem: e.message });
+    return null;
+  }
+  if (res.newer) add("proto-newer", "warning", N_("The Proto design was saved by a newer version of OpenFini (schema {schema}); this version opens it read-only."), { schema: res.from });
+  const SHOWN = 20;
+  for (const p of res.errors.slice(0, SHOWN)) add("proto-invalid", "error", N_("Proto design, {where}: {problem}"), { where: p.path, problem: p.message });
+  if (res.errors.length > SHOWN) add("proto-invalid", "error", N_("The Proto design has {count} more problems."), { count: res.errors.length - SHOWN });
+  for (const p of res.warnings.slice(0, SHOWN)) add("proto-warning", "warning", N_("Proto design, {where}: {problem}"), { where: p.path, problem: p.message });
+  return summarize(res.model);
 }
 
 /** Scene projects: compositions that contain themselves (directly or through others) and clips without a source. */

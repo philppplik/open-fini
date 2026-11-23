@@ -100,8 +100,8 @@ collaboration diff rely on that).
   "schema": 1,
   "meta": { "title": "Checkout", "created": "2026-12-01T10:00:00Z", "unit": "px", "app": "OpenFini 1.3.0" },
   "pages": {
-    "p1": { "id": "p1", "name": "Screens", "ord": "a0", "bg": "#f4f4f5", "flows": [{ "id": "f1", "name": "Checkout", "start": "n1" }] },
-    "p2": { "id": "p2", "name": "Components", "ord": "a1", "bg": "#ffffff" }
+    "p1": { "id": "p1", "name": "Screens", "ord": "V", "bg": "#f4f4f5", "flows": [{ "id": "f1", "name": "Checkout", "start": "n1" }] },
+    "p2": { "id": "p2", "name": "Components", "ord": "k", "bg": "#ffffff" }
   },
   "nodes": { "n1": { "…": "see 3.2" } },
   "vars": { "collections": {}, "items": {} },
@@ -113,7 +113,8 @@ collaboration diff rely on that).
 ```
 
 * **Flat node map.** `nodes` maps id to node; each node has `parent` (a node id, or `null` for a top-level node on
-  its `page`) and `ord`, a fractional order key (`collab/fractional.js`). A flat map makes lookups O(1), makes moves a
+  its `page`) and `ord`, a fractional order key (`collab/fractional.js`: base-62 digits that never end in `0`, so the
+  first key is `"V"`, not `"a0"`; equal keys sort by id). A flat map makes lookups O(1), makes moves a
   two-field change, and maps one to one onto collaboration records. Children lists are derived (cached per revision).
 * **Ids** are short random strings (`n` + 8 base-36 characters), unique per document, never reused.
 * **Unknown fields are kept.** Readers preserve fields they do not know (forward compatibility within a schema).
@@ -805,6 +806,27 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
 * Files: `app/src/engine/proto/*`, `tests/proto/model.test.js`, `tests/proto/ops.test.js`, `docs/file-format.md`.
 * Acceptance: property tests (random op sequences keep the model valid, no cycles, order keys sorted); `validate`
   rejects every malformed fixture; serialize → parse → serialize is byte-identical; imports in plain Node.
+* As built (deviations and decisions the later tasks build on):
+  * Two more modules: `serialize.js` (`canonical`, `stringify`, `parse`) and `format.js` (`loadModel` strips the
+    container fields, migrates and validates; `storeModel` returns the canonical model for `doc.office`).
+  * Operations are JSON objects `{ op, …args }` applied with `apply(model, op, { random })` → `{ model, inverse, ids,
+    map? }`; `inverse` restores the input exactly (deep-equal), a no-op returns the input model itself, and a failing
+    operation throws `OpError` and changes nothing. Names: `node.create` (nested `children`), `node.insert`,
+    `node.update` (`set` and `unset` with dotted paths such as `"layout.gap"`; list items are replaced as a whole),
+    `node.move`, `node.place` (exact placement, the inverse of moves), `node.delete`, `node.duplicate`, `node.wrap`
+    (`flex` guesses direction, order and gap from positions; `grid`; `none`), `page.create` / `update` / `move` /
+    `delete`, `meta.update`, `batch`. Later tasks add their own operations (components, variables, interactions) to the
+    same table.
+  * The grid definition lives in `layout.grid`. Colors in schema 1 are hex literals or `{ "$var" }` bindings. Effects
+    are `shadow` (with `inset`), `blur` and `backgroundBlur`.
+  * Interactions and flows that point at a removed layer and fills whose media is missing are warnings, so deleting a
+    frame never fails; deleting a component (or its page) that instances or swap properties still use is refused
+    (`in-use`). Extending collections are checked for references and cycles only; their value semantics come with T5.
+  * The File Doctor checks Proto designs (`proto-invalid`, `proto-newer`), so `ofini info` (with a design summary) and
+    `ofini validate` recognize them now; `ofini new proto` and the `ofini proto` commands stay in T13.
+  * Each operation copies the node map once (copy on write; a batch copies once) and hands its updated child index to
+    the cache, so a property edit never re-sorts children. Until T3 imports it, `ops.js` ships as an unminified source
+    file (recorded in `scripts/size-budget.json`).
 
 **T2 · Resolver, CSS compiler and pure layout solver** — L — deps: T1
 * Scope: `resolve.js` (plain nodes and variable references, extension points for instances), `css.js` (node →
@@ -931,8 +953,7 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
 
 ## 16. Open questions
 
-* **Name.** "Proto" is a working title (short, matches the studio list); alternatives "Interface", "UI". Decide before
-  T3 ships strings.
+* **Name.** Decided: **Proto Studio** (final; the studio id and document kind are `proto`).
 * **Libraries across files.** Publishing components from one `.ofini` to others (reserved `lib:` references) needs a
   library cache and update notifications; after 1.3.x.
 * **Variable fonts and OpenType features** in the Design panel: CSS supports them; UI scope to be decided in T4.

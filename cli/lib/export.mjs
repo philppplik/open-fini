@@ -22,7 +22,7 @@ export function formatsFor(doc) {
   let list;
   if (kind === "design") list = DESIGN;
   else if (kind === "website") list = WEBSITE;
-  else if (kind === "scene") list = [];
+  else if (kind === "scene" || kind === "proto") list = [];
   else {
     const m = officeApp(kind);
     list = (m?.formats || []).filter((f) => f.write && !NOT_HEADLESS.has(f.id)).map((f) => [f.id, f.label]);
@@ -130,8 +130,15 @@ export async function projectText(doc) {
     }
     return parts.join("\n\n");
   }
-  // slides, boards, scenes: every text string in the model, in order
   const model = await officeModel(doc);
+  if (kind === "proto") {
+    // text layers page by page in layer order (engine/proto/tree.js)
+    const { pageList, walk } = await import("../../app/src/engine/proto/tree.js");
+    const out = [];
+    for (const p of pageList(model)) walk(model, p.id, (n) => void (n.type === "text" && Array.isArray(n.text?.runs) && out.push(n.text.runs.map((r) => (typeof r?.t === "string" ? r.t : "")).join(""))));
+    return out.filter((s) => s.trim()).join("\n");
+  }
+  // slides, boards, scenes: every text string in the model, in order
   const out = [];
   const visit = (v, key) => {
     if (out.length > 100000) return;
