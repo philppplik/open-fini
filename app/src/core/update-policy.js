@@ -1,4 +1,6 @@
 // Update prompt decisions (pure; used by ui/update-check.js). The default is: no automatic check at all.
+import { stripTags } from "../engine/web/strip.js";
+
 const DAY = 24 * 60 * 60 * 1000;
 
 /** Should the start-up hook contact GitHub? Only when the user switched automatic checks on, once a day, never offline. */
@@ -20,7 +22,8 @@ export function summarizeNotes(md, { maxLines = 8, maxChars = 600 } = {}) {
   const lines = String(md || "")
     .replace(/\r/g, "")
     .split("\n")
-    .map((l) => l.replace(/^#{1,6}\s*/, "").replace(/^\s*[-*+]\s+/, "• ").replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[*_`]/g, "").replace(/<[^>]+>/g, "").trim())
+    .map((l) => l.replace(/^#{1,6}\s*/, "").replace(/^\s*[-*+]\s+/, "• ").replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[*_`]/g, ""))
+    .map((l) => stripTags(l).trim())
     .filter((l) => l && !/^full changelog/i.test(l));
   let out = lines.slice(0, maxLines).join("\n");
   if (out.length > maxChars) out = `${out.slice(0, maxChars).trimEnd()}…`;

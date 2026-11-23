@@ -107,6 +107,42 @@ export async function openBytes(key, { iv, data }) {
   }
 }
 
+// ---- one-time sealing for short-lived secrets that must survive a page navigation (web OAuth redirect)
+const ONCE_AAD = new TextEncoder().encode("openfini-once:1");
+
+/**
+ * Encrypts a JSON value with a fresh random AES-GCM-256 key that cannot be exported. The caller keeps the key and the
+ * sealed text in different places (for example the key in IndexedDB, the text in sessionStorage), so neither store
+ * holds the secret in clear text, and drops both after one use.
+ * @param {any} value
+ * @returns {Promise<{key: CryptoKey, sealed: string}>} `sealed` is `base64(iv).base64(ciphertext)`
+ */
+export async function sealOnce(value) {
+  const c = subtle();
+  const key = await c.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  const iv = c.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await c.subtle.encrypt({ name: "AES-GCM", iv, additionalData: ONCE_AAD }, key, new TextEncoder().encode(JSON.stringify(value))));
+  return { key, sealed: `${bytesToBase64(iv)}.${bytesToBase64(ct)}` };
+}
+
+/**
+ * Decrypts the result of {@link sealOnce}.
+ * @param {CryptoKey} key
+ * @param {string} sealed
+ * @throws {VaultError} 'bad_format' for a malformed text, 'bad_passphrase' for the wrong key or changed data
+ */
+export async function openOnce(key, sealed) {
+  const parts = String(sealed ?? "").split(".");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) throw new VaultError("Unsupported sealed data.", "bad_format");
+  try {
+    const plain = await subtle().subtle.decrypt({ name: "AES-GCM", iv: base64ToBytes(parts[0]), additionalData: ONCE_AAD }, key, base64ToBytes(parts[1]));
+    return JSON.parse(new TextDecoder().decode(plain));
+  } catch (e) {
+    if (e instanceof VaultError) throw e;
+    throw new VaultError("Wrong key or damaged data.", "bad_passphrase");
+  }
+}
+
 /**
  * Masks an API key for display, e.g. `sk-o...cdef`. Short keys are fully masked.
  * @param {string} key

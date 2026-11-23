@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { safeRequestPath, resolveRequest, mimeFor, rewriteRefs, injectBeforeBodyEnd, liveReloadSnippet, diffStamps, standaloneKind, parseCsv, csvToHtml, jsonToHtml, validPort, fetchShim } from "../../app/src/engine/web/local-serve.js";
+import vm from "node:vm";
+import { safeRequestPath, resolveRequest, mimeFor, rewriteRefs, injectBeforeBodyEnd, liveReloadSnippet, diffStamps, standaloneKind, parseCsv, csvToHtml, jsonToHtml, validPort, fetchShim, fetchShimCode, scriptLiteral } from "../../app/src/engine/web/local-serve.js";
 
 test("request paths: index, nesting, query and hash", () => {
   assert.equal(safeRequestPath("/"), "index.html");
@@ -63,6 +64,36 @@ test("live reload injection and fetch shim", () => {
   assert.equal(injectBeforeBodyEnd("<body>x</body>", "<i>"), "<body>x<i></body>");
   assert.equal(injectBeforeBodyEnd("x", "<i>"), "x<i>");
   assert.ok(!fetchShim({ "a</script>.json": "blob:x" }, "index.html").includes("a</script>"));
+});
+
+test("generated scripts: data cannot close the element or break the literal (CodeQL js/bad-code-sanitization)", async () => {
+  const nasty = "x</script><script>alert(1)</script>\u2028\u2029<!--y-->";
+  const lit = scriptLiteral(nasty);
+  assert.ok(!/[<>\u2028\u2029]/.test(lit), lit);
+  assert.equal(vm.runInNewContext(lit), nasty, "the parsed value is unchanged");
+  assert.equal(JSON.stringify(vm.runInNewContext(`(${scriptLiteral({ "a</script>": [1, "\u2028"] })})`)), JSON.stringify({ "a</script>": [1, "\u2028"] }));
+  assert.equal(scriptLiteral(undefined), "undefined");
+
+  // live reload: the URL is fetched as given; the snippet holds exactly one closing tag
+  const s = liveReloadSnippet(nasty, "1000;alert(2)");
+  assert.equal(s.match(/<\/script/gi).length, 1);
+  assert.ok(!s.includes("alert(2)"), "the interval is a number");
+  let fetched = null;
+  const ctx = { fetch: async (u) => ((fetched = u), { text: async () => "1" }), setTimeout: () => {}, location: { reload() {} } };
+  vm.runInNewContext(s.slice("<script>".length, -"</script>".length), ctx);
+  await new Promise((r) => setImmediate(r));
+  assert.equal(fetched, nasty);
+
+  // fetch shim: a project path that looks like a closing tag (or holds U+2028) still maps correctly
+  const page = "a</script>\u2028/index.html";
+  const table = { "a</script>\u2028/data.json": "blob:x" };
+  assert.equal(fetchShim(table, page).match(/<\/script/gi).length, 1);
+  function XHR() {}
+  XHR.prototype.open = () => {};
+  const ctx2 = { fetch: async (u) => u, URL, decodeURIComponent, XMLHttpRequest: XHR };
+  ctx2.window = ctx2;
+  vm.runInNewContext(fetchShimCode(table, page), ctx2);
+  assert.equal(await ctx2.fetch("data.json"), "blob:x");
 });
 
 test("disk change detection", () => {

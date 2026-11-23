@@ -58,9 +58,26 @@ export function resolveRequest(urlPath, { has, spa = false, entry = "index.html"
   return { path: null, status: 404 };
 }
 
+// Characters that could end an inline <script> (`</script>`, `<!--`) or break a string literal in older engines
+// (U+2028, U+2029) when they appear inside a JSON literal. JSON.stringify already escapes the control characters;
+// mapping them here as well keeps the helper safe on its own.
+const SCRIPT_UNSAFE = { "<": "\\u003C", ">": "\\u003E", "\b": "\\b", "\f": "\\f", "\n": "\\n", "\r": "\\r", "\t": "\\t", "\0": "\\0", "\u2028": "\\u2028", "\u2029": "\\u2029" };
+const escapeScriptUnsafe = (str) => str.replace(/[<>\b\f\n\r\t\0\u2028\u2029]/g, (c) => SCRIPT_UNSAFE[c]);
+
+/**
+ * A JavaScript literal for `value` that is safe inside an inline `<script>` element: JSON.stringify, then every
+ * character that could close the element or break the literal is written as an escape (the parsed value is unchanged).
+ * Use this, never ad-hoc string sanitizing, for data placed in generated script code.
+ */
+export function scriptLiteral(value) {
+  const json = JSON.stringify(value);
+  return json === undefined ? "undefined" : escapeScriptUnsafe(json);
+}
+
 /** The live-reload script injected into HTML pages served by the local server: polls `revUrl`, reloads on change. */
 export function liveReloadSnippet(revUrl, intervalMs = 1000) {
-  return `<script>(()=>{let r=null;const t=async()=>{try{const n=await (await fetch(${JSON.stringify(revUrl)},{cache:"no-store"})).text();if(r!==null&&n!==r)location.reload();r=n}catch{}setTimeout(t,${intervalMs})};t()})();</script>`;
+  const ms = Number(intervalMs) > 0 ? Math.round(Number(intervalMs)) : 1000;
+  return `<script>(()=>{let r=null;const t=async()=>{try{const n=await (await fetch(${scriptLiteral(String(revUrl))},{cache:"no-store"})).text();if(r!==null&&n!==r)location.reload();r=n}catch{}setTimeout(t,${ms})};t()})();</script>`;
 }
 
 /** Inserts `snippet` before </body> (or at the end when there is none). */
@@ -101,7 +118,12 @@ export function rewriteRefs(text, file, urlFor, kind = /\.css$/i.test(file) ? "c
  * blob URLs in `table` ({ projectPath: url }), resolved against `file`.
  */
 export function fetchShim(table, file) {
-  return `<script>(()=>{const T=${JSON.stringify(table).replace(/</g, "\\u003c")},B=${JSON.stringify(file)};const R=(u)=>{try{if(typeof u!=="string"||/^[a-z][a-z0-9+.-]*:|^\\/\\//i.test(u))return u;const b=new URL(B,"http://x/");const p=decodeURIComponent(new URL(u,b).pathname.slice(1));return T[p]||u}catch{return u}};const F=window.fetch;window.fetch=(u,o)=>F(R(u),o);const O=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u,...a){return O.call(this,m,R(u),...a)}})();</script>`;
+  return `<script>${fetchShimCode(table, file)}</script>`;
+}
+
+/** The JavaScript of {@link fetchShim} without the `<script>` element (for pages that load it from a script URL). */
+export function fetchShimCode(table, file) {
+  return `(()=>{const T=${scriptLiteral(table)},B=${scriptLiteral(String(file))};const R=(u)=>{try{if(typeof u!=="string"||/^[a-z][a-z0-9+.-]*:|^\\/\\//i.test(u))return u;const b=new URL(B,"http://x/");const p=decodeURIComponent(new URL(u,b).pathname.slice(1));return T[p]||u}catch{return u}};const F=window.fetch;window.fetch=(u,o)=>F(R(u),o);const O=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u,...a){return O.call(this,m,R(u),...a)}})();`;
 }
 
 /**

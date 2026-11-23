@@ -4010,6 +4010,7 @@
   "This also removes broken layers, unused assets and clips without a source in the copy. The original stays unchanged.": "This also removes broken layers, unused assets and clips without a source in the copy. The original stays unchanged.",
   "This app cannot export files.": "This app cannot export files.",
   "This bar shows the options of the active tool or of what you selected: size, position, alignment and more.": "This bar shows the options of the active tool or of what you selected: size, position, alignment and more.",
+  "This browser blocks the storage the sign-in needs during the redirect. Allow site data for OpenFini or use the desktop app.": "This browser blocks the storage the sign-in needs during the redirect. Allow site data for OpenFini or use the desktop app.",
   "This browser cannot blur what is behind a panel, so panels are drawn opaque.": "This browser cannot blur what is behind a panel, so panels are drawn opaque.",
   "This browser cannot connect two windows (no BroadcastChannel), so Collaboration is not available here.": "This browser cannot connect two windows (no BroadcastChannel), so Collaboration is not available here.",
   "This browser cannot write AVIF files.": "This browser cannot write AVIF files.",
