@@ -755,6 +755,12 @@ sl-dropdown[open] > .of-menubtn {
 .of-status__target { margin-right: 10px; padding: 0 6px; border: 1px solid var(--of-border); border-radius: 4px; font-size: 11px; line-height: 16px; color: var(--of-text-dim); cursor: default; }
 .of-status__target.is-source { color: var(--of-accent); border-color: var(--of-accent); }
 .of-status__target[hidden] { display: none; }
+.of-status__items { display: inline-flex; align-items: center; gap: 2px; margin-left: 8px; }
+.of-status__right .of-status__items { margin: 0 6px 0 0; }
+.of-status__item { display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; border-radius: 4px; color: inherit; font: inherit; white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+button.of-status__item:hover { background: var(--of-hover); color: var(--of-text); }
+.of-status__item[data-kind="error"] { color: var(--of-danger); }
+.of-status__item[data-kind="warning"] { color: var(--of-warn); }
 
 /* ------------------------------------------------------------------ menus & dialogs */
 

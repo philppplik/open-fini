@@ -16,7 +16,10 @@
 //   runCommand(id, command, args)             runs a web extension command (activates it first)
 //   openVsx                                   the Open VSX client (search, details, download)
 //   editor hooks used by editor-bridge.js: editorChanged(path, view), snippetsFor(lang), languageDataFor(lang),
-//     languageIdOf(path), complete(...), hover(...), hasFormatter(path), format(path), codeActions(path)
+//     languageIdOf(path), grammarFor(lang), complete(...), hover(...), hasFormatter(path), format(path), codeActions(path)
+//   views: contributed views (`contributes.views`) are dockable panels of the Code studio (registerPanel + the studio's
+//     panel list, like OpenFini extension panels): tree views render as native rows (ui/extensions/vscode-views.js),
+//     webview views and webview panels as sandboxed frames (vscode/webview.js); status bar items go to app.statusItems
 //
 // Invariants
 // - Extension code never runs in the app: one `<iframe sandbox="allow-scripts">` per running web extension with the
@@ -41,13 +44,19 @@ import { loadThemeJson, convertColorTheme, themeIdFor } from "./theme.js";
 import { parseSnippetFile } from "./snippets.js";
 import { parseJsonc } from "./jsonc.js";
 import { createOpenVsx } from "./openvsx.js";
+import { PANELS, registerPanel } from "../ui/panels/index.js";
+import { STUDIOS } from "../studios/index.js";
+import { compileGrammar } from "./textmate.js";
+import { prepareWebviewHtml, themeVariables } from "./webview.js";
+import { codiconName } from "./codicons.js";
 
 const INDEX_KEY = "vsx:index";
 const MAX_LOGS = 200;
 const MAX_OUTPUT = 64 * 1024;
 const PROVIDER_TIMEOUT = { completion: 1500, hover: 1500, format: 8000, rangeFormat: 8000, codeActions: 3000 };
 const KIND_VARIANT = { info: "primary", warning: "warning", error: "danger" };
-const METHODS = new Set(["api.unsupported", "commands.register", "commands.execute", "window.message", "window.input", "window.pick", "window.status", "window.show", "output.append", "output.show", "editor.edit", "editor.snippet", "editor.select", "workspace.read", "workspace.stat", "workspace.list", "workspace.find", "workspace.applyEdit", "config.update", "storage.set", "providers.register", "providers.dispose", "diagnostics.set", "env.clipboard", "env.openExternal", "network.fetch"]);
+const METHODS = new Set(["api.unsupported", "commands.register", "commands.execute", "window.message", "window.input", "window.pick", "window.status", "window.show", "output.append", "output.show", "editor.edit", "editor.snippet", "editor.select", "workspace.read", "workspace.stat", "workspace.list", "workspace.find", "workspace.applyEdit", "config.update", "storage.set", "providers.register", "providers.dispose", "diagnostics.set", "env.clipboard", "env.openExternal", "network.fetch", "status.item", "view.register", "view.refresh", "view.update", "view.reveal", "webview.panel", "webview.html", "webview.post", "webview.title", "webview.dispose"]);
+const MAX_WEBVIEW_MESSAGE = 1024 * 1024;
 const jsonSafe = (x) => (x === undefined ? null : JSON.parse(JSON.stringify(x)));
 const rand = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
 
@@ -149,6 +158,10 @@ export class VscodeHost extends Emitter {
       languages: [],
       themes: [],
       unreg: [],
+      grammars: [],
+      views: new Map(), // view id -> { view, pid, ui, registered, resolved }
+      webviews: new Map(), // handle -> { pid?, viewId?, title, html, scripts, state, ui }
+      statusItems: new Set(), // keys in app.statusItems
       registered: false,
       activating: null,
       diagnostics: 0,
@@ -205,6 +218,8 @@ export class VscodeHost extends Emitter {
       }
       return { ...l, data };
     });
+    ext.grammars = c.grammars.filter((g) => g.language || g.scopeName).map((g) => ({ ...g, compiled: undefined }));
+    if (ext.compat.runsCode) for (const view of c.views) this.#addViewPanel(ext, view);
     if (ext.compat.runsCode) {
       const keys = new Map(c.keybindings.map((k) => [k.command, k]));
       for (const cmd of c.commands) {
@@ -225,6 +240,7 @@ export class VscodeHost extends Emitter {
     ext.state = ext.compat.runsCode ? "idle" : "declarative";
     app.emit("commands");
     app.emit("editor-contrib");
+    if (ext.views.size) app.dock?.render?.();
     if (ext.compat.runsCode) this.#maybeActivate(ext);
   }
 
@@ -242,8 +258,207 @@ export class VscodeHost extends Emitter {
     ext.snippets = [];
     ext.languages = [];
     ext.themes = [];
+    ext.grammars = [];
+    ext.views.clear();
     this.app.emit("commands");
     this.app.emit("editor-contrib");
+    this.app.dock?.render?.();
+  }
+
+  // ------------------------------------------------------------------ views (dockable panels of the Code studio)
+
+  /** Registers a contributed view as a dockable panel; its content loads when the panel is first shown. */
+  #addViewPanel(ext, view) {
+    const pid = `vsx:${ext.id}:${view.id}`;
+    const loc = view.location === "bottom" ? "bottom" : "top";
+    const entry = { view, pid, ui: null, registered: false, resolved: false };
+    ext.views.set(view.id, entry);
+    registerPanel(pid, { title: view.name, icon: "puzzle", ext: ext.id, create: () => this.#viewPanel(ext, entry) });
+    STUDIOS.code[loc].push(pid);
+    ext.unreg.push(() => {
+      delete PANELS[pid];
+      STUDIOS.code[loc] = STUDIOS.code[loc].filter((x) => x !== pid);
+    });
+  }
+
+  #viewPanel(ext, entry) {
+    const box = document.createElement("div");
+    box.className = "of-panel of-panel--slot";
+    const { view } = entry;
+    const mount = async () => {
+      if (entry.ui) return entry.ui;
+      const ui = await import("../ui/extensions/vscode-views.js");
+      if (view.type === "webview") {
+        const handle = `view:${view.id}`;
+        if (!ext.webviews.has(handle)) ext.webviews.set(handle, { viewId: view.id, title: view.name, html: "", scripts: true, state: null, ui: null });
+        entry.ui = this.#webviewUi(ext, handle, ui);
+      } else {
+        entry.ui = ui.createTreeView({
+          title: view.name,
+          load: (parent) => this.#treeChildren(ext, view.id, parent),
+          onClick: (item) => this.#runItemCommand(ext, item.command),
+          onSelect: (item) => ext.frame?.invoke("tree.select", { viewId: view.id, handle: item.handle }, 5000).catch(() => {}),
+          iconSrc: (icon) => this.#iconSrc(ext, icon),
+        });
+      }
+      box.replaceChildren(entry.ui.el);
+      return entry.ui;
+    };
+    const show = async () => {
+      const ui = await mount();
+      try {
+        if (ext.state === "disabled") throw new Error(`“${ext.manifest.displayName}” is disabled.`);
+        if (ext.state !== "active") await this.activate(ext.id);
+      } catch (err) {
+        ui.setState?.(err.message);
+        return;
+      }
+      if (view.type === "webview") await this.#resolveWebviewView(ext, entry);
+      else {
+        ext.frame?.invoke("view.visible", { viewId: view.id, visible: true }, 5000).catch(() => {});
+        if (entry.registered) ui.refresh();
+        else ui.setState(`Waiting for “${ext.manifest.displayName}” to fill this view…`);
+      }
+    };
+    return { el: box, show };
+  }
+
+  async #treeChildren(ext, viewId, parent) {
+    if (ext.state !== "active") await this.activate(ext.id);
+    const list = await ext.frame.invoke("tree.children", { viewId, parent }, 10_000);
+    return (Array.isArray(list) ? list : []).slice(0, 2000).map((it) => ({
+      handle: String(it?.handle ?? "").slice(0, 200),
+      label: String(it?.label ?? "").slice(0, 300),
+      description: String(it?.description ?? "").slice(0, 300),
+      tooltip: String(it?.tooltip ?? "").slice(0, 1000),
+      collapsible: [0, 1, 2].includes(it?.collapsible) ? it.collapsible : 0,
+      icon: it?.icon && typeof it.icon === "object" ? { theme: typeof it.icon.theme === "string" ? it.icon.theme.slice(0, 80) : null, uri: typeof it.icon.uri === "string" ? it.icon.uri.slice(0, 500) : null } : null,
+      command: it?.command && typeof it.command.command === "string" ? { command: it.command.command.slice(0, 200), arguments: Array.isArray(it.command.arguments) ? it.command.arguments.slice(0, 10) : [] } : null,
+    }));
+  }
+
+  /** A tree item icon: a codicon name, or an image of the package as a data: URI. */
+  #iconSrc(ext, icon) {
+    if (!icon) return null;
+    if (icon.theme) return { theme: icon.theme };
+    const m = /^openfini-ext:\/\/[^/]+\/+(.*)$/.exec(icon.uri || "");
+    const bytes = m && ext.rec.files[decodeURIComponent(m[1])];
+    if (!bytes || bytes.length > 256 * 1024) return null;
+    const ext2 = (/\.([a-z0-9]+)$/i.exec(m[1])?.[1] || "").toLowerCase();
+    const mime = { svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp" }[ext2];
+    if (!mime) return null;
+    let bin = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return { src: `data:${mime};base64,${btoa(bin)}` };
+  }
+
+  /** Runs a tree item's or status item's command: the extension's own, or vscode.open for a project file. */
+  async #runItemCommand(ext, cmd) {
+    if (!cmd) return;
+    if (cmd.command === "vscode.open") {
+      const arg = cmd.arguments?.[0];
+      const path = typeof arg === "string" ? arg.replace(/^[a-z]+:\/\/[^/]*\//i, "") : typeof arg?.path === "string" && (arg.scheme === "file" || arg.scheme === "openfini") ? arg.path.replace(/^\/+/, "") : null;
+      if (path && this.app.codeUI?.web?.has(path)) return this.app.codeUI.openFile(path, { focus: true });
+      return;
+    }
+    await this.runCommand(ext.id, cmd.command, cmd.arguments);
+  }
+
+  /** The frame UI of one webview (a webview panel or the webview of a webview view). */
+  #webviewUi(ext, handle, ui) {
+    const rec = ext.webviews.get(handle);
+    const frame = ui.createWebviewFrame({
+      title: rec.title,
+      onMessage: (m) => {
+        if (JSON.stringify(m ?? null).length > MAX_WEBVIEW_MESSAGE) return this.#log(ext, "warn", "A webview message larger than 1 MB was dropped.");
+        ext.frame?.invoke("webview.message", { handle, message: m }, 10_000).catch(() => {});
+      },
+      onState: (st) => {
+        if (JSON.stringify(st ?? null).length <= MAX_WEBVIEW_MESSAGE) rec.state = st;
+      },
+      onLink: async (url) => {
+        const { confirmDialog } = await import("../ui/dialogs.js");
+        if (await confirmDialog({ title: ext.manifest.displayName, message: `Open this link in your browser?\n${url}`, ok: "Open" })) window.open(url, "_blank", "noopener,noreferrer");
+      },
+    });
+    rec.ui = frame;
+    if (rec.html) this.#renderWebview(ext, rec);
+    return { el: frame.el, setState: (text) => frame.setHtml(`<!doctype html><p style="font:13px system-ui;opacity:.7;padding:8px">${String(text).replace(/</g, "&lt;")}</p>`), refresh() {} };
+  }
+
+  #renderWebview(ext, rec) {
+    if (!rec.ui) return;
+    const css = getComputedStyle(document.documentElement);
+    const vars = themeVariables((n) => css.getPropertyValue(n));
+    const bg = (vars["--vscode-editor-background"].match(/\d+(\.\d+)?/g) || []).slice(0, 3).map(Number);
+    const hex = /^#([0-9a-f]{6})$/i.exec(vars["--vscode-editor-background"])?.[1];
+    const rgb = hex ? [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)) : bg.length === 3 ? bg : [30, 30, 30];
+    const dark = 0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2] < 128;
+    rec.ui.setHtml(prepareWebviewHtml(rec.html, { extId: ext.id, files: ext.rec.files, state: rec.state, vars, dark, scripts: rec.scripts }));
+  }
+
+  async #resolveWebviewView(ext, entry) {
+    if (entry.resolved || !entry.registered) {
+      if (!entry.registered) entry.ui?.setState?.(`Waiting for “${ext.manifest.displayName}” to fill this view…`);
+      return;
+    }
+    entry.resolved = true;
+    try {
+      const ok = await ext.frame.invoke("webviewView.resolve", { viewId: entry.view.id, handle: `view:${entry.view.id}` }, 15_000);
+      if (!ok) entry.resolved = false;
+    } catch (err) {
+      entry.resolved = false;
+      this.#log(ext, "warn", `The view ${entry.view.id} could not be resolved: ${err.message}`);
+    }
+  }
+
+  /** Removes a webview panel created with createWebviewPanel (disposed by the extension or its frame stopped). */
+  #dropWebview(ext, handle) {
+    const rec = ext.webviews.get(handle);
+    if (!rec) return;
+    rec.ui?.destroy();
+    rec.ui = null;
+    ext.webviews.delete(handle);
+    if (rec.pid) {
+      delete PANELS[rec.pid];
+      STUDIOS.code.top = STUDIOS.code.top.filter((x) => x !== rec.pid);
+      this.app.dock?.render?.();
+    }
+  }
+
+  #setStatusItem(ext, key, item) {
+    const items = (this.app.statusItems ||= new Map());
+    if (item) {
+      items.set(key, item);
+      ext.statusItems.add(key);
+    } else {
+      items.delete(key);
+      ext.statusItems.delete(key);
+    }
+    this.app.emit("statusitems");
+  }
+
+  /** Compiled TextMate grammar for a VS Code language id (contributed by an enabled extension), or null. */
+  grammarFor(languageId) {
+    const all = [];
+    for (const e of this.exts.values()) if (e.registered) for (const g of e.grammars) all.push([e, g]);
+    const hit = all.find(([, g]) => g.language === languageId);
+    if (!hit) return null;
+    const load = ([e, g]) => {
+      if (g.compiled !== undefined) return g.compiled;
+      g.compiled = null;
+      try {
+        g.compiled = compileGrammar(parseJsonc(readText(e.rec.files, g.path) ?? "{}"), { lookup: (scope) => {
+          const other = all.find(([, x]) => x.scopeName === scope);
+          return other ? load(other) : null;
+        } });
+        if (!g.compiled) this.#log(e, "warn", `The grammar ${g.path} has no patterns OpenFini can use.`);
+      } catch (err) {
+        this.#log(e, "warn", `The grammar ${g.path} could not be read: ${err.message} (only JSON grammars are supported).`);
+      }
+      return g.compiled;
+    };
+    return load(hit);
   }
 
   /** Languages contributed by enabled extensions (for language ids of files). */
@@ -360,6 +575,18 @@ export class VscodeHost extends Emitter {
     ext.frame?.destroy();
     ext.frame = null;
     ext.providers.clear();
+    for (const [handle, rec] of [...ext.webviews]) {
+      if (rec.pid) this.#dropWebview(ext, handle);
+      else {
+        rec.html = "";
+        rec.ui?.setHtml?.("<!doctype html>");
+      }
+    }
+    for (const entry of ext.views.values()) {
+      entry.registered = false;
+      entry.resolved = false;
+    }
+    for (const key of [...ext.statusItems]) this.#setStatusItem(ext, key, null);
     if (ext.state === "active" || ext.state === "activating") ext.state = "idle";
   }
 
@@ -718,6 +945,108 @@ export class VscodeHost extends Emitter {
       window.open(url, "_blank", "noopener,noreferrer");
       return true;
     });
+    H["status.item"] = (p) => {
+      const id = v.str(p.id, "id", { max: 200 });
+      const key = `vsx:${ext.id}:${id}`;
+      if (!p.visible) return this.#setStatusItem(ext, key, null), null;
+      if (!ext.statusItems.has(key) && ext.statusItems.size >= 20) throw new RpcError("QUOTA", "Too many status bar items.");
+      const text = v.str(p.text ?? "", "text", { max: 300 });
+      const parts = [];
+      for (const m of text.matchAll(/\$\(([\w-]+)(?:~[\w-]+)?\)|([^$]+|\$)/g)) parts.push(m[1] ? { icon: codiconName(m[1]) || "dot" } : { text: m[2] });
+      const cmd = p.command && typeof p.command.command === "string" ? { command: p.command.command.slice(0, 200), arguments: Array.isArray(p.command.arguments) ? p.command.arguments.slice(0, 10) : [] } : null;
+      this.#setStatusItem(ext, key, {
+        parts,
+        tooltip: String(p.tooltip || p.name || name()).slice(0, 600),
+        side: p.alignment === "right" ? "right" : "left",
+        priority: Number.isFinite(p.priority) ? p.priority : 0,
+        kind: p.kind === "error" || p.kind === "warning" ? p.kind : "",
+        studios: ["code"],
+        run: cmd ? () => this.#runItemCommand(ext, cmd) : null,
+      });
+      return null;
+    };
+    H["view.register"] = (p) => {
+      const viewId = v.str(p.viewId, "viewId", { max: 120 });
+      const entry = ext.views.get(viewId);
+      if (!entry) {
+        this.#log(ext, "warn", `A provider was registered for the view ${viewId}, which package.json does not contribute: it is not shown.`);
+        return null;
+      }
+      entry.registered = true;
+      if (entry.ui) {
+        if (entry.view.type === "webview") this.#resolveWebviewView(ext, entry);
+        else entry.ui.refresh();
+      }
+      return null;
+    };
+    H["view.refresh"] = (p) => {
+      ext.views.get(String(p.viewId))?.ui?.refresh?.();
+      return null;
+    };
+    H["view.update"] = (p) => {
+      const meta = { title: p.title ? String(p.title).slice(0, 120) : "", description: p.description ? String(p.description).slice(0, 200) : "", message: p.message ? String(p.message).slice(0, 1000) : "" };
+      ext.views.get(String(p.viewId))?.ui?.update?.(meta);
+      return null;
+    };
+    H["view.reveal"] = (p) => {
+      const pid = p.handle ? ext.webviews.get(String(p.handle))?.pid : ext.views.get(String(p.viewId))?.pid;
+      if (pid && app.studio === "code") app.dock?.reveal?.(pid);
+      return null;
+    };
+    H["webview.panel"] = (p) => {
+      const handle = v.str(p.handle, "handle", { max: 60 });
+      if (ext.webviews.size >= 20) throw new RpcError("QUOTA", "Too many webviews.");
+      const title = String(p.title || p.viewType || name()).slice(0, 80);
+      const pid = `vsx:${ext.id}:webview:${handle}`;
+      const rec = { pid, title, html: "", scripts: true, state: null, ui: null };
+      ext.webviews.set(handle, rec);
+      registerPanel(pid, {
+        title,
+        icon: "window",
+        ext: ext.id,
+        create: () => {
+          const box = document.createElement("div");
+          box.className = "of-panel of-panel--slot";
+          import("../ui/extensions/vscode-views.js").then((ui) => {
+            if (!ext.webviews.has(handle)) return;
+            box.replaceChildren(this.#webviewUi(ext, handle, ui).el);
+          });
+          return { el: box };
+        },
+      });
+      STUDIOS.code.top.push(pid);
+      app.dock?.render?.();
+      if (app.studio === "code") app.dock?.reveal?.(pid);
+      return null;
+    };
+    H["webview.html"] = (p) => {
+      const rec = ext.webviews.get(String(p.handle));
+      if (!rec) return null;
+      rec.html = v.str(p.html ?? "", "html", { max: 5 * 1024 * 1024 });
+      rec.scripts = p.scripts !== false;
+      this.#renderWebview(ext, rec);
+      return null;
+    };
+    H["webview.post"] = (p) => {
+      const rec = ext.webviews.get(String(p.handle));
+      if (!rec?.ui) return false;
+      if (JSON.stringify(p.message ?? null).length > MAX_WEBVIEW_MESSAGE) throw new RpcError("TOO_LARGE", "Webview messages are limited to 1 MB.");
+      rec.ui.post(p.message);
+      return true;
+    };
+    H["webview.title"] = (p) => {
+      const rec = ext.webviews.get(String(p.handle));
+      if (rec?.pid && PANELS[rec.pid]) {
+        rec.title = String(p.title || "").slice(0, 80) || rec.title;
+        PANELS[rec.pid].title = rec.title;
+        app.dock?.render?.();
+      }
+      return null;
+    };
+    H["webview.dispose"] = (p) => {
+      this.#dropWebview(ext, String(p.handle));
+      return null;
+    };
     H["network.fetch"] = async (p) => {
       const url = v.str(p.url, "url", { max: 2000 });
       if (app.network?.assert) app.network.assert("extension", url);
@@ -796,7 +1125,13 @@ export class VscodeHost extends Emitter {
   async installFromOpenVsx(namespace, extName, ask) {
     const d = await this.openVsx.details(namespace, extName);
     if (!d.files.download) throw new Error("Open VSX offers no download for this extension.");
-    const bytes = await this.openVsx.download(d.files.download);
+    const mb = (n) => (n / 1048576).toFixed(n >= 10485760 ? 0 : 1);
+    let bytes;
+    try {
+      bytes = await this.openVsx.download(d.files.download, { onProgress: (n, total) => this.app.status(total ? `Downloading ${d.displayName || d.name}: ${mb(n)} of ${mb(total)} MB…` : `Downloading ${d.displayName || d.name}: ${mb(n)} MB…`) });
+    } finally {
+      this.app.status("");
+    }
     return this.install({ bytes, source: { type: "openvsx", namespace: d.namespace, extName: d.name, url: d.files.download, version: d.version } }, ask);
   }
 

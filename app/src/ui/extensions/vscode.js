@@ -151,6 +151,9 @@ async function installedDetails(app, host, ext) {
     rows.push([t("Snippets"), Object.entries(by).map(([l, n]) => `${l === "*" ? t("all languages") : l} (${n})`).join(", ")]);
   }
   if (ext.languages.length) rows.push([t("Languages"), ext.languages.map((l) => `${l.aliases[0] || l.id}${l.extensions.length ? ` (${l.extensions.slice(0, 4).join(" ")})` : ""}${Object.keys(l.data).length ? "" : ` · ${t("no configuration")}`}`).join(", ")]);
+  if (m.contributes.grammars.length) rows.push([t("Syntax grammars"), m.contributes.grammars.map((g) => g.language || g.scopeName).filter(Boolean).join(", ")]);
+  if (m.contributes.views.length)
+    rows.push([t("Views"), ext.compat.runsCode ? `${m.contributes.views.map((vw) => vw.name).slice(0, 12).join(", ")} · ${t("dockable panels in the Code studio (Window menu)")}` : `${m.contributes.views.map((vw) => vw.name).slice(0, 12).join(", ")} · ${t("cannot run (no web code)")}`]);
   if (m.contributes.commands.length)
     rows.push([
       t("Commands"),
@@ -268,7 +271,7 @@ export function renderVscodeTab(app, container) {
     return b;
   };
   const bar = h("div.of-ext-toolbar.of-vsx-bar");
-  const note = h("details.of-vsx-note", h("summary", t("VS Code extensions were written for VS Code: OpenFini runs only the declarative parts and a subset of the web extension API.")), h("p", t("Themes, snippets and language settings work for every extension. The code of web extensions runs in a sandbox against a subset of the VS Code API; extensions that need Node.js only add their declarative parts. Extensions come from Open VSX (open-vsx.org), not the Visual Studio Marketplace, whose terms allow its extensions only in Microsoft's products. Drop a .vsix file here to install it.")));
+  const note = h("details.of-vsx-note", h("summary", t("VS Code extensions were written for VS Code: OpenFini runs only the declarative parts and a subset of the web extension API.")), h("p", t("Themes, snippets, syntax grammars and language settings work for every extension. The code of web extensions runs in a sandbox against a subset of the VS Code API, and their views become dockable panels; extensions that need Node.js only add their declarative parts. Extensions come from Open VSX (open-vsx.org), not the Visual Studio Marketplace, whose terms allow its extensions only in Microsoft's products. Drop a .vsix file here to install it.")));
   const body = h("div.of-ext-body", listEl, pane);
   const root = h("div.of-vsx", note, bar, body);
   container.replaceChildren(root);

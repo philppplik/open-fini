@@ -2002,7 +2002,6 @@
   "Theme “{name}” applied.": "Design „{name}“ angewendet.",
   "Theme, color and density of the interface in every studio.": "Design, Farbe und Dichte der Oberfläche in jedem Studio.",
   "Themes": "Designs",
-  "Themes, snippets and language settings work for every extension. The code of web extensions runs in a sandbox against a subset of the VS Code API; extensions that need Node.js only add their declarative parts. Extensions come from Open VSX (open-vsx.org), not the Visual Studio Marketplace, whose terms allow its extensions only in Microsoft's products. Drop a .vsix file here to install it.": "Designs, Snippets und Spracheinstellungen funktionieren mit jeder Erweiterung. Der Code von Web-Erweiterungen läuft in einer Sandbox mit einer Teilmenge der VS-Code-API; Erweiterungen, die Node.js brauchen, liefern nur ihre deklarativen Teile. Erweiterungen kommen aus Open VSX (open-vsx.org), nicht aus dem Visual Studio Marketplace, dessen Bedingungen seine Erweiterungen nur in Microsoft-Produkten erlauben. Ziehe eine .vsix-Datei hierher, um sie zu installieren.",
   "Themes…": "Designs…",
   "Thin, rounded scrollbars that follow the theme everywhere, with a thicker variant in high-contrast mode.": "Dünne, abgerundete Bildlaufleisten, die überall dem Design folgen, mit einer dickeren Variante im Hochkontrastmodus.",
   "This app cannot export files.": "Diese App kann keine Dateien exportieren.",
@@ -4504,5 +4503,11 @@
   "Inline as data URI": "Als Data-URI einfügen",
   "Only files up to {size} KB can be inlined as a data URI.": "Nur Dateien bis {size} KB können als Data-URI eingefügt werden.",
   "Open in Spreadsheet": "In Tabellenkalkulation öffnen",
-  "Pixel sizes stored in the icon, separated by commas (1 to 256). Sizes larger than the exported image are left out.": "Im Symbol gespeicherte Pixelgrößen, durch Kommas getrennt (1 bis 256). Größen über der exportierten Bildgröße werden ausgelassen."
+  "Pixel sizes stored in the icon, separated by commas (1 to 256). Sizes larger than the exported image are left out.": "Im Symbol gespeicherte Pixelgrößen, durch Kommas getrennt (1 bis 256). Größen über der exportierten Bildgröße werden ausgelassen.",
+  "dockable panels in the Code studio (Window menu)": "andockbare Bedienfelder im Code-Studio (Menü Fenster)",
+  "Extension view": "Erweiterungsansicht",
+  "Syntax grammars": "Syntax-Grammatiken",
+  "Themes, snippets, syntax grammars and language settings work for every extension. The code of web extensions runs in a sandbox against a subset of the VS Code API, and their views become dockable panels; extensions that need Node.js only add their declarative parts. Extensions come from Open VSX (open-vsx.org), not the Visual Studio Marketplace, whose terms allow its extensions only in Microsoft's products. Drop a .vsix file here to install it.": "Farbdesigns, Snippets, Syntax-Grammatiken und Spracheinstellungen funktionieren bei jeder Erweiterung. Der Code von Web-Erweiterungen läuft in einer Sandbox gegen einen Teil der VS-Code-API, und ihre Ansichten werden zu andockbaren Bedienfeldern; Erweiterungen, die Node.js brauchen, steuern nur ihre deklarativen Teile bei. Erweiterungen kommen von Open VSX (open-vsx.org), nicht aus dem Visual Studio Marketplace, dessen Bedingungen seine Erweiterungen nur in Microsoft-Produkten erlauben. Lege hier eine .vsix-Datei ab, um sie zu installieren.",
+  "This view could not be loaded.": "Diese Ansicht konnte nicht geladen werden.",
+  "Views": "Ansichten"
 }

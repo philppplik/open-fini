@@ -12,9 +12,18 @@
 //   running web extensions (async RPC with a 1.5 s timeout)
 // - a hover tooltip for hover providers (sanitized Markdown, no remote images)
 // - comment tokens and auto-closing pairs from language-configuration.json for languages OpenFini has no mode for
+// - syntax highlighting from a contributed TextMate grammar (textmate.js) for languages OpenFini has no mode for
 import * as CM from "../../vendor/codemirror/codemirror.js";
 import { languageOf } from "../engine/web/paths.js";
 import { toCodeMirror, snippetVariables } from "./snippets.js";
+import { tmStreamParser } from "./textmate.js";
+
+const grammarLanguages = new WeakMap(); // compiled grammar -> CodeMirror StreamLanguage (one per grammar)
+function grammarLanguage(g) {
+  let lang = grammarLanguages.get(g);
+  if (!lang) grammarLanguages.set(g, (lang = CM.StreamLanguage.define(tmStreamParser(g))));
+  return lang;
+}
 
 const KIND = ["text", "method", "function", "function", "property", "variable", "class", "interface", "namespace", "property", "constant", "constant", "enum", "keyword", "text", "constant", "text", "variable", "text", "enum", "constant", "class", "variable", "keyword", "type"];
 
@@ -166,7 +175,9 @@ export function installEditorBridge(app, host) {
     });
     const plainText = languageOf(path) === "text";
     const source = completionSource(host, path); // one function per file: CodeMirror tracks async sources by identity
+    const grammar = plainText ? host.grammarFor?.(host.languageIdOf(path)) : null;
     return [
+      ...(grammar ? [grammarLanguage(grammar)] : []),
       tracker,
       hoverPlugin(host, path),
       CM.EditorState.languageData.of(() => {

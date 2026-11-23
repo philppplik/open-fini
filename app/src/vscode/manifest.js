@@ -19,9 +19,9 @@ import { normalizeChord } from "../customize/chords.js";
 export const COMPAT_VSCODE_VERSION = "1.95.0";
 
 /** Contribution points OpenFini understands. Everything else is listed as "not supported". */
-export const SUPPORTED_CONTRIBUTIONS = ["themes", "snippets", "languages", "configuration", "commands", "keybindings"];
-/** Contribution points that only matter together with code (commands, keybindings). */
-const CODE_CONTRIBUTIONS = new Set(["commands", "keybindings", "menus"]);
+export const SUPPORTED_CONTRIBUTIONS = ["themes", "snippets", "languages", "grammars", "configuration", "commands", "keybindings", "views", "viewsContainers"];
+/** Contribution points that only matter together with code (commands, key bindings, views filled by the extension). */
+const CODE_CONTRIBUTIONS = new Set(["commands", "keybindings", "menus", "views", "viewsContainers", "viewsWelcome"]);
 /** Contributions that are harmless metadata and never count against compatibility. */
 const IGNORED_CONTRIBUTIONS = new Set(["menus", "jsonValidation", "configurationDefaults", "walkthroughs", "colors", "semanticTokenScopes", "semanticTokenTypes", "semanticTokenModifiers"]);
 
@@ -84,6 +84,44 @@ export function configurationProperties(manifestOrPkg) {
   return out;
 }
 
+/** VS Code's own view containers and where their views go in the Code studio dock. */
+const BUILTIN_CONTAINERS = { explorer: "top", scm: "top", debug: "top", test: "top", remote: "top", panel: "bottom" };
+
+/**
+ * `contributes.views` (+ `viewsContainers`) -> a flat list of views, each a dockable panel in the Code studio:
+ * { id, name, type: "tree" | "webview", container, containerTitle, location: "top" | "bottom", icon }.
+ * Views in an activity-bar container (or VS Code's Explorer, Source Control …) dock at the side, views in a panel
+ * container under the editor.
+ */
+function normalizeViews(views, containers) {
+  const out = [];
+  if (!views || typeof views !== "object" || Array.isArray(views)) return out;
+  const own = {};
+  for (const [where, loc] of [["activitybar", "top"], ["panel", "bottom"]]) {
+    for (const ct of arr(containers?.[where], 30)) {
+      const id = str(ct?.id, 80);
+      if (/^[\w.-]+$/.test(id)) own[id] = { location: loc, title: str(ct.title, 80) || id, icon: relPath(ct.icon) };
+    }
+  }
+  for (const [container, list] of Object.entries(views).slice(0, 30)) {
+    const ct = own[container] || (BUILTIN_CONTAINERS[container] ? { location: BUILTIN_CONTAINERS[container], title: container, icon: "" } : null);
+    if (!ct) continue;
+    for (const vw of arr(list, 30)) {
+      const id = str(vw?.id, 120);
+      if (!/^[\w.-]+$/.test(id) || out.some((x) => x.id === id)) continue;
+      out.push({ id, name: str(vw.name, 80) || id, type: vw.type === "webview" ? "webview" : "tree", container, containerTitle: ct.title, location: ct.location, icon: relPath(vw.icon) || ct.icon });
+      if (out.length >= 60) return out;
+    }
+  }
+  return out;
+}
+
+/** Files a web extension's webviews and views may load (scripts, styles, images, fonts, wasm); never node_modules. */
+export function isWebAsset(path) {
+  const p = String(path || "");
+  return /\.(js|mjs|css|html?|svg|png|jpe?g|gif|webp|avif|ico|woff2?|ttf|otf|wasm|json)$/i.test(p) && !/(^|\/)node_modules\//.test(p) && !/\.map$/i.test(p) && p.split("/").length <= 8;
+}
+
 /**
  * Validates and normalizes a (localized) package.json.
  * @returns {{ok: boolean, errors: string[], manifest: object|null}}
@@ -106,8 +144,9 @@ export function normalizePackage(pkg) {
     commands: arr(c.commands, 300).filter((x) => x && str(x.command, 160)).map((x) => ({ command: str(x.command, 160), title: str(x.title, 120) || str(x.command, 120), category: str(x.category, 60) })),
     keybindings: (Array.isArray(c.keybindings) ? c.keybindings : c.keybindings ? [c.keybindings] : []).slice(0, 300).filter((k) => k && str(k.command, 160) && str(k.key, 60)).map((k) => ({ command: str(k.command, 160), key: str(k.key, 60), mac: str(k.mac, 60), when: str(k.when, 300) })),
     configuration: configurationProperties(pkg),
+    views: normalizeViews(c.views, c.viewsContainers),
   };
-  const other = Object.keys(c).filter((k) => !SUPPORTED_CONTRIBUTIONS.includes(k) && k !== "grammars");
+  const other = Object.keys(c).filter((k) => !SUPPORTED_CONTRIBUTIONS.includes(k));
   const manifest = {
     id: `${publisher}.${name}`.toLowerCase(),
     publisher,
@@ -142,6 +181,7 @@ export function referencedFiles(m) {
   for (const t of c.themes) out.add(t.path);
   for (const s of c.snippets) out.add(s.path);
   for (const l of c.languages) if (l.configuration) out.add(l.configuration);
+  for (const g of c.grammars) out.add(g.path);
   if (m.icon) out.add(m.icon);
   if (m.browser) for (const p of [m.browser, `${m.browser}.js`, `${m.browser}/index.js`]) out.add(p.replace(/\/+/g, "/"));
   return out;
@@ -159,7 +199,7 @@ export function resolveEntry(entry, names) {
 
 /** Members of supported namespaces OpenFini does not implement and that popular extensions use. */
 const KNOWN_UNSUPPORTED = {
-  window: ["createWebviewPanel", "registerWebviewViewProvider", "registerWebviewPanelSerializer", "createTreeView", "registerTreeDataProvider", "createTerminal", "registerTerminalProfileProvider", "registerTerminalLinkProvider", "registerUriHandler", "registerCustomEditorProvider", "createQuickPick", "createInputBox", "showOpenDialog", "showSaveDialog", "showWorkspaceFolderPick", "registerFileDecorationProvider", "showNotebookDocument", "tabGroups", "createWebviewTextEditorInset"],
+  window: ["registerWebviewPanelSerializer", "createTerminal", "registerTerminalProfileProvider", "registerTerminalLinkProvider", "registerUriHandler", "registerCustomEditorProvider", "showOpenDialog", "showSaveDialog", "showWorkspaceFolderPick", "registerFileDecorationProvider", "showNotebookDocument", "tabGroups", "createWebviewTextEditorInset"],
   workspace: ["registerFileSystemProvider", "registerTaskProvider", "registerTextDocumentContentProvider", "registerNotebookSerializer", "updateWorkspaceFolders", "openNotebookDocument", "registerTimelineProvider", "saveAll", "save", "saveAs"],
   languages: ["registerDefinitionProvider", "registerReferenceProvider", "registerRenameProvider", "registerDocumentSymbolProvider", "registerWorkspaceSymbolProvider", "registerSignatureHelpProvider", "registerFoldingRangeProvider", "registerDocumentSemanticTokensProvider", "registerDocumentRangeSemanticTokensProvider", "registerInlayHintsProvider", "registerCodeLensProvider", "registerDocumentLinkProvider", "registerColorProvider", "registerInlineCompletionItemProvider", "registerOnTypeFormattingEditProvider", "registerSelectionRangeProvider", "registerCallHierarchyProvider", "registerTypeHierarchyProvider", "registerLinkedEditingRangeProvider", "registerDocumentHighlightProvider", "registerImplementationProvider", "registerTypeDefinitionProvider", "registerDeclarationProvider", "registerEvaluatableExpressionProvider", "registerInlineValuesProvider", "setTextDocumentLanguage"],
   env: ["asExternalUri", "createTelemetryLogger"],
@@ -206,7 +246,8 @@ export function compatibility(m, { code = "", names = [], runtimeUnsupported = [
   if (c.snippets.length) declarative.push(`${c.snippets.length} snippet file${c.snippets.length === 1 ? "" : "s"}`);
   if (c.languages.some((l) => l.configuration)) declarative.push("language configuration");
   if (Object.keys(c.configuration).length) declarative.push("settings");
-  const unsupportedContribs = [...(c.grammars.length ? ["grammars"] : []), ...m.otherContributions.filter((k) => !IGNORED_CONTRIBUTIONS.has(k) && !CODE_CONTRIBUTIONS.has(k))].map((k) => CONTRIB_NAMES[k] || k);
+  if (c.grammars.length) declarative.push(`${c.grammars.length} syntax grammar${c.grammars.length === 1 ? "" : "s"}`);
+  const unsupportedContribs = [...m.otherContributions.filter((k) => !IGNORED_CONTRIBUTIONS.has(k) && !CODE_CONTRIBUTIONS.has(k))].map((k) => CONTRIB_NAMES[k] || k);
   const hasCode = !!(m.browser || m.main);
   const web = !!m.browser;
   const apis = web ? [...new Set([...scanApiUsage(code), ...runtimeUnsupported])].sort() : [];
