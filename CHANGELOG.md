@@ -15,9 +15,13 @@ All notable changes to OpenFini are documented here. The format follows
 - **Pixel strokes are live**: the bitmaps of pixel layers travel as 128 px tiles while editing together (last writer wins per tile; a resize or crop wins over concurrent strokes on the old size). They used to travel only with *Resync*.
 - Pictures and media larger than about 45 KiB in Presentation, Whiteboard, Document and Scene travel live in chunks instead of showing as placeholders for the others.
 - Other members' active cell is shown in the Spreadsheet.
+- The Vibe chat model menu lists Ollama models grouped as Local and Cloud, with capability badges (vision, tools, thinking).
 
 ### Changed
 - Live editing protocol: the `op` message has a new kind `pixel`, and Documents and Scenes are shared with kind `office`. Older versions reject those messages and open such documents as copies; everybody in a room should use the same version.
+- Settings: the sidebar now runs flush from the top to the bottom edge of the dialog; the close and Done buttons moved into the content column.
+- Active tabs and list rows use a soft accent tint instead of a one-sided accent line (document, dock, Scene, Code, Office, Collaboration and Diagnostics tabs, settings sidebar).
+
 
 ## [1.2.0] — Docking panels, workspaces, in-app updates
 

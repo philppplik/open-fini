@@ -520,5 +520,13 @@ export function settingsDialog(app, sectionId = "general", { tab = null } = {}) 
     renderNav();
     renderBody();
   });
-  openDialog({ title: t("Settings"), body: h("div.of-set", nav, body), width: 980, cls: "of-settings", buttons: [{ label: t("Done"), variant: "primary", onClick: (c) => c() }] });
+  // no dialog header/footer: the sidebar runs flush from the top to the bottom edge, so the close button and the Done
+  // button live inside the content column instead
+  let closeDlg = () => {};
+  const closeBtn = h("sl-icon-button.of-set__close", { name: "x-lg", label: t("Close") });
+  closeBtn.addEventListener("click", () => closeDlg());
+  const done = h("sl-button", { variant: "primary", size: "medium" }, t("Done"));
+  done.addEventListener("click", () => closeDlg());
+  const main = h("div.of-set__main", closeBtn, body, h("div.of-set__foot", done));
+  ({ close: closeDlg } = openDialog({ title: t("Settings"), body: h("div.of-set", nav, main), width: 980, cls: "of-settings", noHeader: true }));
 }
