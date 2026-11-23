@@ -6,17 +6,27 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- **Collaboration live sync in the Office apps and the Whiteboard** ([docs/collaboration.md](docs/collaboration.md#live-editing-edit-together-beta)): an element, cell or object that arrived before its page or sheet was dropped and the next edit of any member then deleted it for everybody; local edits are now the records that changed since the last look, and refused records are retried, so delivery order no longer matters. Undo and Redo after someone else's edit restored the whole older document and sent that to the room; they now revert only your own step. One oversized record (a very long freehand stroke) made receivers reject the whole message; records are now checked one by one and oversized ones are kept back with a notice (*Resync* brings them). Large edits (a filter on a big layer, a pasted picture) burst past the rate limits and parts were dropped on the way; outgoing live edits are now paced.
+- Members who join after the sharer left still get the card of a live document.
+
 ### Added
 - **More of the VS Code extension API** ([docs/vscode-extensions.md](docs/vscode-extensions.md)): contributed views (`contributes.views` and `viewsContainers`) are dockable panels of the Code studio, with tree views as native rows (`createTreeView`, `registerTreeDataProvider`) and webview views; `createWebviewPanel` opens a dockable panel; webviews run in sandboxed frames without network access, with `acquireVsCodeApi()`, two-way messages, saved state, extension files inlined and OpenFini's theme as `--vscode-*` variables. Status bar items are real items in the status bar (codicons, tooltip, click runs the command). `createQuickPick` and `createInputBox`, `TreeItem` and `<view>.focus`. TextMate grammars (`contributes.grammars`) highlight languages the Code studio has no mode for.
 - VS Code extension packages up to **512 MB** (was 64 MB): streamed download with a hard cap and an idle timeout, and a new ZIP reader that inflates only the files OpenFini uses, chunk by chunk, stopping entries that unpack past their declared size.
+- **Share live for every studio with a live model**: *Share as linked live document* is now offered for the Document (word processor), Spreadsheet, Presentation and Whiteboard apps and the Scene Studio, not only *Share a copy*. The word processor merges per paragraph and keeps your caret in its paragraph when others insert above it; the Scene Studio merges per clip. Which documents stay copy-only and why: [docs/collaboration.md ▸ What can be shared live](docs/collaboration.md#what-can-be-shared-live).
+- **Pixel strokes are live**: the bitmaps of pixel layers travel as 128 px tiles while editing together (last writer wins per tile; a resize or crop wins over concurrent strokes on the old size). They used to travel only with *Resync*.
+- Pictures and media larger than about 45 KiB in Presentation, Whiteboard, Document and Scene travel live in chunks instead of showing as placeholders for the others.
+- Other members' active cell is shown in the Spreadsheet.
 - The Vibe chat model menu lists Ollama models grouped as Local and Cloud, with capability badges (vision, tools, thinking).
 - **Tear panels off into their own windows** ([docs/workspaces.md](docs/workspaces.md#tear-a-panel-off-into-its-own-window), [ADR 0033](docs/adr/0033-docking-layout.md#tear-off-into-a-window-amendment)): drag a panel tab (or a whole tab group) out of the app window, or choose *Open in Window* in the panel menus or *Move Panel…*, and it opens in a window of its own (a native window on the desktop, a popup window in the browser), for example on a second monitor. It is the same live panel, not a copy, and follows the document and studio as before; Ctrl/Cmd shortcuts work in it. *Dock Back* (in the window, the panel menus or *Window ▸ Dock Back All Windows*) or closing the window puts the panels back where the workspace keeps them. Torn-off windows, with their place and size, are part of the layout and of saved workspaces; a window the browser refuses to reopen waits in the app with an *Open in Window* button. Works in every studio, including the Code, Scene, Vibe and Office panels.
 
 ### Changed
+- Live editing protocol: the `op` message has a new kind `pixel`, and Documents and Scenes are shared with kind `office`. Older versions reject those messages and open such documents as copies; everybody in a room should use the same version.
 - Settings: the sidebar now runs flush from the top to the bottom edge of the dialog; the close and Done buttons moved into the content column.
 - Active tabs and list rows use a soft accent tint instead of a one-sided accent line (document, dock, Scene, Code, Office, Collaboration and Diagnostics tabs, settings sidebar).
 - A panel that is reopened (or docks back) returns at its place in the tab order of the panels it is grouped with in the workspace, instead of as the last tab.
 - Desktop: the main window is now created by the app at start-up (same settings as before) so it can open panel windows.
+
 
 ## [1.2.0] — Docking panels, workspaces, in-app updates
 

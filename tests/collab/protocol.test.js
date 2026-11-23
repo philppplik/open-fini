@@ -141,3 +141,9 @@ test("chat: activities of the same author, document and label merge", () => {
   assert.equal(c.list[0].activity.count, 3);
   assert.equal(c.list[0].activity.steps, 2);
 });
+
+test("live op messages: pixel tiles are a new op kind; unknown kinds stay refused", () => {
+  ok({ t: "op", ts: 1, doc: "d1", kind: "pixel", ops: [{ o: "px", id: "n1", W: 10, H: 10, s: [0, ""], x: 0, y: 0, w: 10, h: 10, d: "", c: [1, "a"] }] });
+  ok({ t: "op", ts: 1, doc: "d1", kind: "office", ops: [{ k: "blk:b1", v: { z: "V", b: { type: "paragraph" } }, c: 1, s: "a" }] });
+  bad({ t: "op", ts: 1, doc: "d1", kind: "video", ops: [] });
+});
