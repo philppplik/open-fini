@@ -25,6 +25,7 @@ import { updateReferences } from "./refs.js";
 import { importInto } from "./import.js";
 import { gitServiceFor } from "./git-service.js";
 import { gitGutter, refreshGutter } from "./git-gutter.js";
+import { embedDropHandlers } from "./embed-ui.js";
 import { syncHighlight, SyncController } from "./sync.js";
 import { platform } from "../../platform/index.js";
 import { DocPreview, docKind } from "./docpreview.js";
@@ -111,6 +112,9 @@ export class CodeWorkspace extends Emitter {
     // Source Control: the service is cheap; the engine and the panel load when a repository exists or the pane opens
     this.git = gitServiceFor(this.app, web);
     this.editors.extraExtensions = (path) => [gitGutter(path, (p) => this.git.baseText(p)), syncHighlight];
+    const drop = embedDropHandlers(this); // Explorer files dropped into the editor are embedded (embed-ui.js)
+    this.editors.onDragOver = drop.dragover;
+    this.editors.onDrop = drop.drop;
     this.git.on("change", () => this.editors.view?.dispatch({ effects: refreshGutter.of(null) }));
     if (this.git.exists) this.git.refresh();
     const gitEl = h("div.of-side__pane.of-gitpane");
@@ -994,7 +998,7 @@ export class CodeWorkspace extends Emitter {
     const c = this.editors.cursorInfo();
     const parts = [];
     if (c) parts.push(`Ln ${c.line}, Col ${c.col}${c.selected ? ` (${c.selected} selected)` : ""}`);
-    if (c) parts.push(({ html: "HTML", css: "CSS", javascript: "JavaScript", json: "JSON", markdown: "Markdown", xml: "XML", latex: "LaTeX", yaml: "YAML", toml: "TOML", properties: "INI", text: "Plain text" })[E.languageOf(c.path)] || "Plain text");
+    if (c) parts.push(E.codeLanguageOf(c.path)?.name || "Plain text");
     parts.push(`Spaces: ${this.web.settings.tabSize || 2}`, "UTF-8");
     parts.push(`${this.preview.bp.label} ${this.preview.vw}px`);
     return parts.join("   ·   ");

@@ -26,10 +26,11 @@
 //     decoded to; encodeText returns `original` while the text still equals `snapshot`.
 //   * `ask: true` means the document had a writable source and lost it through edits: the caller shows ONE dialog.
 
-const TEXT_FORMATS = ["txt", "text", "md", "markdown", "mdx", "tex", "latex", "bib", "sty", "cls", "json", "jsonc", "yaml", "yml", "xml", "csv", "tsv", "toml", "ini", "conf", "properties", "log", "ts", "tsx", "jsx", "js", "mjs", "css", "html", "htm"];
+import { isTextDocumentName } from "./text-docs.js";
+
 const OFFICE_WRITE = { docx: "docx", odt: "odt", rtf: "rtf", html: "html", htm: "html", xhtml: "html", md: "md", markdown: "md", txt: "txt", text: "txt" };
 const OFFICE_CANONICAL = { docx: "docx", odt: "odt", rtf: "rtf", html: "html", md: "md", txt: "txt" };
-const IMAGE_FORMATS = ["png", "jpg", "jpeg", "jpe", "webp", "gif", "bmp", "avif", "tif", "tiff", "ico", "cur"];
+const IMAGE_FORMATS = ["png", "jpg", "jpeg", "jpe", "webp", "gif", "bmp", "avif", "tif", "tiff", "ico", "cur", "tga"];
 const VECTOR_NODE_TYPES = new Set(["group", "rect", "ellipse", "polygon", "star", "path", "text", "image"]);
 
 export const extOf = (name) => (/\.([^./\\]+)$/.exec(String(name || ""))?.[1] || "").toLowerCase();
@@ -80,7 +81,9 @@ export function describeSource(file, doc) {
   const where = { name, ...(file.path ? { path: file.path } : {}), ...(file.handle ? { handle: file.handle } : {}) };
   if (doc.office && OFFICE_WRITE[ext]) return { ...where, format: OFFICE_WRITE[ext], kind: "office", officeId: OFFICE_WRITE[ext] };
   if (doc.office) return null;
-  if (doc.web && TEXT_FORMATS.includes(ext)) return { ...where, format: ext, kind: "text" }; // traits are filled in by the opener (it decodes the bytes)
+  // every text and source-code type of engine/web/code-langs.js; names without an extension (Dockerfile, .gitignore)
+  // use the lower-case name as their format. Traits are filled in by the opener (it decodes the bytes).
+  if (doc.web && isTextDocumentName(name)) return { ...where, format: ext || name.toLowerCase(), kind: "text" };
   if (ext === "svg" && doc.studio === "vector") return { ...where, format: "svg", kind: "vector" };
   if (IMAGE_FORMATS.includes(ext)) return { ...where, format: ext, kind: "image" };
   if (ext) return { ...where, format: ext, kind: "foreign" };
@@ -136,7 +139,7 @@ export function canSaveAsSource(doc, { enabled = true } = {}) {
   const none = (reason) => ({ ok: false, ask: false, reason, format: s?.format || null, kind: s?.kind || null, name: s?.name || null, label: ".ofini" });
   if (!s) return none("The document was not opened from a file or is already an OpenFini document.");
   if (!enabled) return none("Saving in the original format is turned off in Settings.");
-  const yes = (name = s.name) => ({ ok: true, ask: false, reason: "", format: s.format, kind: s.kind, name, label: `.${extOf(name) || s.format}` });
+  const yes = (name = s.name) => ({ ok: true, ask: false, reason: "", format: s.format, kind: s.kind, name, label: extOf(name) ? `.${extOf(name)}` : name || `.${s.format}` });
   const lost = (why) => ({ ok: false, ask: true, reason: `${why}`, format: s.format, kind: s.kind, name: s.name, label: ".ofini" });
   switch (s.kind) {
     case "text": {

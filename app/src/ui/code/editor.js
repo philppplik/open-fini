@@ -2,6 +2,7 @@
 // its own undo history), a tab strip, project-aware completions and a diagnostics linter.
 // Visual tools edit files through `applyChanges`, which goes through the same history as typing.
 import * as CM from "../../../vendor/codemirror/codemirror.js";
+import { languageSupport, waitsForModes, whenModesLoaded } from "./languages.js";
 import { Emitter, h, empty, formatBytes } from "../../core/util.js";
 import { languageOf, parseHtml, parseCss, resolveRef, dirname, formatText, formatRange, canFormat, minifyText, canMinify, FORMAT_PRESETS } from "../../engine/web/index.js";
 import { expandHtml, expandCss, abbreviationBefore } from "../../engine/web/emmet.js";
@@ -32,33 +33,6 @@ const SNIPPETS_CSS = [
   { label: "reset", detail: "box-sizing reset", template: `*, *::before, *::after {\n  box-sizing: border-box;\n}` },
 ];
 
-function languageExtension(path) {
-  switch (languageOf(path)) {
-    case "html":
-      return CM.html({ autoCloseTags: true, matchClosingTags: true });
-    case "css":
-      return CM.css();
-    case "javascript":
-      return CM.javascript({ typescript: /\.tsx?$/i.test(path), jsx: /\.(jsx|tsx)$/i.test(path) });
-    case "json":
-      return CM.json();
-    case "markdown":
-      return CM.markdown();
-    case "xml":
-      return CM.xml();
-    case "latex":
-      return CM.StreamLanguage.define(CM.stex);
-    case "yaml":
-      return CM.StreamLanguage.define(CM.yaml);
-    case "toml":
-      return CM.StreamLanguage.define(CM.toml);
-    case "properties":
-      return CM.StreamLanguage.define(CM.properties);
-    default:
-      return [];
-  }
-}
-
 export class CodeEditors extends Emitter {
   /**
    * @param {object} o
@@ -82,6 +56,7 @@ export class CodeEditors extends Emitter {
     this.contrib = new CM.Compartment(); // app.editorContributions (VS Code extensions, see vscode/editor-bridge.js)
     this.suggest = new CM.Compartment(); // autocompletion switch and timing (assist.js)
     this.assistC = new CM.Compartment(); // suggestions, hover popovers and color swatches (assist.js, loaded below)
+    this.langC = new CM.Compartment(); // syntax highlighting (languages.js; rarer languages load their mode on demand)
     this.assist = null;
     this.tabsEl = h("div.of-etabs", { role: "tablist", "aria-label": "Open files" });
     this.placeholder = h("div.of-editor__empty", h("sl-icon", { name: "code-slash" }), h("p", "Open a file from the Explorer"), h("p.of-hint", "Quick open  Ctrl+P · Commands  Ctrl+Shift+P"));
@@ -162,7 +137,7 @@ export class CodeEditors extends Emitter {
       CM.indentUnit.of(" ".repeat(web.settings.tabSize || 2)),
       CM.EditorState.tabSize.of(web.settings.tabSize || 2),
       this.wrap.of(web.settings.wordWrap ? CM.EditorView.lineWrapping : []),
-      languageExtension(path),
+      this.langC.of(this.#language(path)),
       CM.EditorState.languageData.of(() => completions), // one source per file: CodeMirror tracks sources by identity
       CM.linter(() => self.diagnosticsFor(path).map((d) => toCmDiagnostic(d, self.states.get(path) || self.view?.state)), { delay: 500 }),
       CM.EditorView.updateListener.of((u) => {
@@ -197,9 +172,29 @@ export class CodeEditors extends Emitter {
           openEditorMenu(self, e, view); // providers: ./context.js (Cut/Copy/Paste, Transform, AI, extensions)
           return true;
         },
+        // files dragged from the Explorer: smart embedding (embed-ui.js, set by the workspace)
+        dragover: (e, view) => self.onDragOver?.(e, view) || false,
+        drop: (e, view) => self.onDrop?.(e, view) || false,
       }),
       CM.EditorView.contentAttributes.of({ "aria-label": `Editor for ${path}`, spellcheck: "false", autocorrect: "off", autocapitalize: "off" }),
     ];
+  }
+
+  /** Highlighting for a path; when its stream mode is still loading, every waiting state is reconfigured afterwards. */
+  #language(path) {
+    if (waitsForModes(path)) {
+      whenModesLoaded().then((ok) => {
+        if (!ok) return;
+        for (const [p, st] of this.states) {
+          const effects = this.langC.reconfigure(languageSupport(p));
+          if (p === this.active && this.view) {
+            this.view.dispatch({ effects });
+            this.states.set(p, this.view.state);
+          } else this.states.set(p, st.update({ effects }).state);
+        }
+      });
+    }
+    return languageSupport(path);
   }
 
   stateFor(path) {

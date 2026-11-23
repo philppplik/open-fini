@@ -6,6 +6,12 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Many more file types in the Code studio** ([docs/code-studio.md](docs/code-studio.md#file-types-and-syntax-highlighting)): Python, shell, PowerShell, batch (`.bat`, `.cmd`), Ruby, PHP, Go, Rust, Java, Kotlin, Swift, C / C++ / C#, Lua, SQL, Dockerfile, Makefile, `.env`, `.gitignore`, logs, Vue and Svelte and about 50 more open from File ▸ Open, drag and drop and the system, with syntax highlighting, Explorer icons, the language in the status bar, and *save back to the original format* (byte for byte while unchanged, CRLF kept). One table (`engine/web/code-langs.js`) drives the open dispatch, the Open filters, MIME types and highlighting; the rarer languages load their highlighter on demand (`vendor/codemirror-modes/`).
+- **Smart embedding in the Code studio** ([docs/code-studio.md](docs/code-studio.md#embedding-files)): right-click a file in the Explorer for *Embed in current file* (the right `<img>`, `url()`, `![]()`, `<link>`, `<script src>`, `import`, `@font-face` or relative path for both file types), *Inline as data URI* (up to 64 KiB) and *Copy relative path*; or drag the file into the editor (hold `Alt` to inline).
+- **ICO export and editing**: *File ▸ Export* writes ICO files with several sizes (16 to 256 px, *Icon sizes* option); `.ico` files of a website open in the Pixel studio and save back with every size. CSV and TSV files of a project open in the Spreadsheet app from the Explorer (*Open in Spreadsheet*).
+- **TGA images** (true-color, grayscale and color-mapped, raw and RLE) open as Pixel documents.
+
 ## [1.2.0] — Docking panels, workspaces, in-app updates
 
 ### Fixed

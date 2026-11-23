@@ -8,6 +8,8 @@ import { platform } from "../../platform/index.js";
 import { fileIcon } from "./util.js";
 import { pickFiles, entriesFromPicked, entriesFromDrop, importInto } from "./import.js";
 import { assetMenuItems } from "./asset-edit.js";
+import { embedMenuItems } from "./embed-ui.js";
+import { t } from "../../i18n/index.js";
 
 export function createExplorer(ws) {
   const { app, web } = ws;
@@ -174,6 +176,8 @@ export function createExplorer(ws) {
     const items = [];
     if (file) items.push({ label: "Open", icon: "file-earmark-code", run: () => ws.openFile(n.path, { focus: true }) });
     if (file) items.push(...assetMenuItems(ws, n.path));
+    if (file && /\.(csv|tsv|tab)$/i.test(n.path)) items.push({ label: t("Open in Spreadsheet"), icon: "file-earmark-spreadsheet", run: () => openInSpreadsheet(n.path) });
+    if (file) items.push("-", ...embedMenuItems(ws, n.path));
     if (file && /\.html?$/i.test(n.path)) items.push({ label: "Preview this page", icon: "eye", run: () => ws.showPage(n.path) }, { label: "Set as home page", icon: "house-door", run: () => web.setEntry(n.path), disabled: n.path === web.entry });
     items.push("-");
     const dir = file ? dirname(n.path) : n.path;
@@ -185,6 +189,17 @@ export function createExplorer(ws) {
   }
 
   // ------------------------------------------------------------ actions
+
+  /** A CSV / TSV file of the project as a spreadsheet document (a copy: File ▸ Save As writes it where you choose). */
+  async function openInSpreadsheet(path) {
+    const bytes = web.bytes(path);
+    if (!bytes) return;
+    try {
+      await (await import("../office/open.js")).openOfficeFile(app, { name: basename(path).replace(/\.tab$/i, ".tsv"), bytes });
+    } catch (err) {
+      app.toast(err?.message || t("Could not open “{path}”.", { path }), "danger", 6000);
+    }
+  }
 
   function startRename(path) {
     renaming = path;

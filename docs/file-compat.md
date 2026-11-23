@@ -31,7 +31,8 @@ No proprietary code was used.
 | Animated GIF | yes (frames as layers) | no | no timeline yet |
 | OpenRaster `.ora` | yes (layers, groups, blend modes) | yes (plain pixel layers) | File > Quick Export > OpenRaster |
 | Krita `.kra`, GIMP `.xcf` | flattened image (KRA) / export route (XCF) | no | see the research doc |
-| ICO / CUR | largest image | no | |
+| ICO / CUR | largest image | ICO (File ▸ Export, several sizes) | |
+| TGA `.tga` | yes (one layer) | no | true-color, grayscale and color-mapped; raw and RLE; 8 to 32 bit |
 | EPS | PDF inside, or the TIFF preview of a DOS EPS (flattened) | no | OpenFini never runs PostScript |
 | Palettes `.gpl` `.ase` `.aco` | yes (document swatches) | yes | File > Swatches |
 | Fonts WOFF, TTC | yes (Type panel) | no | WOFF2 works on screen only, no PDF embedding |
@@ -49,6 +50,7 @@ written by independent writers in the tests, not by the readers).
 | `ora.js` | `readOra(bytes)`, `writeOra({ width, height, layers, mergedPng })` | Layers and stacks (groups), opacity, visibility, offsets, `svg:*` composite ops. PNG data stays bytes; the host decodes. Paths cannot escape the archive. |
 | `kra.js` | `readKraMerged(bytes)` | Krita: only the flattened `mergedimage.png` / `preview.png`. |
 | `ico.js` | `readIco(bytes)` | PNG or BMP entries, largest first. |
+| `tga.js` | `readTga(bytes)` -> `{ width, height, rgba, warnings }` | Image types 1, 2, 3, 9, 10, 11; 8, 15, 16, 24, 32 bit; both origins; truncated data becomes transparent with a warning. |
 | `palette.js` | `readGpl/writeGpl`, `readAse/writeAse`, `readAco/writeAco`, `readHexList`, `readPalette` | RGB, CMYK, Lab, HSB and gray swatches become `#rrggbb` (naive CMYK, no ICC). Writers produce RGB. At most 4096 colors per file. |
 | `fontwrap.js` | `unwrapFont(bytes)`, `woffToSfnt`, `ttcFonts`, `fontContainer` | WOFF to sfnt, TTC to standalone fonts; WOFF2 is passed through (not decoded). |
 | `embedded.js` | `dosEpsParts(bytes)` | Byte ranges of a DOS EPS binary header (PostScript, WMF, TIFF preview). |

@@ -40,7 +40,21 @@ await build({
   legalComments: "none",
   target: "es2020",
 });
+// The legacy stream modes for the rarer languages (Python, shell, C family, Go, Rust, SQL ...) in a second bundle the
+// Code studio loads only when it opens such a file (ui/code/languages.js). It lives in its own folder because it is an
+// on-demand file: not precached and not part of the total download budget (like KaTeX and PDF.js).
+await mkdir(join(root, "app", "vendor", "codemirror-modes"), { recursive: true });
+await build({
+  entryPoints: [join(root, "scripts", "codemirror-modes-entry.mjs")],
+  outfile: join(root, "app", "vendor", "codemirror-modes", "modes.js"),
+  bundle: true,
+  format: "esm",
+  minify: true,
+  legalComments: "none",
+  target: "es2020",
+});
 await copyFile(join(root, "node_modules", "@codemirror", "view", "LICENSE"), join(cmOut, "LICENSE"));
+await copyFile(join(root, "node_modules", "@codemirror", "legacy-modes", "LICENSE"), join(root, "app", "vendor", "codemirror-modes", "LICENSE"));
 console.log("vendor: CodeMirror bundled ->", cmOut);
 
 // KaTeX (math in the Markdown and LaTeX previews, loaded only when a document contains formulas): one minified ESM
