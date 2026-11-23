@@ -12,6 +12,7 @@ import { iconEl } from "../toolbox.js";
 import { markContext, openContextMenu } from "../context-menu/index.js";
 import * as M from "./model.js";
 import { baseLayout } from "./presets.js";
+import { captureSheets, installSheetBridge, openPanelWindow, restyle, screenRectFor } from "./windows.js";
 
 const VARS = { left: "--of-dockl-w", right: "--of-dock-w", bottom: "--of-dockb-h" };
 const STRIP = { side: 40, bottom: 34 }; // collapsed dock (icon strip) size in px
@@ -28,6 +29,10 @@ export function createDocking(app, hosts) {
   let suppressClick = false;
   let flyout = null;
   let busy = null; // an ongoing drag or keyboard move: { cancel() }
+  const wins = new Map(); // "<layout key>|<group id>" -> open panel window (windows.js handle)
+  const blocked = new Set(); // torn-off groups whose window could not open: shown floating in the app until reopened
+  const visited = new Set(); // panel elements that were shown in a panel window (their shadow styles need a refresh back home)
+  installSheetBridge();
 
   const cz = () => app.customize;
   const skey = () => dockKeyOf(app); // layout key: the studio, or "office:board" ... for apps with their own panels
@@ -103,12 +108,93 @@ export function createDocking(app, hosts) {
       host.classList.toggle("is-collapsed", !!R.root && R.collapsed);
       hosts.layout.style.setProperty(VARS[r], `${px}px`);
     }
-    floatLayer.replaceChildren(...L.floating.map(floatEl));
+    syncWindows();
+    floatLayer.replaceChildren(...L.floating.filter((f) => !f.win || !wins.has(wkey(f.group.id))).map(floatEl));
     M.eachGroup(L, (g, info) => {
       if (info.region && L.regions[info.region].collapsed) return;
       if (max && info.region === max.region && g.id !== max.group.id) return;
-      instances.get(g.active)?.show?.();
+      const it = instances.get(g.active);
+      comeHome(it?.el);
+      it?.show?.();
     });
+  }
+
+  /** A panel element back from a panel window: its shadow roots get the main document's style sheets again. */
+  function comeHome(el) {
+    if (!el || !visited.has(el) || el.ownerDocument !== document) return;
+    visited.delete(el);
+    restyle(el);
+  }
+
+  // ------------------------------------------------------------------ torn-off windows (windows.js)
+
+  const wkey = (gid) => `${skey()}|${gid}`;
+
+  /** Opens, fills and closes panel windows so that they match the torn-off groups of the layout. */
+  function syncWindows() {
+    const want = new Map(M.windowGroups(L).map((f) => [wkey(f.group.id), f]));
+    for (const [k, w] of wins) {
+      if (want.has(k) && !w.closed) continue;
+      wins.delete(k);
+      w.close(); // the group went elsewhere (docked back, another studio or workspace): no "closed by the user"
+      if (want.has(k)) {
+        // closed by the user a moment ago, before the window reported it: dock it back instead of opening it again
+        const gid = want.get(k).group.id;
+        want.delete(k);
+        setTimeout(() => dockBack(gid), 0);
+      }
+    }
+    for (const k of blocked) if (!want.has(k)) blocked.delete(k);
+    for (const [k, f] of want) {
+      let w = wins.get(k);
+      if (!w && !blocked.has(k)) {
+        const gid = f.group.id;
+        w = openPanelWindow({
+          name: `openfini-panel-${k.replace(/[^\w-]/g, "-")}`,
+          rect: f,
+          title: title(f.group.active),
+          onClose: () => wins.get(k) === w && (wins.delete(k), commit(M.dockBack(L, gid, base()))),
+          onRect: (r) => wins.get(k) === w && commit(M.setFloatRect(L, gid, r)),
+          onKey: (e) => app.handleShortcut?.(e),
+        });
+        if (w) wins.set(k, w);
+        else blocked.add(k);
+      }
+      if (w) fillWindow(w, f.group);
+    }
+  }
+
+  function fillWindow(w, g) {
+    const node = groupEl(g, { region: null, win: true });
+    captureSheets(node); // before the move: shadow roots made before the sheet bridge keep their sheets
+    w.body.replaceChildren(node);
+    restyle(node);
+    visited.add(inst(g.active).el);
+    w.setTitle(`${title(g.active)} – OpenFini`);
+  }
+
+  /** Tears a panel ({ pid }) or group ({ gid }) off into its own window; in the browser, inside the click. */
+  function tear(src, rect) {
+    const next = M.tearOff(L, src, rect);
+    if (next === L) return;
+    commit(next);
+    const gid = src.gid || M.findPanel(L, src.pid)?.group.id;
+    if (gid && blocked.has(wkey(gid))) app.toast(t("Your browser blocked the new window. Allow pop-ups for this site and try again."), "warning", 6000);
+  }
+
+  /** A blocked or restored torn-off group shown in the app: try its window again (inside the click). */
+  function reopenWindow(gid) {
+    blocked.delete(wkey(gid));
+    draw();
+    if (blocked.has(wkey(gid))) app.toast(t("Your browser blocked the new window. Allow pop-ups for this site and try again."), "warning", 6000);
+  }
+
+  const dockBack = (gid) => commit(M.dockBack(L, gid, base()));
+  /** The window rectangle for tearing off what is shown at the group element of `pid` / `gid`. */
+  function tearRect(src) {
+    const gid = src.gid || M.findPanel(L, src.pid)?.group.id;
+    const el = gid && hosts.layout.querySelector(`.of-dkgroup[data-group="${CSS.escape(gid)}"]`);
+    return screenRectFor(el ? el.getBoundingClientRect() : { left: 120, top: 120, width: 300, height: 420 });
   }
 
   function nodeEl(node, region, path) {
@@ -123,6 +209,7 @@ export function createDocking(app, hosts) {
     return el;
   }
 
+  /** A tab group. ctx = { region, path } docked, { region: null } floating, plus win (in a panel window) or pending. */
   function groupEl(g, ctx) {
     const bodyId = `of-dkpanel-${g.id}`;
     const tabs = h("div.of-dkgroup__tablist", { role: "tablist", "aria-label": t("Panels") });
@@ -134,36 +221,50 @@ export function createDocking(app, hosts) {
       b.addEventListener("click", () => {
         if (!suppressClick && !on) select(pid);
       });
-      b.addEventListener("pointerdown", (e) => startDrag({ pid }, e, b));
-      b.addEventListener("keydown", (e) => tabKey(e, g, pid));
+      if (!ctx.win) b.addEventListener("pointerdown", (e) => startDrag({ pid }, e, b));
+      b.addEventListener("keydown", (e) => tabKey(e, g, pid, ctx));
       tabs.append(b);
     }
     const grip = h("div.of-dkgroup__grip", { "aria-hidden": "true" });
-    grip.addEventListener("pointerdown", (e) => startDrag({ gid: g.id }, e, grip));
+    if (!ctx.win) grip.addEventListener("pointerdown", (e) => startDrag({ gid: g.id }, e, grip));
     grip.addEventListener("dblclick", () => ctx.region && commit(M.setCollapsed(L, ctx.region, true)));
-    const more = h("button.of-dkgroup__menu", { type: "button", "aria-label": t("Panel options"), "data-tip": t("Panel options"), "aria-haspopup": "menu" }, iconEl("three-dots"));
-    more.addEventListener("click", () => {
-      const r = more.getBoundingClientRect();
-      openContextMenu(app, { kind: "panel-header", x: r.left, y: r.bottom, data: { id: g.active, title: title(g.active) } });
-    });
     tabs.append(grip); // the empty end of the tab row drags the whole group
+    const tools = [];
+    const btn = (icon, label, run) => {
+      const b = h("button.of-dkgroup__menu", { type: "button", "aria-label": label, "data-tip": label, title: label }, iconEl(icon));
+      b.addEventListener("click", run);
+      return b;
+    };
+    // a panel window has no menus of its own (they would open in the main window): one button docks it back
+    if (ctx.win) tools.push(btn("box-arrow-in-down-left", t("Dock Back"), () => dockBack(g.id)));
+    else {
+      if (ctx.pending) tools.push(btn("box-arrow-up-right", t("Open in Window"), () => reopenWindow(g.id)));
+      const more = btn("three-dots", t("Panel options"), () => {
+        const r = more.getBoundingClientRect();
+        openContextMenu(app, { kind: "panel-header", x: r.left, y: r.bottom, data: { id: g.active, title: title(g.active) } });
+      });
+      more.setAttribute("aria-haspopup", "menu");
+      more.removeAttribute("title");
+      tools.push(more);
+    }
     const body = h("div.of-dock__body", { role: "tabpanel", id: bodyId, "aria-labelledby": `of-dktab-${g.active}` }, inst(g.active).el);
-    return h("section.of-dock__area.of-dkgroup", { "data-group": g.id, class: L.maximized === g.id ? "is-max" : "" }, h("div.of-dock__tabs", tabs, more), body);
+    return h("section.of-dock__area.of-dkgroup", { "data-group": g.id, class: `${L.maximized === g.id ? "is-max" : ""}${ctx.win ? " is-win" : ""}` }, h("div.of-dock__tabs", tabs, ...tools), body);
   }
 
   function select(pid) {
     commit(M.setActive(L, pid));
-    hosts.layout.querySelector(`#of-dktab-${CSS.escape(pid)}`)?.focus();
+    const sel = `#of-dktab-${CSS.escape(pid)}`;
+    (hosts.layout.querySelector(sel) || [...wins.values()].map((w) => w.doc.querySelector(sel)).find(Boolean))?.focus();
   }
 
-  function tabKey(e, g, pid) {
+  function tabKey(e, g, pid, ctx = {}) {
     const i = g.panels.indexOf(pid);
     const n = g.panels.length;
     const j = { ArrowRight: (i + 1) % n, ArrowLeft: (i - 1 + n) % n, Home: 0, End: n - 1 }[e.key];
     if (j !== undefined && !e.altKey && !e.ctrlKey && !e.metaKey) {
       e.preventDefault();
       select(g.panels[j]);
-    } else if (e.key.toLowerCase() === "m" && e.ctrlKey && e.shiftKey) {
+    } else if (e.key.toLowerCase() === "m" && e.ctrlKey && e.shiftKey && !ctx.win) {
       e.preventDefault();
       e.stopPropagation();
       keyMove({ pid });
@@ -297,6 +398,7 @@ export function createDocking(app, hosts) {
     Object.assign(box.style, { width: `${w}px`, height: `${ht}px` });
     hosts.layout.append(box);
     btn.setAttribute("aria-expanded", "true");
+    comeHome(inst(pid).el);
     inst(pid).show?.();
     const outside = (e) => !box.contains(e.target) && !btn.contains(e.target) && closeFlyout();
     const esc = (e) => e.key === "Escape" && (e.stopPropagation(), closeFlyout(true));
@@ -319,9 +421,18 @@ export function createDocking(app, hosts) {
 
   // ------------------------------------------------------------------ floating groups
 
-  function floatEl(f) {
+  // A torn-off group whose window is not open (the browser blocked it, for example after a reload) is shown floating in
+  // the app at the matching place; moving or resizing it makes it an ordinary floating group.
+  const shownRect = (f) => (f.win ? M.clampRect({ x: f.x - window.screenX, y: f.y - window.screenY, w: f.w, h: f.h }, window.innerWidth, window.innerHeight) : f);
+  function placeFloat(gid, rect) {
+    const f = L.floating.find((x) => x.group.id === gid);
+    return M.raiseFloat(f?.win ? M.moveGroup(L, gid, { float: M.clampRect(rect, window.innerWidth, window.innerHeight) }) : M.setFloatRect(L, gid, rect, viewport()), gid);
+  }
+
+  function floatEl(f0) {
+    const f = { ...f0, ...shownRect(f0) };
     const grip = h("div.of-dkfloat__resize", { "aria-hidden": "true" });
-    const el = h("div.of-dkfloat", { role: "dialog", "aria-label": title(f.group.active), "data-group": f.group.id }, groupEl(f.group, { region: null }), grip);
+    const el = h("div.of-dkfloat", { role: "dialog", "aria-label": title(f.group.active), "data-group": f.group.id, class: f.win ? "is-pending" : "" }, groupEl(f.group, { region: null, pending: !!f.win }), grip);
     Object.assign(el.style, { left: `${f.x}px`, top: `${f.y}px`, width: `${f.w}px`, height: `${f.h}px` });
     el.addEventListener("pointerdown", () => floatLayer.lastChild !== el && floatLayer.append(el), true); // bring to front
     grip.addEventListener("pointerdown", (e) => {
@@ -334,7 +445,7 @@ export function createDocking(app, hosts) {
       const up = () => {
         grip.removeEventListener("pointermove", mv);
         grip.removeEventListener("pointerup", up);
-        commit(M.raiseFloat(M.setFloatRect(L, f.group.id, { w: el.offsetWidth, h: el.offsetHeight }, viewport()), f.group.id));
+        commit(placeFloat(f.group.id, { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight }));
       };
       grip.addEventListener("pointermove", mv);
       grip.addEventListener("pointerup", up);
@@ -372,8 +483,12 @@ export function createDocking(app, hosts) {
       }
       if (fEl) Object.assign(fEl.style, { left: `${f0.x + ev.clientX - x0}px`, top: `${f0.y + ev.clientY - y0}px` });
       Object.assign(ghost.style, { left: `${ev.clientX + 14}px`, top: `${ev.clientY + 10}px` });
-      hit = hitTest(ev.clientX, ev.clientY, src, gEl.dataset.group, fEl);
+      // dropped outside the app window: the panel tears off into a window of its own at that place on the screen
+      const outside = ev.clientX < 0 || ev.clientY < 0 || ev.clientX >= window.innerWidth || ev.clientY >= window.innerHeight;
+      if (outside) hit = { target: { window: { x: ev.screenX - 40, y: ev.screenY - 14, w: Math.max(260, from.width), h: Math.max(320, from.height) } }, label: t("Open in Window") };
+      else hit = hitTest(ev.clientX, ev.clientY, src, gEl.dataset.group, fEl);
       if (!hit && !fEl) hit = { target: { float: M.clampRect({ x: ev.clientX - 40, y: ev.clientY - 14, w: Math.max(240, from.width), h: Math.min(Math.max(260, from.height), 480) }, window.innerWidth, window.innerHeight) }, label: t("Float") };
+      ghost.textContent = hit?.target.window ? hit.label : src.pid ? title(src.pid) : gEl.querySelector(".of-dock__tab.active span")?.textContent || "";
       showTarget(hit && hit.target.float ? { ...hit, rect: { x: hit.target.float.x, y: hit.target.float.y, w: hit.target.float.w, h: hit.target.float.h } } : hit);
     };
     const finish = (ok) => {
@@ -390,7 +505,7 @@ export function createDocking(app, hosts) {
       setTimeout(() => (suppressClick = false), 0);
       if (!ok) return render();
       if (hit) apply(src, hit.target);
-      else if (fEl) commit(M.raiseFloat(M.setFloatRect(L, src.gid, { x: fEl.offsetLeft, y: fEl.offsetTop }, viewport()), src.gid));
+      else if (fEl) commit(placeFloat(src.gid, { x: fEl.offsetLeft, y: fEl.offsetTop, w: fEl.offsetWidth, h: fEl.offsetHeight }));
     };
     const onUp = () => finish(true);
     const onCancel = () => finish(false);
@@ -409,6 +524,7 @@ export function createDocking(app, hosts) {
 
   function apply(src, target) {
     if (!target) return;
+    if (target.window) return tear(src, target.window);
     if (target.float) target = { float: M.clampRect(target.float, window.innerWidth, window.innerHeight) };
     commit(src.pid ? M.movePanel(L, src.pid, target) : M.moveGroup(L, src.gid, target));
   }
@@ -487,8 +603,8 @@ export function createDocking(app, hosts) {
   };
 
   function showTarget(hit) {
-    overlay.classList.toggle("is-on", !!hit);
-    if (!hit) return;
+    overlay.classList.toggle("is-on", !!hit?.rect);
+    if (!hit?.rect) return;
     Object.assign(overlay.style, { left: `${hit.rect.x}px`, top: `${hit.rect.y}px`, width: `${hit.rect.w}px`, height: `${hit.rect.h}px` });
     overlay.firstChild.textContent = hit.label;
   }
@@ -513,6 +629,7 @@ export function createDocking(app, hosts) {
     out.push(...edgeTargets());
     const f = defaultFloat();
     out.push({ target: { float: f }, rect: f, label: t("Float") });
+    out.push({ target: { window: tearRect(src) }, label: t("Open in Window") });
     return out;
   }
 
@@ -569,19 +686,24 @@ export function createDocking(app, hosts) {
     if (hit?.region && next.regions[hit.region].collapsed) next = M.setCollapsed(next, hit.region, false);
     if (next.maximized && next.maximized !== hit?.group.id) next = M.setMaximized(next, null);
     commit(next, { hidden });
+    if (hit?.win) wins.get(wkey(hit.group.id))?.focus();
   }
 
   function panelMenu(pid) {
     if (!PANELS[pid] || !M.findPanel(L, pid)) return [];
     const hit = M.findPanel(L, pid);
     const src = { pid };
-    const lone = hit.floatIndex >= 0 && hit.group.panels.length === 1;
+    const win = hit.win;
+    const lone = hit.floatIndex >= 0 && hit.group.panels.length === 1 && !win;
     const items = [
       { label: t("Move Panel…"), icon: "keyboard", title: t("Choose a place with the arrow keys (Ctrl+Shift+M on a panel tab)"), run: () => keyMove(src) },
       { label: t("Dock Left"), icon: "layout-sidebar-inset", run: () => apply(src, { region: "left", edge: "outer" }) },
       { label: t("Dock Right"), icon: "layout-sidebar-inset-reverse", run: () => apply(src, { region: "right", edge: "outer" }) },
       { label: t("Dock Bottom"), icon: "window-dock", run: () => apply(src, { region: "bottom", edge: "outer" }) },
       { label: t("Float"), icon: "window-stack", disabled: lone, run: () => apply(src, { float: defaultFloat() }) },
+      win
+        ? { label: t("Dock Back"), icon: "box-arrow-in-down-left", title: t("Put the panels of this window back where the workspace keeps them"), run: () => dockBack(hit.group.id) }
+        : { label: t("Open in Window"), icon: "box-arrow-up-right", title: t("Tear the panel off into a window of its own (or drag its tab out of the app window)"), run: () => tear(src, tearRect(src)) },
       "-",
     ];
     if (hit.region) {
@@ -607,6 +729,8 @@ export function createDocking(app, hosts) {
       items.push({ label: names[r][c ? 1 : 0], run: () => commit(M.setCollapsed(L, r, !c)) });
     }
     if (L.maximized) items.push({ label: t("Restore Group"), run: () => commit(M.setMaximized(L, null)) });
+    const torn = M.windowGroups(L);
+    if (torn.length) items.push("-", { label: t("Dock Back All Windows"), icon: "box-arrow-in-down-left", run: () => commit(torn.reduce((acc, f) => M.dockBack(acc, f.group.id, base()), L)) });
     return items;
   }
 

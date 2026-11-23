@@ -32,7 +32,7 @@ mod webfetch;
 mod wire;
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
@@ -49,6 +49,58 @@ const OPEN_FILES_EVENT: &str = "openfini://open-files";
 const MAIN_WINDOW: &str = "main";
 /// Label of the Collaboration window (created by the web side: `WINDOW_LABEL` in `app/src/collab/remote-ui.js`).
 const COLLAB_WINDOW: &str = "collab";
+/// Label prefix of torn-off panel windows (`app/src/ui/docking/windows.js`, ADR 0033): `panel-1`, `panel-2`, ...
+const PANEL_WINDOW_PREFIX: &str = "panel-";
+
+/// The main window opens a torn-off panel window with `window.open("about:blank#openfini-panel")`. Only that exact
+/// address becomes a panel window; every other `window.open` keeps the webview's default behavior.
+fn is_panel_window_url(url: &tauri::Url) -> bool {
+    url.scheme() == "about" && url.path() == "blank" && url.fragment() == Some("openfini-panel")
+}
+
+/// Builds the main window from its entry in `tauri.conf.json` (`create: false` there) so it can answer `window.open`
+/// for panel windows: a native window that keeps the opener relationship, so the main window moves a panel's live
+/// element into the empty same-origin page and keeps running it (no second copy of the document, no sync protocol).
+/// Panel windows need no permissions of their own: all code runs in the main window.
+fn build_main_window(app: &tauri::App) -> tauri::Result<()> {
+    let Some(config) = app
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|w| w.label == MAIN_WINDOW)
+        .cloned()
+    else {
+        return Ok(());
+    };
+    let handle = app.handle().clone();
+    let next = std::sync::Arc::new(AtomicUsize::new(1));
+    tauri::WebviewWindowBuilder::from_config(app.handle(), &config)?
+        .on_new_window(move |url, features| {
+            if !is_panel_window_url(&url) {
+                return tauri::webview::NewWindowResponse::Allow;
+            }
+            let label = format!(
+                "{PANEL_WINDOW_PREFIX}{}",
+                next.fetch_add(1, Ordering::SeqCst)
+            );
+            let built =
+                tauri::WebviewWindowBuilder::new(&handle, label, tauri::WebviewUrl::External(url))
+                    .window_features(features)
+                    .title("OpenFini")
+                    .min_inner_size(200.0, 140.0)
+                    .on_document_title_changed(|window, title| {
+                        let _ = window.set_title(&title);
+                    })
+                    .build();
+            match built {
+                Ok(window) => tauri::webview::NewWindowResponse::Create { window },
+                Err(_) => tauri::webview::NewWindowResponse::Deny,
+            }
+        })
+        .build()?;
+    Ok(())
+}
 
 /// Files handed to the app by the OS (launch arguments, a second launch, the
 /// macOS "Open With" events) that the frontend has not picked up yet.
@@ -290,11 +342,17 @@ pub fn run() {
             computer::computer_audit,
             computer::computer_audit_clear,
         ])
-        // The Collaboration window is a remote view of the main window's room: it never outlives it.
+        // The Collaboration window is a remote view of the main window's room and a panel window shows a panel the
+        // main window runs: neither outlives it.
         .on_window_event(|window, event| {
             if window.label() == MAIN_WINDOW && matches!(event, tauri::WindowEvent::Destroyed) {
                 if let Some(collab) = window.app_handle().get_webview_window(COLLAB_WINDOW) {
                     let _ = collab.destroy();
+                }
+                for (label, panel) in window.app_handle().webview_windows() {
+                    if label.starts_with(PANEL_WINDOW_PREFIX) {
+                        let _ = panel.destroy();
+                    }
                 }
                 if let Some(splash) = window.app_handle().get_webview_window(SPLASH_WINDOW) {
                     let _ = splash.destroy();
@@ -302,6 +360,7 @@ pub fn run() {
             }
         })
         .setup(|app| {
+            build_main_window(app)?;
             // Fallback for the launch screen: whatever happens in the frontend, the main window shows.
             let handle = app.handle().clone();
             std::thread::spawn(move || {
@@ -336,4 +395,19 @@ pub fn run() {
             let _ = (app_handle, event);
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_panel_window_url;
+
+    #[test]
+    fn only_the_panel_address_opens_a_panel_window() {
+        let ok = |s: &str| is_panel_window_url(&tauri::Url::parse(s).unwrap());
+        assert!(ok("about:blank#openfini-panel"));
+        assert!(!ok("about:blank"));
+        assert!(!ok("about:blank#other"));
+        assert!(!ok("https://example.com/#openfini-panel"));
+        assert!(!ok("http://tauri.localhost/index.html?popout=vector"));
+    }
 }
