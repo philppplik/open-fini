@@ -4528,5 +4528,16 @@
   "Themes, snippets, syntax grammars and language settings work for every extension. The code of web extensions runs in a sandbox against a subset of the VS Code API, and their views become dockable panels; extensions that need Node.js only add their declarative parts. Extensions come from Open VSX (open-vsx.org), not the Visual Studio Marketplace, whose terms allow its extensions only in Microsoft's products. Drop a .vsix file here to install it.": "Farbdesigns, Snippets, Syntax-Grammatiken und Spracheinstellungen funktionieren bei jeder Erweiterung. Der Code von Web-Erweiterungen läuft in einer Sandbox gegen einen Teil der VS-Code-API, und ihre Ansichten werden zu andockbaren Bedienfeldern; Erweiterungen, die Node.js brauchen, steuern nur ihre deklarativen Teile bei. Erweiterungen kommen von Open VSX (open-vsx.org), nicht aus dem Visual Studio Marketplace, dessen Bedingungen seine Erweiterungen nur in Microsoft-Produkten erlauben. Lege hier eine .vsix-Datei ab, um sie zu installieren.",
   "This view could not be loaded.": "Diese Ansicht konnte nicht geladen werden.",
   "Views": "Ansichten",
-  "This browser blocks the storage the sign-in needs during the redirect. Allow site data for OpenFini or use the desktop app.": "Dieser Browser blockiert den Speicher, den die Anmeldung während der Weiterleitung braucht. Erlauben Sie Websitedaten für OpenFini oder verwenden Sie die Desktop-App."
+  "This browser blocks the storage the sign-in needs during the redirect. Allow site data for OpenFini or use the desktop app.": "Dieser Browser blockiert den Speicher, den die Anmeldung während der Weiterleitung braucht. Erlauben Sie Websitedaten für OpenFini oder verwenden Sie die Desktop-App.",
+  "Live sharing everywhere, panel windows, more file types": "Live-Teilen überall, Panel-Fenster, mehr Dateitypen",
+  "Live sharing that keeps up": "Live-Teilen, das mithält",
+  "Spreadsheet, Presentation, Whiteboard, Document, Scene and Pixel now share live. Edits arrive in any order, undo only reverts your own step, and large pictures and strokes come through.": "Spreadsheet, Presentation, Whiteboard, Document, Scene und Pixel lassen sich jetzt live teilen. Änderungen kommen in jeder Reihenfolge an, Rückgängig nimmt nur deinen eigenen Schritt zurück, und große Bilder und Striche kommen durch.",
+  "Panels in their own windows": "Panels in eigenen Fenstern",
+  "Drag a panel out of the app or choose Open in Window. Dock Back returns it.": "Zieh ein Panel aus der App oder wähle „Open in Window“. Mit „Dock Back“ kommt es zurück.",
+  "Many more file types": "Viele weitere Dateitypen",
+  "About 70 languages and formats open and save in the Code studio, from Python and PHP to Dockerfile and .env. Right-click a file to embed it in the current file.": "Rund 70 Sprachen und Formate lassen sich im Code Studio öffnen und speichern, von Python und PHP bis Dockerfile und .env. Per Rechtsklick bettest du eine Datei in die aktuelle Datei ein.",
+  "More VS Code extensions": "Mehr VS-Code-Erweiterungen",
+  "Extension views, webviews, status bar items and grammars work, as dockable panels. Packages up to 512 MB.": "Ansichten, Webviews, Statusleisten-Einträge und Grammatiken von Erweiterungen funktionieren, als andockbare Panels. Pakete bis 512 MB.",
+  "A calmer interface": "Ruhigere Oberfläche",
+  "Fewer glows, consistent type and corners, clearer empty panels, and Ollama models grouped in the chat menu.": "Weniger Leuchteffekte, einheitliche Schrift und Ecken, klarere leere Panels und Ollama-Modelle gruppiert im Chat-Menü."
 }

@@ -28,7 +28,7 @@ OpenFini is a design and photo-editing suite built around **studios** — focuse
 
 Switch studios at any time: a document can mix vector shapes, pixel layers, flowing text and a website project. **Export** is a button in the header (PNG / JPEG / WebP / SVG / PDF, slices, websites), not a studio of its own.
 
-> **Status: alpha.** OpenFini is a real, working application, but it is young. Read [what is not there yet](docs/roadmap.md) before you plan production work around it. File format and APIs may still change.
+> **Status: alpha.** OpenFini is a real, working application, but it is young. Read [what is not there yet](docs/known-limits.md) before you plan production work around it. File format and APIs may still change.
 
 > **Not affiliated with any commercial product.** OpenFini is an independent, clean-room implementation. It contains no code, assets, icons or file formats from other products. Product names mentioned anywhere are trademarks of their owners. See [docs/clean-room.md](docs/clean-room.md).
 
@@ -165,7 +165,7 @@ The application itself has **no build step** in development: `app/` is served as
 | [Engine contracts](docs/engine-contracts.md) | Data shapes shared by the engines |
 | [Testing](docs/testing.md) | Test suites, benchmarks, manual QA checklist |
 | [Building](docs/building.md) · [Platform support](docs/platform-support.md) · [Release process](docs/release-process.md) | Packaging and CI/CD |
-| [Roadmap](docs/roadmap.md) | Known gaps and plans |
+| [Roadmap](docs/roadmap.md) | What is planned next, with links to the known limits |
 | [Clean-room policy](docs/clean-room.md) | Legal and contribution hygiene |
 | [Decision records](docs/adr) | Why Tauri, Canvas 2D, Shoelace, … |
 

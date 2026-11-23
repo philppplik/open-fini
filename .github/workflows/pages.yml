@@ -1,0 +1,101 @@
+name: Website
+
+# Builds the website (site/, docs/concepts/website.md) and deploys it to GitHub Pages.
+# Pull requests only build it and check its internal links. Deploys happen only from main, and only when
+# Pages is enabled for the repository (Settings > Pages > Source: GitHub Actions); until then the deploy
+# job is skipped with a notice instead of failing.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "wiki/**"
+      - "docs/**"
+      - "CHANGELOG.md"
+      - "package.json"
+      - "app/assets/launch/**"
+      - "app/src/engine/web/markdown.js"
+      - ".github/workflows/pages.yml"
+  pull_request:
+    paths:
+      - "site/**"
+      - "docs/performance.md"
+      - "CHANGELOG.md"
+      - "scripts/serve.mjs"
+      - "app/src/engine/web/markdown.js"
+      - ".github/workflows/pages.yml"
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.event_name == 'pull_request' && github.head_ref || 'deploy' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Build the site
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: read
+    outputs:
+      pages: ${{ steps.pages.outputs.enabled }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # The build needs nothing from node_modules (no dependencies beyond Node and the app's own modules).
+      - name: Build
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SITE_BASE: /${{ github.event.repository.name }}/
+        run: node site/build.mjs --strict
+
+      - name: Is GitHub Pages enabled?
+        id: pages
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${GITHUB_REPOSITORY}/pages" --jq .build_type > pages.txt 2>/dev/null && grep -q workflow pages.txt; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Website not deployed::GitHub Pages is not enabled with the source 'GitHub Actions' (Settings > Pages). The site was built but not deployed."
+          fi
+
+      - name: Upload the Pages artifact
+        if: steps.pages.outputs.enabled == 'true'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site/dist
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: needs.build.outputs.pages == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

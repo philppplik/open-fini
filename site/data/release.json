@@ -1,0 +1,87 @@
+{
+  "tag": "v1.1.3",
+  "version": "1.1.3",
+  "name": "OpenFini 1.1.3",
+  "url": "https://github.com/philppplik/open-fini/releases/tag/v1.1.3",
+  "publishedAt": "2026-11-13T19:43:44Z",
+  "assets": [
+    {
+      "name": "OpenFini-1.1.3-1.aarch64.rpm",
+      "size": 7039751,
+      "url": "https://github.com/philppplik/open-fini/releases/download/v1.1.3/OpenFini-1.1.3-1.aarch64.rpm",
+      "sha256": "039eee40704b9957eb82e769d4d5aaf61a6d39cfc4d1308159548069b930e780"
+    },
+    {
+      "name": "OpenFini-1.1.3-1.x86_64.rpm",
+      "size": 7099102,
+      "url": "https://github.com/philppplik/open-fini/releases/download/v1.1.3/OpenFini-1.1.3-1.x86_64.rpm",
+      "sha256": "6c8a2b9136bd4f6b2cc44f098f5d869935b3a69bf9eaad4a579ee0c1de8e6ea7"
+    },
+    {
+      "name": "OpenFini-1.1.3-pwa.zip",
+      "size": 4768410,
+      "url": "https://github.com/philppplik/open-fini/releases/download/v1.1.3/OpenFini-1.1.3-pwa.zip",
+      "sha256": "769f13e6b3f71a81461b10c3270493d9e61b35d07c66247a046f0980a960d2a2"
+    },
+    {
+      "name": "openfini-relay.mjs",
+      "size": 40644,
+      "url": "https://github.com/philppplik/open-fini/releases/download/v1.1.3/openfini-relay.mjs",
+      "sha256": "182036f73c5bb51d2ed218f535503682e01ccf4d7e673e247fcc88d48ed4dde6"
+    },
+    {
+      "name": "OpenFini_1.1.3_aarch64.AppImage",
+      "size": 85498376,
+      "url": "https://github.com/philppplik/open-fini/releases/download/v1.1.3/OpenFini_1.1.3_aarch64.AppImage",
+      "sha256": "45c181a00b12fe787072b39ffba8a21480b8b1eb9c9130a34ecc108313370e8b"
+    },
+    {
+      "name": "OpenFini_1.1.3_aarch64.dmg",
+      "size": 6581675,
+      "url": "https://github.com/philppplik/open-fini/releases/download/v1.1.3/OpenFini_1.1.3_aarch64.dmg",
+      "sha256": "87add6a3f35c72619df100f006fe981fe1874b6236038562e3560b772db0e0a4"
+    },
+    {
+      "name": "OpenFini_1.1.3_amd64.AppImage",
+      "size": 87538168,
+      "url": "https://github.com/philppplik/open-fini/releases/download/v1.1.3/OpenFini_1.1.3_amd64.AppImage",
+      "sha256": "d9a139a23992a2a6b1a3c938cba68d4a2266bf6d63e8bdf748f02e0f73d8e2f5"
+    },
+    {
+      "name": "OpenFini_1.1.3_amd64.deb",
+      "size": 7092740,
+      "url": "https://github.com/philppplik/open-fini/releases/download/v1.1.3/OpenFini_1.1.3_amd64.deb",
+      "sha256": "cfb33d1315973767ab210104a45b19a6cdc8da8823fa0da5adbfffbfb6acf84a"
+    },
+    {
+      "name": "OpenFini_1.1.3_arm64-setup.exe",
+      "size": 5853218,
+      "url": "https://github.com/philppplik/open-fini/releases/download/v1.1.3/OpenFini_1.1.3_arm64-setup.exe",
+      "sha256": "b3d78a94c2e5010858e0c2622f37c6a0a1a2bc256e2d32254d21d7cbf3128172"
+    },
+    {
+      "name": "OpenFini_1.1.3_arm64.deb",
+      "size": 7032534,
+      "url": "https://github.com/philppplik/open-fini/releases/download/v1.1.3/OpenFini_1.1.3_arm64.deb",
+      "sha256": "8a24befd35b36436499de212081824b1e12bd7590accd1370b4c0c4099a6b035"
+    },
+    {
+      "name": "OpenFini_1.1.3_x64-setup.exe",
+      "size": 5981853,
+      "url": "https://github.com/philppplik/open-fini/releases/download/v1.1.3/OpenFini_1.1.3_x64-setup.exe",
+      "sha256": "5f536a5aeeff99796ffc1792a91920e9203c7e3656c220e25afac5f8943b4b50"
+    },
+    {
+      "name": "OpenFini_1.1.3_x64.dmg",
+      "size": 6784152,
+      "url": "https://github.com/philppplik/open-fini/releases/download/v1.1.3/OpenFini_1.1.3_x64.dmg",
+      "sha256": "c30cdcfce04387ae88cd4f1b0be62f5c52159156ffc5ac2904a664c2eb68e9ce"
+    },
+    {
+      "name": "OpenFini_1.1.3_x64_en-US.msi",
+      "size": 6627328,
+      "url": "https://github.com/philppplik/open-fini/releases/download/v1.1.3/OpenFini_1.1.3_x64_en-US.msi",
+      "sha256": "2f33dea269c1bc2adbeb6b0dafc8df7123a2e7b02afbb3ef5c81654aea134da8"
+    }
+  ]
+}

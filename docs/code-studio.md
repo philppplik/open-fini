@@ -493,6 +493,6 @@ checks and a confirmation. Details, storage format and honest limits: [git-and-p
 
 ## Limitations
 
-See [roadmap.md](roadmap.md#code-studio). In short: no CMS, symbols/components, interactions editor, multi-page
+See [known-limits.md](known-limits.md) and the [roadmap](roadmap.md). In short: no CMS, symbols/components, interactions editor, multi-page
 shared layouts (partials) or real-time collaboration; no stash/rebase in Source Control; no language servers; the terminal is a console without a shell or TTY; the visual designer
 edits one page at a time.
