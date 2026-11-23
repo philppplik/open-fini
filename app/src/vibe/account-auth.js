@@ -4,8 +4,8 @@
 //   mcpAuthFor, mcpSignedIn, signOutMcp.
 // Invariants: protocol logic lives in ai/openai-account.js and ai/mcp-oauth.js (pure, tested). Tokens are kept ONLY in the
 // vault secrets (`vibeStore.secrets`, sealed when the passphrase vault is on) as a JSON record; never in localStorage,
-// URLs, logs or toasts. The only value kept in sessionStorage during a web redirect is the PKCE verifier + state
-// (no tokens), removed on return. See docs/openai-account-auth.md and docs/ai-engine.md.
+// URLs, logs or toasts. During a web redirect the PKCE verifier, state and client registration (no tokens) wait sealed
+// with a one-time key (vibe/oauth-pending.js), removed on return. See docs/openai-account-auth.md and docs/ai-engine.md.
 import { vibeStore } from "./store.js";
 import { platform } from "../platform/index.js";
 import { t } from "../i18n/index.js";
@@ -13,6 +13,7 @@ import { t } from "../i18n/index.js";
 const ai = () => import("../ai/index.js");
 const tauri = () => window.__TAURI__?.core;
 const PENDING = "vibe.mcpoauth";
+const pendingLib = () => import("./oauth-pending.js");
 
 const readRecord = (key) => {
   try {
@@ -156,7 +157,12 @@ async function runMcp({ app, srv, lib, f, meta, pk, finish, client0 }) {
   }
   const redirectUri = `${location.origin}${location.pathname}?vibe_oauth=mcp`;
   const client = client0 || (await lib.registerClient({ fetch: f, registrationEndpoint: meta.registrationEndpoint, redirectUri }));
-  sessionStorage.setItem(PENDING, JSON.stringify({ serverId: srv.id, state: pk.state, verifier: pk.verifier, redirectUri, client, meta }));
+  const { savePending, pendingStores } = await pendingLib();
+  try {
+    await savePending(PENDING, { serverId: srv.id, state: pk.state, verifier: pk.verifier, redirectUri, client, meta }, pendingStores());
+  } catch {
+    throw new Error(t("This browser blocks the storage the sign-in needs during the redirect. Allow site data for OpenFini or use the desktop app."));
+  }
   location.href = lib.buildAuthUrl({ authorizationEndpoint: meta.authorizationEndpoint, clientId: client.clientId, redirectUri, challenge: pk.challenge, state: pk.state, resource: meta.resource, scope: meta.scopes });
   return { done: false };
 }
@@ -167,13 +173,8 @@ export const isMcpReturn = (params) => params.get("vibe_oauth") === "mcp" && (pa
 export async function finishMcpSignIn(app, params) {
   const query = params.toString();
   history.replaceState(null, "", location.pathname); // the one-time code must not stay in the address bar
-  let pending = null;
-  try {
-    pending = JSON.parse(sessionStorage.getItem(PENDING) || "null");
-    sessionStorage.removeItem(PENDING);
-  } catch {
-    /* unavailable */
-  }
+  const { takePending, pendingStores } = await pendingLib();
+  const pending = await takePending(PENDING, pendingStores());
   if (!pending?.verifier) return app.toast(t("The sign-in expired. Please try again."), "warning", 4000);
   try {
     app.network?.assert("oauth");

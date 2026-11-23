@@ -14,7 +14,7 @@
   color: var(--of-text);
   border: 1px solid var(--of-border);
   box-shadow: 0 6px 22px rgb(0 0 0 / 0.28);
-  font-size: 12px;
+  font-size: var(--of-fs-sm);
   line-height: 1.2;
   opacity: 0;
   transform: translate(-50%, 8px);

@@ -10,13 +10,8 @@ export async function finishOAuth(app, params) {
   const code = params.get("code");
   // remove the one-time code from the address bar right away
   history.replaceState(null, "", `${location.pathname}${params.get("studio") ? `?studio=${params.get("studio")}` : ""}`);
-  let pk = null;
-  try {
-    pk = JSON.parse(sessionStorage.getItem("vibe.pkce") || "null");
-    sessionStorage.removeItem("vibe.pkce");
-  } catch {
-    /* unavailable */
-  }
+  const { takePending, pendingStores } = await import("./oauth-pending.js");
+  const pk = await takePending("vibe.pkce", pendingStores());
   if (!pk?.verifier) return app.toast("The OpenRouter sign-in expired. Please try again.", "warning", 4000);
   try {
     app.network?.assert("oauth");

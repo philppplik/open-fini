@@ -27,7 +27,8 @@ export function contributionSummary(m) {
   n(c.commands.length, "command", "commands");
   n(c.keybindings.length, "key binding", "key bindings");
   n(Object.keys(c.configuration).length, "setting", "settings");
-  n(c.grammars.length, "grammar (not used)", "grammars (not used)");
+  n(c.grammars.length, "syntax grammar", "syntax grammars");
+  n(c.views.length, "view", "views");
   return out;
 }
 

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   parseHtml, getAttr, hasAttr, classList, elementPath, elementAtPath, elementAtOffset, findByTag, elementText, describe, isVoidTag,
-  decodeEntities, escapeText, escapeAttr, childElements, findById, contentRange,
+  decodeEntities, escapeText, escapeAttr, escapeHtmlAll, childElements, findById, contentRange,
 } from "../../app/src/engine/web/html.js";
 import { checkHtml } from "./_helpers.js";
 
@@ -208,6 +208,7 @@ test("entities", () => {
   assert.equal(escapeText("a & b < c > d"), "a &amp; b &lt; c &gt; d");
   assert.equal(escapeAttr('say "hi" & \'bye\''), "say &quot;hi&quot; &amp; 'bye'");
   assert.equal(escapeAttr("it's", "'"), "it&#39;s");
+  assert.equal(escapeHtmlAll(`<a href="x" title='y'>&amp;</a>`), "&lt;a href=&quot;x&quot; title=&#39;y&#39;&gt;&amp;amp;&lt;/a&gt;");
   assert.equal(decodeEntities(escapeText("x < y && z > w")), "x < y && z > w");
 });
 
