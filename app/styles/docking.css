@@ -68,7 +68,7 @@
   overflow: hidden;
 }
 .of-dkflyout { z-index: 56; }
-.of-dkflyout__head { display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 10px; font-size: 12px; background: var(--of-bg-bar); border-bottom: 1px solid var(--of-border-soft); }
+.of-dkflyout__head { display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 10px; font-size: var(--of-fs-sm); background: var(--of-bg-bar); border-bottom: 1px solid var(--of-border-soft); }
 .of-dkflyout__head span { flex: 1; }
 .of-dkflyout > .of-dock__body { flex: 1 1 auto; }
 
@@ -99,8 +99,8 @@ body.of-dkwin > .of-dkgroup { flex: 1 1 0; display: flex; flex-direction: column
   transition: left 0.08s ease, top 0.08s ease, width 0.08s ease, height 0.08s ease;
 }
 .of-dkdrop.is-on { display: grid; place-items: center; }
-.of-dkdrop__label { padding: 3px 8px; border-radius: 999px; background: var(--of-accent); color: var(--of-on-accent, #fff); font-size: 11.5px; white-space: nowrap; }
-.of-dkghost { position: fixed; z-index: 61; pointer-events: none; padding: 4px 10px; border-radius: 6px; background: var(--of-bg-panel); border: 1px solid var(--of-border); box-shadow: var(--of-shadow); font-size: 12px; }
+.of-dkdrop__label { padding: 3px 8px; border-radius: 999px; background: var(--of-accent); color: var(--of-on-accent, #fff); font-size: var(--of-fs-sm); white-space: nowrap; }
+.of-dkghost { position: fixed; z-index: 61; pointer-events: none; padding: 4px 10px; border-radius: 6px; background: var(--of-bg-panel); border: 1px solid var(--of-border); box-shadow: var(--of-shadow); font-size: var(--of-fs-sm); }
 .of-dk-dragging, .of-dk-dragging * { cursor: grabbing !important; user-select: none; }
 .of-dklive { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 

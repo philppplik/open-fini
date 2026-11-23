@@ -7,6 +7,14 @@
 
   --of-radius: 6px;
   --of-radius-sm: 4px;
+  --of-radius-card: 12px; /* cards, tiles, inline panels */
+  --of-radius-panel: 14px; /* popovers, floating panels, dialogs */
+  --of-card-pad: 16px; /* one padding for launcher cards */
+
+  --of-fs-xs: 11px;
+  --of-fs-sm: 12px;
+  --of-fs-md: 13px;
+  --of-fs-lg: 15px;
   --of-gap: 8px;
 
   --of-accent: #8b7cf6;
@@ -96,7 +104,7 @@
   --sl-color-primary-400: var(--of-accent);
   --sl-tooltip-background-color: #101114;
   --sl-tooltip-color: #f1f1f5;
-  --sl-tooltip-font-size: 11px;
+  --sl-tooltip-font-size: var(--of-fs-xs);
   --sl-tooltip-padding: 4px 8px;
   --sl-shadow-large: var(--of-shadow);
   --sl-overlay-background-color: rgba(8, 9, 12, 0.55);
