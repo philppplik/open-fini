@@ -144,4 +144,4 @@ including the ideas that were considered and rejected.
 * `makensis` (Windows installer) and macOS DMG layout are validated only by the release build.
 * The English text is the i18n key: editing an English string drops its German translation until you re-run `npm run i18n:extract`.
 * Extension and sandbox code has no module loader: bundled extensions are concatenated by `scripts/pack-extensions.mjs`.
-* Roadmap and honest limits per area live in [roadmap.md](roadmap.md); planned studios: Video, Motion, Render (3D).
+* The plan lives in [roadmap.md](roadmap.md) (with the 2.0 concept in [concepts/roadmap-next-major.md](concepts/roadmap-next-major.md)); honest limits per area are in [known-limits.md](known-limits.md).
