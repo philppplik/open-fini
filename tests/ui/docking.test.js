@@ -105,6 +105,79 @@ test("floating, moving whole groups and raising", () => {
   assert.deepEqual(F.floating.map((f) => f.group.panels[0]), ["b", "a"]);
 });
 
+test("tear-off: a panel or a whole group goes into its own window and docks back home", () => {
+  const base = two();
+  // a tab of a group tears off alone; screen coordinates may be negative (a monitor on the left)
+  let L = M.tearOff(base, { pid: "brush" }, { x: -900, y: 40, w: 280, h: 360 });
+  assert.equal(L.floating.length, 1);
+  assert.equal(L.floating[0].win, true);
+  assert.deepEqual({ x: L.floating[0].x, y: L.floating[0].y, w: L.floating[0].w, h: L.floating[0].h }, { x: -900, y: 40, w: 280, h: 360 });
+  assert.deepEqual(M.windowGroups(L).map((f) => f.group.panels), [["brush"]]);
+  assert.deepEqual(M.findPanel(L, "color").group.panels, ["color"]);
+  const info = M.findPanel(L, "brush");
+  assert.equal(info.win, true);
+  assert.equal(info.region, null);
+  // moving the window keeps the rectangle unclamped by any viewport (only absurd values are cut)
+  const gid = info.group.id;
+  L = M.setFloatRect(L, gid, { x: 3000, y: -50, w: 10, h: 99999 }, { w: 800, h: 600 });
+  assert.deepEqual([L.floating[0].x, L.floating[0].y, L.floating[0].w, L.floating[0].h], [3000, -50, M.LIMITS.window.minW, M.LIMITS.window.maxH]);
+  // tearing off the same group again only moves its window
+  assert.equal(M.tearOff(L, { gid }, { x: 1, y: 2, w: 300, h: 300 }).floating.length, 1);
+  // a second panel can join the window as a tab, then the window docks back: both return next to their mates
+  L = M.movePanel(L, "history", { group: gid, zone: "center" });
+  assert.deepEqual(M.findGroup(L, gid).group.panels, ["brush", "history"]);
+  L = M.dockBack(L, gid, base);
+  assert.equal(L.floating.length, 0);
+  assert.deepEqual(M.findPanel(L, "brush").group.panels, ["color", "brush"]);
+  assert.deepEqual(M.findPanel(L, "history").group.panels, ["layers", "history"]);
+  assert.equal(M.findPanel(L, "history").group.active, "history"); // the front tab of the window stays in front
+  // docking back something that is docked already changes nothing
+  assert.equal(M.dockBack(L, M.findPanel(L, "color").group.id, base), L);
+});
+
+test("tear-off: a lone panel takes its group along; whole groups and in-app floats tear off too", () => {
+  let L = M.movePanel(two(), "history", { region: "left" });
+  const gid = M.findPanel(L, "history").group.id;
+  L = M.tearOff(L, { pid: "history" }, { x: 10, y: 10, w: 300, h: 300 });
+  assert.equal(M.findPanel(L, "history").group.id, gid);
+  assert.equal(L.regions.left.root, null);
+  // a whole docked group
+  const top = M.findPanel(L, "color").group.id;
+  L = M.tearOff(L, { gid: top }, { x: 20, y: 20, w: 300, h: 300 });
+  assert.deepEqual(M.windowGroups(L).map((f) => f.group.panels), [["history"], ["color", "brush"]]);
+  // an in-app floating group, and back from a window into the app
+  let F = M.movePanel(two(), "layers", { float: { x: 10, y: 10, w: 200, h: 200 } });
+  const fid = M.findPanel(F, "layers").group.id;
+  F = M.tearOff(F, { gid: fid }, { x: 500, y: 500, w: 300, h: 300 });
+  assert.equal(F.floating.length, 1);
+  assert.equal(F.floating[0].win, true);
+  F = M.moveGroup(F, fid, { float: { x: 30, y: 30, w: 250, h: 250 } });
+  assert.equal(F.floating[0].win, undefined);
+  assert.deepEqual(F.floating[0].group.panels, ["layers"]);
+});
+
+test("tear-off: torn-off windows survive normalize and stay apart from in-app floats", () => {
+  const raw = {
+    regions: { right: { root: { type: "group", panels: ["color"] } } },
+    floating: [
+      { x: -1200, y: 80, w: 320, h: 400, win: true, group: { type: "group", panels: ["layers"] } },
+      { x: -1200, y: 80, w: 320, h: 400, win: "yes", group: { type: "group", panels: ["history"] } }, // not a window: clamped into the viewport
+      { x: 1e9, y: NaN, w: 1, h: 1, win: true, group: { type: "group", panels: ["brush"] } },
+    ],
+  };
+  const L = M.normalize(raw, { viewport: { w: 1000, h: 700 } });
+  assert.deepEqual(L.floating.map((f) => [f.group.panels[0], f.win === true, f.x, f.y]), [["layers", true, -1200, 80], ["history", false, 0, 80], ["brush", true, M.LIMITS.window.span, 120]]);
+  assert.equal(L.floating[2].w, M.LIMITS.window.minW);
+  // a window group cannot be maximized (it is not in a dock)
+  assert.equal(M.setMaximized(L, L.floating[0].group.id).maximized, null);
+  // the flag is part of the arrangement
+  const plain = M.normalize({ ...raw, floating: raw.floating.map((f) => ({ ...f, win: undefined })) }, { viewport: { w: 1000, h: 700 } });
+  assert.equal(M.sameLayout(L, plain), false);
+  // reconcile keeps a torn-off panel where it is
+  const R = M.reconcile(L, ["color", "layers", "history", "brush"], two());
+  assert.equal(M.findPanel(R, "layers").win, true);
+});
+
 test("sizes, region sizes, collapse and maximize", () => {
   let L = M.setSizes(two(), "right", [], [3, 1]);
   assert.deepEqual(L.regions.right.root.sizes, [0.75, 0.25]);

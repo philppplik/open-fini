@@ -4,12 +4,15 @@
 //
 //   { v: 1,
 //     regions: { left|right|bottom: { root: Node|null, size: px, collapsed: bool } },
-//     floating: [{ x, y, w, h, group: Group }],
+//     floating: [{ x, y, w, h, group: Group, win?: true }],
 //     maximized: groupId | null }
 //
 //   Node  = Split | Group
 //   Split = { type: "split", dir: "row" | "column", children: Node[], sizes: number[] }   (sizes are fractions, sum 1)
 //   Group = { type: "group", id: string, panels: string[], active: string }              (a tabbed stack of panels)
+//
+// A floating entry with `win: true` is torn off into its own window (a native window on the desktop, a popup in the
+// browser; see windows.js): its rectangle is in screen coordinates and is not clamped to the app window.
 //
 // Every operation returns a new, normalized layout and never mutates its input. Panel ids are opaque strings; the
 // renderer (view.js) maps them to the panel registry (ui/panels/index.js).
@@ -20,6 +23,7 @@ export const LIMITS = {
   side: { min: 160, max: 900, def: 304 }, // left and right region width (px)
   bottom: { min: 90, max: 700, def: 220 }, // bottom region height (px)
   float: { minW: 180, minH: 120, maxCount: 20 },
+  window: { minW: 200, minH: 140, maxW: 4000, maxH: 3000, span: 20000, def: { w: 320, h: 440 } }, // torn-off windows (screen px)
   minFraction: 0.05, // smallest share of a split child
   depth: 8, // deepest split nesting accepted from JSON
 };
@@ -45,7 +49,7 @@ export const split = (dir, children, sizes) => ({ type: "split", dir, children, 
 
 // ------------------------------------------------------------------ walking
 
-/** Calls fn(group, info) for every group; info = { region, floatIndex, path } (path = child indices from the region root). */
+/** Calls fn(group, info) for every group; info = { region, floatIndex, path, win } (path = child indices from the region root, win = torn off). */
 export function eachGroup(layout, fn) {
   const walk = (node, region, path) => {
     if (!node) return;
@@ -53,7 +57,7 @@ export function eachGroup(layout, fn) {
     else node.children.forEach((c, i) => walk(c, region, [...path, i]));
   };
   for (const r of REGIONS) walk(layout.regions[r].root, r, []);
-  layout.floating.forEach((f, i) => fn(f.group, { region: null, floatIndex: i, path: [] }));
+  layout.floating.forEach((f, i) => fn(f.group, { region: null, floatIndex: i, path: [], win: f.win === true }));
 }
 
 /** Every panel id in the layout, in document order (regions left, right, bottom, then floating). */
@@ -155,7 +159,8 @@ export function normalize(raw, opts = {}) {
     if (!f || typeof f !== "object" || !f.group || f.group.type !== "group") continue;
     const g = fixGroup(f.group);
     if (!g) continue;
-    out.floating.push({ ...clampRect(f, vw, vh), group: g });
+    if (f.win === true) out.floating.push({ ...clampWindowRect(f), group: g, win: true });
+    else out.floating.push({ ...clampRect(f, vw, vh), group: g });
   }
   for (const g of pending) {
     g.id = freshId();
@@ -185,6 +190,20 @@ export function clampRect(r, vw, vh) {
   const x = Math.round(clamp(num(r.x, 80), 0, Math.max(0, vw - w)));
   const y = Math.round(clamp(num(r.y, 80), 0, Math.max(0, vh - h)));
   return { x, y, w, h };
+}
+
+/**
+ * Keeps a torn-off window's rectangle sane. Screen coordinates may be negative (a monitor left of or above the main
+ * one), so only absurd values are cut; whether the place is still on a screen is decided when the window opens.
+ */
+export function clampWindowRect(r) {
+  const W = LIMITS.window;
+  return {
+    x: Math.round(clamp(num(r?.x, 120), -W.span, W.span)),
+    y: Math.round(clamp(num(r?.y, 120), -W.span, W.span)),
+    w: Math.round(clamp(num(r?.w, W.def.w), W.minW, W.maxW)),
+    h: Math.round(clamp(num(r?.h, W.def.h), W.minH, W.maxH)),
+  };
 }
 
 /** JSON for storage (normalized, so ids and sizes are always valid). */
@@ -220,8 +239,13 @@ function repair(L) {
  *   { region: "left"|"right"|"bottom", edge?: "outer"|"inner"|"stack" }  a new column at the window edge (outer) or
  *                                                  next to the canvas (inner), or one more group in the region (stack)
  *   { float: { x, y, w, h } }                      a floating group
+ *   { window: { x, y, w, h } }                     a group torn off into its own window (screen coordinates)
  */
 function insertGroup(L, g, target) {
+  if (target.window) {
+    L.floating.push({ ...clampWindowRect(target.window), group: g, win: true });
+    return L;
+  }
   if (target.float) {
     L.floating.push({ ...clampRect(target.float, Infinity, Infinity), group: g });
     return L;
@@ -390,8 +414,43 @@ export function setMaximized(layout, gid) {
 export function setFloatRect(layout, gid, rect, viewport = { w: Infinity, h: Infinity }) {
   const L = clone(layout);
   const f = L.floating.find((x) => x.group.id === gid);
-  if (f) Object.assign(f, clampRect({ ...f, ...rect }, viewport.w, viewport.h));
+  if (f) Object.assign(f, f.win ? clampWindowRect({ ...f, ...rect }) : clampRect({ ...f, ...rect }, viewport.w, viewport.h));
   return L;
+}
+
+// ------------------------------------------------------------------ torn-off windows
+
+/** The floating entries that are torn off into their own windows. */
+export const windowGroups = (layout) => layout.floating.filter((f) => f.win === true);
+
+/**
+ * Tears a panel ({ pid }) or a whole group ({ gid }) off into its own window at `rect` (screen coordinates). A panel
+ * that is alone in its group takes the group (and its id) along.
+ */
+export function tearOff(layout, src, rect) {
+  if (src.pid) {
+    const hit = findPanel(layout, src.pid);
+    if (!hit) return layout;
+    if (hit.group.panels.length > 1) return movePanel(layout, src.pid, { window: rect });
+    src = { gid: hit.group.id };
+  }
+  const hit = findGroup(layout, src.gid);
+  if (!hit) return layout;
+  if (hit.win) return setFloatRect(layout, src.gid, rect);
+  return moveGroup(layout, src.gid, { window: rect });
+}
+
+/**
+ * Docks a torn-off (or floating) group back: its panels return to where `base` (the workspace preset) keeps them, next
+ * to the panels they share a group with there, and the tab that was in front stays in front.
+ */
+export function dockBack(layout, gid, base) {
+  const hit = findGroup(layout, gid);
+  if (!hit || hit.region) return layout;
+  const { panels, active } = hit.group;
+  let L = removePanels(layout, panels);
+  L = reconcile(L, [...panelIds(L), ...panels], base);
+  return setActive(L, active);
 }
 
 /** Brings a floating group to the front (last = topmost). */
@@ -450,8 +509,17 @@ export function reconcile(layout, visible, base) {
     if (home) {
       const mate = home.group.panels.find((p) => p !== pid && have.has(p));
       const mateGroup = mate && findPanel(L, mate);
-      if (mateGroup) target = { group: mateGroup.group.id, zone: "center" };
-      else if (home.region) target = { region: home.region, edge: "stack" };
+      if (mateGroup) {
+        // at its place in the preset's tab order: after the last tab that comes before it there
+        const order = home.group.panels;
+        const mine = order.indexOf(pid);
+        let index = 0;
+        mateGroup.group.panels.forEach((p, i) => {
+          const o = order.indexOf(p);
+          if (o >= 0 && o < mine) index = i + 1;
+        });
+        target = { group: mateGroup.group.id, zone: "center", index };
+      } else if (home.region) target = { region: home.region, edge: "stack" };
     }
     const active = target.zone === "center" ? findGroup(L, target.group).group.active : null;
     L = addPanels(L, [pid], target);

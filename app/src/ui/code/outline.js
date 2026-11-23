@@ -185,11 +185,12 @@ export function createOutline(ws) {
       let target = null;
       const indicator = h("div.of-tree__drop");
       const ghost = h("div.of-tree__ghost", e.tag);
+      const win = r.ownerDocument.defaultView || window; // the panel may be torn off into its own window
       const move = (m) => {
         if (!dragging && Math.abs(m.clientX - x0) + Math.abs(m.clientY - y0) > 5) {
           dragging = true;
           list.append(indicator);
-          document.body.append(ghost);
+          win.document.body.append(ghost);
           r.classList.add("dragging");
         }
         if (!dragging) return;
@@ -199,8 +200,8 @@ export function createOutline(ws) {
         placeIndicator(indicator, target);
       };
       const up = () => {
-        window.removeEventListener("pointermove", move);
-        window.removeEventListener("pointerup", up);
+        win.removeEventListener("pointermove", move);
+        win.removeEventListener("pointerup", up);
         indicator.remove();
         ghost.remove();
         r.classList.remove("dragging");
@@ -210,8 +211,8 @@ export function createOutline(ws) {
         }
         if (target) ws.moveElement(e.id, target.parentId, target.index);
       };
-      window.addEventListener("pointermove", move);
-      window.addEventListener("pointerup", up);
+      win.addEventListener("pointermove", move);
+      win.addEventListener("pointerup", up);
     });
   }
 
