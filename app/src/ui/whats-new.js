@@ -3,6 +3,17 @@
 
 export const WHATS_NEW = [
   {
+    version: "1.3.0",
+    title: "Live sharing everywhere, panel windows, more file types",
+    items: [
+      { icon: "people", title: "Live sharing that keeps up", text: "Spreadsheet, Presentation, Whiteboard, Document, Scene and Pixel now share live. Edits arrive in any order, undo only reverts your own step, and large pictures and strokes come through." },
+      { icon: "window-plus", title: "Panels in their own windows", text: "Drag a panel out of the app or choose Open in Window. Dock Back returns it." },
+      { icon: "file-earmark-code", title: "Many more file types", text: "About 70 languages and formats open and save in the Code studio, from Python and PHP to Dockerfile and .env. Right-click a file to embed it in the current file." },
+      { icon: "puzzle", title: "More VS Code extensions", text: "Extension views, webviews, status bar items and grammars work, as dockable panels. Packages up to 512 MB." },
+      { icon: "stars", title: "A calmer interface", text: "Fewer glows, consistent type and corners, clearer empty panels, and Ollama models grouped in the chat menu." },
+    ],
+  },
+  {
     version: "1.2.0",
     title: "Docking panels, workspaces, in-app updates",
     items: [

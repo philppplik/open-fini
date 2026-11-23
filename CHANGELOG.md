@@ -6,6 +6,8 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.0] — Live sharing everywhere, panel windows, more file types
+
 ### Fixed
 - **Collaboration live sync in the Office apps and the Whiteboard** ([docs/collaboration.md](docs/collaboration.md#live-editing-edit-together-beta)): an element, cell or object that arrived before its page or sheet was dropped and the next edit of any member then deleted it for everybody; local edits are now the records that changed since the last look, and refused records are retried, so delivery order no longer matters. Undo and Redo after someone else's edit restored the whole older document and sent that to the room; they now revert only your own step. One oversized record (a very long freehand stroke) made receivers reject the whole message; records are now checked one by one and oversized ones are kept back with a notice (*Resync* brings them). Large edits (a filter on a big layer, a pasted picture) burst past the rate limits and parts were dropped on the way; outgoing live edits are now paced.
 - Members who join after the sharer left still get the card of a live document.
