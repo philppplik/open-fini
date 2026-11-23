@@ -8,10 +8,12 @@ test("raster images open in the Pixel studio, SVG in the Vector studio", () => {
   assert.equal(assetEditTarget("a.jpeg").studio, "pixel");
   assert.equal(assetEditTarget("a.webp").format, "webp");
   assert.equal(assetEditTarget("icons/menu.svg").studio, "vector");
+  // icons open their largest image; saving back writes every standard size again (engine/export/ico.js)
+  assert.deepEqual(assetEditTarget("favicon.ico"), { studio: "pixel", format: "ico", mime: "image/x-icon" });
 });
 
 test("formats without a faithful round trip are not offered", () => {
-  for (const p of ["anim.gif", "x.bmp", "x.avif", "favicon.ico", "index.html", "style.css", "font.woff2", "clip.mp4", "noext", "", null]) assert.equal(assetEditTarget(p), null, String(p));
+  for (const p of ["anim.gif", "x.bmp", "x.avif", "index.html", "style.css", "font.woff2", "clip.mp4", "noext", "", null]) assert.equal(assetEditTarget(p), null, String(p));
 });
 
 test("the context menu offers Open in Pixel / Vector Studio for editable images only", async () => {

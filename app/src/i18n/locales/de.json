@@ -4495,5 +4495,14 @@
   "Updates inside the app": "Updates in der App",
   "The desktop app can download and install new versions itself, with progress and a restart button, once signed releases are switched on.": "Die Desktop-App kann neue Versionen selbst herunterladen und installieren, mit Fortschritt und Neustart-Knopf, sobald signierte Releases eingeschaltet sind.",
   "Missing icons fixed": "Fehlende Icons behoben",
-  "Icons that showed as blank squares are back.": "Icons, die als leere Kästchen erschienen, sind wieder da."
+  "Icons that showed as blank squares are back.": "Icons, die als leere Kästchen erschienen, sind wieder da.",
+  "Copied {path}": "{path} kopiert",
+  "Copy relative path": "Relativen Pfad kopieren",
+  "Embed in current file": "In aktuelle Datei einbetten",
+  "ICO — Windows and website icon, several sizes": "ICO — Windows- und Website-Symbol, mehrere Größen",
+  "Icon sizes": "Symbolgrößen",
+  "Inline as data URI": "Als Data-URI einfügen",
+  "Only files up to {size} KB can be inlined as a data URI.": "Nur Dateien bis {size} KB können als Data-URI eingefügt werden.",
+  "Open in Spreadsheet": "In Tabellenkalkulation öffnen",
+  "Pixel sizes stored in the icon, separated by commas (1 to 256). Sizes larger than the exported image are left out.": "Im Symbol gespeicherte Pixelgrößen, durch Kommas getrennt (1 bis 256). Größen über der exportierten Bildgröße werden ausgelassen."
 }

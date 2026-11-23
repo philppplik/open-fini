@@ -1,4 +1,4 @@
-// Quick asset editing: opens an image of a Code studio project in the Pixel studio (PNG, JPEG, WebP) or an SVG in the
+// Quick asset editing: opens an image of a Code studio project in the Pixel studio (PNG, JPEG, WebP, ICO) or an SVG in the
 // Vector studio as a separate document that stays linked to the project file. File ▸ Save (Mod+S) in that document,
 // or "Save Back to Website Asset", writes the edited image back into the project in its own format, so the preview,
 // the Assets pane and the export pick it up. Lazy (loaded from the Assets and Explorer context menus and File ▸ Save).
@@ -23,8 +23,18 @@ const TARGETS = {
   jpg: { studio: "pixel", format: "jpeg", mime: "image/jpeg" },
   jpeg: { studio: "pixel", format: "jpeg", mime: "image/jpeg" },
   webp: { studio: "pixel", format: "webp", mime: "image/webp" },
+  ico: { studio: "pixel", format: "ico", mime: "image/x-icon" },
   svg: { studio: "vector", format: "svg", mime: "image/svg+xml" },
 };
+
+/** The largest image of an icon as PNG bytes (the Pixel studio opens it like any PNG). */
+async function icoToPng(bytes) {
+  const { readIco } = await import("../../engine/formats/ico.js");
+  const best = readIco(bytes).images[0];
+  if (best.png) return best.png;
+  const { encodePng } = await import("../../engine/export/png.js");
+  return encodePng({ width: best.width, height: best.height, data: best.rgba }, { color: "rgba" });
+}
 
 /** Which design studio edits `path` with a lossless-format round trip, or null. */
 export function assetEditTarget(path) {
@@ -64,7 +74,8 @@ export async function editAssetInStudio(ws, path) {
     const io = await import("../../core/io.js");
     let doc;
     if (target.studio === "pixel") {
-      doc = await io.openImageAsDocument(app, { name, bytes: bytesOf(web, path) });
+      const ico = target.format === "ico";
+      doc = await io.openImageAsDocument(app, { name: ico ? name.replace(/\.ico$/i, ".png") : name, bytes: ico ? await icoToPng(bytesOf(web, path)) : bytesOf(web, path) });
     } else {
       const text = new TextDecoder().decode(bytesOf(web, path));
       io.placeSvg(app, text, name, { asNewDoc: true });
@@ -111,6 +122,11 @@ export async function saveAssetBack(app, doc = app.doc, { returnToCode = false }
       const r = io.exportSvg(app, page, { background: false });
       bytes = new TextEncoder().encode(r.svg);
       notes = r.warnings || [];
+    } else if (format === "ico") {
+      // every standard size up to the image size, so the favicon stays sharp in tabs, bookmarks and the taskbar
+      const r = await io.exportRaster(app, { page, format: "png", scale: 1, background: null, encode: false });
+      const { icoFromImage } = await import("../../engine/export/ico.js");
+      bytes = icoFromImage(r.canvas.getContext("2d").getImageData(0, 0, r.width, r.height));
     } else {
       bytes = (await io.exportRaster(app, { page, format, scale: 1 })).bytes;
     }

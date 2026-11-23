@@ -12,6 +12,7 @@ export dialogs ([office-suite.md](office-suite.md)).
 | `app/src/engine/export/options.js` | Pure schema: formats, options, groups, built-in presets, `normalizeExportSettings`, `visibleOptions`, page ranges, size lists, naming, spreads, `planExport` (one job per output file) |
 | `app/src/engine/export/png.js` | PNG encoder: RGB/RGBA, gray, indexed (PNG-8 with median-cut palette, optional Floyd-Steinberg dithering, 1/2/4/8-bit), Adam7, zlib level, `pHYs`, `iCCP`, `iTXt` and XMP |
 | `app/src/engine/export/quantize.js` | Palette quantization for PNG-8 |
+| `app/src/engine/export/ico.js` | ICO writer: PNG entries for 16 to 256 px (the *Icon sizes* option), area-averaged downscaling with premultiplied alpha, non-square images centered on a transparent square |
 | `app/src/engine/export/tiff.js` | TIFF writer: RGB, RGBA, gray, CMYK; LZW, Deflate, PackBits or none; horizontal predictor; resolution, ICC, descriptive tags and XMP |
 | `app/src/engine/export/jpeg-meta.js` | JPEG resolution (JFIF density) and XMP (APP1) without re-encoding |
 | `app/src/engine/export/pdf-prep.js` | Spreads, effective image resolution, downsampling targets |
@@ -51,6 +52,7 @@ Basic options appear first; the rest is under **Advanced** (its open state is re
 | Output | Embed color profile | PNG, JPEG, TIFF | the RGB working space, or the CMYK profile for CMYK TIFF (the built-in CMYK approximation has no profile) |
 | Compression | Interlaced (Adam7), Compression level | PNG | progressive display; zlib level 0-9 (lossless) |
 | Compression | Compression: LZW, ZIP/Deflate, PackBits, none | TIFF | lossless |
+| Output | Icon sizes (default 16, 24, 32, 48, 64, 128, 256) | ICO | sizes larger than the rendered image are left out; at least one size is always written |
 | Output | Include page color, Units (px, pt, mm, cm, in), Responsive | SVG | background rectangle; width/height units; omit width/height |
 | Compression | Decimal places | SVG | coordinate precision |
 | Images | Embedded images: PNG or JPEG | SVG | JPEG only for fully opaque images |

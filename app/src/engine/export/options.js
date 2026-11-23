@@ -39,6 +39,7 @@ export const EXPORT_FORMATS = [
   { id: "webp", label: N_("WebP — modern, small files"), ext: "webp", mime: "image/webp", kind: "raster", alpha: true, encoder: "image/webp" },
   { id: "avif", label: N_("AVIF — next generation, smallest files"), ext: "avif", mime: "image/avif", kind: "raster", alpha: true, encoder: "image/avif" },
   { id: "tiff", label: N_("TIFF — print, CMYK, lossless"), ext: "tif", mime: "image/tiff", kind: "raster", alpha: true },
+  { id: "ico", label: N_("ICO — Windows and website icon, several sizes"), ext: "ico", mime: "image/x-icon", kind: "raster", alpha: true },
   { id: "svg", label: N_("SVG — scalable vector"), ext: "svg", mime: "image/svg+xml", kind: "svg", alpha: true },
   { id: "pdf", label: N_("PDF — print and share"), ext: "pdf", mime: "application/pdf", kind: "pdf", alpha: false },
   { id: "psd", label: N_("PSD — Photoshop, one file layer per layer"), ext: "psd", mime: "image/vnd.adobe.photoshop", kind: "psd", alpha: true },
@@ -46,7 +47,7 @@ export const EXPORT_FORMATS = [
 const FORMAT = Object.fromEntries(EXPORT_FORMATS.map((f) => [f.id, f]));
 export const formatInfo = (id) => FORMAT[id] || FORMAT.png;
 
-const RASTER = ["png", "jpeg", "webp", "avif", "tiff"];
+const RASTER = ["png", "jpeg", "webp", "avif", "tiff", "ico"];
 const LOSSY = ["jpeg", "webp", "avif"];
 const WITH_META = ["png", "jpeg", "tiff", "svg", "pdf"];
 const ALL = EXPORT_FORMATS.map((f) => f.id);
@@ -130,6 +131,7 @@ export const EXPORT_OPTIONS = [
   { key: "colors", type: "number", label: N_("Colors"), min: 2, max: 256, precision: 0, group: "output", formats: ["png"], default: 256, when: (st) => st.colorMode === "indexed" },
   { key: "dither", type: "bool", label: N_("Dither"), hint: N_("Mixes palette colors to imitate gradients; turn off for flat artwork and smaller files."), group: "output", formats: ["png"], default: true, when: (st) => st.colorMode === "indexed" },
   { key: "embedProfile", type: "bool", label: N_("Embed color profile"), hint: N_("Tags the file with the document's RGB working space, or its CMYK profile for CMYK TIFF."), group: "output", formats: ["png", "jpeg", "tiff"], default: (env) => !!env.wideGamut, advanced: true, when: (st) => st.colorMode !== "gray" },
+  { key: "icoSizes", type: "text", label: N_("Icon sizes"), placeholder: "16, 32, 48, 256", hint: N_("Pixel sizes stored in the icon, separated by commas (1 to 256). Sizes larger than the exported image are left out."), group: "output", formats: ["ico"], default: "16, 24, 32, 48, 64, 128, 256" },
   { key: "interlace", type: "bool", label: N_("Interlaced (Adam7)"), hint: N_("Shows a coarse preview while the file loads; files get slightly larger."), group: "compression", formats: ["png"], default: false, advanced: true },
   { key: "pngLevel", type: "number", label: N_("Compression level"), min: 0, max: 9, precision: 0, group: "compression", formats: ["png"], default: 6, advanced: true, hint: N_("0 = fastest and largest, 9 = smallest. Lossless at every level.") },
   {

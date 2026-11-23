@@ -1,8 +1,8 @@
 // Opens layered / multi-frame raster formats as Pixel documents and handles color palette files.
 //   TIFF (pages -> layers), animated GIF (frames -> layers), OpenRaster (.ora, layers, groups, blend modes),
-//   ICO / CUR (largest image), and GPL / ASE / ACO palettes (-> document swatches).
+//   ICO / CUR (largest image), TGA (one layer), and GPL / ASE / ACO palettes (-> document swatches).
 // The decoders are pure engines in engine/formats (loaded lazily); this module only builds documents from their output.
-// Public API: openTiff, openGif, openOra, openIco, importPaletteFile, addSwatches, exportPaletteText, exportOraFile.
+// Public API: openTiff, openGif, openOra, openIco, openTga, importPaletteFile, addSwatches, exportPaletteText, exportOraFile.
 import { Doc, createCanvas, ctx2d } from "./doc.js";
 import { createNode } from "./nodes.js";
 import { translate } from "./math.js";
@@ -135,6 +135,18 @@ export async function openIco(app, file) {
   return present(app, doc, report, `“${file.name}”`);
 }
 
+/** Truevision TGA (true-color, grayscale and color-mapped, raw or RLE) as a one-layer Pixel document. */
+export async function openTga(app, file) {
+  const { readTga } = await import("../engine/formats/tga.js");
+  const tga = readTga(file.bytes);
+  const report = new ImportReport("Truevision TGA", file.name);
+  const doc = new Doc({ name: baseName(file.name), width: tga.width, height: tga.height, dpi: 72, studio: "pixel", bg: null });
+  doc.pages[0].root.children.push(pixelLayer(doc, rgbaCanvas(tga.rgba, tga.width, tga.height), { name: baseName(file.name), m: translate(0, 0) }));
+  report.kept(`The image (${tga.width} × ${tga.height}).`);
+  report.warnings(tga.warnings);
+  return present(app, doc, report, `“${file.name}”`);
+}
+
 // ------------------------------------------------------------------ palettes
 
 /** Adds colors to the document swatches (one undo step, duplicates skipped). Returns how many were added. */
@@ -241,5 +253,6 @@ export async function openRasterFormat(app, file) {
   if (/\.ora$/i.test(name)) return openOra(app, file);
   if (/\.kra$/i.test(name)) return openKra(app, file);
   if (/\.(ico|cur)$/i.test(name)) return openIco(app, file);
+  if (/\.(tga|icb|vda|vst|tpic)$/i.test(name)) return openTga(app, file);
   return undefined;
 }

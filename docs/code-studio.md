@@ -168,7 +168,7 @@ selects nothing. Tests: `tests/web/text-map.test.js`.
 
 #### Editing assets in a design studio
 
-Right-click an image in **Assets** or the **Explorer**: *Open in Pixel Studio* (PNG, JPEG, WebP) or *Open in Vector Studio* (SVG)
+Right-click an image in **Assets** or the **Explorer**: *Open in Pixel Studio* (PNG, JPEG, WebP, ICO) or *Open in Vector Studio* (SVG)
 opens it as its own document, linked to the project file (`ui/code/asset-edit.js`). **File ▸ Save** (`Mod+S`) in that document
 writes the image back into the project in its own format at the document's page size; *Save Back to Website and Return*
 (command `code.assetSaveBack`) also returns to the Code studio. The preview, the Assets pane and exports use the new file at once,
@@ -177,7 +177,9 @@ and the website document is marked as changed (save it as usual). *Save As* stil
 * Choosing the command again for a file that is already open switches to that document.
 * SVG is rewritten by the SVG exporter: comments, scripts, `<style>` rules and features the Vector studio does not model are not
   kept, and a `<title>` is added (the opening toast says so). JPEG is encoded again (lossy).
-* GIF, BMP, AVIF and ICO are not offered (the browser cannot write them back faithfully).
+* An ICO opens its largest image; saving back writes every standard size (16 to 256 px) up to the image size again
+  (`engine/export/ico.js`), so sizes that were drawn by hand in the original file are replaced by scaled ones.
+* GIF, BMP and AVIF are not offered (the browser cannot write them back faithfully).
 * The link is runtime state: it is not stored in documents. If the website document was closed, or the file was renamed or
   deleted meanwhile, nothing is written and a message says so.
 
@@ -315,6 +317,59 @@ not offered yet.
 | Resize handle / splitter | Arrow keys (`Shift` for bigger steps) |
 | Split layout | *View ▸ Split Layout* (no default shortcut; assign one in the shortcut editor) |
 | Word wrap | `Alt+Z` |
+
+### File types and syntax highlighting
+
+The Code studio opens, highlights and saves back far more than web files. One table, `engine/web/code-langs.js`, lists every
+text and source-code type with its extensions, exact file names, MIME type, Explorer icon and highlighter; the open dispatch
+(`core/text-docs.js`), *save back to the original format* (`core/source-format.js`), the File ▸ Open filters (`core/io.js`),
+`languageOf()` / `mimeOf()` / `isTextPath()` (`engine/web/paths.js`) and the status bar all read it.
+
+* **Web**: HTML, Vue, Svelte, Astro (HTML highlighting), CSS, Sass/SCSS, Less, Stylus, JavaScript, JSX, TypeScript, TSX,
+  CoffeeScript, JSON (also `.jsonc`, `.json5`, `.webmanifest`), Markdown, XML (also `.plist`, `.csproj`, `.xaml` …), Pug, Jinja,
+  Twig, Liquid, Handlebars.
+* **Scripts and build files**: shell (`.sh`, `.bash`, `.zsh`, `.bashrc` …), PowerShell (`.ps1`, `.psm1`), Windows batch
+  (`.bat`, `.cmd`), Makefile, Dockerfile (also `Dockerfile.dev`, `*.dockerfile`), CMake, nginx.
+* **Languages**: Python, Ruby, PHP, Perl, Lua, R, Julia, Go, Rust, C, C++, Objective-C, C#, F#, Visual Basic, Java, Kotlin, Scala,
+  Groovy (Gradle, Jenkinsfile), Dart, Swift, Haskell, Elm, Erlang / Elixir, Clojure, OCaml, Fortran, Pascal, Tcl, Verilog, VHDL,
+  shaders (GLSL, HLSL, WGSL), Zig, SQL, GraphQL, Protocol Buffers.
+* **Configuration and data**: YAML, TOML, INI / `.conf` / `.cfg` / `.properties`, `.env` (also `.env.local`), `.editorconfig`,
+  `.gitattributes`, `.gitignore` and the other ignore files, CSV / TSV, logs (levels and timestamps colored), diffs and patches,
+  plain text (`README`, `LICENSE`, `.rst`, `.adoc`, subtitles).
+
+HTML, CSS, JavaScript, JSON, Markdown, XML, LaTeX, YAML, TOML and INI are highlighted by the main editor bundle. The other
+languages use CodeMirror's legacy stream modes in a second bundle, `vendor/codemirror-modes/modes.js` (about 84 KiB gzip), that is
+loaded the first time such a file is opened and then cached by the service worker; batch files, logs, ignore files and PHP have
+small modes of their own in `ui/code/languages.js`. Offline before that first use, those files open as plain text. The language
+names in the status bar come from the table.
+
+Every listed file opened with File ▸ Open (or dropped, or handed over by the system) opens as a one-file project and File ▸ Save
+writes it back byte for byte while unchanged, keeping the BOM and line endings (CRLF for `.bat`) once edited. Names without an
+extension (`Dockerfile`, `Makefile`, `.gitignore`) keep their full name. CSV and TSV open as text here; right-click one in the
+Explorer and choose *Open in Spreadsheet* to open a copy in the Office Spreadsheet app (in the Office studio, File ▸ Open opens
+them as spreadsheets directly).
+
+### Embedding files
+
+Right-click a file in the **Explorer** while another file is open in the editor:
+
+* **Embed in current file** inserts the reference that fits both file types at the caret: an image becomes `<img src alt>` in
+  HTML (also Vue, Svelte, PHP and template files), `url("…")` in CSS, `![alt](…)` in Markdown, `\includegraphics{…}` in LaTeX
+  (also PDF and EPS figures) and an `import` in TypeScript and JSX (bundlers) or `new URL("…", import.meta.url).href` in plain
+  JavaScript modules. A stylesheet becomes `<link rel="stylesheet">` in HTML, `@import url()` in CSS and `import "./x.css"` in
+  scripts; a script becomes `<script src>` (`type="module"` for `.mjs` and TypeScript) or an `import` with a `./` or `../`
+  path (TypeScript drops the `.ts` extension); JSON becomes `import x from "./x.json" with { type: "json" }`; a font becomes a
+  `@font-face` rule in CSS and a preload `<link>` in HTML; a web manifest becomes `<link rel="manifest">`; pages and other files
+  become links in HTML and Markdown, `\input{}` or `\bibliography{}` in LaTeX, `import a.b` for Python modules, and the relative
+  path everywhere else. Snippets that belong on their own line (`<link>`, `<script>`, imports, `@font-face`) are inserted on a new
+  line with the indentation of the current one.
+* **Inline as data URI** inserts the same form with a `data:` URI instead of the path, for files up to 64 KiB.
+* **Copy relative path** copies the path from the open file to the clicked one.
+
+**Drag and drop** a file from the Explorer into the editor to embed it at the drop point; hold `Alt` (`Option`) while dropping to
+inline a small file as a data URI. Each insertion is one undo step. Paths are percent-encoded where they are URLs (HTML, CSS,
+Markdown) and attribute text is escaped. The logic is the pure `engine/web/embed.js` (tests in `tests/web/embed.test.js`); the
+menu and drop handling are in `ui/code/embed-ui.js`.
 
 ### Libraries, Markdown and LaTeX
 
