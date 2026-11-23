@@ -62,17 +62,62 @@ preferences keep working unchanged: without `dock` the layout is built from the 
 sizes it. Closing a panel adds it to `hidden`, reopening removes it and `reconcile` puts it back next to a panel it
 shared a group with in the preset — so panels that an extension or a later version adds show up by themselves.
 
-Tear-off into a separate native window is not part of this decision: the panels are live views of the in-memory
-document in the main window, and the existing multi-window code (docs/multi-window.md, `ui/popout.js`) moves whole
-documents or studios between windows, not individual views. A torn-off panel would need a document mirror and a
-command channel per panel. Floating panels stay inside the window; tear-off is a follow-up.
+Tear-off into a separate native window was not part of the first version of this decision: the panels are live views
+of the in-memory document in the main window, and the existing multi-window code (docs/multi-window.md, `ui/popout.js`)
+moves whole documents or studios between windows, not individual views. It was added later; see the amendment below.
 
 ## Consequences
 
 * About 9 KiB gzip of JavaScript and 2 KiB of CSS, all outside the start-up bundle; no new dependency.
 * The tree operations are unit-tested in Node (`tests/ui/docking.test.js`), including normalization of hostile JSON
   and the guarantee that every built-in workspace only references registered panels.
-* Studios that own their whole workspace (Code's left sidebar and bottom panel, Vibe, Office apps, Scene) are not
-  migrated yet; they keep their own layouts. Registering their panels with `ui/panels/index.js` and listing them in
-  `studios/*.js` is enough to bring them into the docking engine later.
+* Studios that own their whole workspace (Code's sidebar and bottom panels, Vibe, the Office apps, Scene) joined in
+  1.2.0 through slot panels (`ui/panels/slots.js`): the studio instance publishes each part's element, the engine docks
+  it like any other panel.
 * The old "Move to the other area" panel menu entry is replaced by Dock Left / Dock Right / Dock Bottom / Float.
+
+## Tear-off into a window (amendment)
+
+- Date: 2026-11-23
+
+A panel or tab group can be torn off into a window of its own (drag it out of the app window, or *Open in Window*), and
+it must stay live and dock back on close.
+
+Options:
+
+1. **A remote view per panel** (like the Collaboration window, ADR 0030): a full app in the second window, fed with a
+   mirror of the document and sending commands back. Every panel would need a snapshot format and an action whitelist,
+   the slot panels (Code explorer and terminal, Vibe chats, Scene inspector) own state that cannot be mirrored at all,
+   and the document would exist twice. Rejected as far too large for what it buys.
+2. **Move the panel's element into a same-origin window the main window controls** (chosen). `window.open` of
+   `about:blank#openfini-panel` returns a page of the same origin with an opener relationship; the main window keeps
+   running everything and only moves DOM. The panel is the same object as before, so "live sync" is free and exact.
+   ADR 0030 rejected this for the Collaboration window because Tauri `WebviewWindow`s have no opener relationship;
+   the Tauri version we build with (2.12) lets a window answer `window.open` with a new `WebviewWindow` that keeps it
+   (`on_new_window` ▸ `NewWindowResponse::Create`), which removes that obstacle.
+
+Decision: option 2.
+
+- Model (`model.js`, tested): a floating entry with `win: true` is a torn-off window with a screen rectangle
+  (`clampWindowRect`, not clamped to the app window); `tearOff`, `dockBack(layout, gid, base)` (back to the preset's
+  places through `reconcile`, which now also restores the tab position), `windowGroups`, the drop target
+  `{ window: rect }`. Because torn-off windows are ordinary layout state, workspaces save and restore them.
+- Runtime (`windows.js`): opens the window, copies the main window's style sheets and root attributes and keeps them in
+  sync, forwards Ctrl/Cmd shortcuts, suppresses the page's own context menu, reports closing (dock back) and moves and
+  resizes (stored), and closes all panel windows without docking them back when the main window unloads.
+- Shadow DOM: browsers drop constructed style sheets (Shoelace/Lit) when an element moves to another document and refuse
+  to share them across documents. A small *sheet bridge* wraps the `adoptedStyleSheets` setter of the main window's
+  `ShadowRoot` prototype: it remembers what each shadow root asked for and, in another document, sets copies built
+  there; moved subtrees are restyled after each move and on insertion (a `MutationObserver` in the panel window).
+- Renderer (`view.js`): drag out of the window (pointer capture keeps reporting outside it), menu entries *Open in
+  Window* / *Dock Back* / *Dock Back All Windows*, a *Dock Back* button in the window's tab row (no menus there: they
+  would open in the main window). A torn-off group whose window cannot open (popup blocked, a reload without a click)
+  is shown in the app with an *Open in Window* button until the user reopens it; the layout keeps it torn off.
+- Desktop (`src-tauri/src/lib.rs`): the main window is built in `setup` from its `tauri.conf.json` entry (`create:
+  false`) with an `on_new_window` handler that answers exactly `about:blank#openfini-panel` with a decorated window
+  labeled `panel-<n>` (its title follows the page title) and leaves every other `window.open` to the default. Panel
+  windows run no code of their own and get no capability. They are destroyed with the main window.
+
+Consequences: no document mirror and no protocol; any panel works torn off as long as it does not listen on the global
+`document`/`window` for its own events. Menus, dialogs, tooltips and toasts a torn-off panel opens appear in the main
+window. Browsers allow one popup per click. The desktop path cannot run in CI and needs a manual check on each OS.

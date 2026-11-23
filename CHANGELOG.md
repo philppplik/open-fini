@@ -8,10 +8,13 @@ All notable changes to OpenFini are documented here. The format follows
 
 ### Added
 - The Vibe chat model menu lists Ollama models grouped as Local and Cloud, with capability badges (vision, tools, thinking).
+- **Tear panels off into their own windows** ([docs/workspaces.md](docs/workspaces.md#tear-a-panel-off-into-its-own-window), [ADR 0033](docs/adr/0033-docking-layout.md#tear-off-into-a-window-amendment)): drag a panel tab (or a whole tab group) out of the app window, or choose *Open in Window* in the panel menus or *Move Panel…*, and it opens in a window of its own (a native window on the desktop, a popup window in the browser), for example on a second monitor. It is the same live panel, not a copy, and follows the document and studio as before; Ctrl/Cmd shortcuts work in it. *Dock Back* (in the window, the panel menus or *Window ▸ Dock Back All Windows*) or closing the window puts the panels back where the workspace keeps them. Torn-off windows, with their place and size, are part of the layout and of saved workspaces; a window the browser refuses to reopen waits in the app with an *Open in Window* button. Works in every studio, including the Code, Scene, Vibe and Office panels.
 
 ### Changed
 - Settings: the sidebar now runs flush from the top to the bottom edge of the dialog; the close and Done buttons moved into the content column.
 - Active tabs and list rows use a soft accent tint instead of a one-sided accent line (document, dock, Scene, Code, Office, Collaboration and Diagnostics tabs, settings sidebar).
+- A panel that is reopened (or docks back) returns at its place in the tab order of the panels it is grouped with in the workspace, instead of as the last tab.
+- Desktop: the main window is now created by the app at start-up (same settings as before) so it can open panel windows.
 
 ## [1.2.0] — Docking panels, workspaces, in-app updates
 

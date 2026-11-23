@@ -78,6 +78,14 @@
 .of-dkfloat .of-dkgroup__grip { cursor: move; }
 .of-dkfloat__resize { position: absolute; right: 0; bottom: 0; width: 14px; height: 14px; cursor: nwse-resize; touch-action: none; background: linear-gradient(135deg, transparent 50%, var(--of-border) 50%, var(--of-border) 60%, transparent 60%, transparent 72%, var(--of-border) 72%, var(--of-border) 82%, transparent 82%); }
 .of-layout.no-doc .of-dkfloats, .of-layout.no-doc .of-dockhost { opacity: 0.45; pointer-events: none; }
+/* a torn-off group whose window is not open (blocked by the browser): shown here until "Open in Window" */
+.of-dkfloat.is-pending { border-style: dashed; }
+
+/* the page of a panel window (windows.js): one tab group filling the window */
+body.of-dkwin { display: flex; flex-direction: column; height: 100vh; background: var(--of-bg-panel); }
+body.of-dkwin > .of-dkgroup { flex: 1 1 0; display: flex; flex-direction: column; }
+.of-dkgroup.is-win .of-dkgroup__grip { cursor: default; }
+.of-dkgroup.is-win .of-dock__tab { touch-action: auto; }
 
 /* drag feedback: the drop guide and the label that follows the pointer */
 .of-dkdrop {
