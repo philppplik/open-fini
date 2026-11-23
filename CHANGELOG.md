@@ -6,6 +6,13 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- The Vibe chat model menu lists Ollama models grouped as Local and Cloud, with capability badges (vision, tools, thinking).
+
+### Changed
+- Settings: the sidebar now runs flush from the top to the bottom edge of the dialog; the close and Done buttons moved into the content column.
+- Active tabs and list rows use a soft accent tint instead of a one-sided accent line (document, dock, Scene, Code, Office, Collaboration and Diagnostics tabs, settings sidebar).
+
 ## [1.2.0] — Docking panels, workspaces, in-app updates
 
 ### Fixed
