@@ -27,6 +27,24 @@ Drag the **empty end of a tab row** to move the whole group with all its tabs. A
 docks again when you drop it on a guide. Press **Escape** while dragging to cancel. Resize a floating group with its
 lower-right corner.
 
+### Tear a panel off into its own window
+
+Drag a panel's tab (or the empty end of a tab row, for the whole group) **out of the app window** and let go: the
+panel opens in a window of its own at that place, for example on a second monitor. *Open in Window* in the group menu
+or the tab's right-click menu does the same (it is also one of the places of *Move Panel…*). On the desktop app it is
+a native window; in the browser it is a popup window (allow pop-ups for OpenFini if the browser blocks it).
+
+* The torn-off panel is the same panel as before, not a copy: it follows the document, the selection and the studio
+  live, and what you do in it applies right away. Shortcuts with Ctrl (Cmd on a Mac), such as undo and save, work in it.
+* **Dock it back** with the button at the end of its tab row, *Dock Back* in the panel menus or *Window ▸ Dock Back All
+  Windows*, or simply close the window: the panels return to where the workspace keeps them, next to the panels they
+  were grouped with. *Float* or *Dock Left/Right/Bottom* in the panel menu put them elsewhere in the app.
+* Torn-off windows belong to the arrangement: their place and size are remembered, saved with a workspace and opened
+  again when you come back to the studio or apply the workspace. Switching to another studio closes them (they come
+  back with that studio). When a browser refuses to reopen them without a click (after a reload, or when more than
+  one comes back at once), they wait in the app as floating panels with a dashed border and an **Open in Window**
+  button; moving or resizing one there keeps it in the app.
+
 ### Resize, collapse, maximize
 
 * Drag the thin bars between groups to share space, and the inner edge of a dock (next to the canvas) to make the
@@ -40,7 +58,7 @@ lower-right corner.
 ### Close and reopen panels
 
 *Window* lists every panel of the studio with a check mark for the visible ones. Untick to close a panel, tick to bring
-it back: it returns next to the panels it was grouped with in the workspace. *Close* is also in the group menu and the
+it back: it returns next to the panels it was grouped with in the workspace, at its place in their tab order. *Close* is also in the group menu and the
 right-click menu of a tab. Opening a panel from elsewhere (for example *Comments* or the Data panel of the Layout
 studio) reopens it the same way.
 
@@ -72,7 +90,7 @@ Built-in workspaces:
 | Office: Whiteboard | Essentials (the four panels tabbed on the right, closed until opened), Review (Comments and Outline) |
 
 A workspace stores the full arrangement: docks, splits and sizes, tab groups and the front tab, floating rectangles,
-collapsed docks and closed panels. Workspaces are kept with your other preferences (and in profile files, see
+torn-off windows (place and size on the screen), collapsed docks and closed panels. Workspaces are kept with your other preferences (and in profile files, see
 [customization.md](customization.md)). *Settings ▸ Layout and workspaces* shows the same list and can still hide panels,
 put the dock on the left and set its width; changing the side or the width starts again from the workspace
 arrangement.
@@ -86,7 +104,8 @@ new panels appear at their usual place, and floating panels are moved back into 
 * **Ctrl+Shift+M** on a focused tab (or *Move Panel…* in the group menu or the tab's context menu) starts the
   keyboard move mode: **arrow keys** or **Tab** step through every place the panel can go (each one is highlighted and
   announced), **Enter** moves it, **Escape** cancels. Focus returns to the moved tab.
-* The group menu and the tab context menu also offer *Dock Left*, *Dock Right*, *Dock Bottom* and *Float*.
+* The group menu and the tab context menu also offer *Dock Left*, *Dock Right*, *Dock Bottom*, *Float* and *Open in
+  Window* (*Dock Back* for a torn-off panel).
 * Splitters and dock edges are focusable `separator`s with arrow-key resizing.
 * Drop guides animate only when motion is allowed (reduced motion turns it off). Light and dark themes, glass and
   sea surfaces and high contrast apply to docks, floating panels and fly-outs.
@@ -141,17 +160,35 @@ the panels its workspace keeps visible.
 ### The model
 
 `ui/docking/model.js` is pure and tested in Node. A layout is
-`{ v: 1, regions: { left|right|bottom: { root, size, collapsed } }, floating: [{ x, y, w, h, group }], maximized }`,
+`{ v: 1, regions: { left|right|bottom: { root, size, collapsed } }, floating: [{ x, y, w, h, group, win? }], maximized }`,
 where `root` is a tree of `{ type: "split", dir: "row"|"column", children, sizes }` and
-`{ type: "group", id, panels, active }`. Every operation returns a new normalized layout; `normalize(raw, { known,
-viewport })` is the loader for stored or imported JSON. `ui/docking/view.js` renders it into the hosts created by
-`ui/dock.js` and stores changes through `app.customize.setLayout(studio, { ..., dock })`.
+`{ type: "group", id, panels, active }`. A floating entry with `win: true` is torn off into its own window; its
+rectangle is in screen coordinates (it may be negative on a monitor left of the main one) and is not clamped to the app
+window. Every operation returns a new normalized layout; `normalize(raw, { known, viewport })` is the loader for stored
+or imported JSON. Tear-off operations: `tearOff(layout, { pid } | { gid }, rect)`, `dockBack(layout, gid, base)` (back
+to the places of the workspace preset `base`), `windowGroups(layout)` and the drop target `{ window: rect }`.
+`ui/docking/view.js` renders the layout into the hosts created by `ui/dock.js` and stores changes through
+`app.customize.setLayout(studio, { ..., dock })`.
+
+### Panel windows
+
+`ui/docking/windows.js` opens a torn-off group's window (`about:blank#openfini-panel`, a same-origin page; on the
+desktop `src-tauri/src/lib.rs` answers that `window.open` with a native `panel-<n>` window that keeps the opener
+relationship) and the renderer moves the group's tab row and the panel's element into it. All code keeps running in the
+main window, so a panel needs nothing special to work torn off. What a panel should avoid: listening on the global
+`document` or `window` for its own pointer or key events (use its own elements, or `el.ownerDocument` /
+`el.ownerDocument.defaultView`), and measuring with `window.innerWidth`; menus and dialogs it opens appear in the main
+window. The module copies the main window's style sheets and root attributes into the page and keeps them in sync,
+forwards Ctrl/Cmd shortcuts to `app.handleShortcut`, reports closing (the group docks back) and moving or resizing (the
+rectangle is stored). Shoelace components keep their styles through a small *sheet bridge*: constructed style sheets
+cannot be shared between documents, so a shadow root in the panel window gets copies of its sheets built in that
+document, and the originals again when it comes home.
 
 Preferences: `layout[studio] = { hidden, side, width, preset?, dock?, ws? }` and `workspaces[studio][name]` with the
 same shape (without `ws`); `dock` is only stored when the arrangement differs from the workspace preset.
 
 ### Not built
 
-The Scene timeline and the Code editor and preview stay in the central area (the engine's central area is the canvas), the
-Spreadsheet has no side panels, and tearing a panel off into its own desktop window is not built (see
-[ADR 0033](adr/0033-docking-layout.md) and [known-limits.md](known-limits.md)).
+The Scene timeline and the Code editor and preview stay in the central area (the engine's central area is the canvas)
+and the Spreadsheet has no side panels. Panel windows have no menus of their own and cannot exchange panels with each
+other by dragging (see [ADR 0033](adr/0033-docking-layout.md) and [known-limits.md](known-limits.md)).

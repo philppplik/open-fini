@@ -206,3 +206,21 @@ test("transport: native hosts, streaming from a fake Tauri core, abort", async (
   const refused = createOllamaFetch({ core: { Channel, invoke: async () => Promise.reject("refused") } });
   await assert.rejects(refused("http://localhost:11434/api/tags"), TypeError);
 });
+
+test("chat model menu: models are grouped Local then Cloud with capability badges", async () => {
+  const { groupModelsForMenu, capabilityBadges } = await import("../../app/src/ai/providers/ollama.js");
+  const models = [
+    { id: "gpt-oss:120b-cloud", cloud: true, tools: true, thinking: true },
+    { id: "llava:7b", cloud: false, vision: true },
+    { id: "llama3.2:3b", cloud: false, tools: true },
+    { id: "nomic-embed-text", cloud: false, embedding: true },
+  ];
+  assert.deepEqual(capabilityBadges(models[0]), ["tools", "thinking"]);
+  assert.deepEqual(capabilityBadges(models[3]), ["embedding"]);
+  const groups = groupModelsForMenu(models);
+  assert.deepEqual(groups.map((g) => g.id), ["local", "cloud"]);
+  assert.deepEqual(groups[0].models.map((m) => m.id), ["llava:7b", "llama3.2:3b", "nomic-embed-text"]);
+  assert.deepEqual(groups[0].models[0].badges, ["vision"]);
+  assert.deepEqual(groupModelsForMenu(models, "OSS").map((g) => g.id), ["cloud"]);
+  assert.deepEqual(groupModelsForMenu([]), []);
+});

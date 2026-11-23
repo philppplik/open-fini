@@ -141,7 +141,7 @@
 
 /* approvals, questions, notes */
 .of-approval, .of-ask { border: 1px solid var(--of-accent); border-radius: 12px; padding: 12px 14px; background: var(--of-accent-soft); display: flex; flex-direction: column; gap: 8px; font-size: 13px; min-width: 0; }
-.of-tcall > .of-approval { border: 0; border-top: 1px solid var(--of-accent); border-radius: 0 0 9px 9px; padding: 10px; }
+.of-tcall > .of-approval { border: 0; border-top: 1px solid var(--of-border-soft); border-radius: 0 0 9px 9px; padding: 10px; }
 .of-approval__title { display: flex; align-items: center; gap: 8px; }
 .of-approval__title sl-icon { color: var(--of-accent); }
 .of-approval__reason { overflow-wrap: anywhere; }
@@ -210,7 +210,9 @@
 .of-modelpop__prov.active, .of-modelpop__model.active { background: var(--of-accent-soft); }
 .of-modelpop__manage { flex-direction: row; align-items: center; gap: 8px; color: var(--of-text-dim); }
 .of-modelpop__list { display: flex; flex-direction: column; overflow: auto; max-height: 40vh; }
-.of-modelpop__model { font: 12px var(--of-mono); }
+.of-modelpop__model { font: 12px var(--of-mono); flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; }
+.of-modelpop__badges { display: inline-flex; gap: 3px; flex: none; }
+.of-modelpop__group { padding: 8px 10px 2px; font: 600 10px var(--of-font); text-transform: uppercase; letter-spacing: .06em; color: var(--of-text-faint); }
 .of-modelpop__body .of-side__search { margin: 4px 0 6px; }
 
 /* side panel */

@@ -7,6 +7,7 @@ import { iconButton } from "../controls.js";
 import { iconEl } from "../toolbox.js";
 import { showContextMenu } from "../menus.js";
 import { confirmDialog } from "../dialogs.js";
+import { groupModelsForMenu } from "../../ai/providers/ollama.js";
 import { vibeStore } from "../../vibe/store.js";
 import { getVibeHub } from "../../vibe/hub.js";
 import { chatRowExtras, chatListHead } from "./chat-list.js";
@@ -149,9 +150,11 @@ export function vibeStudio(app) {
           }
           body.replaceChildren(h("div.of-empty", "Loading models…"));
           let models = [];
+          let ollama = false;
           try {
             const prov = await session.providerFor(row.id);
-            models = (await prov.listModels()).filter((m) => !m.embedding).map((m) => m.id);
+            models = (await prov.listModels()).filter((m) => !m.embedding);
+            ollama = prov.kind === "ollama";
           } catch (err) {
             // many custom endpoints have no model list: let the user type the model id instead
             const manual = h("input.of-side__search", { type: "text", placeholder: "Model id, e.g. my-model-7b", "aria-label": "Model id", spellcheck: false });
@@ -169,14 +172,20 @@ export function vibeStudio(app) {
           const paint = () => {
             empty(items);
             const q = filter.value.toLowerCase();
-            for (const id of models.filter((m) => m.toLowerCase().includes(q)).slice(0, 150)) {
-              const b = h("button.of-modelpop__model", { type: "button", class: id === s.model && active ? "active" : "" }, id);
+            const modelRow = (id, badges = []) => {
+              const b = h("button.of-modelpop__model", { type: "button", class: id === s.model && active ? "active" : "" }, h("span", id), badges.length ? h("span.of-modelpop__badges", badges.map((x) => h("span.of-badge", t(x)))) : null);
               b.addEventListener("click", async () => {
                 await vibeStore.saveSettings({ activeProvider: row.id, model: id });
                 picked();
               });
               items.append(b);
-            }
+            };
+            if (ollama) {
+              for (const g of groupModelsForMenu(models, q)) {
+                items.append(h("div.of-modelpop__group", g.id === "cloud" ? t("Cloud") : t("Local")));
+                for (const m of g.models) modelRow(m.id, m.badges);
+              }
+            } else for (const m of models.filter((m) => m.id.toLowerCase().includes(q)).slice(0, 150)) modelRow(m.id);
             if (q && !items.children.length) items.append(h("button.of-modelpop__model", { type: "button", onclick: async () => { await vibeStore.saveSettings({ activeProvider: row.id, model: filter.value.trim() }); picked(); } }, `Use “${filter.value.trim()}”`));
           };
           filter.addEventListener("input", paint);

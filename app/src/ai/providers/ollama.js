@@ -113,6 +113,22 @@ export function describeModel(m) {
   return [m.cloud ? "cloud" : "", m.parameterSize, m.quantization, gb, m.tools ? "tools" : "", m.vision ? "vision" : "", m.thinking ? "thinking" : "", m.contextWindow ? `${Math.round(m.contextWindow / 1024)}K ctx` : "", m.loaded ? "loaded" : ""].filter(Boolean).join(" · ");
 }
 
+/** Capability badges of a model for menus, in a fixed order: a subset of vision, tools, thinking, embedding. */
+export function capabilityBadges(m) {
+  return [m.vision ? "vision" : "", m.tools ? "tools" : "", m.thinking ? "thinking" : "", m.embedding ? "embedding" : ""].filter(Boolean);
+}
+
+/**
+ * Groups merged models for the chat model menu: Local first, then Cloud (empty groups are dropped). Each entry keeps
+ * the model and its capability badges. `query` filters by id (case-insensitive).
+ * @returns {{id:"local"|"cloud", models:{id:string, model:object, badges:string[]}[]}[]}
+ */
+export function groupModelsForMenu(models, query = "") {
+  const q = String(query || "").toLowerCase();
+  const pick = (cloud) => (models || []).filter((m) => !!m.cloud === cloud && m.id.toLowerCase().includes(q)).map((m) => ({ id: m.id, model: m, badges: capabilityBadges(m) }));
+  return [{ id: "local", models: pick(false) }, { id: "cloud", models: pick(true) }].filter((g) => g.models.length);
+}
+
 // ------------------------------------------------------------------------------------------ messages
 
 /**

@@ -40,7 +40,7 @@ sl-dialog.of-diagnostics::part(body) { padding: 0; display: flex; flex-direction
 .of-diag__tabs { flex: none; display: flex; gap: 2px; padding: 8px 14px 0; border-bottom: 1px solid var(--of-border-soft); background: var(--of-bg-bar); }
 .of-diag__tab { height: 32px; padding: 0 14px; border-radius: var(--of-radius) var(--of-radius) 0 0; color: var(--of-text-dim); font: 13px var(--of-font); border: 0; background: none; cursor: pointer; border-bottom: 2px solid transparent; }
 .of-diag__tab:hover { color: var(--of-text); background: var(--of-hover); }
-.of-diag__tab.active { color: var(--of-text); font-weight: 650; border-bottom-color: var(--of-accent); }
+.of-diag__tab.active { color: var(--of-text); font-weight: 650; background: var(--of-accent-soft); }
 .of-diag__panel { flex: 1; min-height: 0; overflow: auto; padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 10px; }
 .of-diag__bar { flex: none; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .of-diag__bar select, .of-diag__bar input { height: 28px; border: 1px solid var(--of-border); border-radius: var(--of-radius-sm); background: var(--of-bg-input); color: var(--of-text); padding: 0 8px; font: 12px var(--of-font); }

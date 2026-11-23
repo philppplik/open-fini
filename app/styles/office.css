@@ -53,7 +53,7 @@
 .of-office[data-sidebar="off"] .of-oside { display: none; }
 .of-oside__tabs { display: flex; gap: 2px; padding: 6px 8px 0; border-bottom: 1px solid var(--of-border-soft); }
 .of-oside__tab { flex: 1; padding: 6px 0; font: inherit; font-size: 12px; color: var(--of-text-dim); background: none; border: 0; border-bottom: 2px solid transparent; cursor: pointer; }
-.of-oside__tab[aria-selected="true"] { color: var(--of-text); border-bottom-color: var(--of-accent); }
+.of-oside__tab[aria-selected="true"] { color: var(--of-text); background: var(--of-accent-soft); }
 .of-oside__tab:focus-visible { outline: 2px solid var(--of-accent); outline-offset: -2px; }
 .of-oside__panel { flex: 1; overflow: auto; padding: 6px; }
 .of-oside__outline { list-style: none; margin: 0; padding: 0; }
