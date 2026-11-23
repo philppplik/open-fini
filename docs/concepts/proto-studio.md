@@ -836,6 +836,49 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
   `tests/proto/fixtures/geometry/*.json`, `scripts/proto-record-geometry.mjs`.
 * Acceptance: every schema field has a CSS mapping test; solver within 1 px of the recorded boxes for fixtures without
   text; no DOM access (import test in Node).
+* As built (deviations and decisions the later tasks build on):
+  * `resolve.js`: `createResolver(model, { modes, instance, applyStyles, variableValue })` → `.tree(id)`, `.page(pageId)`,
+    `.modesAt(id)`, `.variable(id, modes)`, `.value(v, modes)`, `.cssName(id)`, `.warnings`. A resolved node is
+    `{ key, id, type, node, children, modes, bound, instance, parent }`: `node` is plain JSON with styles and overrides
+    applied and every `{ "$var" }` replaced by its value; `bound` maps the field paths that were bound (`"layout.gap"`,
+    `"fills.0.color"`) to variable ids, so one tree serves both literal output (solver) and `var()` output (canvas,
+    export). Layers inside an instance are keyed `"<instanceKey>/<sourceId>"` (`"n50/n23/n91"`). Problems (missing
+    variables or components, cycles) are warnings, never exceptions.
+  * Modes resolve node → ancestors → page → the resolver's `modes` → collection default → first mode; aliases are
+    followed in the same modes. Extending collections are not applied yet (T5, through the `variableValue` hook).
+  * Styles: text (merged over the local text style), effect, fill and stroke references apply over the local fields;
+    grid styles are not applied (they have no CSS meaning yet). T5 can replace this with the `applyStyles` hook.
+  * Instances (beyond the T2 scope, as a baseline T5 extends through the `instance` hook): the variant of a set is
+    picked (set defaults, then the instance's values, best partial match), the main component's fields lie under the
+    instance's own fields, its layers become virtual children, and `over` applies by source-id path through nested
+    instances (outer instances win). Not yet: `props` and `bind`, swap, slots, detach, caches.
+  * `css.js`: `nodeCss(r, { parent, index, count, vars: "value"|"css", resolver, root, scroll, mediaUrl, designSize })`
+    → `{ decls: [[property, value]], attrs, text?: { runs }, svg? }`, `treeCss(root, opts)` → `Map`, `boxModel`,
+    `PROPERTIES` (the allow-list). In `"css"` mode a bound value prints as `var(--name, <value in this node's modes>)`,
+    so the canvas is correct before T5 emits the custom property rules; modes become `data-mode-<collection slug>`
+    attributes. Vector and line layers return SVG presentation attributes (inline SVG), text layers their runs.
+  * Mapping decisions that keep the canvas, the export and the solver identical: `box-sizing: border-box`; flow
+    children get explicit minimum sizes (`min-width: <min or 0>`), fixed and hug layers `flex: 0 0 auto`, fill layers
+    `flex: 1 1 0px` on the main axis and `align-self: stretch` on the cross axis, so CSS automatic minimum sizes
+    never apply; hug and fixed layers never stretch. `gap` is the main-axis gap (column gap in a grid), `rowGap` the
+    gap between lines (row gap in a grid) and defaults to `gap`. `rel` values are percentages (0 to 100, as validate.js
+    checks), not fractions as in the example of §3.2. The first `inside` stroke is the CSS border (it takes layout
+    space, and absolute children are offset by it), the first `center` stroke an outline with a negative offset,
+    further strokes box-shadow rings; `sides` are per-side widths. Fills and effects are listed bottom to top.
+    Constraints other than left/top need fixed design-time sizes of the layer and its parent on that axis (or the
+    `designSize` hook) and fall back to left/top otherwise; `center` is `calc(50% + offset)` without a transform.
+    `scroll` clips on the canvas and scrolls with `scroll: true` (player, export). Line-height percentages follow CSS
+    (a run without its own line height inherits the layer's computed pixels).
+  * `layout.js`: `layout(resolvedRoot, { measurer, viewport, origin, designSize })` → `{ approximate: true, root,
+    boxes: Map<key, { x, y, w, h, px, py, rot, lines? }> }`, `layoutNode(model, id, opts)`. Text boxes carry their
+    lines (`segs` with run indexes, baselines) for the SVG render of T13. The measurer is the `{ measure, metrics }`
+    seam of `core/fonts.js` (default `approxMeasurer`). Baseline alignment is implemented for rows; grid baseline
+    alignment falls back to start.
+  * Geometry fixtures: 16 models in `tests/proto/fixtures/geometry/` (13 without text: flex sizing, justify and
+    align, column fill with min/max freezing, wrap with align-content, nested hug, grid tracks, flow and dense
+    placement, hug grids, constraints, absolute layers in flex, strokes, instances, variables; 3 with text), recorded in
+    Microsoft Edge 158 on Windows. Measured agreement: within 0.02 px without text; within 1.6 px with text (the
+    browser kerns, the base-14 widths do not), tested with 1 px and 2 px tolerances.
 
 **T3 · Studio shell and DOM renderer** — L — deps: T1, T2
 * Scope: `studios/proto.js` (definition, menus, `essentials` docking preset, `newDocument`, `newBlank`, Labs flag),

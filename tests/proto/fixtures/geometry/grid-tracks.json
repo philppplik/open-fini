@@ -1,0 +1,366 @@
+{
+ "name": "grid-tracks",
+ "description": "Grid with px, fr, auto and minmax() columns, explicit cells with spans, auto-placed items, implicit rows and gaps.",
+ "text": false,
+ "root": "root",
+ "model": {
+  "schema": 1,
+  "meta": {
+   "title": "Geometry fixture",
+   "created": "2026-11-23T00:00:00Z",
+   "unit": "px",
+   "app": "OpenFini"
+  },
+  "pages": {
+   "p1": {
+    "id": "p1",
+    "name": "Page 1",
+    "ord": "V",
+    "bg": "#ffffff",
+    "flows": []
+   }
+  },
+  "nodes": {
+   "root": {
+    "id": "root",
+    "type": "frame",
+    "name": "root",
+    "page": "p1",
+    "parent": null,
+    "ord": "V",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "w": {
+     "mode": "fixed",
+     "value": 640
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "grid",
+     "gap": 10,
+     "rowGap": 6,
+     "pad": [
+      10,
+      10,
+      10,
+      10
+     ],
+     "grid": {
+      "cols": [
+       {
+        "px": 100
+       },
+       {
+        "fr": 1
+       },
+       {
+        "auto": true
+       },
+       {
+        "minmax": [
+         80,
+         {
+          "fr": 2
+         }
+        ]
+       }
+      ],
+      "rows": [
+       {
+        "px": 40
+       },
+       {
+        "auto": true
+       }
+      ],
+      "autoFlow": "row",
+      "dense": false
+     }
+    }
+   },
+   "a": {
+    "id": "a",
+    "type": "rect",
+    "name": "a",
+    "page": "p1",
+    "parent": "root",
+    "ord": "8",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fill"
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "b": {
+    "id": "b",
+    "type": "rect",
+    "name": "b",
+    "page": "p1",
+    "parent": "root",
+    "ord": "G",
+    "w": {
+     "mode": "fixed",
+     "value": 50
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "c": {
+    "id": "c",
+    "type": "rect",
+    "name": "c",
+    "page": "p1",
+    "parent": "root",
+    "ord": "O",
+    "w": {
+     "mode": "fixed",
+     "value": 70
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 60
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "d": {
+    "id": "d",
+    "type": "rect",
+    "name": "d",
+    "page": "p1",
+    "parent": "root",
+    "ord": "V",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fill"
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ],
+    "cell": {
+     "col": 2,
+     "colSpan": 2,
+     "row": 2
+    }
+   },
+   "e": {
+    "id": "e",
+    "type": "rect",
+    "name": "e",
+    "page": "p1",
+    "parent": "root",
+    "ord": "d",
+    "w": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ],
+    "cell": {
+     "justifySelf": "center",
+     "alignSelf": "end"
+    }
+   },
+   "f": {
+    "id": "f",
+    "type": "rect",
+    "name": "f",
+    "page": "p1",
+    "parent": "root",
+    "ord": "l",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 25
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "g": {
+    "id": "g",
+    "type": "rect",
+    "name": "g",
+    "page": "p1",
+    "parent": "root",
+    "ord": "t",
+    "w": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "h": {
+     "mode": "fill"
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ],
+    "cell": {
+     "col": 4
+    }
+   },
+   "h": {
+    "id": "h",
+    "type": "rect",
+    "name": "h",
+    "page": "p1",
+    "parent": "root",
+    "ord": "x",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 15
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ],
+    "cell": {
+     "colSpan": 3
+    }
+   }
+  },
+  "vars": {
+   "collections": {},
+   "items": {}
+  },
+  "styles": {},
+  "breakpoints": [
+   {
+    "id": "base",
+    "w": 1280
+   },
+   {
+    "id": "md",
+    "w": 991
+   },
+   {
+    "id": "sm",
+    "w": 478
+   }
+  ],
+  "code": {
+   "links": {},
+   "tokensFile": null
+  },
+  "media": {}
+ },
+ "recorded": {
+  "browser": "Edg/158.0.4370.33",
+  "date": "2026-11-23"
+ },
+ "boxes": {
+  "root": [
+   0,
+   0,
+   640,
+   112
+  ],
+  "a": [
+   10,
+   10,
+   100,
+   40
+  ],
+  "b": [
+   120,
+   10,
+   50,
+   20
+  ],
+  "c": [
+   270,
+   10,
+   70,
+   60
+  ],
+  "d": [
+   120,
+   56,
+   220,
+   25
+  ],
+  "e": [
+   475,
+   20,
+   30,
+   30
+  ],
+  "f": [
+   10,
+   56,
+   100,
+   25
+  ],
+  "g": [
+   350,
+   56,
+   40,
+   25
+  ],
+  "h": [
+   10,
+   87,
+   330,
+   15
+  ]
+ }
+}

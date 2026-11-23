@@ -1,0 +1,966 @@
+{
+ "name": "flex-justify-align",
+ "description": "Flex rows with every justify value and align start, center, end and stretch.",
+ "text": false,
+ "root": "root",
+ "model": {
+  "schema": 1,
+  "meta": {
+   "title": "Geometry fixture",
+   "created": "2026-11-23T00:00:00Z",
+   "unit": "px",
+   "app": "OpenFini"
+  },
+  "pages": {
+   "p1": {
+    "id": "p1",
+    "name": "Page 1",
+    "ord": "V",
+    "bg": "#ffffff",
+    "flows": []
+   }
+  },
+  "nodes": {
+   "root": {
+    "id": "root",
+    "type": "frame",
+    "name": "root",
+    "page": "p1",
+    "parent": null,
+    "ord": "V",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "w": {
+     "mode": "fixed",
+     "value": 400
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "column",
+     "gap": 4,
+     "pad": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "align": "start",
+     "justify": "start"
+    }
+   },
+   "j0": {
+    "id": "j0",
+    "type": "frame",
+    "name": "j0",
+    "page": "p1",
+    "parent": "root",
+    "ord": "8",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "pos": "flow",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 5,
+     "pad": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "align": "start",
+     "justify": "start"
+    }
+   },
+   "j0a": {
+    "id": "j0a",
+    "type": "rect",
+    "name": "j0a",
+    "page": "p1",
+    "parent": "j0",
+    "ord": "G",
+    "w": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "j0b": {
+    "id": "j0b",
+    "type": "rect",
+    "name": "j0b",
+    "page": "p1",
+    "parent": "j0",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": 60
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "j0c": {
+    "id": "j0c",
+    "type": "rect",
+    "name": "j0c",
+    "page": "p1",
+    "parent": "j0",
+    "ord": "l",
+    "w": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "h": {
+     "mode": "fill"
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "j1": {
+    "id": "j1",
+    "type": "frame",
+    "name": "j1",
+    "page": "p1",
+    "parent": "root",
+    "ord": "G",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "pos": "flow",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 5,
+     "pad": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "align": "center",
+     "justify": "center"
+    }
+   },
+   "j1a": {
+    "id": "j1a",
+    "type": "rect",
+    "name": "j1a",
+    "page": "p1",
+    "parent": "j1",
+    "ord": "G",
+    "w": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "j1b": {
+    "id": "j1b",
+    "type": "rect",
+    "name": "j1b",
+    "page": "p1",
+    "parent": "j1",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": 60
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "j1c": {
+    "id": "j1c",
+    "type": "rect",
+    "name": "j1c",
+    "page": "p1",
+    "parent": "j1",
+    "ord": "l",
+    "w": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "h": {
+     "mode": "fill"
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "j2": {
+    "id": "j2",
+    "type": "frame",
+    "name": "j2",
+    "page": "p1",
+    "parent": "root",
+    "ord": "O",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "pos": "flow",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 5,
+     "pad": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "align": "end",
+     "justify": "end"
+    }
+   },
+   "j2a": {
+    "id": "j2a",
+    "type": "rect",
+    "name": "j2a",
+    "page": "p1",
+    "parent": "j2",
+    "ord": "G",
+    "w": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "j2b": {
+    "id": "j2b",
+    "type": "rect",
+    "name": "j2b",
+    "page": "p1",
+    "parent": "j2",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": 60
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "j2c": {
+    "id": "j2c",
+    "type": "rect",
+    "name": "j2c",
+    "page": "p1",
+    "parent": "j2",
+    "ord": "l",
+    "w": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "h": {
+     "mode": "fill"
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "j3": {
+    "id": "j3",
+    "type": "frame",
+    "name": "j3",
+    "page": "p1",
+    "parent": "root",
+    "ord": "V",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "pos": "flow",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 5,
+     "pad": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "align": "stretch",
+     "justify": "space-between"
+    }
+   },
+   "j3a": {
+    "id": "j3a",
+    "type": "rect",
+    "name": "j3a",
+    "page": "p1",
+    "parent": "j3",
+    "ord": "G",
+    "w": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "j3b": {
+    "id": "j3b",
+    "type": "rect",
+    "name": "j3b",
+    "page": "p1",
+    "parent": "j3",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": 60
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "j3c": {
+    "id": "j3c",
+    "type": "rect",
+    "name": "j3c",
+    "page": "p1",
+    "parent": "j3",
+    "ord": "l",
+    "w": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "h": {
+     "mode": "fill"
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "j4": {
+    "id": "j4",
+    "type": "frame",
+    "name": "j4",
+    "page": "p1",
+    "parent": "root",
+    "ord": "d",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "pos": "flow",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 5,
+     "pad": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "align": "center",
+     "justify": "space-around"
+    }
+   },
+   "j4a": {
+    "id": "j4a",
+    "type": "rect",
+    "name": "j4a",
+    "page": "p1",
+    "parent": "j4",
+    "ord": "G",
+    "w": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "j4b": {
+    "id": "j4b",
+    "type": "rect",
+    "name": "j4b",
+    "page": "p1",
+    "parent": "j4",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": 60
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "j4c": {
+    "id": "j4c",
+    "type": "rect",
+    "name": "j4c",
+    "page": "p1",
+    "parent": "j4",
+    "ord": "l",
+    "w": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "h": {
+     "mode": "fill"
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "j5": {
+    "id": "j5",
+    "type": "frame",
+    "name": "j5",
+    "page": "p1",
+    "parent": "root",
+    "ord": "l",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "pos": "flow",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 5,
+     "pad": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "align": "end",
+     "justify": "space-evenly"
+    }
+   },
+   "j5a": {
+    "id": "j5a",
+    "type": "rect",
+    "name": "j5a",
+    "page": "p1",
+    "parent": "j5",
+    "ord": "G",
+    "w": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "j5b": {
+    "id": "j5b",
+    "type": "rect",
+    "name": "j5b",
+    "page": "p1",
+    "parent": "j5",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": 60
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "j5c": {
+    "id": "j5c",
+    "type": "rect",
+    "name": "j5c",
+    "page": "p1",
+    "parent": "j5",
+    "ord": "l",
+    "w": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "h": {
+     "mode": "fill"
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "over": {
+    "id": "over",
+    "type": "frame",
+    "name": "over",
+    "page": "p1",
+    "parent": "root",
+    "ord": "t",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "pos": "flow",
+    "w": {
+     "mode": "fixed",
+     "value": 100
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 0,
+     "pad": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "align": "center",
+     "justify": "center"
+    }
+   },
+   "o1": {
+    "id": "o1",
+    "type": "rect",
+    "name": "o1",
+    "page": "p1",
+    "parent": "over",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": 80
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 50
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "o2": {
+    "id": "o2",
+    "type": "rect",
+    "name": "o2",
+    "page": "p1",
+    "parent": "over",
+    "ord": "l",
+    "w": {
+     "mode": "fixed",
+     "value": 60
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 10
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   }
+  },
+  "vars": {
+   "collections": {},
+   "items": {}
+  },
+  "styles": {},
+  "breakpoints": [
+   {
+    "id": "base",
+    "w": 1280
+   },
+   {
+    "id": "md",
+    "w": 991
+   },
+   {
+    "id": "sm",
+    "w": 478
+   }
+  ],
+  "code": {
+   "links": {},
+   "tokensFile": null
+  },
+  "media": {}
+ },
+ "recorded": {
+  "browser": "Edg/158.0.4370.33",
+  "date": "2026-11-23"
+ },
+ "boxes": {
+  "root": [
+   0,
+   0,
+   400,
+   294
+  ],
+  "j0": [
+   0,
+   0,
+   400,
+   40
+  ],
+  "j0a": [
+   0,
+   0,
+   40,
+   20
+  ],
+  "j0b": [
+   45,
+   0,
+   60,
+   30
+  ],
+  "j0c": [
+   110,
+   0,
+   30,
+   40
+  ],
+  "j1": [
+   0,
+   44,
+   400,
+   40
+  ],
+  "j1a": [
+   130,
+   54,
+   40,
+   20
+  ],
+  "j1b": [
+   175,
+   49,
+   60,
+   30
+  ],
+  "j1c": [
+   240,
+   44,
+   30,
+   40
+  ],
+  "j2": [
+   0,
+   88,
+   400,
+   40
+  ],
+  "j2a": [
+   260,
+   108,
+   40,
+   20
+  ],
+  "j2b": [
+   305,
+   98,
+   60,
+   30
+  ],
+  "j2c": [
+   370,
+   88,
+   30,
+   40
+  ],
+  "j3": [
+   0,
+   132,
+   400,
+   40
+  ],
+  "j3a": [
+   0,
+   132,
+   40,
+   20
+  ],
+  "j3b": [
+   175,
+   132,
+   60,
+   30
+  ],
+  "j3c": [
+   370,
+   132,
+   30,
+   40
+  ],
+  "j4": [
+   0,
+   176,
+   400,
+   40
+  ],
+  "j4a": [
+   43.33,
+   186,
+   40,
+   20
+  ],
+  "j4b": [
+   175,
+   181,
+   60,
+   30
+  ],
+  "j4c": [
+   326.66,
+   176,
+   30,
+   40
+  ],
+  "j5": [
+   0,
+   220,
+   400,
+   40
+  ],
+  "j5a": [
+   65,
+   240,
+   40,
+   20
+  ],
+  "j5b": [
+   175,
+   230,
+   60,
+   30
+  ],
+  "j5c": [
+   305,
+   220,
+   30,
+   40
+  ],
+  "over": [
+   0,
+   264,
+   100,
+   30
+  ],
+  "o1": [
+   -20,
+   254,
+   80,
+   50
+  ],
+  "o2": [
+   60,
+   274,
+   60,
+   10
+  ]
+ }
+}

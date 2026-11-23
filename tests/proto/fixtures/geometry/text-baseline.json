@@ -1,0 +1,255 @@
+{
+ "name": "text-baseline",
+ "description": "A row aligned on the first baselines of texts of different sizes, and a fixed-size text box.",
+ "text": true,
+ "root": "root",
+ "model": {
+  "schema": 1,
+  "meta": {
+   "title": "Geometry fixture",
+   "created": "2026-11-23T00:00:00Z",
+   "unit": "px",
+   "app": "OpenFini"
+  },
+  "pages": {
+   "p1": {
+    "id": "p1",
+    "name": "Page 1",
+    "ord": "V",
+    "bg": "#ffffff",
+    "flows": []
+   }
+  },
+  "nodes": {
+   "root": {
+    "id": "root",
+    "type": "frame",
+    "name": "root",
+    "page": "p1",
+    "parent": null,
+    "ord": "V",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "w": {
+     "mode": "fixed",
+     "value": 400
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 8,
+     "pad": [
+      4,
+      4,
+      4,
+      4
+     ],
+     "align": "baseline",
+     "justify": "start"
+    }
+   },
+   "b1": {
+    "id": "b1",
+    "type": "text",
+    "name": "b1",
+    "page": "p1",
+    "parent": "root",
+    "ord": "G",
+    "pos": "flow",
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "text": {
+     "runs": [
+      {
+       "t": "Big",
+       "s": {}
+      }
+     ],
+     "style": {
+      "font": "Arial",
+      "size": 32,
+      "weight": 400,
+      "lineHeight": {
+       "pct": 120
+      },
+      "color": "#000000"
+     },
+     "autoSize": "width"
+    }
+   },
+   "b2": {
+    "id": "b2",
+    "type": "text",
+    "name": "b2",
+    "page": "p1",
+    "parent": "root",
+    "ord": "V",
+    "pos": "flow",
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "text": {
+     "runs": [
+      {
+       "t": "small",
+       "s": {}
+      }
+     ],
+     "style": {
+      "font": "Arial",
+      "size": 12,
+      "weight": 400,
+      "lineHeight": {
+       "pct": 150
+      },
+      "color": "#000000"
+     },
+     "autoSize": "width"
+    }
+   },
+   "b3": {
+    "id": "b3",
+    "type": "text",
+    "name": "b3",
+    "page": "p1",
+    "parent": "root",
+    "ord": "l",
+    "pos": "flow",
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "text": {
+     "runs": [
+      {
+       "t": "medium",
+       "s": {}
+      }
+     ],
+     "style": {
+      "font": "Arial",
+      "size": 18,
+      "weight": 400,
+      "lineHeight": {
+       "px": 30
+      },
+      "color": "#000000"
+     },
+     "autoSize": "width"
+    }
+   },
+   "b4": {
+    "id": "b4",
+    "type": "text",
+    "name": "b4",
+    "page": "p1",
+    "parent": "root",
+    "ord": "t",
+    "pos": "flow",
+    "w": {
+     "mode": "fixed",
+     "value": 80
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 50
+    },
+    "text": {
+     "runs": [
+      {
+       "t": "Fixed box text that overflows",
+       "s": {}
+      }
+     ],
+     "style": {
+      "font": "Arial",
+      "size": 12,
+      "weight": 400,
+      "lineHeight": {
+       "pct": 150
+      },
+      "color": "#000000"
+     },
+     "autoSize": "fixed"
+    }
+   }
+  },
+  "vars": {
+   "collections": {},
+   "items": {}
+  },
+  "styles": {},
+  "breakpoints": [
+   {
+    "id": "base",
+    "w": 1280
+   },
+   {
+    "id": "md",
+    "w": 991
+   },
+   {
+    "id": "sm",
+    "w": 478
+   }
+  ],
+  "code": {
+   "links": {},
+   "tokensFile": null
+  },
+  "media": {}
+ },
+ "recorded": {
+  "browser": "Edg/158.0.4370.33",
+  "date": "2026-11-23"
+ },
+ "boxes": {
+  "root": [
+   0,
+   0,
+   400,
+   75
+  ],
+  "b1": [
+   4,
+   4,
+   46.25,
+   38.41
+  ],
+  "b2": [
+   58.25,
+   21,
+   28.02,
+   18
+  ],
+  "b3": [
+   94.27,
+   13,
+   64.03,
+   30
+  ],
+  "b4": [
+   166.3,
+   21,
+   80,
+   50
+  ]
+ }
+}

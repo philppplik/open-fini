@@ -1,0 +1,299 @@
+{
+ "name": "text-hug",
+ "description": "Hugging text layers (auto width) of several sizes and weights in a row, with runs, tracking and upper case.",
+ "text": true,
+ "root": "root",
+ "model": {
+  "schema": 1,
+  "meta": {
+   "title": "Geometry fixture",
+   "created": "2026-11-23T00:00:00Z",
+   "unit": "px",
+   "app": "OpenFini"
+  },
+  "pages": {
+   "p1": {
+    "id": "p1",
+    "name": "Page 1",
+    "ord": "V",
+    "bg": "#ffffff",
+    "flows": []
+   }
+  },
+  "nodes": {
+   "root": {
+    "id": "root",
+    "type": "frame",
+    "name": "root",
+    "page": "p1",
+    "parent": null,
+    "ord": "V",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 10,
+     "pad": [
+      8,
+      8,
+      8,
+      8
+     ],
+     "align": "center",
+     "justify": "start"
+    }
+   },
+   "t1": {
+    "id": "t1",
+    "type": "text",
+    "name": "t1",
+    "page": "p1",
+    "parent": "root",
+    "ord": "G",
+    "pos": "flow",
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "text": {
+     "runs": [
+      {
+       "t": "Hello world",
+       "s": {}
+      }
+     ],
+     "style": {
+      "font": "Arial",
+      "size": 16,
+      "weight": 400,
+      "lineHeight": {
+       "pct": 150
+      },
+      "color": "#000000"
+     },
+     "autoSize": "width"
+    }
+   },
+   "t2": {
+    "id": "t2",
+    "type": "text",
+    "name": "t2",
+    "page": "p1",
+    "parent": "root",
+    "ord": "O",
+    "pos": "flow",
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "text": {
+     "runs": [
+      {
+       "t": "Checkout",
+       "s": {}
+      }
+     ],
+     "style": {
+      "font": "Arial",
+      "size": 24,
+      "weight": 700,
+      "lineHeight": {
+       "pct": 150
+      },
+      "color": "#000000"
+     },
+     "autoSize": "width"
+    }
+   },
+   "t3": {
+    "id": "t3",
+    "type": "text",
+    "name": "t3",
+    "page": "p1",
+    "parent": "root",
+    "ord": "V",
+    "pos": "flow",
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "text": {
+     "runs": [
+      {
+       "t": "Total ",
+       "s": {}
+      },
+      {
+       "t": "$42.00",
+       "s": {
+        "weight": 700
+       }
+      }
+     ],
+     "style": {
+      "font": "Arial",
+      "size": 14,
+      "weight": 400,
+      "lineHeight": {
+       "pct": 150
+      },
+      "color": "#000000"
+     },
+     "autoSize": "width"
+    }
+   },
+   "t4": {
+    "id": "t4",
+    "type": "text",
+    "name": "t4",
+    "page": "p1",
+    "parent": "root",
+    "ord": "l",
+    "pos": "flow",
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "text": {
+     "runs": [
+      {
+       "t": "Tracked",
+       "s": {}
+      }
+     ],
+     "style": {
+      "font": "Arial",
+      "size": 12,
+      "weight": 400,
+      "lineHeight": {
+       "pct": 150
+      },
+      "color": "#000000",
+      "tracking": 2,
+      "case": "upper"
+     },
+     "autoSize": "width"
+    }
+   },
+   "t5": {
+    "id": "t5",
+    "type": "text",
+    "name": "t5",
+    "page": "p1",
+    "parent": "root",
+    "ord": "t",
+    "pos": "flow",
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "text": {
+     "runs": [
+      {
+       "t": "Line one\nLine two",
+       "s": {}
+      }
+     ],
+     "style": {
+      "font": "Arial",
+      "size": 13,
+      "weight": 400,
+      "lineHeight": {
+       "px": 20
+      },
+      "color": "#000000"
+     },
+     "autoSize": "width"
+    }
+   }
+  },
+  "vars": {
+   "collections": {},
+   "items": {}
+  },
+  "styles": {},
+  "breakpoints": [
+   {
+    "id": "base",
+    "w": 1280
+   },
+   {
+    "id": "md",
+    "w": 991
+   },
+   {
+    "id": "sm",
+    "w": 478
+   }
+  ],
+  "code": {
+   "links": {},
+   "tokensFile": null
+  },
+  "media": {}
+ },
+ "recorded": {
+  "browser": "Edg/158.0.4370.33",
+  "date": "2026-11-23"
+ },
+ "boxes": {
+  "root": [
+   0,
+   0,
+   442.03,
+   56
+  ],
+  "t1": [
+   8,
+   16,
+   79.14,
+   24
+  ],
+  "t2": [
+   97.14,
+   10,
+   109.36,
+   36
+  ],
+  "t3": [
+   216.5,
+   17.5,
+   76.3,
+   21
+  ],
+  "t4": [
+   302.8,
+   19,
+   71.34,
+   18
+  ],
+  "t5": [
+   384.14,
+   8,
+   49.89,
+   40
+  ]
+ }
+}

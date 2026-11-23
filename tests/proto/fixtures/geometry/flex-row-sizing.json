@@ -1,0 +1,282 @@
+{
+ "name": "flex-row-sizing",
+ "description": "Flex row: fixed, hug, fill, fill with max and fill with min, padding and gap.",
+ "text": false,
+ "root": "root",
+ "model": {
+  "schema": 1,
+  "meta": {
+   "title": "Geometry fixture",
+   "created": "2026-11-23T00:00:00Z",
+   "unit": "px",
+   "app": "OpenFini"
+  },
+  "pages": {
+   "p1": {
+    "id": "p1",
+    "name": "Page 1",
+    "ord": "V",
+    "bg": "#ffffff",
+    "flows": []
+   }
+  },
+  "nodes": {
+   "root": {
+    "id": "root",
+    "type": "frame",
+    "name": "root",
+    "page": "p1",
+    "parent": null,
+    "ord": "V",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "w": {
+     "mode": "fixed",
+     "value": 600
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 120
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 10,
+     "pad": [
+      10,
+      20,
+      10,
+      20
+     ],
+     "align": "start",
+     "justify": "start"
+    }
+   },
+   "a": {
+    "id": "a",
+    "type": "rect",
+    "name": "a",
+    "page": "p1",
+    "parent": "root",
+    "ord": "G",
+    "w": {
+     "mode": "fixed",
+     "value": 50
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "b": {
+    "id": "b",
+    "type": "frame",
+    "name": "b",
+    "page": "p1",
+    "parent": "root",
+    "ord": "O",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "pos": "flow",
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 0,
+     "pad": [
+      5,
+      5,
+      5,
+      5
+     ],
+     "align": "start",
+     "justify": "start"
+    }
+   },
+   "b1": {
+    "id": "b1",
+    "type": "rect",
+    "name": "b1",
+    "page": "p1",
+    "parent": "b",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "c": {
+    "id": "c",
+    "type": "rect",
+    "name": "c",
+    "page": "p1",
+    "parent": "root",
+    "ord": "V",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "d": {
+    "id": "d",
+    "type": "rect",
+    "name": "d",
+    "page": "p1",
+    "parent": "root",
+    "ord": "l",
+    "w": {
+     "mode": "fill",
+     "max": 60
+    },
+    "h": {
+     "mode": "fill"
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "e": {
+    "id": "e",
+    "type": "rect",
+    "name": "e",
+    "page": "p1",
+    "parent": "root",
+    "ord": "t",
+    "w": {
+     "mode": "fill",
+     "min": 200
+    },
+    "h": {
+     "mode": "rel",
+     "value": 50
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   }
+  },
+  "vars": {
+   "collections": {},
+   "items": {}
+  },
+  "styles": {},
+  "breakpoints": [
+   {
+    "id": "base",
+    "w": 1280
+   },
+   {
+    "id": "md",
+    "w": 991
+   },
+   {
+    "id": "sm",
+    "w": 478
+   }
+  ],
+  "code": {
+   "links": {},
+   "tokensFile": null
+  },
+  "media": {}
+ },
+ "recorded": {
+  "browser": "Edg/158.0.4370.33",
+  "date": "2026-11-23"
+ },
+ "boxes": {
+  "root": [
+   0,
+   0,
+   600,
+   120
+  ],
+  "a": [
+   20,
+   10,
+   50,
+   40
+  ],
+  "b": [
+   80,
+   10,
+   40,
+   40
+  ],
+  "b1": [
+   85,
+   15,
+   30,
+   30
+  ],
+  "c": [
+   130,
+   10,
+   170,
+   30
+  ],
+  "d": [
+   310,
+   10,
+   60,
+   100
+  ],
+  "e": [
+   380,
+   10,
+   200,
+   50
+  ]
+ }
+}

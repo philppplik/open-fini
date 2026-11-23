@@ -1,0 +1,493 @@
+{
+ "name": "flex-hug-nested",
+ "description": "Hugging containers: a hug column of hug rows with fill children and min/max on the container.",
+ "text": false,
+ "root": "root",
+ "model": {
+  "schema": 1,
+  "meta": {
+   "title": "Geometry fixture",
+   "created": "2026-11-23T00:00:00Z",
+   "unit": "px",
+   "app": "OpenFini"
+  },
+  "pages": {
+   "p1": {
+    "id": "p1",
+    "name": "Page 1",
+    "ord": "V",
+    "bg": "#ffffff",
+    "flows": []
+   }
+  },
+  "nodes": {
+   "root": {
+    "id": "root",
+    "type": "frame",
+    "name": "root",
+    "page": "p1",
+    "parent": null,
+    "ord": "V",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "column",
+     "gap": 12,
+     "pad": [
+      16,
+      16,
+      16,
+      16
+     ],
+     "align": "start",
+     "justify": "start"
+    }
+   },
+   "r1": {
+    "id": "r1",
+    "type": "frame",
+    "name": "r1",
+    "page": "p1",
+    "parent": "root",
+    "ord": "G",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "pos": "flow",
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 8,
+     "pad": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "align": "center",
+     "justify": "start"
+    }
+   },
+   "r1a": {
+    "id": "r1a",
+    "type": "rect",
+    "name": "r1a",
+    "page": "p1",
+    "parent": "r1",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "r1b": {
+    "id": "r1b",
+    "type": "rect",
+    "name": "r1b",
+    "page": "p1",
+    "parent": "r1",
+    "ord": "l",
+    "w": {
+     "mode": "fixed",
+     "value": 120
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "r2": {
+    "id": "r2",
+    "type": "frame",
+    "name": "r2",
+    "page": "p1",
+    "parent": "root",
+    "ord": "V",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "pos": "flow",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 8,
+     "pad": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "align": "start",
+     "justify": "start"
+    }
+   },
+   "r2a": {
+    "id": "r2a",
+    "type": "rect",
+    "name": "r2a",
+    "page": "p1",
+    "parent": "r2",
+    "ord": "G",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "r2b": {
+    "id": "r2b",
+    "type": "rect",
+    "name": "r2b",
+    "page": "p1",
+    "parent": "r2",
+    "ord": "V",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 10
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "r2c": {
+    "id": "r2c",
+    "type": "rect",
+    "name": "r2c",
+    "page": "p1",
+    "parent": "r2",
+    "ord": "l",
+    "w": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "r3": {
+    "id": "r3",
+    "type": "frame",
+    "name": "r3",
+    "page": "p1",
+    "parent": "root",
+    "ord": "l",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "pos": "flow",
+    "w": {
+     "mode": "hug",
+     "min": 250
+    },
+    "h": {
+     "mode": "hug",
+     "min": 50
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 0,
+     "pad": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "align": "end",
+     "justify": "start"
+    }
+   },
+   "r3a": {
+    "id": "r3a",
+    "type": "rect",
+    "name": "r3a",
+    "page": "p1",
+    "parent": "r3",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": 50
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 25
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "r4": {
+    "id": "r4",
+    "type": "frame",
+    "name": "r4",
+    "page": "p1",
+    "parent": "root",
+    "ord": "t",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "pos": "flow",
+    "w": {
+     "mode": "hug",
+     "max": 100
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 10,
+     "pad": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "align": "start",
+     "justify": "start"
+    }
+   },
+   "r4a": {
+    "id": "r4a",
+    "type": "rect",
+    "name": "r4a",
+    "page": "p1",
+    "parent": "r4",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": 80
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 25
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "r4b": {
+    "id": "r4b",
+    "type": "rect",
+    "name": "r4b",
+    "page": "p1",
+    "parent": "r4",
+    "ord": "l",
+    "w": {
+     "mode": "fixed",
+     "value": 80
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 25
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   }
+  },
+  "vars": {
+   "collections": {},
+   "items": {}
+  },
+  "styles": {},
+  "breakpoints": [
+   {
+    "id": "base",
+    "w": 1280
+   },
+   {
+    "id": "md",
+    "w": 991
+   },
+   {
+    "id": "sm",
+    "w": 478
+   }
+  ],
+  "code": {
+   "links": {},
+   "tokensFile": null
+  },
+  "media": {}
+ },
+ "recorded": {
+  "browser": "Edg/158.0.4370.33",
+  "date": "2026-11-23"
+ },
+ "boxes": {
+  "root": [
+   0,
+   0,
+   282,
+   213
+  ],
+  "r1": [
+   16,
+   16,
+   168,
+   40
+  ],
+  "r1a": [
+   16,
+   16,
+   40,
+   40
+  ],
+  "r1b": [
+   64,
+   26,
+   120,
+   20
+  ],
+  "r2": [
+   16,
+   68,
+   250,
+   30
+  ],
+  "r2a": [
+   16,
+   68,
+   102,
+   30
+  ],
+  "r2b": [
+   126,
+   68,
+   102,
+   10
+  ],
+  "r2c": [
+   236,
+   68,
+   30,
+   30
+  ],
+  "r3": [
+   16,
+   110,
+   250,
+   50
+  ],
+  "r3a": [
+   16,
+   135,
+   50,
+   25
+  ],
+  "r4": [
+   16,
+   172,
+   100,
+   25
+  ],
+  "r4a": [
+   16,
+   172,
+   80,
+   25
+  ],
+  "r4b": [
+   106,
+   172,
+   80,
+   25
+  ]
+ }
+}

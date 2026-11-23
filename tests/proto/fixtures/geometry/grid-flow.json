@@ -1,0 +1,478 @@
+{
+ "name": "grid-flow",
+ "description": "Grid placement: column flow with explicit rows, and dense row flow that back-fills holes.",
+ "text": false,
+ "root": "root",
+ "model": {
+  "schema": 1,
+  "meta": {
+   "title": "Geometry fixture",
+   "created": "2026-11-23T00:00:00Z",
+   "unit": "px",
+   "app": "OpenFini"
+  },
+  "pages": {
+   "p1": {
+    "id": "p1",
+    "name": "Page 1",
+    "ord": "V",
+    "bg": "#ffffff",
+    "flows": []
+   }
+  },
+  "nodes": {
+   "root": {
+    "id": "root",
+    "type": "frame",
+    "name": "root",
+    "page": "p1",
+    "parent": null,
+    "ord": "V",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "w": {
+     "mode": "fixed",
+     "value": 500
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "column",
+     "gap": 20,
+     "pad": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "align": "start",
+     "justify": "start"
+    }
+   },
+   "g1": {
+    "id": "g1",
+    "type": "frame",
+    "name": "g1",
+    "page": "p1",
+    "parent": "root",
+    "ord": "V",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "pos": "flow",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 140
+    },
+    "layout": {
+     "type": "grid",
+     "gap": 4,
+     "grid": {
+      "cols": [
+       {
+        "px": 60
+       }
+      ],
+      "rows": [
+       {
+        "fr": 1
+       },
+       {
+        "fr": 1
+       },
+       {
+        "px": 30
+       }
+      ],
+      "autoFlow": "column"
+     }
+    }
+   },
+   "g10": {
+    "id": "g10",
+    "type": "rect",
+    "name": "g10",
+    "page": "p1",
+    "parent": "g1",
+    "ord": "G",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fill"
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "g11": {
+    "id": "g11",
+    "type": "rect",
+    "name": "g11",
+    "page": "p1",
+    "parent": "g1",
+    "ord": "O",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fill"
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "g12": {
+    "id": "g12",
+    "type": "rect",
+    "name": "g12",
+    "page": "p1",
+    "parent": "g1",
+    "ord": "V",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fill"
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "g13": {
+    "id": "g13",
+    "type": "rect",
+    "name": "g13",
+    "page": "p1",
+    "parent": "g1",
+    "ord": "l",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fill"
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "g14": {
+    "id": "g14",
+    "type": "rect",
+    "name": "g14",
+    "page": "p1",
+    "parent": "g1",
+    "ord": "t",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fill"
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "g2": {
+    "id": "g2",
+    "type": "frame",
+    "name": "g2",
+    "page": "p1",
+    "parent": "root",
+    "ord": "l",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "pos": "flow",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "grid",
+     "gap": 5,
+     "rowGap": 5,
+     "grid": {
+      "cols": [
+       {
+        "fr": 1
+       },
+       {
+        "fr": 1
+       },
+       {
+        "fr": 1
+       }
+      ],
+      "autoFlow": "row",
+      "dense": true
+     }
+    }
+   },
+   "g2a": {
+    "id": "g2a",
+    "type": "rect",
+    "name": "g2a",
+    "page": "p1",
+    "parent": "g2",
+    "ord": "G",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "g2b": {
+    "id": "g2b",
+    "type": "rect",
+    "name": "g2b",
+    "page": "p1",
+    "parent": "g2",
+    "ord": "O",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ],
+    "cell": {
+     "colSpan": 3
+    }
+   },
+   "g2c": {
+    "id": "g2c",
+    "type": "rect",
+    "name": "g2c",
+    "page": "p1",
+    "parent": "g2",
+    "ord": "V",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ],
+    "cell": {
+     "colSpan": 2
+    }
+   },
+   "g2d": {
+    "id": "g2d",
+    "type": "rect",
+    "name": "g2d",
+    "page": "p1",
+    "parent": "g2",
+    "ord": "l",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "g2e": {
+    "id": "g2e",
+    "type": "rect",
+    "name": "g2e",
+    "page": "p1",
+    "parent": "g2",
+    "ord": "t",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   }
+  },
+  "vars": {
+   "collections": {},
+   "items": {}
+  },
+  "styles": {},
+  "breakpoints": [
+   {
+    "id": "base",
+    "w": 1280
+   },
+   {
+    "id": "md",
+    "w": 991
+   },
+   {
+    "id": "sm",
+    "w": 478
+   }
+  ],
+  "code": {
+   "links": {},
+   "tokensFile": null
+  },
+  "media": {}
+ },
+ "recorded": {
+  "browser": "Edg/158.0.4370.33",
+  "date": "2026-11-23"
+ },
+ "boxes": {
+  "root": [
+   0,
+   0,
+   500,
+   240
+  ],
+  "g1": [
+   0,
+   0,
+   500,
+   140
+  ],
+  "g10": [
+   0,
+   0,
+   60,
+   51
+  ],
+  "g11": [
+   0,
+   55,
+   60,
+   51
+  ],
+  "g12": [
+   0,
+   110,
+   60,
+   30
+  ],
+  "g13": [
+   64,
+   0,
+   436,
+   51
+  ],
+  "g14": [
+   64,
+   55,
+   436,
+   51
+  ],
+  "g2": [
+   0,
+   160,
+   500,
+   80
+  ],
+  "g2a": [
+   0,
+   160,
+   163.33,
+   20
+  ],
+  "g2b": [
+   0,
+   195,
+   499.98,
+   20
+  ],
+  "g2c": [
+   168.33,
+   160,
+   331.66,
+   30
+  ],
+  "g2d": [
+   0,
+   220,
+   163.33,
+   20
+  ],
+  "g2e": [
+   168.33,
+   220,
+   163.33,
+   20
+  ]
+ }
+}
