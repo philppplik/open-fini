@@ -17,7 +17,27 @@ export function createStatusBar(app) {
   const zoomOut = iconButton({ icon: "dash-lg", label: "Zoom out", onClick: () => app.run("view.zoomOut") });
   const zoomLabel = h("button.of-status__zoom", { type: "button", ...ta({ tip: "Fit page" }), onclick: () => app.run("view.fit") }, "100%");
   const range = h("sl-range", { min: 0, max: 100, step: 0.1, tooltip: "none", class: "of-status__range", ...ta({ "aria-label": "Zoom" }) });
-  const el = h("footer.of-status", h("div.of-status__left", msg), h("div.of-status__mid", info), h("div.of-status__right", createErrorIndicator(app), target, perf, zoomOut, range, zoomIn, zoomLabel));
+  // items other modules add (VS Code extensions' status bar items): app.statusItems = Map(key -> { parts: [{ text } |
+  // { icon: Bootstrap icon name }], tooltip, side: "left" | "right", priority, kind: "" | "warning" | "error", studios?, run? })
+  const itemsL = h("span.of-status__items");
+  const itemsR = h("span.of-status__items");
+  const el = h("footer.of-status", h("div.of-status__left", msg, itemsL), h("div.of-status__mid", info), h("div.of-status__right", itemsR, createErrorIndicator(app), target, perf, zoomOut, range, zoomIn, zoomLabel));
+  function renderItems() {
+    const all = [...(app.statusItems?.values() || [])].filter((it) => !it.studios || it.studios.includes(app.studio)).sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    for (const [box, side] of [[itemsL, "left"], [itemsR, "right"]]) {
+      box.replaceChildren(
+        ...all
+          .filter((it) => (it.side || "left") === side)
+          .slice(0, 20)
+          .map((it) => {
+            const kids = (it.parts || []).map((p) => (p.icon ? h("sl-icon", { name: p.icon }) : p.text));
+            return it.run ? h("button.of-status__item", { type: "button", title: it.tooltip || "", "data-kind": it.kind || "", onclick: () => it.run() }, ...kids) : h("span.of-status__item", { title: it.tooltip || "", "data-kind": it.kind || "" }, ...kids);
+          }),
+      );
+    }
+  }
+  app.on("statusitems", renderItems);
+  app.on("studio", renderItems);
 
   // logarithmic zoom slider: 2% … 6400%
   const lo = Math.log(0.02);

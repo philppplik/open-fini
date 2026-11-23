@@ -1998,7 +1998,6 @@
   "Theme “{name}” applied.": "Design „{name}“ angewendet.",
   "Theme, color and density of the interface in every studio.": "Design, Farbe und Dichte der Oberfläche in jedem Studio.",
   "Themes": "Designs",
-  "Themes, snippets and language settings work for every extension. The code of web extensions runs in a sandbox against a subset of the VS Code API; extensions that need Node.js only add their declarative parts. Extensions come from Open VSX (open-vsx.org), not the Visual Studio Marketplace, whose terms allow its extensions only in Microsoft's products. Drop a .vsix file here to install it.": "Designs, Snippets und Spracheinstellungen funktionieren mit jeder Erweiterung. Der Code von Web-Erweiterungen läuft in einer Sandbox mit einer Teilmenge der VS-Code-API; Erweiterungen, die Node.js brauchen, liefern nur ihre deklarativen Teile. Erweiterungen kommen aus Open VSX (open-vsx.org), nicht aus dem Visual Studio Marketplace, dessen Bedingungen seine Erweiterungen nur in Microsoft-Produkten erlauben. Ziehe eine .vsix-Datei hierher, um sie zu installieren.",
   "Themes…": "Designs…",
   "Thin, rounded scrollbars that follow the theme everywhere, with a thicker variant in high-contrast mode.": "Dünne, abgerundete Bildlaufleisten, die überall dem Design folgen, mit einer dickeren Variante im Hochkontrastmodus.",
   "This Office document cannot be edited together.": "Dieses Office-Dokument kann nicht gemeinsam bearbeitet werden.",
@@ -4492,5 +4491,11 @@
   "Updates inside the app": "Updates in der App",
   "The desktop app can download and install new versions itself, with progress and a restart button, once signed releases are switched on.": "Die Desktop-App kann neue Versionen selbst herunterladen und installieren, mit Fortschritt und Neustart-Knopf, sobald signierte Releases eingeschaltet sind.",
   "Missing icons fixed": "Fehlende Icons behoben",
-  "Icons that showed as blank squares are back.": "Icons, die als leere Kästchen erschienen, sind wieder da."
+  "Icons that showed as blank squares are back.": "Icons, die als leere Kästchen erschienen, sind wieder da.",
+  "dockable panels in the Code studio (Window menu)": "andockbare Bedienfelder im Code-Studio (Menü Fenster)",
+  "Extension view": "Erweiterungsansicht",
+  "Syntax grammars": "Syntax-Grammatiken",
+  "Themes, snippets, syntax grammars and language settings work for every extension. The code of web extensions runs in a sandbox against a subset of the VS Code API, and their views become dockable panels; extensions that need Node.js only add their declarative parts. Extensions come from Open VSX (open-vsx.org), not the Visual Studio Marketplace, whose terms allow its extensions only in Microsoft's products. Drop a .vsix file here to install it.": "Farbdesigns, Snippets, Syntax-Grammatiken und Spracheinstellungen funktionieren bei jeder Erweiterung. Der Code von Web-Erweiterungen läuft in einer Sandbox gegen einen Teil der VS-Code-API, und ihre Ansichten werden zu andockbaren Bedienfeldern; Erweiterungen, die Node.js brauchen, steuern nur ihre deklarativen Teile bei. Erweiterungen kommen von Open VSX (open-vsx.org), nicht aus dem Visual Studio Marketplace, dessen Bedingungen seine Erweiterungen nur in Microsoft-Produkten erlauben. Lege hier eine .vsix-Datei ab, um sie zu installieren.",
+  "This view could not be loaded.": "Diese Ansicht konnte nicht geladen werden.",
+  "Views": "Ansichten"
 }

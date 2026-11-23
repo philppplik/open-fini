@@ -48,6 +48,14 @@
 .of-extpanel { height: 100%; min-height: 160px; display: flex; }
 .of-extpanel__frame { flex: 1; width: 100%; border: 0; background: var(--of-bg-panel); color-scheme: normal; }
 
+/* VS Code extension views (ui/extensions/vscode-views.js): tree views reuse the Explorer rows, webviews are frames */
+.of-vsxview { display: flex; flex-direction: column; height: 100%; min-height: 120px; }
+.of-vsxview__tree { flex: 1; overflow: auto; }
+.of-vsxview__msg { padding: 6px 10px; color: var(--of-text-dim); font-size: 12px; }
+.of-vsxview__desc, .of-vsxview__rowdesc { color: var(--of-text-faint); font-weight: 400; margin-left: 6px; font-size: 11.5px; }
+.of-vsxview__img { width: 16px; height: 16px; object-fit: contain; }
+.of-vsxview__frame { flex: 1; width: 100%; border: 0; background: var(--of-bg-panel); color-scheme: normal; }
+
 @media (max-width: 720px) {
   .of-ext-body { grid-template-columns: 1fr; }
   .of-ext-list { max-height: 180px; border-right: 0; border-bottom: 1px solid var(--of-border-soft); }

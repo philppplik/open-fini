@@ -87,20 +87,54 @@ export function parseDetails(json) {
  * @param {{fetch: typeof fetch, assertNetwork: (url: string) => void}} o
  */
 export function createOpenVsx({ fetch: doFetch, assertNetwork }) {
-  async function get(url, { maxBytes = 2 * 1024 * 1024, timeoutMs = 20_000 } = {}) {
+  /**
+   * GET with a size cap. The body is read as a stream: the download stops as soon as it passes `maxBytes` (whatever
+   * Content-Length claimed), and `timeoutMs` is an idle timeout that restarts with every chunk, so a large package on a
+   * slow connection keeps going while a stalled one fails. `onProgress(received, total)` reports streamed downloads.
+   */
+  async function get(url, { maxBytes = 2 * 1024 * 1024, timeoutMs = 20_000, onProgress = null } = {}) {
     if (!allowedUrl(url)) throw new Error("OpenFini only downloads VS Code extensions from open-vsx.org.");
     assertNetwork(url);
     const ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
-    const timer = setTimeout(() => ctl?.abort(), timeoutMs);
+    let timer = setTimeout(() => ctl?.abort(), timeoutMs);
+    const alive = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => ctl?.abort(), timeoutMs);
+    };
+    const tooLarge = () => new Error(`The download is larger than ${Math.round(maxBytes / 1048576)} MB.`);
     try {
       const res = await doFetch(url, { credentials: "omit", referrerPolicy: "no-referrer", cache: "no-store", redirect: "follow", signal: ctl?.signal });
       if (res.url && !allowedUrl(res.url)) throw new Error("Open VSX redirected to an unexpected address.");
       if (!res.ok) throw new Error(`Open VSX answered HTTP ${res.status}.`);
       const len = +(res.headers?.get?.("content-length") || 0);
-      if (len > maxBytes) throw new Error(`The download is larger than ${Math.round(maxBytes / 1048576)} MB.`);
-      const bytes = new Uint8Array(await res.arrayBuffer());
-      if (bytes.length > maxBytes) throw new Error(`The download is larger than ${Math.round(maxBytes / 1048576)} MB.`);
-      return bytes;
+      if (len > maxBytes) throw tooLarge();
+      const reader = res.body?.getReader?.();
+      if (!reader) {
+        const bytes = new Uint8Array(await res.arrayBuffer());
+        if (bytes.length > maxBytes) throw tooLarge();
+        return bytes;
+      }
+      const chunks = [];
+      let n = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        alive();
+        n += value.length;
+        if (n > maxBytes) {
+          reader.cancel().catch(() => {});
+          throw tooLarge();
+        }
+        chunks.push(value);
+        onProgress?.(n, len || null);
+      }
+      const out = new Uint8Array(n);
+      let at = 0;
+      for (const c of chunks) {
+        out.set(c, at);
+        at += c.length;
+      }
+      return out;
     } catch (err) {
       if (err?.name === "AbortError") throw new Error("Open VSX did not answer in time.");
       throw err;
@@ -124,7 +158,8 @@ export function createOpenVsx({ fetch: doFetch, assertNetwork }) {
       if (!/^[\w.-]{1,100}$/.test(namespace) || !/^[\w.-]{1,100}$/.test(name)) throw new Error("Invalid extension id.");
       return parseDetails(await json(`${OPEN_VSX}/api/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`));
     },
-    download: (url, { maxBytes = 64 * 1024 * 1024 } = {}) => get(url, { maxBytes, timeoutMs: 120_000 }),
+    // packages up to 512 MB (VSIX_LIMITS.maxPackageBytes); 60 s without data aborts
+    download: (url, { maxBytes = 512 * 1024 * 1024, onProgress = null } = {}) => get(url, { maxBytes, timeoutMs: 60_000, onProgress }),
     async text(url, maxBytes = 512 * 1024) {
       return new TextDecoder().decode(await get(url, { maxBytes }));
     },

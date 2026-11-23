@@ -33,3 +33,15 @@ Marketplace offerings only in Microsoft's in-scope products.
   work; Prettier's web build formats in the Code studio. Language servers, webviews, views and debuggers do not.
 - The shim is a maintenance surface: new API members are added on demand (docs/vscode-extensions.md, "How to extend").
 - The host and UI are lazy (about 25 KiB gzip), so users who never install a VS Code extension pay one key-value read.
+
+## Update (November 2026): grammars, views and webviews
+
+- **A small TextMate interpreter instead of the full engine.** `vscode/textmate.js` (about 4 KiB gzip) runs JSON grammars
+  as CodeMirror stream parsers with JavaScript regular expressions, translating the common Oniguruma syntax and skipping
+  rules it cannot express. It is used only for languages without a highlighter of the Code studio's own, so the decision
+  above (no `vscode-textmate` + `vscode-oniguruma`, no second pipeline for the built-in languages) still holds.
+- **Views are dockable panels** registered through the panel registry (`registerPanel` and the studio's panel list), the
+  same API OpenFini extensions use, so they take part in docking, the Window menu and workspaces without special cases.
+  Tree views render as native rows; webviews run in their own sandboxed frames with no network and extension files
+  inlined as `data:` URIs.
+- **Packages up to 512 MB** with a central-directory ZIP reader and bounded, chunked inflating, replacing the 64 MB cap.
