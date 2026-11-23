@@ -954,7 +954,7 @@ export function applyDeckRecords(deck, changes) {
   const cmp = (f) => (a, b) => (String(a[f]) < String(b[f]) ? -1 : String(a[f]) > String(b[f]) ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   slides.sort(cmp("ord"));
   for (const s of slides) s.elements.sort(cmp("z"));
-  const out = normalizeDeck({ size: meta.size, theme: meta.theme, meta: { title: meta.title }, master: meta.master, layouts: meta.layouts, slides, media: {} });
+  const out = normalizeDeck({ size: meta.size, theme: meta.theme, meta: { ...(deck.meta || {}), title: meta.title }, master: meta.master, layouts: meta.layouts, slides, media: {} });
 
   out.media = Object.fromEntries(Object.entries(media).filter(([, m]) => m));
   return out;

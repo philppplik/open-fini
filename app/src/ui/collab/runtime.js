@@ -31,6 +31,7 @@ import { createVersionStore } from "../../collab/versions.js";
 import { createThrottle, followTarget } from "../../collab/presence.js";
 import { cleanText, LIMITS, canDo } from "../../collab/protocol.js";
 import { randomB64u } from "../../collab/crypto.js";
+import { canShareLive } from "../../core/live-kinds.js";
 import { confirmDialog, openDialog } from "../dialogs.js";
 
 const AVATAR_KEY = "collab.avatar";
@@ -254,15 +255,15 @@ class CollabController {
       return;
     }
     if (!mode) {
-      const kind = doc.web ? "text" : doc.office ? "office" : "tree";
+      const live = canShareLive(doc);
       const choice = await confirmDialog({
         title: "Share with collaboration room",
-        message: kind === "office" ? t("Share “{name}” with the room as a copy? Office documents are not edited live yet.", { name: doc.name }) : t("Share “{name}” with the room? A linked live document is edited together by everyone with the Editor role (beta); a copy is a snapshot others can open on their own.", { name: doc.name }),
-        ok: kind === "office" ? "Share a copy" : "Share live",
-        extra: kind === "office" ? undefined : "Share a copy",
+        message: live ? t("Share “{name}” with the room? A linked live document is edited together by everyone with the Editor role (beta); a copy is a snapshot others can open on their own.", { name: doc.name }) : t("Share “{name}” with the room as a copy? This kind of document is not edited live.", { name: doc.name }),
+        ok: live ? "Share live" : "Share a copy",
+        extra: live ? "Share a copy" : undefined,
       });
       if (!choice) return;
-      mode = choice === true && kind !== "office" ? "live" : "copy";
+      mode = choice === true && live ? "live" : "copy";
     }
     return (await this.live()).share(doc, mode);
   }
@@ -402,7 +403,11 @@ class CollabController {
       const head = ed.view.state.selection.main.head;
       const line = ed.view.state.doc.lineAt(head);
       if (ed.active) p.caret = { path: String(ed.active).slice(0, 512), line: line.number, ch: head - line.from };
-    } else if (app.studio === "office" && app.officeUI?.editor && app.officeUI.doc === doc) {
+    } else if (app.studio === "office" && typeof app.officeUI?.presenceCaret === "function" && app.officeUI.doc === doc) {
+      // Office apps without a text caret (the spreadsheet's active cell) publish their own presence position
+      const c = app.officeUI.presenceCaret();
+      if (c?.path) p.caret = { path: String(c.path).slice(0, 512) };
+    } else if (app.studio === "office" && app.officeUI?.editor?.sel && app.officeUI.doc === doc) {
       const sel = app.officeUI.editor.sel;
       if (sel?.focus) {
         const [a, b] = app.officeUI.editor.range;

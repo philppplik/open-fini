@@ -44,3 +44,16 @@ and CodeMirror states. Bundle budgets rule out shipping Yjs or Automerge in the 
 - Tombstones are kept for the session; there is no garbage collection and no cross-user undo (both need version vectors,
   which the protocol does not carry yet).
 - The conflict notice is a heuristic (recent local write replaced), not true concurrency detection.
+
+## Update: every studio with a live model
+
+- **Scope now**: Pixel bitmaps travel live as 128 px tiles (op kind `pixel`, last writer wins per tile, the layer size
+  a register of its own); every Office app (Document, Spreadsheet, Presentation, Whiteboard) and the Scene Studio are
+  live through keyed records (op kind `office`). Only Office kinds without a collaboration adapter, image asset bytes of
+  Vector/Layout documents and non-text Code files stay snapshot-only (docs/collaboration.md ▸ What can be shared live).
+- **Records engine** (`collab/office-sync.js`): local ops are the difference between the records last seen and the
+  model now, never "shared view minus model" (that turned records an app could not hold yet into deletes for
+  everybody); Undo/Redo apply only the step's records on top of the current model (`prj.rebase`); large media travel as
+  immutable chunk records. The word processor gets stable block ids from a per-document WeakMap (`doc-records.js`).
+- **Protocol**: additive. The `op` kind gained `pixel`; older clients reject those messages (as any unknown value) and
+  cannot open a live Document or Scene (they keep a copy). Snapshot state stays `collab-live.json` version 1.

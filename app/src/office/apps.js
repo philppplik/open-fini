@@ -132,7 +132,8 @@ export function checkImpl(kind, mod) {
   const impl = mod?.default || mod?.app || mod;
   for (const k of REQUIRED) if (typeof impl?.[k] !== "function") throw new Error(`Office app "${kind}": ${k}() missing`);
   for (const k of ["open", "save", "describe"]) if (impl[k] !== undefined && typeof impl[k] !== "function") throw new Error(`Office app "${kind}": ${k} must be a function`);
-  if (impl.collabAdapter) for (const k of ["records", "applyRecords"]) if (typeof impl.collabAdapter[k] !== "function") throw new Error(`Office app "${kind}": collabAdapter.${k}() missing`);
+  // a collabAdapter is stateless ({ records, applyRecords }) or stateful (bind() → { records, applyRecords } per shared document)
+  if (impl.collabAdapter && typeof impl.collabAdapter.bind !== "function") for (const k of ["records", "applyRecords"]) if (typeof impl.collabAdapter[k] !== "function") throw new Error(`Office app "${kind}": collabAdapter.${k}() missing`);
   if (impl.aiAdapter && impl.aiAdapter.tools !== undefined && typeof impl.aiAdapter.tools !== "function") throw new Error(`Office app "${kind}": aiAdapter.tools must be (app) => Tool[]`);
   return impl;
 }
