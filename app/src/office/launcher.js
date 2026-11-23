@@ -45,9 +45,8 @@ export function renderLauncher(app, { doc = null, kind = null } = {}) {
     tplGrid.replaceChildren(
       ...list.map(({ m, x }) => {
         const b = h("button.of-launch__tpl", { type: "button", role: "listitem", title: t(x.description || x.label) },
-          h("span.of-launch__tplthumb", { "data-kind": m.kind }, h("sl-icon", { name: x.icon || m.icon })),
-          h("strong", t(x.label)),
-          h("span", `${t(m.label)}${x.category ? ` · ${t(x.category)}` : ""}`));
+          h("sl-icon", { class: "of-launch__tplicon", name: x.icon || m.icon }),
+          h("span.of-launch__tpltext", h("strong", t(x.label)), h("span", `${t(m.label)}${x.category ? ` · ${t(x.category)}` : ""}`)));
         b.addEventListener("click", () => create(m.kind, x.id));
         return b;
       }),

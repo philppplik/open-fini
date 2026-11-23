@@ -225,6 +225,10 @@ export function createMenubar(app) {
     dropdowns.push(dd);
     bar.append(dd);
   }
+  // a dialog that opens from a command or the keyboard must not leave a menu hanging open behind it
+  document.addEventListener("sl-show", (e) => {
+    if (e.target?.tagName === "SL-DIALOG" && openDd) openDd.hide();
+  });
   const syncStudio = () => {
     for (const dd of dropdowns) {
       // start page (no document): File, View, Studio, Help only (ui/menubar-select.js)

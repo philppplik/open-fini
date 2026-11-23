@@ -30,7 +30,7 @@ export function createChat(vs) {
   const { app, session } = vs;
   const scroller = h("div.of-vchat__scroll", { role: "log", ...ta({ "aria-label": "Conversation" }), tabindex: "0" });
   const thread = h("div.of-vchat__thread");
-  const pending = h("div.of-vchat__tail.hidden", h("div.of-vmsg.of-vmsg--assistant", h("div.of-vmsg__avatar", markEl()), h("span.of-vpending.of-shimmer", "Thinking…")));
+  const pending = h("div.of-vchat__tail.hidden", h("div.of-vmsg.of-vmsg--assistant", h("div.of-vmsg__avatar", markEl()), h("span.of-vpending.of-shimmer", t("Thinking…"))));
   scroller.append(thread, pending);
   const jump = h("button.of-vjump.hidden", { type: "button", ...ta({ "aria-label": "Jump to latest message" }) }, iconEl("arrow-down"), tspan("Jump to latest"));
   // where a right-click AI chat came from (chat.target, vibe/quick-actions.js): "Go to selection" jumps back

@@ -9,7 +9,7 @@ import { createBrushPanel, createAdjustmentsPanel } from "./pixel.js";
 import { createPagesPanel, createStylesPanel } from "./layout.js";
 
 import { h } from "../../core/util.js";
-import { t } from "../../i18n/index.js";
+import { t, N_ } from "../../i18n/index.js";
 
 /** A panel whose module is loaded on first use (keeps the Code studio out of the startup bundle). */
 const lazyPanel = (loader) => (app) => {
@@ -30,11 +30,27 @@ const lazyPanel = (loader) => (app) => {
  * A panel whose content belongs to the current document or app instance of its studio (Code workspace, Scene editor,
  * Office apps, Vibe): the studio publishes it with setPanelSlot() (./slots.js) and the panel just shows the latest.
  */
+const EMPTY_TEXT = {
+  "scene-media": N_("Import video, audio or pictures to fill the media bin."),
+  "scene-effects": N_("Select a clip on the timeline to add effects."),
+  "scene-inspector": N_("Select a clip to edit its properties."),
+  "doc-outline": N_("Add headings to the document to build an outline."),
+  "doc-styles": N_("Open a document to manage its paragraph styles."),
+  "slides-thumbs": N_("Add a slide to see it here."),
+  "board-comments": N_("Select an object and add a comment to start a thread."),
+  "board-outline": N_("Draw something on the board to list its objects here."),
+  "board-properties": N_("Select an object to edit its properties."),
+  "board-library": N_("Save a selection as a component to reuse it here."),
+  "vibe-chats": N_("Start a chat from the message box to see it here."),
+  "vibe-canvas": N_("Ask Vibe to make something and its preview shows up here."),
+  "vibe-activity": N_("Tool calls and agent steps appear here while Vibe works."),
+};
+
 const slotPanel = (id) => (app) => {
   const el = h("div.of-panel.of-panel--slot");
   const mount = () => {
     const c = app.panelSlots?.get(id);
-    if (!c) el.replaceChildren(h("div.of-empty", t("Nothing to show here yet.")));
+    if (!c) el.replaceChildren(h("div.of-empty", EMPTY_TEXT[id] ? t(EMPTY_TEXT[id]) : t("Nothing to show here yet.")));
     else if (c.el.parentNode !== el) el.replaceChildren(c.el);
     return c;
   };

@@ -3,6 +3,7 @@
 // approval state and "Used N tools" groups for consecutive calls.
 import { markContext } from "../context-menu/index.js";
 import { h } from "../../core/util.js";
+import { t } from "../../i18n/index.js";
 import { iconEl } from "../toolbox.js";
 import { hostsOf, WEB_TOOL_NAMES, ONCE_ONLY_TOOLS } from "../../vibe/web-hosts.js";
 import { toolTitle, summarizeArgs, formatDuration, formatJson, resultParts, endStatus, groupLabel, STATUS_LABEL } from "./tool-format.js";
@@ -293,7 +294,7 @@ export function createToolCards({ settings, saveSettings, onGrow, cancelAgent })
 
   /** A collapsible reasoning block with live elapsed seconds. */
   function thinking(b) {
-    const label = h("span.of-think__label.of-shimmer", "Thinking…");
+    const label = h("span.of-think__label.of-shimmer", t("Thinking…"));
     const secs = h("span.of-think__secs");
     const pre = h("div.of-think__text");
     const body = h("div.of-think__body", { id: `of-th${++uidn}`, hidden: true }, pre);

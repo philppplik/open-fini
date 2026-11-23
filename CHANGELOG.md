@@ -28,6 +28,10 @@ All notable changes to OpenFini are documented here. The format follows
 - Active tabs and list rows use a soft accent tint instead of a one-sided accent line (document, dock, Scene, Code, Office, Collaboration and Diagnostics tabs, settings sidebar).
 - A panel that is reopened (or docks back) returns at its place in the tab order of the panels it is grouped with in the workspace, instead of as the last tab.
 - Desktop: the main window is now created by the app at start-up (same settings as before) so it can open panel windows.
+- UI polish pass ([audit](docs/concepts/ui-polish-audit.md)): font sizes now come from four tokens (`--of-fs-xs/sm/md/lg`, 11/12/13/15 px) and the half-pixel steps are gone; weights are 400, 500 and 600 only; cards and panels share two radius tokens (`--of-radius-card`, `--of-radius-panel`) and one card padding across the start screen, Scene start, Office launcher and Vibe ideas.
+- The Office launcher lists templates as a compact list with the app icon instead of empty thumbnails.
+- Panels without content show a specific next step (for example the Scene media bin: import video, audio or pictures) instead of a generic message; the Vibe composer gets its depth from a surface step instead of a large shadow.
+- The onboarding invitation no longer shows on top of dialogs, a menu-bar menu closes when a dialog opens, and the "Thinking…" label is translated.
 - Quieter interface ([UI polish audit](docs/concepts/ui-polish-audit.md)): no colored glow under the active studio button and tool, no accent wash behind the start screen, section labels in sentence case instead of uppercase with wide letter spacing, card icons in the text color instead of the accent, one calm hover (surface step) for start-screen, Vibe, Scene and Office cards, lighter headings, a neutral "Thinking…" shimmer, and no one-sided accent bars on the tour invitation, pinned Vibe messages or collaboration mentions.
 
 ### Fixed
