@@ -81,5 +81,6 @@ export default {
   collabAdapter: {
     records: (model) => M.deckRecords(model.version === M.SLIDES_VERSION ? model : M.normalizeDeck(model)),
     applyRecords: (model, changes) => M.applyDeckRecords(model.version === M.SLIDES_VERSION ? model : M.normalizeDeck(model), changes),
+    inlineMedia: M.MEDIA_RECORD_MAX, // larger images travel as chunk records (collab/office-sync.js)
   },
 };

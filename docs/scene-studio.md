@@ -501,7 +501,10 @@ the logic on the first call.
   export is exact); with *collapse transformations* the nested layers' blend modes apply inside the composition's
   result, not against the layers below it.
 - Media is embedded in the `.ofini` file (large files); referenced media is planned for the desktop app.
-- Scenes are shared in collaboration as a copy, not edited live.
+- Editing together (collaboration, *Share as linked live document*): clips, tracks, markers, compositions and the
+  sequence settings are records of `scene/collab.js` (last writer wins per clip; two people editing different clips
+  merge); media travels as chunk records and appears for the others when it has arrived, which takes a while for
+  large video. Analysis results larger than 64 KiB stay local. Other members' playheads and selections are not shown.
 - Not verified on real hardware: Safari, Firefox, the desktop app on all three systems, long sequences (above ten
   minutes), 4K export.
 - Assistant: transcription needs a batch speech engine (an extension such as a Whisper WebAssembly build); OpenFini

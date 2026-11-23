@@ -820,7 +820,7 @@ const unb64 = (s) => {
 };
 export { b64 as toBase64, unb64 as fromBase64 };
 
-const MEDIA_INLINE = 46 * 1024; // bytes; base64 stays under the 64 KiB record limit
+export const MEDIA_INLINE = 46 * 1024; // bytes; base64 stays under the 64 KiB record limit
 
 /**
  * collabAdapter.records: one record per element ("el:<id>", last writer wins per element), per page ("page:<id>"),

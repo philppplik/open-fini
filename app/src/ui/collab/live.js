@@ -3,14 +3,16 @@
 // decision record: docs/adr/0011-live-editing-sync.md.
 //
 // One LiveManager per window (`getLive(controller)`), holding one binding per shared document:
-//   TreeBinding  Vector / Pixel structure / Layout: local history steps are diffed into tree ops (collab/tree-crdt.js);
+//   TreeBinding  Vector / Pixel / Layout: local history steps are diffed into tree ops (collab/tree-crdt.js);
 //                remote ops are applied with collab/tree-apply.js, never through the undo history, so Undo only reverts
-//                the user's own steps.
+//                the user's own steps. Pixel layers' bitmaps travel as 128 px tiles (collab/pixel-sync.js, op kind
+//                "pixel"), last writer wins per tile.
 //   TextBinding  Code studio projects and one-file text documents: one RGA (collab/text-crdt.js) per text file, bound
 //                to the project text and to CodeMirror (remote changes are not added to the editor's history).
-//   OfficeBinding  Office Suite apps that declare a `collabAdapter` (office/apps.js): their model is flattened into keyed
-//                records and merged with collab/office-records.js (last writer wins per record). Office apps without
-//                an adapter (the word processor today) are shared as snapshots (copies).
+//   OfficeBinding  Office Suite apps that declare a `collabAdapter` (office/apps.js: Document, Spreadsheet, Presentation,
+//                Whiteboard) and Scene Studio documents (scene/collab.js): their model is flattened into keyed records
+//                and merged with collab/office-sync.js (last writer wins per record; Undo/Redo rebased on top of
+//                remote edits; large media as chunk records). Office kinds without an adapter are shared as copies.
 //
 // Wire messages (collab/protocol.js): share {doc, docName, kind, a: start|stop|pause|resume}, live {doc, a: req|have|bye,
 // to}, op {doc, kind, path?, ops[]}, and a file transfer (purpose "live", addressed `to` the requester) carrying the
@@ -31,11 +33,15 @@ import { log } from "../../core/log.js";
 import { saveOfini, loadOfini } from "../../core/ofini.js";
 import { markUntrusted } from "../../core/security.js";
 import { dlState } from "../../engine/dl.js";
-import { Doc } from "../../core/doc.js";
+import { Doc, createCanvas, ctx2d } from "../../core/doc.js";
 import { TreeCRDT, flattenDoc, diffOps, validateTreeOp } from "../../collab/tree-crdt.js";
 import { applyView } from "../../collab/tree-apply.js";
 import { TextCRDT, textDiff, validateTextOp, TEXT_LIMITS } from "../../collab/text-crdt.js";
-import { RecordsCRDT, validateRecordOp } from "../../collab/office-records.js";
+import { validateRecordOp } from "../../collab/office-records.js";
+import { OfficeSync } from "../../collab/office-sync.js";
+import { PixelSync, validatePixelOp, decodeTile } from "../../collab/pixel-sync.js";
+import { remapBlockIndex } from "../../collab/doc-records.js";
+import { liveKindOf } from "../../core/live-kinds.js";
 import { loadedOfficeApp, officeKindOf } from "../../office/apps.js";
 import { canDo, cleanText, LIMITS } from "../../collab/protocol.js";
 import { randomB64u } from "../../collab/crypto.js";
@@ -46,12 +52,34 @@ const CONFLICT_WINDOW_MS = 6000; // a remote overwrite of a field I changed this
 const CONFLICT_SNAPSHOT_EVERY_MS = 120_000; // at most one automatic pre-merge version per document per 2 minutes
 const PAUSE_GRACE_MS = 3000;
 const MAX_BATCH_CHARS = 180 * 1024;
+// outgoing op messages are paced below the receivers' rate limit (session.js: 120 messages/s, burst 300) and the
+// relay's (150 messages/s, 4 MiB/s): a big step (a filter on a large pixel layer, a pasted image) used to burst past
+// them and the excess was dropped on the way
+const PACE_MSGS_PER_S = 40;
+const PACE_BYTES_PER_S = 1.5 * 1024 * 1024;
+const PACE_BURST = 20;
 const SYNC_FILE = "collab-live.json";
 
 /** "tree" | "text" | "office" */
 export const docKind = (doc) => (doc?.web ? "text" : doc?.office ? "office" : "tree");
-/** The collaboration adapter of an Office document's app, when the app is loaded and declares one. */
-const officeAdapter = (doc) => (doc?.office ? loadedOfficeApp(officeKindOf(doc))?.collabAdapter || null : null);
+
+/** The collaboration adapter of an Office Suite or Scene document, loaded on demand; null = copy only. */
+const adapters = new Map(); // office kind → adapter | null
+async function loadAdapter(doc) {
+  const kind = officeKindOf(doc);
+  if (!kind) return null;
+  if (!adapters.has(kind)) {
+    let a = null;
+    if (kind === "scene") a = (await import("../../scene/collab.js")).sceneCollabAdapter;
+    else {
+      await import("../../office/index.js").then((m) => m.loadOfficeApp(kind)).catch(() => null);
+      a = loadedOfficeApp(kind)?.collabAdapter || null;
+    }
+    adapters.set(kind, a);
+  }
+  return adapters.get(kind);
+}
+const officeAdapter = (doc) => adapters.get(officeKindOf(doc)) || null;
 
 let mgr = null;
 export function getLive(c) {
@@ -87,14 +115,52 @@ class LiveManager {
     return this.session?.member(id)?.profile?.nick || t("Someone");
   }
 
+  // ------------------------------------------------------------------ outgoing op messages (paced, in order)
+
+  outq = [];
+  pace = { msgs: PACE_BURST, bytes: PACE_BYTES_PER_S / 2, at: 0, timer: null };
+  enqueue(payload, size) {
+    this.outq.push({ payload, size });
+    this.#drain();
+  }
+  #drain() {
+    const p = this.pace;
+    if (p.timer) return;
+    const now = Date.now();
+    if (p.at) {
+      const dt = (now - p.at) / 1000;
+      p.msgs = Math.min(PACE_BURST, p.msgs + dt * PACE_MSGS_PER_S);
+      p.bytes = Math.min(PACE_BYTES_PER_S / 2, p.bytes + dt * PACE_BYTES_PER_S);
+    }
+    p.at = now;
+    const s = this.session;
+    if (!s || s.state !== "open") {
+      this.outq.length = 0;
+      return;
+    }
+    while (this.outq.length && p.msgs >= 1 && (p.bytes >= this.outq[0].size || p.bytes >= PACE_BYTES_PER_S / 2)) {
+      const { payload, size } = this.outq.shift();
+      p.msgs -= 1;
+      p.bytes -= size;
+      s.op(payload).catch((e) => log.warn("collab", `Live edit not sent: ${e.message}`));
+    }
+    if (this.outq.length) {
+      p.timer = setTimeout(() => {
+        p.timer = null;
+        this.#drain();
+      }, 30);
+    }
+  }
+
   // ------------------------------------------------------------------ sharing (local)
 
   /** Shares a document: "live" (linked, Edit together beta) or "copy" (snapshot file). */
   async share(doc, mode = "live") {
     const s = this.session;
     if (!s || s.state !== "open") throw new Error(t("Join or create a room first."));
-    if (mode === "copy" || (docKind(doc) === "office" && !officeAdapter(doc))) {
-      if (mode !== "copy") this.app.toast("This Office document is shared as a copy: its app does not support editing together yet.", "primary", 6000);
+    if (mode !== "copy" && docKind(doc) === "office") await loadAdapter(doc);
+    if (mode === "copy" || !liveKindOf(doc) || (docKind(doc) === "office" && !officeAdapter(doc))) {
+      if (mode !== "copy") this.app.toast("This document is shared as a copy: its kind cannot be edited together.", "primary", 6000);
       return this.c.shareDoc(doc);
     }
     if (!canDo(s.myRole, "share")) throw new Error(t("Only editors can share a live document. Ask the host for the Editor role, or share a copy."));
@@ -172,8 +238,12 @@ class LiveManager {
       const fresh = online.some((id) => !this.known.has(id));
       this.known = new Set(online);
       if (fresh) {
+        const here = new Set(online);
         for (const b of this.bindings.values()) {
-          if (b.owner === s.id) {
+          // the sharer announces; when the sharer has left, the member with the smallest id among those who still
+          // have the document open does it, so people who join later still get the card
+          const stand = !here.has(b.owner) && [s.id, ...[...(this.holders.get(b.doc.id) || [])].filter((id) => here.has(id))].sort()[0] === s.id;
+          if (b.owner === s.id || stand) {
             for (const a of b.paused ? ["start", "pause"] : ["start"]) await s.send("share", { doc: b.doc.id, docName: cleanText(b.doc.name, LIMITS.docName), kind: b.kind, a, studio: this.app.studio }).catch(() => {});
           }
           await s.send("live", { doc: b.doc.id, a: "have" }).catch(() => {});
@@ -239,7 +309,7 @@ class LiveManager {
     this.pending.delete(transfer.doc);
     const { doc, state } = await unpackSnapshot(bytes);
     if (doc.id !== transfer.doc) throw new Error("the snapshot is for another document");
-    if (doc.office && pend.mode !== "copy") await import("../../office/index.js").then((m) => m.loadOfficeApp(officeKindOf(doc))).catch(() => null); // the binding needs the app's adapter
+    if (doc.office && pend.mode !== "copy") await loadAdapter(doc); // the binding needs the app's adapter
     if (pend.mode === "resync") {
       const b = this.bindings.get(doc.id);
       b?.replaceState(doc, state);
@@ -256,7 +326,15 @@ class LiveManager {
         this.app.emit("docs");
       }
       this.#open(doc);
-      const b = this.#bind(doc, { owner: pend.owner, state });
+      let b;
+      try {
+        b = this.#bind(doc, { owner: pend.owner, state });
+      } catch (e) {
+        log.warn("collab", `Live editing: ${e.message}`);
+        this.app.toast(t("“{name}” is open as a copy: this version of OpenFini cannot edit it together.", { name: doc.name }), "warning", 6000);
+        this.changed();
+        return;
+      }
       await this.session?.send("live", { doc: doc.id, a: "have" }).catch(() => {});
       for (const m of pend.buffer) b.receive(m.sender, m.msg);
       this.app.toast(t("“{name}” is open. You edit it together with the room (beta).", { name: doc.name }), "success", 3500);
@@ -265,6 +343,7 @@ class LiveManager {
   }
 
   #onLeft() {
+    this.outq.length = 0;
     for (const b of this.bindings.values()) b.detach();
     this.bindings.clear();
     this.offers.clear();
@@ -388,7 +467,7 @@ class LiveManager {
     if (!o || this.cards.has(docId)) return;
     let stack = document.querySelector(".of-live-cards");
     if (!stack) document.body.append((stack = h("div.of-live-cards", { role: "region", "aria-label": t("Shared documents") })));
-    const kindLabel = o.kind === "text" ? t("code project") : t("design");
+    const kindLabel = o.kind === "text" ? t("code project") : o.kind === "office" ? t("document") : t("design");
     const b = (label, run, variant) => {
       const el = h("button.of-collab-btn", { type: "button", class: variant ? `of-collab-btn--${variant}` : "" }, label);
       el.addEventListener("click", () => run().catch?.((e) => this.app.toast(e.message, "danger", 5000)));
@@ -514,7 +593,7 @@ class BaseBinding {
       this.flush();
     }, FLUSH_MS);
   }
-  /** Sends ops in messages that stay below the frame limit. */
+  /** Sends ops in messages that stay below the frame limit (paced by the manager's queue, in order). */
   send(base, ops) {
     const s = this.session;
     if (!s || s.state !== "open" || !ops.length) return;
@@ -522,7 +601,7 @@ class BaseBinding {
     let size = 0;
     const out = () => {
       if (!batch.length) return;
-      s.op({ ...base, ops: batch }).catch((e) => log.warn("collab", `Live edit not sent: ${e.message}`));
+      this.mgr.enqueue({ ...base, ops: batch }, size);
       batch = [];
       size = 0;
     };
@@ -569,7 +648,26 @@ class TreeBinding extends BaseBinding {
     this.crdt.site = opts.site;
     if (opts.state) this.#apply(null, true); // the received document and the state must agree exactly
     this.prev = new Set(flattenDoc(doc, this.cache).keys());
-    this.offs.push(doc.on("change", (ev) => !this.applying && !ev?.remote && this.schedule()));
+    // pixel layers' bitmaps (collab/pixel-sync.js): changed 128 px tiles are sent after each local step
+    this.px = new PixelSync(opts.site);
+    this.dirtyPx = new Set();
+    this.waitingPx = new Map(); // layer id → tiles that arrived before the layer itself
+    for (const [id, canvas] of doc.pixels) this.#baseline(id, canvas);
+    this.offs.push(
+      doc.on("change", (ev) => {
+        if (this.applying || ev?.remote) return;
+        for (const n of ev?.nodes || []) if (n && (n.type === "pixel" || doc.pixels.has(n.id))) this.dirtyPx.add(n.id);
+        this.schedule();
+      }),
+    );
+  }
+
+  #baseline(id, canvas) {
+    try {
+      if (canvas?.width && canvas.height) this.px.baseline(id, ctx2d(canvas).getImageData(0, 0, canvas.width, canvas.height));
+    } catch (e) {
+      log.warn("collab", `Pixel layer not readable for live editing: ${e.message}`);
+    }
   }
 
   stateJSON() {
@@ -581,21 +679,127 @@ class TreeBinding extends BaseBinding {
     this.timer = null;
     const flat = flattenDoc(this.doc, this.cache);
     const ops = diffOps(this.crdt, flat, this.prev);
-    if (!ops.length) return;
+    if (ops.length) {
+      if (!this.canEdit) {
+        this.denied();
+        this.#apply(null, true); // roll the document back to the shared state (no history entry)
+      } else {
+        this.prev = new Set(flat.keys());
+        const stamped = this.crdt.applyLocal(ops);
+        const now = Date.now();
+        for (const op of stamped) this.localWrites.set(`${op.id}|${op.f || "#"}`, now);
+        if (this.localWrites.size > 5000) this.localWrites.clear();
+        this.send({ doc: this.doc.id, kind: "tree" }, stamped);
+      }
+    }
+    this.#flushPixels();
+  }
+
+  /** Changed tiles of the pixel layers touched since the last flush (after the tree ops, so new layers exist first). */
+  #flushPixels() {
+    if (!this.dirtyPx.size) return;
+    const ids = [...this.dirtyPx];
+    this.dirtyPx.clear();
     if (!this.canEdit) {
+      // a bitmap cannot be rolled back tile by tile here: fetch the shared state instead (not for the sharer)
       this.denied();
-      this.#apply(null, true); // roll the document back to the shared state (no history entry)
+      if (this.owner !== this.site && Date.now() - (this.lastPxResync || 0) > 10_000) {
+        this.lastPxResync = Date.now();
+        this.mgr.resync(this.doc.id).catch(() => {});
+      }
       return;
     }
-    this.prev = new Set(flat.keys());
-    const stamped = this.crdt.applyLocal(ops);
-    const now = Date.now();
-    for (const op of stamped) this.localWrites.set(`${op.id}|${op.f || "#"}`, now);
-    if (this.localWrites.size > 5000) this.localWrites.clear();
-    this.send({ doc: this.doc.id, kind: "tree" }, stamped);
+    const ops = [];
+    for (const id of ids) {
+      const canvas = this.doc.pixels.get(id);
+      if (!canvas || !this.doc.find(id)) {
+        this.px.forget(id);
+        continue;
+      }
+      try {
+        ops.push(...this.px.local(id, ctx2d(canvas).getImageData(0, 0, canvas.width, canvas.height)));
+      } catch (e) {
+        log.warn("collab", `Pixel layer not sent: ${e.message}`);
+      }
+    }
+    this.send({ doc: this.doc.id, kind: "pixel" }, ops);
+  }
+
+  #receivePixels(sender, msg) {
+    if (this.dropWhilePaused(msg)) return;
+    const ops = [];
+    for (const op of msg.ops) {
+      try {
+        ops.push(validatePixelOp(op));
+      } catch (e) {
+        log.warn("collab", `Rejected a live pixel edit: ${e.message}`);
+      }
+    }
+    if (!ops.length) return;
+    this.flush(); // my own pending tiles first, so their hashes are current
+    const touched = new Set();
+    for (const op of ops) this.#applyTile(op, touched);
+    if (touched.size) this.#pixelsChanged(touched);
+  }
+
+  #applyTile(op, touched) {
+    const doc = this.doc;
+    const node = doc.find(op.id);
+    if (!node) {
+      // the layer is still on its way (tree ops and pixel tiles travel in separate messages)
+      const list = this.waitingPx.get(op.id) || [];
+      if (list.length < 4096 && this.waitingPx.size < 256) this.waitingPx.set(op.id, [...list, op]);
+      return;
+    }
+    const r = this.px.remote(op);
+    if (!r.apply) return;
+    let canvas = doc.pixels.get(op.id);
+    if (!canvas || canvas.width !== op.W || canvas.height !== op.H) {
+      const next = createCanvas(op.W, op.H);
+      if (canvas) ctx2d(next).drawImage(canvas, 0, 0); // tiles of the new size arrive one by one
+      doc.pixels.set(op.id, (canvas = next));
+    }
+    try {
+      const ctx = ctx2d(canvas);
+      ctx.putImageData(new ImageData(decodeTile(op), op.w, op.h), op.x, op.y);
+      this.px.applied(op, ctx.getImageData(op.x, op.y, op.w, op.h).data);
+      touched.add(node);
+    } catch (e) {
+      log.warn("collab", `A live pixel edit could not be applied: ${e.message}`);
+    }
+  }
+
+  /** Tiles that waited for their layer, once tree ops created it. */
+  #drainWaitingPixels() {
+    if (!this.waitingPx.size) return;
+    const touched = new Set();
+    for (const [id, ops] of [...this.waitingPx]) {
+      if (!this.doc.find(id)) continue;
+      this.waitingPx.delete(id);
+      for (const op of ops) this.#applyTile(op, touched);
+    }
+    if (touched.size) this.#pixelsChanged(touched);
+  }
+
+  #pixelsChanged(nodes) {
+    const doc = this.doc;
+    this.applying = true;
+    this.mgr.c.applyingRemote = true;
+    try {
+      for (const n of nodes) doc.touch(n);
+      doc.rev++;
+      doc.modifiedAt = Date.now();
+      doc.saved = false;
+      doc.emit("change", { nodes: [...nodes], structure: false, meta: false, label: "Edit together", remote: true });
+    } finally {
+      this.applying = false;
+      this.mgr.c.applyingRemote = false;
+    }
+    this.app.emit("docchange", { remote: true });
   }
 
   receive(sender, msg) {
+    if (msg.kind === "pixel") return this.#receivePixels(sender, msg);
     if (msg.kind !== "tree" || this.dropWhilePaused(msg)) return;
     let ops;
     try {
@@ -620,6 +824,7 @@ class TreeBinding extends BaseBinding {
     }
     if (lost.length) this.#conflict(sender, lost);
     this.#apply(changed, false);
+    this.#drainWaitingPixels();
   }
 
   #apply(changed, full) {
@@ -667,74 +872,91 @@ class TreeBinding extends BaseBinding {
   /** Resync: adopt a fresh state from the owner (also brings pixel bitmaps and image data). */
   replaceState(fresh, state) {
     this.crdt = TreeCRDT.fromJSON(state, this.site);
-    for (const [id, c] of fresh.pixels) this.doc.pixels.set(id, c);
+    for (const [id, c] of fresh.pixels) {
+      this.doc.pixels.set(id, c);
+      this.#baseline(id, c);
+    }
     for (const [id, a] of Object.entries(fresh.assets)) if (a.bytes) this.doc.assets[id] = a;
     this.dropped = 0;
     this.#apply(null, true);
+    this.#drainWaitingPixels();
     this.mgr.changed();
   }
 }
 
-/** Office Suite apps: keyed records (collab/office-records.js) through the app's collabAdapter. */
+/**
+ * Office Suite apps and Scene documents: keyed records through the app's collabAdapter, merged by
+ * collab/office-sync.js (last writer wins per record; local edits are diffed against the last model seen, Undo/Redo
+ * revert only the user's own records, media bytes travel as chunk records).
+ */
 class OfficeBinding extends BaseBinding {
   constructor(mgr, doc, opts) {
     super(mgr, doc, opts);
     this.kind = "office";
     this.adapter = officeAdapter(doc);
-    if (!this.adapter) throw new Error(t("This Office document cannot be edited together."));
+    if (!this.adapter) throw new Error(t("This document cannot be edited together."));
     const prj = doc.office;
-    this.crdt = opts.state ? RecordsCRDT.fromJSON(opts.state, opts.site) : RecordsCRDT.fromRecords(this.adapter.records(prj.model), opts.site);
-    this.crdt.site = opts.site;
-    if (opts.state) this.#apply(null);
+    if (prj.model?._raw && typeof this.adapter.prepare === "function") this.adapter.prepare(prj);
+    this.sync = new OfficeSync(this.adapter, prj.model, { site: opts.site, state: opts.state || null });
+    this.warnedSkipped = 0;
+    if (opts.state) this.#set(this.sync.replaceState(opts.state, prj.model));
+    // Undo/Redo of the user's own steps apply on top of the current model (core/office.js ▸ commitOffice)
+    const hook = (cur, from, to) => this.sync.rebase(cur, from, to);
+    prj.rebase = hook;
+    this.offs.push(() => {
+      if (prj.rebase === hook) prj.rebase = null;
+    });
     this.offs.push(prj.on("change", (info) => !this.applying && info?.origin !== "collab" && this.schedule()));
   }
 
   stateJSON() {
-    return this.crdt.toJSON();
+    return this.sync.stateJSON();
   }
 
   flush() {
     clearTimeout(this.timer);
     this.timer = null;
-    const ops = this.crdt.diff(this.adapter.records(this.doc.office.model));
-    if (!ops.length) return;
+    const prj = this.doc.office;
     if (!this.canEdit) {
+      if (!this.sync.dirty(prj.model)) return;
       this.denied();
-      this.#apply(null); // roll back to the shared state (no history entry)
+      this.#set(this.sync.rollback(prj.model)); // roll back to the shared state (no history entry)
       return;
     }
-    this.send({ doc: this.doc.id, kind: "office" }, this.crdt.applyLocal(ops));
+    const ops = this.sync.local(prj.model);
+    if (this.sync.skipped > this.warnedSkipped) {
+      this.warnedSkipped = this.sync.skipped;
+      this.app.toast("A change is too large to send live (for example a very long drawing). Others get it with Resync.", "warning", 6000);
+    }
+    this.send({ doc: this.doc.id, kind: "office" }, ops);
   }
 
   receive(sender, msg) {
     if (msg.kind !== "office" || this.dropWhilePaused(msg)) return;
-    let ops;
-    try {
-      ops = msg.ops.map(validateRecordOp);
-    } catch (e) {
-      log.warn("collab", `Rejected a live edit: ${e.message}`);
-      return;
+    // validate op by op: one malformed or oversized record no longer throws away the whole message
+    const ops = [];
+    for (const op of msg.ops) {
+      try {
+        ops.push(validateRecordOp(op));
+      } catch (e) {
+        log.warn("collab", `Rejected a live edit: ${e.message}`);
+      }
     }
+    if (!ops.length) return;
     this.flush();
-    const changes = {};
-    let lost = 0;
-    for (const op of ops) {
-      const r = this.crdt.apply(op);
-      if (r.changed) changes[op.k] = op.v;
-      if (r.overwrote) lost++;
-    }
-    if (lost) this.app.toast(t("{name} changed something you just edited; their change is shown.", { name: this.mgr.name(sender) }), "warning", 5000);
-    if (Object.keys(changes).length) this.#apply(changes);
+    const r = this.sync.remote(ops, this.doc.office.model);
+    if (r.lost) this.app.toast(t("{name} changed something you just edited; their change is shown.", { name: this.mgr.name(sender) }), "warning", 5000);
+    this.#set(r.model);
   }
 
-  /** Writes changes (or, with null, everything that differs from the shared view) into the model, outside the history. */
-  #apply(changes) {
+  /** Shows a model produced from the shared view (outside the history; views keep their caret through `prev`). */
+  #set(model) {
     const prj = this.doc.office;
-    const diff = changes || this.crdt.changesTo(this.adapter.records(prj.model));
-    if (!Object.keys(diff).length) return;
+    if (!model || model === prj.model) return;
+    const prev = prj.model;
     this.applying = true;
     try {
-      prj.set(this.adapter.applyRecords(prj.model, diff), { origin: "collab", label: "Edit together", remote: true });
+      prj.set(model, { origin: "collab", label: "Edit together", remote: true, prev, sel: remoteSel(this.app, this.doc, prev, model) });
     } catch (e) {
       log.warn("collab", `A live edit could not be applied: ${e.message}`);
     } finally {
@@ -745,11 +967,31 @@ class OfficeBinding extends BaseBinding {
   }
 
   replaceState(fresh, state) {
-    this.crdt = RecordsCRDT.fromJSON(state, this.site);
     this.dropped = 0;
-    this.#apply(null);
+    // media bytes the snapshot brings (images above the inline size that had not arrived yet)
+    const media = fresh?.office?.model?.media;
+    const prj = this.doc.office;
+    if (media && prj.model?.media) {
+      let patched = null;
+      for (const [id, m] of Object.entries(prj.model.media)) if (m && !(m.bytes instanceof Uint8Array) && media[id]?.bytes instanceof Uint8Array) (patched ||= { ...prj.model.media })[id] = { ...m, bytes: media[id].bytes, missing: undefined };
+      if (patched) this.#set({ ...prj.model, media: patched });
+    }
+    this.#set(this.sync.replaceState(state, prj.model));
     this.mgr.changed();
   }
+}
+
+/** The word processor's caret follows its paragraph when other people insert or delete paragraphs above it. */
+function remoteSel(app, doc, prev, next) {
+  const ed = officeKindOf(doc) === "document" && app.officeUI?.doc === doc ? app.officeUI.editor : null;
+  const sel = ed?.sel;
+  if (!sel?.anchor?.path || !Array.isArray(prev?.blocks) || !Array.isArray(next?.blocks)) return null;
+  const map = (p) => {
+    const path = [...p.path];
+    path[0] = remapBlockIndex(prev.blocks, next.blocks, path[0]);
+    return { ...p, path };
+  };
+  return { anchor: map(sel.anchor), focus: map(sel.focus) };
 }
 
 class TextBinding extends BaseBinding {

@@ -7,6 +7,7 @@
 // files and tabs, the Office editor) and opens the join dialog for links of the form …/#join=<invite code>.
 import { registerContextProvider } from "../ui/context-menu/index.js";
 import { getStudio } from "../studios/registry.js";
+import { canShareLive } from "../core/live-kinds.js";
 
 const rt = () => import("../ui/collab/runtime.js");
 // Comments work in every studio without a room: only the small comments host (and its UI) loads, never the room code.
@@ -58,7 +59,7 @@ export function registerCollabCommands(app) {
   def("collab.profile", "Profile and Collaboration Settings", (a) => import("../ui/dialogs.js").then((m) => m.preferencesDialog(a, "collab")), { icon: "people" });
   // shared documents and "Edit together" (beta)
   def("collab.shareDocument", "Share with Collaboration Room…", async (a, o) => (await rt()).shareDocument(a, { doc: docOf(a, o) }), { icon: "people", enabled: (a) => !!a.doc });
-  def("collab.shareLive", "Share as Linked Live Document", async (a, o) => (await rt()).shareDocument(a, { doc: docOf(a, o), mode: "live" }), { icon: "link-45deg", enabled: (a) => !!a.doc && !a.doc.office && !shared(a) });
+  def("collab.shareLive", "Share as Linked Live Document", async (a, o) => (await rt()).shareDocument(a, { doc: docOf(a, o), mode: "live" }), { icon: "link-45deg", enabled: (a) => !!a.doc && canShareLive(a.doc) && !shared(a) });
   def("collab.shareCopy", "Share a Copy (Snapshot)", async (a, o) => (await rt()).shareDocument(a, { doc: docOf(a, o), mode: "copy" }), { icon: "share", enabled: (a) => !!a.doc });
   def("collab.stopSharing", "Stop Sharing", async (a, o) => (await rt()).stopSharing(a, { doc: docOf(a, o) }), { icon: "x-circle", enabled: (a) => shared(a) });
   def("collab.resync", "Resync Shared Document", async (a, o) => (await rt()).resyncDocument(a, { doc: docOf(a, o) }), { icon: "arrow-repeat", enabled: (a) => shared(a) });
@@ -73,7 +74,7 @@ export function registerCollabCommands(app) {
       if (shared(c.app, doc)) return [{ label: "Stop sharing", icon: "x-circle", run: () => c.app.run("collab.stopSharing", { doc }) }, { label: "Share a copy (snapshot)", icon: "share", run: () => c.app.run("collab.shareCopy", { doc }) }];
       return [
         { label: "Share with collaboration room…", icon: "people", run: () => c.app.run("collab.shareDocument", { doc }) },
-        { label: "Share as linked live document", icon: "link-45deg", hidden: !!doc.office, run: () => c.app.run("collab.shareLive", { doc }) },
+        { label: "Share as linked live document", icon: "link-45deg", hidden: !canShareLive(doc), run: () => c.app.run("collab.shareLive", { doc }) },
         { label: "Share a copy (snapshot)", icon: "share", run: () => c.app.run("collab.shareCopy", { doc }) },
       ];
     },

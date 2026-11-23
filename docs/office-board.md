@@ -169,10 +169,12 @@ re-drawn when the board's elements change, and every item when the language chan
 
 Every finished gesture, menu command or Vibe call is one `commitOffice` step (nudges coalesce). The `collabAdapter`
 flattens the board into records: `el:<id>` per element (last writer wins per element, so two people moving
-different shapes never conflict), `page:<id>`, `media:<id>` (images up to about 46 KiB travel inline; larger ones show
-as placeholders for the other members until the file is shared again) and `meta:board`. Orders are fractional keys
-inside the records. Comments are not records: they are the document's comment threads and sync as comment ops
-(see *Comments*). Remote cursors are not shown.
+different shapes never conflict), `page:<id>`, `media:<id>` (images up to about 46 KiB travel inline; larger ones travel
+as chunk records and show as placeholders only until every chunk has arrived) and `meta:board`. Orders are fractional
+keys inside the records. An element that arrives before its page is kept and shown when the page arrives. Undo and
+Redo revert only your own step, also after other people edited the board. Comments are not records: they are the
+document's comment threads and sync as comment ops (see *Comments*). Remote cursors are not shown. A single element
+larger than 64 KiB as JSON (a very long freehand stroke) is not sent live; the others get it with *Resync*.
 
 ## Vibe
 
@@ -211,7 +213,8 @@ The tldraw writer was checked by round trips through our own reader, not against
 
 * No elbow / curved connector routing, no arrow labels positioned by the user; the Library holds the built-in shapes
   and sticky notes only (no user libraries or templates).
-* No remote cursors or live laser for collaborators; large images are not sent through live editing.
+* No remote cursors or live laser for collaborators; a single element larger than 64 KiB (a very long freehand stroke)
+  is not sent through live editing (*Resync* brings it).
 * Text inside rotated shapes is edited unrotated; the editor is a plain textarea (no rich text).
 * Palm rejection is heuristic: it activates after the first stylus contact in the session.
 * Formulas cover a TeX subset (no `\over`, accents such as `\hat` or `\vec`, or user macros); implicit curves are

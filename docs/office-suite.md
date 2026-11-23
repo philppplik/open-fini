@@ -46,11 +46,11 @@ commands/file.js ─► ui/office/open.js ─► registry.appForFile / engine/of
 | File opening / creating | `app/src/ui/office/open.js` (`openOfficeFile`, `createOfficeDocument`, `openOfficeModel`) |
 | Content sniffing + guidance texts | `app/src/engine/office/index.js` (`FORMATS`, `detectOfficeFormat`, `officeGuidance`) |
 | Save in the original format | `app/src/core/source-format.js`, `app/src/commands/save-source.js` |
-| Live editing | `app/src/collab/office-records.js` + `ui/collab/live.js ▸ OfficeBinding` |
+| Live editing | `app/src/collab/office-records.js`, `office-sync.js`, `doc-records.js` (word processor) + `ui/collab/live.js ▸ OfficeBinding` |
 | Comment anchors | `app/src/collab/anchors.js ▸ officeItemAnchor`, `protocol.js ANCHOR kind "item"` |
 | Vibe tools | `app/src/vibe/tools/office-suite.js` (all kinds), `office.js` (text documents), `office-board.js` (whiteboards) |
 | Whiteboard app | `app/src/office/board/` ([office-board.md](office-board.md)) |
-| Tests | `tests/office/suite.test.js`, `tests/office/toolkit.test.js`, `tests/collab/office-records.test.js` |
+| Tests | `tests/office/suite.test.js`, `tests/office/toolkit.test.js`, `tests/collab/office-records.test.js`, `tests/collab/office-sync.test.js` |
 | Spreadsheet app | `app/src/office/sheet/` ([office-sheet.md](office-sheet.md)) |
 
 ## The contract
@@ -91,7 +91,7 @@ Registration throws for an invalid/duplicate kind, a missing label/`load`, or an
 | `save(model, formatId, { title, doc })` | for `write` formats | `→ { bytes, mime?, ext?, notes?: string[] }`. Used by Export, File ▸ Save in the original format and `office_export`. `notes` say what the format cannot keep. |
 | `describe(model)` | recommended | Small JSON summary (no DOM) for Vibe `office_describe` and the prompt. |
 | `aiAdapter` | optional | `{ describe(model) }` (overrides `describe` for Vibe). App tools are **static** (see Vibe below). |
-| `collabAdapter` | optional | `{ records(model) → { key: json }, applyRecords(model, { key: json \| null }) → model }` (see Collaboration). |
+| `collabAdapter` | optional | `{ records(model) → { key: json }, applyRecords(model, { key: json \| null }) → model, inlineMedia?, prepare?(prj) }` or a stateful `{ bind() → { records, applyRecords, rebase? } }` (see Collaboration). |
 
 **Instance** (returned by `mount`, all optional except as noted):
 
@@ -224,9 +224,24 @@ Then add `import { NOTES_APP } from "./notes/manifest.js";` and `NOTES_APP,` to 
   changes)` returns the new model with `{ key: value | null }` applied (null = deleted). `OfficeBinding` diffs your
   records after every model change (60 ms batches), stamps ops `{ k, v, c, s }` (Lamport clock + site) and merges
   remote ops: the same record goes to the higher `(clock, site)`, different records merge, remote changes bypass the
-  undo history (`info.origin === "collab"`). Keep orders as fractional keys (`collab/fractional.js`) inside records,
-  never as arrays, so concurrent moves do not fight. Limits: key ≤ 256 chars, value ≤ 64 KiB JSON. Apps without an
-  adapter (the word processor) are shared as a copy.
+  undo history (`info.origin === "collab"`, with `info.prev`, the model before, and `info.remote: true`). Keep orders
+  as fractional keys (`collab/fractional.js`) inside records, never as arrays, so concurrent moves do not fight.
+  Limits: key ≤ 256 chars, value ≤ 64 KiB JSON (larger values are kept back and counted; *Resync* brings them).
+  The engine (`collab/office-sync.js`) guarantees what used to go wrong:
+  * local edits are the records that changed since the binding last looked at the model, never "the view minus the
+    model", so `applyRecords` may refuse or normalize a record (an element whose page has not arrived) without that
+    turning into a delete for everybody; refused keys are retried with the next remote message;
+  * Undo/Redo: while a document is live, `prj.rebase(cur, from, to)` is set and `commitOffice` applies only the
+    records of the step on top of the current model, so other people's edits made in between stay;
+  * media: `inlineMedia` (bytes) says up to which size your records carry media bytes themselves; larger
+    `model.media[id].bytes` travel as chunk records `blob:<id>/<i>` (45 KiB each) and are put back into
+    `model.media[id].bytes` when complete. Your `applyRecords` must keep existing `bytes` and ignore `blob:` keys;
+  * `prepare(prj)` normalizes a model that was loaded but not opened yet (`_raw`) before the first records are taken;
+  * a stateful adapter (`bind()`) gets one instance per shared document: the word processor
+    (`collab/doc-records.js`) keeps block ids in a `WeakMap` by block object and implements its own `rebase`.
+  Every app has an adapter: Document (one record per block: different paragraphs merge, the same paragraph goes to the
+  later writer), Spreadsheet (per cell), Presentation (per slide and object), Whiteboard (per element). An Office kind
+  an extension registers without an adapter is shared as a copy.
 * **Comments**: anchor kind `item` (`collab/anchors.js ▸ officeItemAnchor({ item, label })`) uses the same record keys;
   the instance's `commentAnchor()` and `revealAnchor(anchor)` connect it to your selection. Text documents keep the
   `text` anchor.
