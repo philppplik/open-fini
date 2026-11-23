@@ -2593,6 +2593,7 @@
   "OpenFini now greets you with a launch screen that shows real loading progress. You can turn it off in Settings.": "OpenFini now greets you with a launch screen that shows real loading progress. You can turn it off in Settings.",
   "OpenFini starts a small relay inside this app and creates the room on it. Others in your network join with the invite code in the OpenFini desktop app. Your firewall may ask once whether OpenFini may accept connections: allow it for private networks. The relay stops when you stop it or close OpenFini.": "OpenFini starts a small relay inside this app and creates the room on it. Others in your network join with the invite code in the OpenFini desktop app. Your firewall may ask once whether OpenFini may accept connections: allow it for private networks. The relay stops when you stop it or close OpenFini.",
   "OpenFini upgrades older .ofini files when you open them, and warns before it overwrites a file made by a newer version.": "OpenFini upgrades older .ofini files when you open them, and warns before it overwrites a file made by a newer version.",
+  "OpenFini Website": "OpenFini Website",
   "OpenFini workspace": "OpenFini workspace",
   "Opening {name}…": "Opening {name}…",
   "Opening a folder by path needs the desktop app.": "Opening a folder by path needs the desktop app.",

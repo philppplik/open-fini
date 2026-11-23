@@ -95,7 +95,7 @@ export const MENUS = [
   ...SCENE_MENUS,
   { label: "Window", studios: [...DESIGN, "code"], items: [{ dynamic: "dockPanels" }, "-", { label: "Workspace", dynamic: "workspaces" }] }, // ui/docking/view.js
   { label: "Studio", items: [{ dynamic: "studios" }, "-", "collab.open", "collab.addComment", "collab.saveVersion", "-", "ext.manage", { label: "Extension Commands", dynamic: "extCommands" }] },
-  { label: "Help", items: ["help.palette", "help.tour", "help.studioTour", "help.whatsThis", "-", "help.shortcuts", "help.whatsNew", "help.docs", "help.askOpenFini", "help.issues", "help.troubleshoot", "help.doctor", "help.security", "-", "help.checkUpdates", "help.about"] },
+  { label: "Help", items: ["help.palette", "help.tour", "help.studioTour", "help.whatsThis", "-", "help.shortcuts", "help.whatsNew", "help.docs", "help.website", "help.askOpenFini", "help.issues", "help.troubleshoot", "help.doctor", "help.security", "-", "help.checkUpdates", "help.about"] },
 ];
 
 function itemFor(app, cmdId) {

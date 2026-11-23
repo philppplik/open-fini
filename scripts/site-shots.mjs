@@ -6,20 +6,42 @@
 //   node scripts/site-shots.mjs --only pixel,code --themes dark --scales 1
 //   CHROME_PATH=/usr/bin/chromium node scripts/site-shots.mjs
 //
-// Output: site/assets/shots/<studio>-<theme>[@2x].webp (1440 × 900 CSS pixels) plus the hero artwork variants
-// site/assets/img/artwork-<width>.webp. Re-run it for every release so the site never shows an old interface.
-import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { spawn } from "node:child_process";
-import { tmpdir } from "node:os";
+// Output: site/assets/shots/<studio>-<theme>[@2x].webp (1440 × 900 CSS pixels), the hero artwork variants
+// site/assets/img/artwork-<width>.webp and the social cards site/assets/social/<page>.jpg (1200 × 630, Open Graph).
+// Re-run it for every release so the site never shows an old interface. --social-only redraws just the cards.
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "./serve.mjs";
+import { evaluate, launchBrowser, newPage, sleep, waitFor } from "./lib/cdp.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(root, "site", "assets", "shots");
 const IMG = join(root, "site", "assets", "img");
+const SOCIAL = join(root, "site", "assets", "social");
 const VIEW = { width: 1440, height: 900 };
+
+/** Social cards: one per page family; titles are English (they are images shared on any site). */
+export const CARDS = [
+  ["home", "Draw, retouch, lay out, code and cut.", "One small, open-source app"],
+  ["studios", "Seven studios, one document", "Studios"],
+  ["vector", "Vector Studio", "Logos, icons, illustration and UI"],
+  ["pixel", "Pixel Studio", "Photo editing, painting and retouching"],
+  ["layout", "Layout Studio", "Brochures, books and print"],
+  ["code", "Code Studio", "Websites, Markdown and LaTeX"],
+  ["vibe", "Vibe Studio", "Describe it, and an assistant builds it"],
+  ["office", "Office Studio", "Documents, spreadsheets, slides and whiteboards"],
+  ["scene", "Scene Studio", "Video editing and motion design"],
+  ["proto", "Proto Studio", "Interface design and prototyping, coming in 1.3.x"],
+  ["features", "Everything around the studios", "Features"],
+  ["download", "Download OpenFini", "Windows, macOS, Linux and the web"],
+  ["docs", "Documentation", "User manual and developer docs"],
+  ["changelog", "Changelog", "What changed in each release"],
+  ["roadmap", "Roadmap", "Where OpenFini is going"],
+  ["community", "Built in the open", "Community"],
+  ["press", "Press kit", "Logos, artwork, screenshots and facts"],
+  ["privacy", "Privacy", "No cookies, no analytics, no telemetry"],
+];
 
 /**
  * One scene per studio: the query string opens the studio, `setup` (run in the page) prepares what is shown.
@@ -92,22 +114,8 @@ const PAGE_HELPERS = `
   };
 `;
 
-const BROWSERS = [
-  process.env.CHROME_PATH,
-  "C:/Program Files/Google/Chrome/Application/chrome.exe",
-  "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
-  "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
-  "C:/Program Files/Microsoft/Edge/Application/msedge.exe",
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-  "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-  "/usr/bin/google-chrome",
-  "/usr/bin/chromium",
-  "/usr/bin/chromium-browser",
-  "/usr/bin/microsoft-edge",
-].filter(Boolean);
-
 function parseArgs(argv) {
-  const opts = { only: null, themes: ["dark", "light"], scales: [1, 2], artwork: true };
+  const opts = { only: null, themes: ["dark", "light"], scales: [1, 2], artwork: true, socialOnly: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => argv[++i] ?? "";
@@ -115,90 +123,10 @@ function parseArgs(argv) {
     else if (a === "--themes") opts.themes = next().split(",");
     else if (a === "--scales") opts.scales = next().split(",").map(Number);
     else if (a === "--no-artwork") opts.artwork = false;
+    else if (a === "--social-only") opts.socialOnly = true;
     else throw new Error(`Unknown argument: ${a}`);
   }
   return opts;
-}
-
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-/** Minimal CDP client over one browser WebSocket with flattened sessions. */
-class Cdp {
-  constructor(url) {
-    this.ws = new WebSocket(url);
-    this.id = 0;
-    this.pending = new Map();
-    this.ws.addEventListener("message", (ev) => {
-      const msg = JSON.parse(ev.data);
-      const p = msg.id && this.pending.get(msg.id);
-      if (!p) return;
-      this.pending.delete(msg.id);
-      if (msg.error) p.reject(new Error(`${p.method}: ${msg.error.message}`));
-      else p.resolve(msg.result);
-    });
-  }
-  open() {
-    return new Promise((res, rej) => {
-      this.ws.addEventListener("open", res, { once: true });
-      this.ws.addEventListener("error", () => rej(new Error("cannot connect to the browser")), { once: true });
-    });
-  }
-  send(method, params = {}, sessionId) {
-    const id = ++this.id;
-    this.ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
-    return new Promise((resolve, reject) => this.pending.set(id, { resolve, reject, method }));
-  }
-  close() {
-    this.ws.close();
-  }
-}
-
-async function launchBrowser() {
-  const exe = BROWSERS.find((p) => existsSync(p));
-  if (!exe) throw new Error("No Chrome, Edge or Chromium found. Set CHROME_PATH to the browser executable.");
-  const profile = await mkdtemp(join(tmpdir(), "ofini-shots-"));
-  const child = spawn(exe, ["--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run",
-    "--no-default-browser-check", "--hide-scrollbars", "--mute-audio", "--force-color-profile=srgb", "about:blank"], { stdio: "ignore" });
-  const portFile = join(profile, "DevToolsActivePort");
-  for (let i = 0; i < 100 && !existsSync(portFile); i++) await sleep(100);
-  const [port, path] = (await readFile(portFile, "utf8")).split(/\r?\n/);
-  const cdp = new Cdp(`ws://127.0.0.1:${port}${path}`);
-  await cdp.open();
-  return {
-    cdp,
-    async close() {
-      cdp.close();
-      child.kill();
-      await sleep(300);
-      await rm(profile, { recursive: true, force: true }).catch(() => {});
-    },
-  };
-}
-
-async function newPage(cdp) {
-  // an isolated browser context per page: fresh storage, so no autosaved session is restored between shots
-  const { browserContextId } = await cdp.send("Target.createBrowserContext");
-  const { targetId } = await cdp.send("Target.createTarget", { url: "about:blank", browserContextId });
-  const { sessionId } = await cdp.send("Target.attachToTarget", { targetId, flatten: true });
-  const s = (method, params) => cdp.send(method, params, sessionId);
-  await s("Page.enable");
-  await s("Runtime.enable");
-  return { s, close: () => cdp.send("Target.disposeBrowserContext", { browserContextId }) };
-}
-
-async function evaluate(s, expression) {
-  const r = await s("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
-  if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
-  return r.result.value;
-}
-
-async function waitFor(s, expression, timeout = 20000) {
-  const t0 = Date.now();
-  while (Date.now() - t0 < timeout) {
-    if (await evaluate(s, `!!(${expression})`).catch(() => false)) return;
-    await sleep(150);
-  }
-  throw new Error(`timed out waiting for ${expression}`);
 }
 
 async function shoot(page, base, scene, theme, scale) {
@@ -232,15 +160,54 @@ async function artworkVariants(page, base, widths = [800, 1600]) {
   }
 }
 
+/** Draws the social cards: the launch artwork, a dark panel and the title in the site's display face. */
+async function socialCards(page, base) {
+  const { s } = page;
+  const { readFile: rf } = await import("node:fs/promises");
+  const mark = (await rf(join(root, "app/icons/mark-white.svg"), "utf8")).replace(/<svg /, '<svg width="44" height="44" ');
+  await s("Emulation.setDeviceMetricsOverride", { width: 1200, height: 630, deviceScaleFactor: 1, mobile: false });
+  for (const [id, title, kicker] of CARDS) {
+    await s("Page.navigate", { url: `${base}/assets/launch/artwork.webp` });
+    await sleep(300);
+    await evaluate(s, `(async () => {
+      document.documentElement.innerHTML = ${JSON.stringify(`<head><style>
+        html,body{margin:0;width:1200px;height:630px;background:#1d1e22;color:#e8e9ee;overflow:hidden}
+        .art{position:absolute;inset:0 0 auto 0;height:330px;background:#c4466f url(${base}/assets/launch/artwork.webp) center/cover}
+        .bar{position:absolute;top:330px;left:0;right:0;height:6px;background:#8b7cf6}
+        .txt{position:absolute;left:64px;right:64px;top:368px}
+        .k{font:500 22px/1.3 ui-monospace,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase;color:#a3a5ae}
+        h1{margin:14px 0 0;font:400 72px/1.02 "Iowan Old Style","Palatino Linotype",Palatino,P052,Georgia,serif;letter-spacing:-.015em}
+        .b{position:absolute;right:64px;top:368px;display:flex;align-items:center;gap:12px;font:600 26px system-ui,"Segoe UI",sans-serif}
+      </style></head><body><div class="art"></div><div class="bar"></div>
+        <div class="txt"><div class="k"></div><h1></h1></div><div class="b">${mark}<span>OpenFini</span></div></body>`)};
+      document.querySelector(".k").textContent = ${JSON.stringify(kicker)};
+      document.querySelector("h1").textContent = ${JSON.stringify(title)};
+      await new Promise((r) => { const i = new Image(); i.onload = i.onerror = r; i.src = "${base}/assets/launch/artwork.webp"; });
+      await document.fonts.ready;
+    })()`);
+    await sleep(200);
+    const { data } = await s("Page.captureScreenshot", { format: "jpeg", quality: 82 });
+    await writeFile(join(SOCIAL, `${id}.jpg`), Buffer.from(data, "base64"));
+    console.log(`site-shots: site/assets/social/${id}.jpg`);
+  }
+}
+
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   await mkdir(OUT, { recursive: true });
   await mkdir(IMG, { recursive: true });
+  await mkdir(SOCIAL, { recursive: true });
   const server = createServer({ root: join(root, "app") });
   await new Promise((r) => server.listen(0, "127.0.0.1", r));
   const base = `http://127.0.0.1:${server.address().port}`;
   const browser = await launchBrowser();
   try {
+    {
+      const page = await newPage(browser.cdp);
+      await socialCards(page, base);
+      await page.close();
+    }
+    if (opts.socialOnly) return;
     if (opts.artwork) {
       const page = await newPage(browser.cdp);
       await artworkVariants(page, base);

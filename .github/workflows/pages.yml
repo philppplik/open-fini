@@ -1,7 +1,8 @@
 name: Website
 
 # Builds the website (site/, docs/concepts/website.md) and deploys it to GitHub Pages.
-# Pull requests only build it and check its internal links. Deploys happen only from main, and only when
+# Pull requests build it and run the quality gates (internal links, HTML validation, axe-core on every page,
+# Lighthouse budgets on four pages); they never deploy. Deploys happen only from main, and only when
 # Pages is enabled for the repository (Settings > Pages > Source: GitHub Actions); until then the deploy
 # job is skipped with a notice instead of failing.
 
@@ -20,8 +21,11 @@ on:
   pull_request:
     paths:
       - "site/**"
-      - "docs/performance.md"
+      - "wiki/**"
+      - "docs/**"
       - "CHANGELOG.md"
+      - "scripts/site-check.mjs"
+      - "scripts/lib/cdp.mjs"
       - "scripts/serve.mjs"
       - "app/src/engine/web/markdown.js"
       - ".github/workflows/pages.yml"
@@ -83,9 +87,45 @@ jobs:
         with:
           path: site/dist
 
+  quality:
+    name: Site quality gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # served at the root, as the checkers expect; --strict also fails on missing template strings
+      - name: Build (base path /)
+        run: node site/build.mjs --offline --strict
+
+      # The checkers are tools, not project dependencies: install pinned versions into a temporary folder.
+      - name: Install the checkers
+        run: npm install --prefix "$RUNNER_TEMP/site-tools" --no-audit --no-fund axe-core@4.14.1 html-validate@11.21.1 @lhci/cli@0.16.1
+
+      - name: Validate the HTML
+        run: node "$RUNNER_TEMP/site-tools/node_modules/html-validate/bin/html-validate.mjs" --config site/.htmlvalidate.json "site/dist/**/*.html"
+
+      - name: Accessibility (axe-core, every page)
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: node scripts/site-check.mjs --axe "$RUNNER_TEMP/site-tools/node_modules/axe-core/axe.min.js"
+
+      - name: Lighthouse budgets (four pages)
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+        run: node "$RUNNER_TEMP/site-tools/node_modules/@lhci/cli/src/cli.js" autorun --config=site/lighthouserc.json
+
   deploy:
     name: Deploy to GitHub Pages
-    needs: build
+    needs: [build, quality]
     if: needs.build.outputs.pages == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10

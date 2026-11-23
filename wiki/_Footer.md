@@ -1,1 +1,1 @@
-OpenFini Wiki. Source of truth: the `wiki/` folder of the [repository](https://github.com/philppplik/open-fini). Do not edit pages in the web UI; changes there are overwritten by the next sync. See [[Wiki Style Guide]].
+OpenFini Wiki · [Website](https://philppplik.github.io/open-fini/) · Source of truth: the `wiki/` folder of the [repository](https://github.com/philppplik/open-fini). Do not edit pages in the web UI; changes there are overwritten by the next sync. See [[Wiki Style Guide]].
