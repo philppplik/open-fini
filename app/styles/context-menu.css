@@ -8,7 +8,7 @@
 /* Unicode info and encode chooser dialogs */
 .of-enc { display: flex; flex-direction: column; gap: 12px; min-width: min(420px, 80vw); }
 .of-enc fieldset { border: 1px solid var(--of-border); border-radius: 8px; padding: 8px 12px 10px; margin: 0; }
-.of-enc legend { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--of-text-faint); padding: 0 6px; }
+.of-enc legend { font-size: 11px; color: var(--of-text-faint); padding: 0 6px; }
 .of-enc label { display: flex; gap: 8px; align-items: center; padding: 3px 0; font-size: 13px; cursor: pointer; }
 .of-enc__preview { font-family: var(--of-mono, ui-monospace, Consolas, monospace); font-size: 12px; background: var(--of-bg-raised); border: 1px solid var(--of-border); border-radius: 6px; padding: 8px 10px; white-space: pre-wrap; word-break: break-all; max-height: 120px; overflow: auto; }
 .of-uinfo { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 13px; margin: 0; }

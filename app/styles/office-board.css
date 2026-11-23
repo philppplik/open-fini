@@ -111,7 +111,7 @@
 .of-bside__list, .of-bside__pages, .of-bside__lib { list-style: none; margin: 0; padding: 0; }
 .of-bside__empty { padding: 10px 4px; color: var(--of-text-faint); line-height: 1.45; list-style: none; }
 .of-bside__hint { margin: 8px 2px; color: var(--of-text-faint); font-size: 11.5px; line-height: 1.4; }
-.of-bside__label { margin: 6px 2px 4px; color: var(--of-text-dim); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+.of-bside__label { margin: 6px 2px 4px; color: var(--of-text-dim); font-size: 11px; font-weight: 600; }
 
 .of-bside__citem { display: flex; align-items: flex-start; gap: 2px; border-radius: var(--of-radius-sm, 4px); }
 .of-bside__citem:hover { background: var(--of-hover); }

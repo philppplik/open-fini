@@ -16,7 +16,7 @@
   max-width: var(--of-bub-max, 86%);
   box-shadow: var(--of-bub-shadow, none);
 }
-.of-bubscope .of-vmsg--pinned > .of-vmsg__body { box-shadow: inset 3px 0 0 var(--of-accent), var(--of-bub-shadow, 0 0 0 0 transparent); }
+.of-bubscope .of-vmsg--pinned > .of-vmsg__body { box-shadow: inset 0 0 0 1px var(--of-accent-soft), var(--of-bub-shadow, 0 0 0 0 transparent); }
 /* the action icons sit inside the bubble: colors are computed from the bubble color, so they are readable on every
    preset, custom color, glass style and in high contrast */
 .of-bubscope .of-vmsg--user .of-vact { color: var(--of-bub-user-icon, var(--of-text)); }
@@ -45,7 +45,7 @@
   box-shadow: var(--of-bub-shadow, none);
 }
 .of-bubscope.of-bub--ai .of-vmsg--assistant .of-vmsg__text { color: inherit; }
-.of-bubscope.of-bub--ai .of-vmsg--assistant.of-vmsg--pinned > .of-vmsg__body { box-shadow: inset 3px 0 0 var(--of-accent), var(--of-bub-shadow, 0 0 0 0 transparent); }
+.of-bubscope.of-bub--ai .of-vmsg--assistant.of-vmsg--pinned > .of-vmsg__body { box-shadow: inset 0 0 0 1px var(--of-accent-soft), var(--of-bub-shadow, 0 0 0 0 transparent); }
 
 /* ---- shapes (radius comes from --of-bub-radius; the shape sets the variable, these rules the details) */
 .of-bubscope.of-bub--square .of-vmsg__body { border-radius: 0 !important; }

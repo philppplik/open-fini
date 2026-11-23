@@ -61,7 +61,7 @@ export function createVoicePanel(vs) {
       return field(label, r);
     };
     const test = h("button.of-btn", { type: "button" }, iconEl("volume-up"), t("Test voice"));
-    test.addEventListener("click", () => R.speak(t("Hello! I am Vibe. Shall we make something nice today? Let's go."), get(), app.i18n?.locale?.() || "en").catch((e) => app.toast(e.message, "warning", 4000)));
+    test.addEventListener("click", () => R.speak(t("This is how Vibe sounds. Pick a voice and speed that suit you."), get(), app.i18n?.locale?.() || "en").catch((e) => app.toast(e.message, "warning", 4000)));
     el.append(h("div.of-vcard", h("strong", t("Spoken replies")),
       h("p.of-hint", t("Vibe reads its answers sentence by sentence with the speech engine of your system. On-device voices keep the text on this device; online voices (offered by some browsers) send it to the browser vendor.")),
       R.ttsAvailable() ? tts : h("p.of-hint", t("Speech output is not available here.")),
