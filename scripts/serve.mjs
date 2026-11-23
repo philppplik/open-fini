@@ -4,6 +4,7 @@
 //   node scripts/serve.mjs --root dist     serves the production build instead
 //   node scripts/serve.mjs --port 8080 --host 0.0.0.0
 //   node scripts/serve.mjs --csp           also send the desktop app's Content-Security-Policy
+//   node scripts/serve.mjs --root site/dist --not-found 404.html   the website with its 404 page (npm run site:serve)
 //
 // Everything is sent with `Cache-Control: no-store`, so edits show up on reload.
 // The service worker is served as is; without the tokens injected by the build
@@ -83,12 +84,13 @@ function send(res, status, body, headers = {}) {
 
 /**
  * Creates (but does not start) the dev server.
- * @param {{ root: string, spa?: boolean, csp?: string }} options
+ * @param {{ root: string, spa?: boolean, csp?: string, notFound?: string }} options
  *   `spa` serves index.html for extension-less paths that do not exist;
- *   `csp` is sent as the Content-Security-Policy header of every response.
+ *   `csp` is sent as the Content-Security-Policy header of every response;
+ *   `notFound` (a file inside root) is sent with status 404 for missing paths, as GitHub Pages does with 404.html.
  * @returns {import("node:http").Server}
  */
-export function createServer({ root, spa = false, csp }) {
+export function createServer({ root, spa = false, csp, notFound }) {
   const absoluteRoot = resolve(root);
 
   return createHttpServer(async (req, res) => {
@@ -113,9 +115,15 @@ export function createServer({ root, spa = false, csp }) {
         file = join(absoluteRoot, "index.html");
         info = await stat(file).catch(() => null);
       }
+      let status = 200;
+      if (!info?.isFile() && notFound) {
+        file = join(absoluteRoot, notFound);
+        info = await stat(file).catch(() => null);
+        status = 404;
+      }
       if (!info?.isFile()) return send(res, 404, "Not found");
 
-      res.writeHead(200, {
+      res.writeHead(status, {
         "Content-Type": MIME_TYPES[extname(file).toLowerCase()] ?? "application/octet-stream",
         "Content-Length": info.size,
         "Cache-Control": "no-store",
@@ -147,7 +155,7 @@ export async function desktopCsp() {
 }
 
 function parseArgs(argv) {
-  const options = { root: join(projectRoot, "app"), port: 4173, host: "localhost", spa: false, csp: false };
+  const options = { root: join(projectRoot, "app"), port: 4173, host: "localhost", spa: false, csp: false, notFound: undefined };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     const value = () => {
@@ -164,8 +172,9 @@ function parseArgs(argv) {
     else if (arg === "--host") options.host = value();
     else if (arg === "--spa") options.spa = true;
     else if (arg === "--csp") options.csp = true;
+    else if (arg === "--not-found") options.notFound = value();
     else if (arg === "--help" || arg === "-h") {
-      console.log("Usage: node scripts/serve.mjs [--root <dir>] [--port <n>] [--host <name>] [--spa] [--csp]");
+      console.log("Usage: node scripts/serve.mjs [--root <dir>] [--port <n>] [--host <name>] [--spa] [--csp] [--not-found <file>]");
       process.exit(0);
     } else throw new Error(`Unknown argument: ${arg}`);
   }

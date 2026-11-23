@@ -1,6 +1,6 @@
 # Concept: the OpenFini website
 
-Status: **concept**, not built. A multi-page website for OpenFini, hosted on GitHub Pages, built from this repository
+Status: **in progress**. Tasks W1–W12 are built (see [Built so far](#built-so-far)); W13–W18 are open. A multi-page website for OpenFini, hosted on GitHub Pages, built from this repository
 (`/site`) and deployed by a GitHub Actions workflow. This page covers the information architecture, the visual
 direction, the technology decision, quality targets (performance, accessibility, SEO, English and German) and a build
 plan of small tasks.
@@ -244,6 +244,46 @@ Small tasks, each one pull request. Order matters for the first five; after W5 m
 | W18 | **Launch review**: design critique pass in both themes and languages on phone, tablet, desktop; fix list | Sign-off by the owner | S |
 
 Total: roughly 4–6 weeks of part-time work; W1–W5 and W12 give a useful, deployable site within the first week.
+
+## Built so far
+
+W1–W12 landed together. How to work on the site:
+
+```sh
+npm run site:build      # site/dist; release from the GitHub API, or site/data/release.json offline
+npm run site:serve      # http://localhost:4174 with the 404 page
+npm run site:shots      # regenerate site/assets/shots and the artwork variants (needs Chrome, Edge or Chromium)
+node site/build.mjs --offline --base /open-fini/   # as deployed, without network
+node site/build.mjs --update-snapshot              # refresh the committed release snapshot
+```
+
+- **Pages:** `/`, `/studios/`, one page per studio (the seven shipped ones plus Proto, marked *coming in 1.3.x*, with
+  the release artwork in place of a screenshot), `/features/`, `/download/`, all mirrored under `/de/`; `/404.html`
+  and an unlinked `/styleguide/` (`noindex`). Docs, changelog, roadmap, community, press and privacy pages are not
+  built yet; the header and footer link to the Markdown sources on GitHub until then.
+- **Build:** `site/build.mjs` renders `site/content/**/*.{en,de}.md` (front matter, body split at `## ` headings with
+  optional `{id icon}` suffixes) with the app's `renderMarkdown`, wraps them with the template functions in
+  `site/templates/`, writes an SVG sprite (studio icons from `app/assets/icons`, Bootstrap icons from the vendored
+  set), copies Inter from `app/vendor/fonts`, writes `sitemap.xml` with `hreflang` alternates and `robots.txt`, and
+  **fails on a broken internal link**. `--strict` (used in CI) fails on a missing template string.
+- **Facts on the pages are read, not typed:** installer size from the release, first contentful paint from
+  `docs/performance.md`, "New in X.Y" from the release's `CHANGELOG.md` section, the version from the release (or
+  `package.json`).
+- **Fonts:** the display face is a system book face (Palatino Linotype, Palatino, URW P052, Georgia as fallback) instead
+  of a self-hosted Fraunces or Instrument Serif, so no font had to be added; switching to a vendored, subset display
+  font is part of W18 if the owner wants it. Body text uses the app's vendored Inter.
+- **Screenshots (W6):** `scripts/site-shots.mjs` serves `app/`, starts a headless Chromium-based browser and drives
+  it over the DevTools Protocol with Node's built-in WebSocket (zero dependencies, no Playwright). Each studio scene is
+  built with the app's own start screens, templates and Vibe tools (`vibe/tools`), so every shot shows what the app
+  really does; light and dark, 1x and 2x, as WebP (Chromium cannot encode AVIF). It also writes the 800 and 1600 px
+  artwork variants. Re-run it for every release. Proto has no screenshot until it ships.
+- **Download:** `site/assets/js/platforms.js` holds the asset patterns and the OS/architecture mapping (unit tests in
+  `tests/site/platforms.test.js`). The page is complete without JavaScript (build-time table with SHA-256 from
+  `SHA256SUMS.txt`, which `release.yml` already publishes); `site.js` picks the primary button and refreshes from the
+  API (cached for an hour) when a newer release exists.
+- **Deploy:** `.github/workflows/pages.yml` builds on pull requests (no deploy) and deploys from `main` and on
+  `release: published` only when Pages is enabled with the source *GitHub Actions*; otherwise it posts a notice and
+  skips the deploy.
 
 ## Open questions
 
