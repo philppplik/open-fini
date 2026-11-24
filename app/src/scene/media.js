@@ -9,9 +9,11 @@
 //     store.audio(mediaId)               → Promise<AudioBuffer|null>         decoded once, cached
 //     store.peaks(mediaId)               → Promise<{ rate, data: Float32Array }|null>   waveform (100 values / s)
 //     store.thumb(mediaId, time, h)      → canvas | null (returns null and calls onReady when it becomes available)
+//     store.prune(liveClipIds), store.forget(mediaId), store.destroy()     release what is no longer needed
 // Invariants: a source that is not ready returns null (the compositor skips the layer) and onReady() is called when
 // it is, so the viewer repaints; object URLs are revoked by destroy(); decoding never blocks the UI thread longer
-// than one frame (elements and the browser's decoders do the work).
+// than one frame (elements and the browser's decoders do the work). An item without bytes (referenced media that
+// is offline or not read yet, scene/media-refs.js) is treated as not ready, and nothing is cached for it.
 
 const VIDEO_EXT = /\.(mp4|m4v|mov|webm|mkv|ogv)$/i;
 const AUDIO_EXT = /\.(mp3|wav|m4a|aac|ogg|oga|opus|flac|weba)$/i;
@@ -214,6 +216,7 @@ export function createMediaStore(getModel, onReady = () => {}) {
   function audio(id) {
     if (buffers.has(id)) return buffers.get(id);
     const md = getModel().media[id];
+    if (md && !md.bytes) return Promise.resolve(null); // referenced media not read yet (or offline): try again later
     const p = (async () => {
       if (!md?.bytes || md.kind === "image" || md.bytes.length > 600e6) return null;
       try {
@@ -228,6 +231,7 @@ export function createMediaStore(getModel, onReady = () => {}) {
   }
 
   function peaks(id) {
+    if (getModel().media[id] && !getModel().media[id].bytes) return Promise.resolve(null);
     if (!peakCache.has(id)) {
       peakCache.set(id, audio(id).then((buf) => {
         if (!buf) return null;
@@ -275,6 +279,24 @@ export function createMediaStore(getModel, onReady = () => {}) {
     return null;
   }
 
+  function release(id) {
+    const x = exact.get(id);
+    if (x) {
+      x.el.pause();
+      x.el.removeAttribute("src");
+      x.el.load();
+      exact.delete(id);
+    }
+    const b = images.get(id);
+    if (b && typeof b !== "string") b.close?.();
+    images.delete(id);
+    if (urls.has(id)) URL.revokeObjectURL(urls.get(id));
+    urls.delete(id);
+    buffers.delete(id);
+    peakCache.delete(id);
+    for (const k of thumbs.keys()) if (k.startsWith(`${id}@`)) thumbs.delete(k);
+  }
+
   return {
     source(id, time, clip) {
       const md = getModel().media[id];
@@ -302,24 +324,18 @@ export function createMediaStore(getModel, onReady = () => {}) {
         }
       }
       const media = getModel()?.media || {};
-      for (const id of new Set([...urls.keys(), ...images.keys(), ...exact.keys(), ...buffers.keys(), ...peakCache.keys()])) {
-        if (media[id]) continue;
-        const x = exact.get(id);
-        if (x) {
-          x.el.pause();
-          x.el.removeAttribute("src");
-          x.el.load();
-          exact.delete(id);
-        }
-        const b = images.get(id);
-        if (b && typeof b !== "string") b.close?.();
-        images.delete(id);
-        if (urls.has(id)) URL.revokeObjectURL(urls.get(id));
-        urls.delete(id);
-        buffers.delete(id);
-        peakCache.delete(id);
-        for (const k of thumbs.keys()) if (k.startsWith(`${id}@`)) thumbs.delete(k);
+      for (const id of new Set([...urls.keys(), ...images.keys(), ...exact.keys(), ...buffers.keys(), ...peakCache.keys()])) if (!media[id]) release(id);
+    },
+    /** Drops everything held for one media item (its file changed: Relink); it loads again on demand. */
+    forget(id) {
+      for (const [key, v] of videos) {
+        if (v.media !== id) continue;
+        v.el.pause();
+        v.el.removeAttribute("src");
+        v.el.load();
+        videos.delete(key);
       }
+      release(id);
     },
     frameAt,
     audio,

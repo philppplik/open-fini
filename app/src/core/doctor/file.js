@@ -558,6 +558,7 @@ function analyze(bytes, { name = "document.ofini", limits = DOCTOR_LIMITS, apply
   if (office) {
     const media = isObj(office.media) ? office.media : {};
     for (const [mid, m] of Object.entries(media)) {
+      if (isObj(m) && m.file === undefined && typeof m.path === "string" && m.path) continue; // referenced Scene media: the file is outside the document
       if (!isObj(m) || typeof m.file !== "string" || !safeEntryName(m.file) || !E[m.file]) {
         const f = add("office-media-missing", "warning", N_("The media file “{file}” is listed but missing."), { file: String(m?.name || m?.file || mid).slice(0, 120) }, "office");
         if (fixNow(f)) delete media[mid], (st.jsonDirty = true);

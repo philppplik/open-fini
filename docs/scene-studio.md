@@ -230,6 +230,35 @@ graph offline.
 sequence as `.srt` or `.vtt`. Caption clips are text clips with a flag, so they are burned into the exported
 picture and can be styled like any text (`scene/captions.js`: four styles, words → cues).
 
+## Referenced media
+
+In the **desktop app**, imported video and sound files are **referenced**: the project stores the file's path, its
+size and a fingerprint (SHA-256 over the size and the first and last MiB), not the bytes. A project with 2 GB of
+footage saves as a file of a few kilobytes, and saving, autosave and versions stay fast. Pictures, captions and
+everything imported in the browser are still embedded (the browser cannot read a file by its path again).
+
+When the scene opens, OpenFini reads each file back. It looks at the stored path first, then relative to the
+project (when the project and the footage moved together), then next to the project, in a `<project> Media` folder
+and in a `Media` folder there. A file that is found somewhere else is used (its new path is saved next time); a file
+whose size or fingerprint differs is **not** used silently.
+
+Media that cannot be read is **offline**: the Media panel shows the item in italics with *Offline* (or *Changed*), a
+bar with the number of offline files, and its clips stay on the timeline but are not drawn, heard or exported (the
+export warns). To bring it back:
+
+| Action | Where | What it does |
+| --- | --- | --- |
+| **Relink…** | The *Offline* button of an item in the Media panel | Pick the file (any file of the same kind; clips that would read past a shorter file are shortened). One undo step. |
+| **Find Missing Media…** | The offline bar, *Sequence ▸ Find Missing Media…* | Desktop: choose a folder; every offline file found below it (by name and size, checked by fingerprint) is used. Browser: pick the files; matches are embedded. |
+| **Embed Media in Project** | *Sequence ▸ Embed Media in Project* | Collect media: the referenced files are stored inside the `.ofini` file from now on (it grows by their size). One undo step. |
+| **Save Project with Media…** | *Sequence ▸ Save Project with Media…* (desktop) | Choose a folder: the project and copies of its referenced files are saved there (existing files are not overwritten; names get " (2)"), and the project points at the copies, so the folder can be moved or handed on as a whole. |
+
+Copies that leave the computer always carry their media: *Share a copy* and *Share as linked live document* embed
+referenced files (and drop the paths). After a restart the desktop app may read files by path only in Desktop,
+Documents, Downloads, Pictures, Videos and Music (its file access scope); footage elsewhere (another drive) is
+offline until you relink it or choose its folder with *Find Missing Media…*, once per session. Older OpenFini
+versions (before scene format 4) drop referenced items when they open such a project: embed the media first.
+
 ## Formats
 
 Import uses the browser's decoders, export uses WebCodecs. What works depends on the engine:
@@ -262,16 +291,17 @@ containers (MP4: `ftyp`, `mdat`, `moov` with one sample per chunk; WebM: cluster
 ## Data model
 
 Stored as the document's project of kind `"scene"` ([file-format.md](file-format.md)): the model in
-`document.json ▸ office`, media bytes in `office/scene/media/<id>.<ext>`.
+`document.json ▸ office`, media bytes in `office/scene/media/<id>.<ext>`, or, for [referenced media](#referenced-media)
+(format 4), `path`, `size`, `hash` and `rel` on the media item and no archive entry.
 
 ```
-{ version: 2, title, width, height, fps, background,
+{ version: 4, title, width, height, fps, background,
   tracks:  [{ id, kind: "video" | "audio", name, muted, hidden, locked }],   // top first
   clips:   { <id>: Clip },
   markers: [{ id, t, name, color }],
   range:   { in, out } | null,
   comps:   { <id>: { id, name, width, height, tracks, clips, markers } },    // clips may use other comps
-  media:   { <id>: { id, kind, mime, name, duration, w, h, hasAudio, bytes } },
+  media:   { <id>: { id, kind, mime, name, duration, w, h, hasAudio, bytes | path, size, hash } },
   analysis: { <mediaId>: { transcript, shots, silence, beats, loudness, notes } } }   // source seconds; see Assistant
 
 Clip { id, track, type: video | audio | image | text | shape | solid | adjustment | comp, name,
@@ -473,6 +503,7 @@ the logic on the first call.
 | `scene/model.js`, `scene/keyframes.js`, `scene/evaluate.js` | Pure model, animation and frame evaluation |
 | `scene/render.js`, `scene/gl.js`, `scene/effects.js` | Compositor, WebGL pass, effect registry |
 | `scene/media.js`, `scene/audio.js`, `scene/frames.js` | Media store, audio engine, exact frames |
+| `scene/media-refs.js` | Referenced media: fingerprint, where to look for a file, reading it back, folder matching (pure apart from the injected reader) |
 | `scene/export.js`, `scene/mux.js`, `scene/gif.js`, `scene/export-dialog.js` | Export, containers, GIF, dialog |
 | `scene/captions.js` | SRT / VTT, captions |
 | `scene/analysis.js`, `scene/ai-ops.js`, `scene/ai-auto.js`, `scene/motion.js` | Assistant: analysis algorithms, editing operations, transcript-driven edits, motion presets (pure) |
@@ -500,7 +531,9 @@ the logic on the first call.
 - In the viewer, a composition used twice at the same moment shares one video player per clip during playback (the
   export is exact); with *collapse transformations* the nested layers' blend modes apply inside the composition's
   result, not against the layers below it.
-- Media is embedded in the `.ofini` file (large files); referenced media is planned for the desktop app.
+- Referenced media is desktop-only (the browser embeds); after a restart files outside the common user folders need
+  *Find Missing Media…* once per session. Older versions drop referenced items (embed the media before handing a
+  project to someone on an older version).
 - Editing together (collaboration, *Share as linked live document*): clips, tracks, markers, compositions and the
   sequence settings are records of `scene/collab.js` (last writer wins per clip; two people editing different clips
   merge); media travels as chunk records and appears for the others when it has arrived, which takes a while for

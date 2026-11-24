@@ -24,7 +24,7 @@ test("format 3: nested keyframes, anchor point and flags survive normalization a
   m = M.addClip(m, { id: "t1", type: "text", start: 0, dur: 2, text: { text: "Hi", size: { kf: [{ t: 0, v: 40 }, { t: 2, v: 80 }] }, color: { kf: [{ t: 0, v: "#000000" }, { t: 2, v: "#ffffff" }] } }, ax: { kf: [{ t: 0, v: 0 }, { t: 2, v: 10 }] }, label: "#ff0000", off: false }).model;
   m = M.addClip(m, { id: "s1", type: "shape", start: 0, dur: 2, shape: { w: { kf: [{ t: 0, v: 100 }, { t: 1, v: 300 }] } }, crop: { l: { kf: [{ t: 0, v: 0 }, { t: 2, v: 0.5 }] } }, mask: { shape: "rect", feather: { kf: [{ t: 0, v: 0 }, { t: 2, v: 20 }] } } }).model;
   const n = M.normalizeScene(JSON.parse(JSON.stringify(m)));
-  assert.equal(n.version, 3);
+  assert.equal(n.version, 4);
   assert.ok(K.isTrack(n.clips.t1.text.size) && K.isTrack(n.clips.t1.text.color) && K.isTrack(n.clips.t1.ax));
   assert.equal(n.clips.t1.label, "#ff0000");
   assert.deepEqual(M.animatedPaths(n.clips.s1).sort(), ["crop.l", "mask.feather", "shape.w"]);

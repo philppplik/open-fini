@@ -22,6 +22,7 @@ import { isTrack, valueAt } from "./keyframes.js";
 import { sourceTime } from "./evaluate.js";
 import { createCompositor, textSize } from "./render.js";
 import { createMediaStore, probeMedia, mediaKind } from "./media.js";
+import { fingerprint, isOffline, isReferenced, resolveMedia, matchFolder, sameFile, baseName, joinPath } from "./media-refs.js";
 import { createAudioEngine } from "./audio.js";
 import { createTimeline } from "./timeline.js";
 import { createInspector } from "./inspector.js";
@@ -94,6 +95,45 @@ export function mountScene(host, doc, app) {
   };
   const store = createMediaStore(rootModel, () => requestDraw());
   const audio = createAudioEngine(store);
+
+  // Referenced media (scene/media-refs.js): on the desktop, imported video and sound files stay where they are and
+  // the project stores their paths; their bytes are read when the scene opens. `refs.busy` while that runs,
+  // `refs.changed` = items whose file exists but is not the same file any more.
+  const refs = { busy: false, changed: new Set() };
+  async function referTo(item, f) {
+    if (!f.path || !platform.isDesktop || !platform.readFile || item.kind === "image") return item;
+    return Object.assign(item, { path: f.path, size: f.bytes.length, hash: await fingerprint(f.bytes) });
+  }
+  function mediaFound() {
+    peaks.clear();
+    binKey = "";
+    requestDraw();
+  }
+  const offlineToast = (n) => app.toast(t("{n, plural, one {# media file is} other {# media files are}} offline. Relink them in the Media panel.", { n }), "warning", 6000);
+  async function resolveRefs() {
+    const offline = Object.values(rootModel().media).filter(isOffline).length;
+    if (!offline) return;
+    if (!platform.readFile) {
+      // the browser cannot read files by path: the media of a desktop project has to be picked again
+      offlineToast(offline);
+      binKey = "";
+      requestDraw();
+      return;
+    }
+    refs.busy = true;
+    binKey = "";
+    requestDraw();
+    try {
+      const res = await resolveMedia(rootModel(), { docPath: doc.path, read: (p) => platform.readFile(p) });
+      for (const id of res.changed) refs.changed.add(id);
+      if (res.moved.length) doc.saved = false; // found next to the project: the new paths are written with the next save
+      const left = res.missing.length + res.changed.length;
+      if (left && !destroyed) offlineToast(left);
+    } finally {
+      refs.busy = false;
+      if (!destroyed) mediaFound();
+    }
+  }
   const compositor = createCompositor({ provider: store });
 
   // ------------------------------------------------------------------------------------------- DOM
@@ -129,6 +169,7 @@ export function mountScene(host, doc, app) {
   const viewer = h("div.of-scene-view", stage, transport);
 
   const binList = h("div.of-scene-bin__list", { role: "list" });
+  const offlineBar = h("div.of-scene-bin__offline", { role: "status", hidden: true });
   const compBar = h("div.of-scene-bin__comp");
   const addBtn = (icon, label, fn) => {
     const b = h("button.of-scene-bin__add", { type: "button" }, h("sl-icon", { name: icon }), h("span", t(label)));
@@ -137,6 +178,7 @@ export function mountScene(host, doc, app) {
   };
   const mediaPane = h("div.of-scene-bin__pane",
     h("div.of-scene-bin__head", h("h3", t("Media")), ibtn("plus-lg", "Import media…", () => api.importDialog())),
+    offlineBar,
     binList,
     h("div.of-scene-bin__adds",
       addBtn("fonts", "Text", () => api.addText()),
@@ -573,6 +615,7 @@ export function mountScene(host, doc, app) {
           }
           if (!mediaKind(f.name, f.mime)) throw new Error(t("“{name}” is not a video, audio or image file.", { name: f.name }));
           const item = await probeMedia(f.bytes, f.name, f.mime);
+          await referTo(item, f);
           const r = M.addMedia(model(), item);
           let next = r.model;
           if (place) next = M.placeMedia(next, r.id, { start: M.duration(next) }).model;
@@ -584,6 +627,134 @@ export function mountScene(host, doc, app) {
       }
       if (ids.length) live.textContent = t("{n} media files imported.", { n: ids.length });
       return ids;
+    },
+    // ---- referenced media (docs/scene-studio.md ▸ Referenced media)
+    /** Points one media item at another file (undoable); on the desktop the file stays referenced. */
+    async relink(id) {
+      const md = rootModel().media[id];
+      if (!md) return;
+      const ext = md.kind === "video" ? ["mp4", "m4v", "mov", "webm", "mkv", "ogv"] : md.kind === "audio" ? ["mp3", "wav", "m4a", "aac", "ogg", "oga", "opus", "flac", "weba"] : ["png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "bmp"];
+      const [f] = await platform.openFiles({ accept: [{ description: md.name, extensions: ext }], multiple: false }).catch(() => []);
+      if (!f) return;
+      try {
+        const item = await probeMedia(f.bytes, f.name, f.mime);
+        await referTo(item, f);
+        api.commit("Relink Media", M.relinkMedia(rootModel(), id, item));
+        refs.changed.delete(id);
+        store.forget(id); // the players, pictures and sound of the old file
+        peaks.delete(id);
+        binKey = "";
+        app.toast(t("“{name}” is linked to {file}.", { name: md.name, file: f.name }), "success", 2500);
+      } catch (err) {
+        app.toast(t("“{name}” could not be relinked: {message}", { name: md.name, message: err.message }), "danger", 6000);
+      }
+    },
+    /** Looks for the offline files in a folder (desktop: by name and size, checked by fingerprint) or among picked files. */
+    async findMissing() {
+      const offline = Object.values(rootModel().media).filter(isOffline);
+      if (!offline.length) return;
+      let hits = [];
+      if (platform.isDesktop && platform.pickFolder && platform.listFiles) {
+        const dir = await platform.pickFolder().catch(() => null);
+        if (!dir) return;
+        app.status?.(t("Looking for media…"));
+        try {
+          hits = matchFolder(rootModel(), await platform.listFiles(dir));
+        } finally {
+          app.status?.("");
+        }
+        let n = 0;
+        for (const { id, path } of hits) {
+          const md = rootModel().media[id];
+          const bytes = await platform.readFile(path).catch(() => null);
+          if (!bytes || !(await sameFile(md, bytes))) continue;
+          md.bytes = bytes; // in place, like the automatic lookup when the scene opens (every undo state shares the item)
+          md.path = path;
+          refs.changed.delete(id);
+          n++;
+        }
+        if (n) doc.saved = false; // the new paths are written with the next save
+        mediaFound();
+        const left = offline.length - n;
+        app.toast(left ? t("Found {n} of {total} offline files. Relink the others one by one.", { n, total: offline.length }) : t("All offline media was found."), left ? "warning" : "success", 5000);
+        return;
+      }
+      // the browser has no paths: pick the files; a match by name is embedded (one undo step)
+      const files = await platform.openFiles({ accept: [{ description: "Media", extensions: ["mp4", "m4v", "mov", "webm", "mkv", "ogv", "mp3", "wav", "m4a", "aac", "ogg", "oga", "opus", "flac", "weba"] }], multiple: true }).catch(() => []);
+      let next = rootModel();
+      for (const f of files) {
+        const md = offline.find((x) => baseName(x.path).toLowerCase() === f.name.toLowerCase());
+        if (!md || !(await sameFile(md, f.bytes))) continue;
+        next = M.relinkMedia(next, md.id, { ...(await probeMedia(f.bytes, f.name, f.mime)) });
+      }
+      if (next !== rootModel()) {
+        api.commit("Relink Media", next);
+        mediaFound();
+      }
+      const left = Object.values(rootModel().media).filter(isOffline).length;
+      if (files.length) app.toast(left ? t("{n} media files are still offline.", { n: left }) : t("All offline media was found."), left ? "warning" : "success", 4000);
+    },
+    /** Collect media: stores the referenced files inside the project (one undo step; the file grows). */
+    collectMedia() {
+      const m = rootModel();
+      const next = M.embedMedia(m);
+      if (next === m) return;
+      let bytes = 0;
+      for (const x of Object.values(m.media)) if (isReferenced(x) && x.bytes) bytes += x.bytes.length;
+      api.commit("Embed Media in Project", next);
+      app.toast(t("The media is now stored in the project ({size} MB more when saved).", { size: Math.round(bytes / 1048576) }), "success", 4000);
+    },
+    get canSaveWithMedia() {
+      return platform.isDesktop && !!platform.pickFolder && !!platform.listFiles;
+    },
+    /**
+     * Save Project with Media (desktop): copies every referenced file into a folder, saves the project there and
+     * points the media at the copies, so the folder can be moved or handed on as a whole.
+     */
+    async saveWithMedia() {
+      if (!api.canSaveWithMedia) return;
+      const ok = await confirmDialog({ title: t("Save Project with Media"), message: t("Choose a folder (best an empty one). The project and copies of its referenced media files are saved there; existing files are not overwritten."), ok: t("Choose Folder…"), cancel: t("Cancel") });
+      if (!ok) return;
+      const dir = await platform.pickFolder().catch(() => null);
+      if (!dir) return;
+      const taken = new Set((await platform.listFiles(dir, { maxDepth: 0 }).catch(() => [])).map((f) => baseName(f.path).toLowerCase()));
+      const free = (name) => {
+        const dot = name.lastIndexOf(".");
+        const stem = dot > 0 ? name.slice(0, dot) : name;
+        const ext = dot > 0 ? name.slice(dot) : "";
+        let n = name;
+        for (let i = 2; taken.has(n.toLowerCase()); i++) n = `${stem} (${i})${ext}`;
+        taken.add(n.toLowerCase());
+        return n;
+      };
+      const projectName = free(`${String(doc.name || "Scene").replace(/[\\/:*?"<>|]+/g, "_")}.ofini`);
+      let m = rootModel();
+      const media = { ...m.media };
+      try {
+        app.status?.(t("Copying media…"));
+        for (const x of Object.values(m.media)) {
+          if (!isReferenced(x) || !x.bytes) continue;
+          const target = joinPath(dir, free(baseName(x.path) || `${x.id}`));
+          await platform.saveFileTo(target, x.bytes);
+          media[x.id] = { ...x, path: target };
+        }
+        m = { ...m, media };
+        api.commit("Save Project with Media", m);
+        const { saveOfini } = await import("../core/ofini.js");
+        const target = joinPath(dir, projectName);
+        doc.path = target;
+        const bytes = await saveOfini(doc);
+        await platform.saveFileTo(target, bytes);
+        doc.name = projectName.replace(/\.ofini$/i, "");
+        doc.saved = true;
+        app.emit("saved");
+        app.emit("docchange", {});
+        app.toast(t("Saved {name} with its media in {folder}.", { name: projectName, folder: baseName(dir) || dir }), "success", 4000);
+      } catch (err) {
+        app.toast(t("The project could not be saved with its media: {message}", { message: err.message }), "danger", 8000);
+      } finally {
+        app.status?.("");
+      }
     },
     /** A frame of the sequence on a fresh canvas with exactly seeked sources (thumbnails, tools, export preview). */
     async frame(time = state.t, scale = 1, opts = {}) {
@@ -674,14 +845,24 @@ export function mountScene(host, doc, app) {
   let binKey = "";
   function renderBin() {
     const m = model();
-    const key = Object.values(m.media).map((x) => x.id + x.name).join("|") + "#" + Object.values(m.comps).map((k) => `${k.id}${k.name}${M.duration(k)}${k.id === state.seq}`).join("|");
+    const key = Object.values(m.media).map((x) => x.id + x.name + (isOffline(x) ? "!" : "") + (x.path || "")).join("|") + refs.busy + "#" + Object.values(m.comps).map((k) => `${k.id}${k.name}${M.duration(k)}${k.id === state.seq}`).join("|");
     if (key === binKey) return;
     binKey = key;
     renderComps(m);
     const items = Object.values(m.media);
+    const offline = items.filter(isOffline);
+    offlineBar.hidden = !offline.length;
+    if (offline.length) {
+      const find = h("button.of-scene-bin__add", { type: "button" }, h("sl-icon", { name: "search" }), h("span", t("Find Missing Media…")));
+      find.addEventListener("click", () => api.findMissing());
+      offlineBar.replaceChildren(h("sl-icon", { name: refs.busy ? "hourglass-split" : "exclamation-triangle" }),
+        h("span", refs.busy ? t("Reading linked media…") : t("{n, plural, one {# file is} other {# files are}} offline.", { n: offline.length })),
+        refs.busy ? "" : find);
+    }
     binList.replaceChildren(...(items.length ? items.map((x) => {
-      const thumb = h("span.of-scene-bin__thumb", h("sl-icon", { name: x.kind === "audio" ? "music-note-beamed" : x.kind === "image" ? "image" : "file-earmark-play" }));
-      if (x.kind !== "audio") {
+      const off = isOffline(x);
+      const thumb = h("span.of-scene-bin__thumb", h("sl-icon", { name: off ? "link-45deg" : x.kind === "audio" ? "music-note-beamed" : x.kind === "image" ? "image" : "file-earmark-play" }));
+      if (x.kind !== "audio" && !off) {
         const paint = () => {
           const c = store.thumb(x.id, Math.min(1, x.duration / 2 || 0), 40);
           if (c) thumb.replaceChildren(Object.assign(h("img", { alt: "" }), { src: c.toDataURL("image/jpeg", 0.7) }));
@@ -694,8 +875,17 @@ export function mountScene(host, doc, app) {
         e.stopPropagation();
         api.commit("Remove Media", M.removeMedia(rootModel(), x.id));
       });
-      const el = h("div.of-scene-bin__item", { role: "listitem", draggable: "true", tabindex: "0", title: t("Drag to the timeline, or double-click to add at the playhead") },
-        thumb, h("span.of-scene-bin__name", x.name), h("span.of-scene-bin__dur", x.duration ? M.timecode(m, x.duration).slice(3, 8) : ""), del);
+      const status = off ? (refs.busy ? t("Reading…") : refs.changed.has(x.id) ? t("Changed") : t("Offline")) : "";
+      const relink = h("button.of-scene-bin__relink", { type: "button", title: t("Relink…"), "aria-label": t("Relink “{name}”…", { name: x.name }) }, h("sl-icon", { name: "link-45deg" }), h("span", status));
+      relink.addEventListener("click", (e) => {
+        e.stopPropagation();
+        api.relink(x.id);
+      });
+      const tip = off
+        ? t("{path} is offline (moved, renamed, changed or not readable). Relink it to show its clips again.", { path: x.path })
+        : isReferenced(x) ? t("Linked file: {path}. Drag to the timeline, or double-click to add at the playhead.", { path: x.path }) : t("Drag to the timeline, or double-click to add at the playhead");
+      const el = h(`div.of-scene-bin__item${off ? ".is-offline" : ""}`, { role: "listitem", draggable: "true", tabindex: "0", title: tip },
+        thumb, h("span.of-scene-bin__name", x.name), off && !refs.busy ? relink : h("span.of-scene-bin__dur", off ? status : x.duration ? M.timecode(m, x.duration).slice(3, 8) : ""), del);
       el.addEventListener("dragstart", (e) => {
         e.dataTransfer.setData("application/x-ofini-scene-media", x.id);
         e.dataTransfer.effectAllowed = "copy";
@@ -1223,6 +1413,7 @@ export function mountScene(host, doc, app) {
 
   import("../commands/scene.js").then((m) => m.registerSceneCommands(app)).catch(() => {});
   import("./ai-menu.js").then((m) => m.installSceneAiMenu(stage, timeline.el)).catch(() => {});
+  resolveRefs().catch((err) => app.toast(err.message, "danger", 6000));
   requestAnimationFrame(() => {
     if (M.duration(model()) > 0) timeline.fit();
     requestDraw();

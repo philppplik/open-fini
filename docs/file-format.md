@@ -99,10 +99,19 @@ an app for a kind keeps the object unchanged and saves it back as it was.
 
 
 **Scenes.** A Scene Studio document uses the same container with `"kind": "scene"` (its `studio` is `"scene"`):
-the model (version 2: keyframe tangents and nested compositions, both optional, so version 1 files load unchanged)
-is described in [scene-studio.md](scene-studio.md#data-model), and each media item additionally carries
+the model (version 2: keyframe tangents and nested compositions; version 3: anchor points, nested keyframes, time
+remapping of video; version 4: referenced media; every addition optional, so older files load unchanged) is
+described in [scene-studio.md](scene-studio.md#data-model), and each media item additionally carries
 `kind` (`video`, `audio`, `image`), `duration` (seconds) and `hasAudio`; its bytes are stored under
 `office/scene/media/<id>.<ext>`.
+
+*Referenced media* (scene version 4, written by the desktop app, [scene-studio.md](scene-studio.md#referenced-media)):
+a media item without `file` carries `path` (absolute path of the file), `size` (bytes), `hash` (`"fp1:"` + SHA-256
+hex of the size as text, a colon and the first and last MiB) and, when the project was saved to a path on the same
+drive, `rel` (path relative to the `.ofini` file's folder, `/`-separated). There is no archive entry for it. Readers
+keep such an item without bytes and look for the file; copies written for other people (`saveOfini(doc, {
+embedMedia: true })`) store the bytes as usual and drop these fields. No document format bump: OpenFini before
+scene version 4 drops the item and its clips when it opens such a file. The File Doctor accepts referenced items.
 
 A document created in or opened by the Office Studio has an `"office"` object in `document.json` (its `studio` is
 `"office"`; the design `pages` hold one empty page used for the thumbnail). It is the word-processing model of

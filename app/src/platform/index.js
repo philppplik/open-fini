@@ -49,6 +49,11 @@ import { platform as webPlatform } from "./web.js";
  * @property {(path: string, options?: object) => Promise<{ name: string, files: { path: string, bytes: Uint8Array }[], stats: object }>} [readFolder]
  *   Desktop only: reads a folder into memory with ignore rules and size caps (platform/folder-scan.js).
  *   onOpenFiles may also deliver `{ isDir: true, name, path }` items (no bytes) for folders the OS opened.
+ * @property {(path: string) => Promise<Uint8Array>} [readFile]
+ *   Desktop only: the bytes of a file by its path (Scene referenced media). Paths outside the common user folders
+ *   must have been picked in a dialog in this session.
+ * @property {(path: string, options?: { maxDepth?: number, maxFiles?: number }) => Promise<{ path: string, size: number }[]>} [listFiles]
+ *   Desktop only: the files below a folder with their sizes, without reading them.
  * @property {() => Promise<Blob | null>} clipboardReadImage
  *   An image from the system clipboard as a Blob, or null.
  * @property {(blob: Blob) => Promise<void>} clipboardWriteImage
