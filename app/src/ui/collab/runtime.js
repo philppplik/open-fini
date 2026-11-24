@@ -29,6 +29,7 @@ import { createTransport } from "../../collab/transport.js";
 import { getComments, colorFor as hostColorFor } from "./comments-host.js";
 import { createVersionStore } from "../../collab/versions.js";
 import { createThrottle, followTarget } from "../../collab/presence.js";
+import { protoPresence, followCamera } from "../../proto/presence.js";
 import { cleanText, LIMITS, canDo } from "../../collab/protocol.js";
 import { randomB64u } from "../../collab/crypto.js";
 import { canShareLive } from "../../core/live-kinds.js";
@@ -367,8 +368,27 @@ class CollabController {
       app.cv.stage.addEventListener("wheel", () => this.followId && this.follow(null, true), { passive: true });
       app.cv.stage.addEventListener("pointerdown", () => this.followId && this.follow(null, true));
     };
+    // the Proto canvas (proto/workspace.js) has its own stage, camera and selection: pointer in world units
+    const protoSeen = new WeakSet();
+    const attachProto = () => {
+      const ws = app.protoUI;
+      const stage = ws?.view?.stage;
+      if (!stage || protoSeen.has(ws)) return;
+      protoSeen.add(ws);
+      stage.addEventListener("pointermove", (e) => {
+        if (!this.session) return;
+        const r = stage.getBoundingClientRect();
+        this.protoPointer = { ws, ...ws.toWorld(e.clientX - r.left, e.clientY - r.top) };
+        this.sendPresence();
+      }, { passive: true });
+      stage.addEventListener("wheel", () => this.followId && this.follow(null, true), { passive: true });
+      stage.addEventListener("pointerdown", () => this.followId && this.follow(null, true));
+      for (const ev of ["selection", "camera", "page"]) ws.on(ev, () => this.sendPresence());
+    };
     attach();
+    attachProto();
     for (const ev of ["selection", "page", "studio", "tool", "doc", "view"]) app.on(ev, () => (attach(), this.sendPresence()));
+    app.on("protostatus", () => (attachProto(), this.sendPresence()));
     window.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && this.followId) this.follow(null, true);
     });
@@ -398,6 +418,9 @@ class CollabController {
       if (app.tool?.id) p.tool = String(app.tool.id).slice(0, 40);
       const v = app.view?.visibleRect?.();
       if (v && Number.isFinite(v.w)) p.view = { x: round(v.x), y: round(v.y), w: round(Math.max(0, v.w)), h: round(Math.max(0, v.h)) };
+    } else if (app.studio === "proto" && app.protoUI?.doc === doc && app.protoUI.view) {
+      const ws = app.protoUI;
+      Object.assign(p, protoPresence(ws, this.protoPointer?.ws === ws ? this.protoPointer : null));
     } else if (app.studio === "code" && app.codeUI?.editors?.view && app.codeUI.doc === doc) {
       const ed = app.codeUI.editors;
       const head = ed.view.state.selection.main.head;
@@ -503,6 +526,11 @@ class CollabController {
         app.emit("view");
         app.requestOverlay();
       }
+    } else if (app.studio === "proto" && p.studio === "proto" && app.protoUI?.doc === doc) {
+      const ws = app.protoUI;
+      if (p.page && p.page !== ws.page) ws.setPage(p.page);
+      const cam = followCamera(ws, p);
+      if (cam) ws.view.setCamera(cam);
     } else if (app.studio === "code" && p.caret?.path && app.codeUI?.editors) {
       const ed = app.codeUI.editors;
       try {
