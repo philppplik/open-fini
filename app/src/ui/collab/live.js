@@ -357,7 +357,7 @@ class LiveManager {
   #open(doc) {
     doc.saved = false;
     markUntrusted(this.app.prefs, doc);
-    this.app.setStudio(["pixel", "layout", "code", "office", "scene"].includes(doc.studio) ? doc.studio : "vector");
+    this.app.setStudio(["pixel", "layout", "code", "office", "scene", "proto"].includes(doc.studio) ? doc.studio : "vector");
     this.app.openDoc(doc);
     requestAnimationFrame(() => this.app.cv?.fitPage?.());
   }

@@ -82,8 +82,8 @@ function validMenus(v) {
 }
 // preset: arrangement id (ui/docking/presets.js); dock: docking layout, repaired by ui/docking/model.js normalize when shown; ws: workspace name
 const validPanelState = (s) => isObj(s) && Object.keys(s).every((k) => ["hidden", "side", "width", "preset", "dock", "ws"].includes(k)) && (s.preset === undefined || (typeof s.preset === "string" && /^[a-z-]{0,24}$/.test(s.preset))) && (s.dock === undefined || (isObj(s.dock) && JSON.stringify(s.dock).length <= 32768)) && (s.ws === undefined || (typeof s.ws === "string" && NAME_RE.test(s.ws))) && (s.hidden === undefined || strList(60)(s.hidden)) && (s.side === undefined || s.side === "left" || s.side === "right") && (s.width === undefined || s.width === null || (Number.isFinite(s.width) && s.width >= 220 && s.width <= 560));
-// layout keys: the studios, plus the Scene Studio and the Office apps (each app has its own panels and workspaces)
-const LAYOUT_KEYS = [...STUDIO_IDS, "scene", "office", "office:document", "office:slides", "office:board"];
+// layout keys: the studios, plus the Scene and Proto Studios and the Office apps (each app has its own panels and workspaces)
+const LAYOUT_KEYS = [...STUDIO_IDS, "scene", "proto", "office", "office:document", "office:slides", "office:board"];
 function validLayout(v) {
   return isObj(v) && Object.entries(v).every(([studio, s]) => LAYOUT_KEYS.includes(studio) && validPanelState(s));
 }

@@ -750,8 +750,9 @@ function duplicateOp(d, op) {
       n.id = map.get(x);
       if (x === src.id) {
         n.ord = ord;
-        if (typeof n.x === "number") n.x += dx;
-        if (typeof n.y === "number") n.y += dy;
+        // an omitted position is the default 0, so the offset applies to it as well
+        if (dx) n.x = (typeof n.x === "number" ? n.x : 0) + dx;
+        if (dy) n.y = (typeof n.y === "number" ? n.y : 0) + dy;
       } else n.parent = map.get(n.parent);
       d.put(n);
     }

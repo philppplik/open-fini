@@ -16,7 +16,7 @@ opening a file that is already open) brings that studio back in the same step, w
 workspace, and without losing the other studios' state. Example: a website project in the Code studio and a `.png` in
 the Pixel studio; going back to the website's tab switches to the Code studio, going to the photo switches to Pixel.
 
-- **Default:** a tab without a memory uses its natural studio: Office and Scene documents their studio, a website
+- **Default:** a tab without a memory uses its natural studio: Office, Scene and Proto documents their studio, a website
   project the Code studio, every other document the studio it was created in (an SVG Vector, an image Pixel).
 - **Choosing a studio by hand** (header button, Studio menu, `Alt+1` … `Alt+5`, command palette, the studio button's
   *Open studio*, the Vibe Canvas panel's *Open in …*) updates the active tab's memory, but only when that studio can
@@ -215,6 +215,12 @@ A video editor and motion design tool: a media bin, a viewer with transport, a p
 timeline with keyframes, effects, transitions, captions and export to MP4, WebM, GIF, PNG frames and WAV. Its
 workspace replaces the toolbox and dock. It is registered in `studios/scene.js` and starts in the *More* menu. See
 the [Scene Studio guide](scene-studio.md).
+
+## Proto studio (Labs)
+
+Application interface design on a canvas that is real HTML and CSS: frames, auto layout and grids, later components,
+variables, prototypes and code export. During the 1.3.x preview it exists only with *Settings ▸ Labs ▸ Proto Studio*;
+it is registered in `studios/proto.js` and starts in the *More* menu. See the [Proto Studio guide](proto-studio.md).
 
 ## Office studio
 

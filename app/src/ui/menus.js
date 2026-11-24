@@ -2,6 +2,7 @@
 import { h, prettyShortcut, empty } from "../core/util.js";
 import { OFFICE_MENUS } from "../studios/office.js";
 import { SCENE_MENUS } from "../studios/scene.js";
+import { PROTO_MENUS } from "../studios/proto.js";
 import { t } from "../i18n/index.js";
 import { menuVisible } from "./menubar-select.js";
 
@@ -93,6 +94,7 @@ export const MENUS = [
   },
   ...OFFICE_MENUS,
   ...SCENE_MENUS,
+  ...PROTO_MENUS,
   { label: "Window", studios: [...DESIGN, "code"], items: [{ dynamic: "dockPanels" }, "-", { label: "Workspace", dynamic: "workspaces" }] }, // ui/docking/view.js
   { label: "Studio", items: [{ dynamic: "studios" }, "-", "collab.open", "collab.addComment", "collab.saveVersion", "-", "ext.manage", { label: "Extension Commands", dynamic: "extCommands" }] },
   { label: "Help", items: ["help.palette", "help.tour", "help.studioTour", "help.whatsThis", "-", "help.shortcuts", "help.whatsNew", "help.docs", "help.website", "help.askOpenFini", "help.issues", "help.troubleshoot", "help.doctor", "help.security", "-", "help.checkUpdates", "help.about"] },

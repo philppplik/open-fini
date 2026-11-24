@@ -81,7 +81,7 @@ export async function syncOfficeSuite(app, area = lastArea) {
     if (doc?.office) app.officeHome = false;
   }
   let kind = officeKindOf(doc);
-  if (kind === "scene") kind = null; // scene documents belong to the Scene Studio (scene/host.js), not to an Office app
+  if (kind === "scene" || kind === "proto") kind = null; // Scene and Proto documents belong to their own studios (scene/host.js, proto/host.js)
   const my = ++token;
   if (!kind || app.officeHome) {
     app.officeUI?.deactivate?.();

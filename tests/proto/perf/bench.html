@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Proto renderer benchmark</title>
+    <!-- The browser half of the Proto performance targets (docs/concepts/proto-studio.md §4.3). Run it with
+         `node scripts/proto-perf.mjs` (headless Chromium), or serve the repository root and open this page by hand
+         (node scripts/serve.mjs --root . → /tests/proto/perf/bench.html) to watch it. -->
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; font: 12px system-ui, sans-serif; }
+      #host { position: absolute; inset: 0; }
+      .of-proto-stage { position: absolute; inset: 0; overflow: hidden; background: var(--of-proto-page, #f4f4f5); contain: strict; }
+      .of-proto-world { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; pointer-events: none; }
+      .of-proto-root { position: absolute; }
+      .of-proto-overlay { position: absolute; left: 0; top: 0; pointer-events: none; }
+      #out { position: absolute; right: 8px; bottom: 8px; max-width: 50%; padding: 8px; background: #fffd; white-space: pre-wrap; z-index: 2; }
+    </style>
+  </head>
+  <body>
+    <div id="host"></div>
+    <pre id="out">running…</pre>
+    <script type="module" src="./bench.js"></script>
+  </body>
+</html>

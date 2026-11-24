@@ -118,6 +118,7 @@ const defaultPrefs = () => ({
   updateSkipped: "", // version the user chose to skip in the update dialog
   collabNotify: true, // toast + title badge for @mentions and replies
   collabPins: true, // show comment pins and highlights on the canvas and in the editors
+  labsProto: false, // Settings ▸ Labs ▸ Proto Studio (studios/proto.js): the studio exists only while this is on
   // customization (customize/schema.js): fonts, shortcuts, toolbox, layout, workspaces, defaults
   ...customizationDefaults(),
 });

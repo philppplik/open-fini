@@ -22,7 +22,7 @@ async function openRepaired(app, bytes, name) {
   doc.name = t("{name} (repaired)", { name: (doc.name && doc.name !== "Untitled" ? doc.name : name).replace(/\.ofini$/i, "") });
   doc.path = null;
   doc.saved = false;
-  app.setStudio(["pixel", "layout", "code", "office", "scene"].includes(doc.studio) ? doc.studio : "vector");
+  app.setStudio(["pixel", "layout", "code", "office", "scene", "proto"].includes(doc.studio) ? doc.studio : "vector");
   app.openDoc(doc);
   requestAnimationFrame(() => app.cv?.fitPage?.());
   return doc;
