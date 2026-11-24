@@ -10,7 +10,8 @@
 //     comps: { <id>: { id, name, width, height, tracks, clips, markers } }   pre-compositions: the same shape as a
 //                                                    sequence; their clips may use other compositions (nesting) but
 //                                                    never themselves (cycles are refused and repaired on load)
-//     media: { <id>: { id, kind: "video"|"audio"|"image", mime, name, duration, w, h, hasAudio, bytes } },
+//     media: { <id>: { id, kind: "video"|"audio"|"image", mime, name, duration, w, h, hasAudio, bytes,
+//                      path?, size?, hash? } },   format 4: referenced file on the desktop (scene/media-refs.js)
 //     analysis: { <mediaId>: { transcript?, shots?, silence?, beats?, loudness? } }   see scene/analysis.js }
 // Clip
 //   { id, track, type: "video"|"audio"|"image"|"text"|"shape"|"solid"|"adjustment"|"comp", name,
@@ -42,12 +43,14 @@
 // Format history (normalizeScene migrates): 1 = first release; 2 = Bezier tangents on keyframes (i, o, b), the
 // bounce and elastic easings, nested compositions, remap and collapse on composition clips, sound of compositions;
 // 3 = anchor point (ax, ay), keyframes inside crop / mask / text / shape (NESTED_ANIMATABLE), time remapping of
-// video clips (reverse, freeze frames, speed ramps), clip label colors, links, disabled clips (off), track solo.
+// video clips (reverse, freeze frames, speed ramps), clip label colors, links, disabled clips (off), track solo;
+// 4 = referenced media (path, size, hash on a media item; its bytes are read from the file, not stored), reversed
+//     audio clips (rev: the source range plays backwards).
 // Every addition is optional, so a version 1 file loads unchanged and evaluates to the same frames.
 import { normBehaviors, normalizeParents } from "./rig.js";
 import { valueAt, isTrack, setKeyframe as kfSet, removeKeyframe as kfRemove, retime, normalizeValue, applyEasing, setTangents as kfTangents, tangentsOf, moveKeys, pasteKeys as kfPaste } from "./keyframes.js";
 
-export const SCENE_VERSION = 3;
+export const SCENE_VERSION = 4;
 export const CLIP_TYPES = ["video", "audio", "image", "text", "shape", "solid", "adjustment", "comp"];
 export const VISUAL_TYPES = ["video", "image", "text", "shape", "solid", "adjustment", "comp"];
 export const ANIMATABLE = ["x", "y", "sx", "sy", "rot", "opacity", "volume", "pan", "remap", "ax", "ay"];
@@ -342,6 +345,7 @@ export function normalizeClip(m, c) {
   if (typeof c.label === "string" && /^#[0-9a-f]{6}$/i.test(c.label)) out.label = c.label;
   if (isId(c.link)) out.link = c.link;
   if (c.off) out.off = true;
+  if (type === "audio" && c.rev) out.rev = true; // format 4: the source range plays backwards
   if (type !== "audio") {
     out.x = normalizeValue(c.x, m.width / 2);
     out.y = normalizeValue(c.y, m.height / 2);
@@ -416,7 +420,7 @@ export function normalizeScene(raw) {
   for (const [id, x] of Object.entries(raw?.media || {})) {
     if (!isId(id) || !x) continue;
     const kind = ["video", "audio", "image"].includes(x.kind) ? x.kind : /^video\//.test(x.mime) ? "video" : /^audio\//.test(x.mime) ? "audio" : "image";
-    media[id] = { id, kind, mime: String(x.mime || ""), name: String(x.name || ""), duration: Math.max(0, num(x.duration)), w: Math.max(0, num(x.w)), h: Math.max(0, num(x.h)), hasAudio: x.hasAudio ?? kind !== "image", ...(x.bytes ? { bytes: x.bytes } : {}) };
+    media[id] = { id, kind, mime: String(x.mime || ""), name: String(x.name || ""), duration: Math.max(0, num(x.duration)), w: Math.max(0, num(x.w)), h: Math.max(0, num(x.h)), hasAudio: x.hasAudio ?? kind !== "image", ...(x.bytes ? { bytes: x.bytes } : {}), ...refFields(x) };
   }
   const normSeq = (s, shell) => {
     const m = { ...shell, fps: base.fps, media };
@@ -1103,12 +1107,55 @@ export function setRange(m, a, b) {
   return { ...m, range: { in: snapT(m, a), out: snapT(m, b) } };
 }
 
-/** Adds a media item (probed by scene/media.js). */
+// format 4: where a referenced media item's file is (scene/media-refs.js); absent = the bytes are in the file
+function refFields(x) {
+  if (typeof x?.path !== "string" || !x.path || x.path.length > 4096) return {};
+  return { path: x.path, ...(Number.isFinite(+x.size) && +x.size > 0 ? { size: Math.round(+x.size) } : {}), ...(typeof x.hash === "string" && x.hash.length <= 80 ? { hash: x.hash } : {}), ...(typeof x.rel === "string" && x.rel.length <= 4096 ? { rel: x.rel } : {}) };
+}
+
+/** Adds a media item (probed by scene/media.js; with `path`, `size`, `hash` it references its file). */
 export function addMedia(m, item) {
   const id = isId(item.id) && !m.media[item.id] ? item.id : newId("md");
   const kind = ["video", "audio", "image"].includes(item.kind) ? item.kind : "image";
-  const md = { id, kind, mime: String(item.mime || ""), name: String(item.name || "Media").slice(0, 200), duration: Math.max(0, num(item.duration)), w: Math.max(0, num(item.w)), h: Math.max(0, num(item.h)), hasAudio: item.hasAudio ?? kind !== "image", ...(item.bytes ? { bytes: item.bytes } : {}) };
+  const md = { id, kind, mime: String(item.mime || ""), name: String(item.name || "Media").slice(0, 200), duration: Math.max(0, num(item.duration)), w: Math.max(0, num(item.w)), h: Math.max(0, num(item.h)), hasAudio: item.hasAudio ?? kind !== "image", ...(item.bytes ? { bytes: item.bytes } : {}), ...refFields(item) };
   return { model: { ...m, media: { ...m.media, [id]: md } }, id };
+}
+
+/**
+ * Points a media item at another file (Relink): same id, so every clip keeps using it. `item` is a probed file of
+ * the same kind; without `path` the item becomes embedded. Clips that would read past a shorter file are shortened.
+ */
+export function relinkMedia(m, id, item) {
+  const old = m.media[id];
+  if (!old) throw new Error(`There is no media item “${id}”.`);
+  if (item.kind && item.kind !== old.kind) throw new Error(`“${item.name || "The file"}” is not a ${old.kind} file like “${old.name}”.`);
+  const { path: _p, size: _s, hash: _h, rel: _r, bytes: _b, ...keep } = old;
+  const md = { ...keep, mime: String(item.mime || old.mime), duration: Math.max(0, num(item.duration, old.duration)), w: Math.max(0, num(item.w, old.w)), h: Math.max(0, num(item.h, old.h)), hasAudio: item.hasAudio ?? old.hasAudio, ...(item.bytes ? { bytes: item.bytes } : {}), ...refFields(item) };
+  const fit = (clips) => {
+    let out = clips;
+    for (const c of Object.values(clips)) {
+      if (c.media !== id || md.kind === "image" || !(md.duration > 0) || c.remap !== undefined) continue;
+      const max = (md.duration - c.in) / (c.speed || 1);
+      if (c.dur > max + 1e-6) {
+        if (out === clips) out = { ...clips };
+        out[c.id] = { ...c, dur: Math.max(1 / m.fps, Math.floor(max * m.fps + 1e-6) / m.fps) };
+      }
+    }
+    return out;
+  };
+  return { ...m, media: { ...m.media, [id]: md }, clips: fit(m.clips), comps: Object.fromEntries(Object.entries(m.comps).map(([k, c]) => [k, { ...c, clips: fit(c.clips) }])) };
+}
+
+/** Collect media: referenced items whose bytes are loaded are stored inside the file from now on (`ids`: all). */
+export function embedMedia(m, ids = null) {
+  let media = m.media;
+  for (const md of Object.values(m.media)) {
+    if (typeof md.path !== "string" || !md.bytes?.length || (ids && !ids.includes(md.id))) continue;
+    const { path: _p, size: _s, hash: _h, rel: _r, ...rest } = md;
+    if (media === m.media) media = { ...m.media };
+    media[md.id] = rest;
+  }
+  return media === m.media ? m : { ...m, media };
 }
 
 /** Removes a media item and every clip that uses it (in all sequences). */
@@ -1200,6 +1247,7 @@ export function describeClip(m, c) {
   if (c.comp) o.comp = c.comp;
   if (c.remap !== undefined) o.remap = brief(c.remap);
   if (c.collapse) o.collapse = true;
+  if (c.rev) o.reversed = true;
   if (c.off) o.off = true;
   if (c.link) o.link = c.link;
   if (c.label) o.label = c.label;

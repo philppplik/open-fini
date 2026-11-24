@@ -7,8 +7,6 @@ const REPO_URL = "https://github.com/philppplik/open-fini";
 export const GITHUB = {
   repo: REPO_URL,
   blob: (path) => `${REPO_URL}/blob/main/${path}`,
-  // the manual is read from the repository until the docs section of the site exists (website.md, task W13)
-  wiki: (page = "Home") => `${REPO_URL}/blob/main/wiki/${page}.md`,
   releases: `${REPO_URL}/releases`,
 };
 
@@ -27,12 +25,12 @@ export const label = (text, extra = "") => html`<p class="label ${extra}">${text
 // Applied before the first paint so a chosen theme never flashes; the toggle itself lives in site.js.
 const THEME_BOOT = `try{var t=localStorage.getItem("of-site-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}`;
 
-function header(ctx, path, section, single) {
+function header(ctx, path, section, switchTo) {
   const { t, u, lang } = ctx;
   const nav = [
     ["studios", t("nav.studios"), u.page(lang, "studios/")],
     ["features", t("nav.features"), u.page(lang, "features/")],
-    ["docs", t("nav.docs"), GITHUB.wiki()],
+    ["docs", t("nav.docs"), u.page(lang, "docs/")],
   ];
   return html`<header class="top">
   <div class="top__in wrap">
@@ -42,7 +40,7 @@ function header(ctx, path, section, single) {
     </nav>
     <div class="top__tools">
       <div class="seg" role="group" aria-label="${t("lang.switch")}">
-        ${LANGS.map((l) => html`<a href="${u.page(l, single && l !== lang ? "" : path)}" hreflang="${l}" lang="${l}"${raw(l === lang ? ' aria-current="true"' : "")}>${l.toUpperCase()}</a>`)}
+        ${LANGS.map((l) => html`<a href="${u.page(l, switchTo?.[l] ?? path)}" hreflang="${l}" lang="${l}"${raw(l === lang ? ' aria-current="true"' : "")}>${l.toUpperCase()}</a>`)}
       </div>
       <button class="icon-btn theme-toggle" type="button" hidden aria-label="${t("theme.toggle")}" title="${t("theme.toggle")}">${icon(ctx, "circle-half")}</button>
       <a class="btn btn--primary btn--sm" href="${u.page(lang, "download/")}"${raw(section === "download" ? ' aria-current="page"' : "")}>${icon(ctx, "download")}<span>${t("nav.download")}</span></a>
@@ -57,43 +55,49 @@ function footer(ctx) {
   return html`<footer class="foot">
   <div class="wrap foot__grid">
     <div class="foot__brand">
-      <a class="brand" href="${u.page(lang)}">${mark()}<span class="brand__word">OpenFini</span></a>
+      <a class="brand" href="${u.page(lang)}" aria-label="${t("nav.home")}">${mark()}<span class="brand__word">OpenFini</span></a>
       <p class="foot__ver">${t("label.version", { v: version })}</p>
     </div>
     ${col(t("footer.product"), [
       [t("nav.studios"), u.page(lang, "studios/")],
       [t("nav.features"), u.page(lang, "features/")],
       [t("nav.download"), u.page(lang, "download/")],
-      [t("nav.docs"), GITHUB.wiki()],
+      [t("nav.docs"), u.page(lang, "docs/")],
     ])}
     ${col(t("footer.project"), [
+      [t("footer.changelog"), u.page(lang, "changelog/")],
+      [t("footer.roadmap"), u.page(lang, "roadmap/")],
+      [t("footer.community"), u.page(lang, "community/")],
       [t("footer.source"), GITHUB.repo],
-      [t("footer.changelog"), GITHUB.blob("CHANGELOG.md")],
-      [t("footer.roadmap"), GITHUB.blob("docs/roadmap.md")],
-      [t("footer.contribute"), GITHUB.blob("CONTRIBUTING.md")],
     ])}
     ${col(t("footer.about"), [
+      [t("footer.privacy"), u.page(lang, "privacy/")],
+      [t("footer.press"), u.page(lang, "press/")],
       [t("footer.license"), GITHUB.blob("LICENSE")],
-      [t("footer.cleanroom"), GITHUB.blob("docs/clean-room.md")],
+      [t("footer.cleanroom"), u.page("en", "docs/dev/clean-room/")],
       [t("footer.security"), GITHUB.blob("SECURITY.md")],
       [t("footer.conduct"), GITHUB.blob("CODE_OF_CONDUCT.md")],
     ])}
   </div>
   <div class="wrap foot__note">
     <p>${t("footer.note")}</p>
-    <p>${t("footer.site")}</p>
+    <p>${t("footer.site")} <a href="${u.base}feed.xml">${t("footer.feed")}</a></p>
   </div>
 </footer>`;
 }
 
 /**
- * @param {object} ctx { t, u, lang, version }
+ * @param {object} ctx { t, u, lang, version, cacheKey, social }
  * @param {{ path: string, title: string, description: string, body: any, section?: string, bodyClass?: string,
- *   noindex?: boolean, fallback?: boolean, head?: any }} page
+ *   noindex?: boolean, fallback?: boolean, head?: any, langs?: string[], switchTo?: Record<string, string>,
+ *   card?: string, jsonld?: object }} page
+ *   `langs`: the languages this page exists in (hreflang); `switchTo`: where the language switch goes per language
+ *   when the page has no translation; `card`: the social image (assets/social/<card>.jpg); `jsonld`: structured data.
  */
-export function layout(ctx, { path, title, description, body, section = "", bodyClass = "", noindex = false, fallback = false, head = "", single = false }) {
+export function layout(ctx, { path, title, description, body, section = "", bodyClass = "", noindex = false, fallback = false, head = "", langs = LANGS, switchTo, card = "home", jsonld }) {
   const { t, u, lang } = ctx;
   const fullTitle = path === "" ? title : `${title} · OpenFini`;
+  const image = `${u.origin}${u.asset(`social/${card}.jpg`)}`;
   return `<!doctype html>\n${html`<html lang="${LOCALES[lang]}">
 <head>
 <meta charset="utf-8">
@@ -103,19 +107,33 @@ export function layout(ctx, { path, title, description, body, section = "", body
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#e9eaee" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1d1e22" media="(prefers-color-scheme: dark)">
-${noindex ? raw('<meta name="robots" content="noindex">') : html`<link rel="canonical" href="${u.absolute(lang, path)}">
-${LANGS.map((l) => html`<link rel="alternate" hreflang="${l}" href="${u.absolute(l, path)}">\n`)}<link rel="alternate" hreflang="x-default" href="${u.absolute("en", path)}">`}
+${noindex
+  ? raw('<meta name="robots" content="noindex">')
+  : html`<link rel="canonical" href="${u.absolute(lang, path)}">
+${langs.length > 1 ? html`${langs.map((l) => html`<link rel="alternate" hreflang="${l}" href="${u.absolute(l, path)}">\n`)}<link rel="alternate" hreflang="x-default" href="${u.absolute("en", path)}">` : ""}
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="OpenFini">
+<meta property="og:title" content="${title}">
+<meta property="og:description" content="${description}">
+<meta property="og:url" content="${u.absolute(lang, path)}">
+<meta property="og:locale" content="${LOCALES[lang].replace("-", "_")}">
+<meta property="og:image" content="${image}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">`}
+<link rel="alternate" type="application/atom+xml" title="OpenFini changelog" href="${u.base}feed.xml">
 <link rel="icon" href="${u.base}favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="${u.base}apple-touch-icon.png">
 <link rel="preload" href="${u.asset("fonts/inter-latin-wght-normal.woff2")}" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="${u.asset(`site.css?v=${ctx.cacheKey}`)}">
 <script>${raw(THEME_BOOT)}</script>
 <script type="module" src="${u.asset(`js/site.js?v=${ctx.cacheKey}`)}"></script>
+${jsonld ? html`<script type="application/ld+json">${raw(JSON.stringify(jsonld).replace(/</g, "\\u003c"))}</script>` : ""}
 ${head}
 </head>
 <body class="${bodyClass}" data-lang="${lang}">
 <a class="skip" href="#main">${t("skip")}</a>
-${header(ctx, path, section, single)}
+${header(ctx, path, section, switchTo)}
 <main id="main" tabindex="-1">
 ${fallback ? html`<p class="wrap fallback" role="note">${t("fallback.note")}</p>` : ""}
 ${body}

@@ -11,7 +11,7 @@
 ![Status: alpha](https://img.shields.io/badge/status-alpha-orange)
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20x64%2FARM64%20%C2%B7%20macOS%20Intel%2FARM%20%C2%B7%20Linux%20x64%2FARM64%20%C2%B7%20PWA-informational)
 
-[Download](#install) · [Studios](#the-studios) · [Why it is light](#why-it-is-light) · [Build from source](#build-from-source) · [Docs](#documentation) · [Contributing](CONTRIBUTING.md)
+**[Website](https://philppplik.github.io/open-fini/)** · [Download](#install) · [Studios](#the-studios) · [Why it is light](#why-it-is-light) · [Build from source](#build-from-source) · [Docs](#documentation) · [Contributing](CONTRIBUTING.md)
 
 </div>
 

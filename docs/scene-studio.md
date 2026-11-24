@@ -159,7 +159,7 @@ time. A segment with a tangent on either side is a 2D cubic Bezier; when the two
 | Motion blur | Properties ▸ Transform, *Animate ▸ Motion Blur* | The layer is the average of eight sub-frames over a 180° shutter (half a frame), only while it moves; static frames stay sharp. |
 | Animate with sound | *Animate ▸ Animate with Sound…* | Bakes the loudness of a sound clip into keyframes of scale, opacity, rotation or position (one per frame, fast attack, smooth release); edit them like any keyframes. |
 | Beat markers | Clip menu ▸ *Add Markers at Beats* | Analyses the sound (tempo and beats, worker pool) and puts a green marker on every beat; cuts and keyframes snap to them. |
-| Speed ramps, reverse, freeze frame | Clip menu ▸ *Speed and Time*, Properties ▸ Time | Video and composition clips: *Reverse* plays backwards, *Freeze Frame* holds the frame at the playhead for the rest of the clip, *Time remapping* keyframes the source time (with Bezier easing in the graph editor for ramps). |
+| Speed ramps, reverse, freeze frame | Clip menu ▸ *Speed and Time*, Properties ▸ Time | Video and composition clips: *Reverse* plays backwards (the linked sound of the same file turns with it; a sound clip can be reversed on its own), *Freeze Frame* holds the frame at the playhead for the rest of the clip, *Time remapping* keyframes the source time (with Bezier easing in the graph editor for ramps). |
 | Masks, crop, text and shape animation | Properties | The mask's edges and feather, the crop, text size / color / spacing and shape size / fill are keyframeable like the transform. |
 
 ## Effects browser
@@ -230,6 +230,35 @@ graph offline.
 sequence as `.srt` or `.vtt`. Caption clips are text clips with a flag, so they are burned into the exported
 picture and can be styled like any text (`scene/captions.js`: four styles, words → cues).
 
+## Referenced media
+
+In the **desktop app**, imported video and sound files are **referenced**: the project stores the file's path, its
+size and a fingerprint (SHA-256 over the size and the first and last MiB), not the bytes. A project with 2 GB of
+footage saves as a file of a few kilobytes, and saving, autosave and versions stay fast. Pictures, captions and
+everything imported in the browser are still embedded (the browser cannot read a file by its path again).
+
+When the scene opens, OpenFini reads each file back. It looks at the stored path first, then relative to the
+project (when the project and the footage moved together), then next to the project, in a `<project> Media` folder
+and in a `Media` folder there. A file that is found somewhere else is used (its new path is saved next time); a file
+whose size or fingerprint differs is **not** used silently.
+
+Media that cannot be read is **offline**: the Media panel shows the item in italics with *Offline* (or *Changed*), a
+bar with the number of offline files, and its clips stay on the timeline but are not drawn, heard or exported (the
+export warns). To bring it back:
+
+| Action | Where | What it does |
+| --- | --- | --- |
+| **Relink…** | The *Offline* button of an item in the Media panel | Pick the file (any file of the same kind; clips that would read past a shorter file are shortened). One undo step. |
+| **Find Missing Media…** | The offline bar, *Sequence ▸ Find Missing Media…* | Desktop: choose a folder; every offline file found below it (by name and size, checked by fingerprint) is used. Browser: pick the files; matches are embedded. |
+| **Embed Media in Project** | *Sequence ▸ Embed Media in Project* | Collect media: the referenced files are stored inside the `.ofini` file from now on (it grows by their size). One undo step. |
+| **Save Project with Media…** | *Sequence ▸ Save Project with Media…* (desktop) | Choose a folder: the project and copies of its referenced files are saved there (existing files are not overwritten; names get " (2)"), and the project points at the copies, so the folder can be moved or handed on as a whole. |
+
+Copies that leave the computer always carry their media: *Share a copy* and *Share as linked live document* embed
+referenced files (and drop the paths). After a restart the desktop app may read files by path only in Desktop,
+Documents, Downloads, Pictures, Videos and Music (its file access scope); footage elsewhere (another drive) is
+offline until you relink it or choose its folder with *Find Missing Media…*, once per session. Older OpenFini
+versions (before scene format 4) drop referenced items when they open such a project: embed the media first.
+
 ## Formats
 
 Import uses the browser's decoders, export uses WebCodecs. What works depends on the engine:
@@ -253,8 +282,13 @@ rate preservation, files above 4 GB in MP4. A user-installed ffmpeg as an option
 ## Export
 
 *Sequence ▸ Export Video…* (also File ▸ Export in this studio): format, size (100, 75, 50 or 25 %), frame rate,
-quality, range (whole sequence or In to Out), sound. Each frame is rendered with exactly seeked sources, so the
-file matches the preview frame for frame; expect about real time for HD material.
+quality, range (whole sequence or In to Out), sound. Each frame is rendered with exact source frames, so the file
+matches the preview frame for frame. Video files in MP4 / MOV or WebM / MKV with a codec the browser decodes (H.264,
+HEVC where available, VP8, VP9, AV1) are **decoded front to back** with WebCodecs (`scene/demux.js` reads the
+container, `scene/decode.js` the frames) instead of seeking a player for every frame: a 720p test export ran at
+about 12 times real time (seeking: about 2 times). Other files (fragmented MP4, Ogg, codecs without a decoder) are
+seeked as before. Decoded frames can differ slightly in color from the preview player in Chromium (its color
+conversion), never in which frame is shown.
 
 `scene/export.js ▸ exportScene(store, model, options)` is the programmatic entry; `scene/mux.js` writes the
 containers (MP4: `ftyp`, `mdat`, `moov` with one sample per chunk; WebM: clusters at key frames plus cues).
@@ -262,16 +296,17 @@ containers (MP4: `ftyp`, `mdat`, `moov` with one sample per chunk; WebM: cluster
 ## Data model
 
 Stored as the document's project of kind `"scene"` ([file-format.md](file-format.md)): the model in
-`document.json ▸ office`, media bytes in `office/scene/media/<id>.<ext>`.
+`document.json ▸ office`, media bytes in `office/scene/media/<id>.<ext>`, or, for [referenced media](#referenced-media)
+(format 4), `path`, `size`, `hash` and `rel` on the media item and no archive entry.
 
 ```
-{ version: 2, title, width, height, fps, background,
+{ version: 4, title, width, height, fps, background,
   tracks:  [{ id, kind: "video" | "audio", name, muted, hidden, locked }],   // top first
   clips:   { <id>: Clip },
   markers: [{ id, t, name, color }],
   range:   { in, out } | null,
   comps:   { <id>: { id, name, width, height, tracks, clips, markers } },    // clips may use other comps
-  media:   { <id>: { id, kind, mime, name, duration, w, h, hasAudio, bytes } },
+  media:   { <id>: { id, kind, mime, name, duration, w, h, hasAudio, bytes | path, size, hash } },
   analysis: { <mediaId>: { transcript, shots, silence, beats, loudness, notes } } }   // source seconds; see Assistant
 
 Clip { id, track, type: video | audio | image | text | shape | solid | adjustment | comp, name,
@@ -285,6 +320,7 @@ Clip { id, track, type: video | audio | image | text | shape | solid | adjustmen
        text: { … }, caption, shape: { … }, color,
        // format 3, all optional:
        label?, link?, off?,        // label color "#rrggbb", link group id, disabled (neither seen nor heard)
+       rev?,                       // format 4, sound clips: the source range plays backwards
        parent?, beh?, mblur? }     // parent clip id, behaviors [{ id, type: wiggle | loop | spin, prop, … }], motion blur
 Track { …, solo? }                 // format 3: while a track of a kind is soloed, the other tracks of that kind are silent / hidden
 Animatable inside objects (format 3): crop.l/t/r/b, mask.x/y/w/h/feather, text.size/tracking/lineHeight/strokeW/color,
@@ -355,7 +391,7 @@ fn)`) writes it back, keeping media and compositions the operation added.
 | Motion blur | Properties ▸ Transform, *Animate ▸ Motion Blur* | The layer is the average of eight sub-frames over a 180° shutter (half a frame), only while it moves; static frames stay sharp. |
 | Animate with sound | *Animate ▸ Animate with Sound…* | Bakes the loudness of a sound clip into keyframes of scale, opacity, rotation or position (one per frame, fast attack, smooth release); edit them like any keyframes. |
 | Beat markers | Clip menu ▸ *Add Markers at Beats* | Analyses the sound (tempo and beats, worker pool) and puts a green marker on every beat; cuts and keyframes snap to them. |
-| Speed ramps, reverse, freeze frame | Clip menu ▸ *Speed and Time*, Properties ▸ Time | Video and composition clips: *Reverse* plays backwards, *Freeze Frame* holds the frame at the playhead for the rest of the clip, *Time remapping* keyframes the source time (with Bezier easing in the graph editor for ramps). |
+| Speed ramps, reverse, freeze frame | Clip menu ▸ *Speed and Time*, Properties ▸ Time | Video and composition clips: *Reverse* plays backwards (the linked sound of the same file turns with it; a sound clip can be reversed on its own), *Freeze Frame* holds the frame at the playhead for the rest of the clip, *Time remapping* keyframes the source time (with Bezier easing in the graph editor for ramps). |
 | Masks, crop, text and shape animation | Properties | The mask's edges and feather, the crop, text size / color / spacing and shape size / fill are keyframeable like the transform. |
 
 ## Effects browser
@@ -398,7 +434,10 @@ model ──frameState(model, t)──▶ layers ──compositor.render(ctx, �
 - `scene/render.js` draws the layers. Layers that need only canvas features go straight to the target; layers with
   pixel effects, glow, a mask or a wipe go through a scratch canvas.
 - `scene/media.js` is the media store: object URLs, one `<video>` per clip for playback, one per media item for
-  exact frames (requests are serialized), decoded audio buffers, waveform peaks, thumbnails.
+  exact frames (requests are serialized), sequential WebCodecs readers for the export (`frameAt(id, t, { fast })`),
+  a decoded-frame cache for time-remapped clips while playing (every frame a decode run passes is kept at preview
+  size, up to 120 per file, filled ahead in the direction the source runs, so a reversed clip decodes each group of
+  pictures once), decoded audio buffers, waveform peaks, thumbnails.
 - `scene/frames.js ▸ renderExact` captures every source as a bitmap first, so two clips of the same file at
   different times each get their own frame.
 - Compositions render recursively (up to `MAX_NESTING` = 16 levels, a guard: cycles cannot exist): into a canvas of
@@ -473,7 +512,9 @@ the logic on the first call.
 | `scene/model.js`, `scene/keyframes.js`, `scene/evaluate.js` | Pure model, animation and frame evaluation |
 | `scene/render.js`, `scene/gl.js`, `scene/effects.js` | Compositor, WebGL pass, effect registry |
 | `scene/media.js`, `scene/audio.js`, `scene/frames.js` | Media store, audio engine, exact frames |
+| `scene/media-refs.js` | Referenced media: fingerprint, where to look for a file, reading it back, folder matching (pure apart from the injected reader) |
 | `scene/export.js`, `scene/mux.js`, `scene/gif.js`, `scene/export-dialog.js` | Export, containers, GIF, dialog |
+| `scene/demux.js`, `scene/decode.js` | Container readers (MP4 / MOV, WebM / MKV) and the sequential WebCodecs frame reader (export, playback cache) |
 | `scene/captions.js` | SRT / VTT, captions |
 | `scene/analysis.js`, `scene/ai-ops.js`, `scene/ai-auto.js`, `scene/motion.js` | Assistant: analysis algorithms, editing operations, transcript-driven edits, motion presets (pure) |
 | `scene/ai-runtime.js`, `scene/ai-menu.js` | Assistant: browser side of the tools; right-click ▸ AI |
@@ -482,11 +523,15 @@ the logic on the first call.
 
 ## Limits
 
-- Export speed is about real time (sources are seeked frame by frame).
+- Export speed: files the WebCodecs path cannot read (fragmented MP4, Ogg, codecs without a decoder, laced
+  Matroska video) are seeked frame by frame, about real time for HD. Two clips of the same file at different times in
+  one frame restart its decoder for each, which is slower than one clip.
 - Changing a clip's speed changes the pitch of its sound. Reverse playback in the viewer is not supported (J steps
-  back); a reversed clip (time remapping) plays backwards, and its sound does not (detach and keep it, or mute it).
-- Time-remapped video clips (reverse, freeze frame, speed ramps) are seeked frame by frame while playing, so the
-  preview may stutter on long-GOP files; the export is exact.
+  back). A reversed video turns its linked sound with it (same file, same range); a speed ramp or a hand-made time
+  remap does not carry over to the sound.
+- Time-remapped video clips play from a decoded-frame cache at preview size (640 px wide); until the cache has a
+  frame (the first moment after starting, a jump), the player is seeked as before. Paused frames and the export are
+  exact.
 - Parenting converts keyframes with the parent's transform at the playhead (as After Effects does); a parent that
   is itself animated keeps the child's motion relative to it. Motion paths are edited by dragging keyframe points;
   spatial Bezier handles are not available (the path between keyframes follows the X and Y curves).
@@ -500,7 +545,9 @@ the logic on the first call.
 - In the viewer, a composition used twice at the same moment shares one video player per clip during playback (the
   export is exact); with *collapse transformations* the nested layers' blend modes apply inside the composition's
   result, not against the layers below it.
-- Media is embedded in the `.ofini` file (large files); referenced media is planned for the desktop app.
+- Referenced media is desktop-only (the browser embeds); after a restart files outside the common user folders need
+  *Find Missing Media…* once per session. Older versions drop referenced items (embed the media before handing a
+  project to someone on an older version).
 - Editing together (collaboration, *Share as linked live document*): clips, tracks, markers, compositions and the
   sequence settings are records of `scene/collab.js` (last writer wins per clip; two people editing different clips
   merge); media travels as chunk records and appears for the others when it has arrived, which takes a while for

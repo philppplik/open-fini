@@ -15,6 +15,11 @@ export function registerSceneCommands(app) {
   const def = (id, label, run, extra = {}) => app.registerCommand(id, { label, run, studios: ["scene"], enabled: on, ...extra });
 
   def("scene.import", "Import Media…", () => s().importDialog(), { icon: "plus-lg" });
+  // referenced media (scene/media-refs.js): find offline files, store them inside the project, or copy them out
+  const refs = (a) => Object.values(a.sceneUI?.model().media || {});
+  def("scene.findMissingMedia", "Find Missing Media…", () => s().findMissing(), { enabled: (a) => on(a) && refs(a).some((x) => x.path && !x.bytes), icon: "search" });
+  def("scene.collectMedia", "Embed Media in Project", () => s().collectMedia(), { enabled: (a) => on(a) && refs(a).some((x) => x.path && x.bytes), icon: "box-arrow-in-down" });
+  def("scene.saveWithMedia", "Save Project with Media…", () => s().saveWithMedia(), { enabled: (a) => on(a) && refs(a).some((x) => x.path && x.bytes) && !!s()?.canSaveWithMedia, icon: "folder-plus" });
   def("scene.export", "Export Video…", () => import("../scene/export-dialog.js").then((m) => m.sceneExportDialog(app)), { icon: "box-arrow-up" });
   def("scene.addText", "Add Text", () => s().addText(), { icon: "fonts" });
   def("scene.addShape", "Add Shape", () => s().addShape("rect"), { icon: "square" });

@@ -129,3 +129,53 @@ document.querySelectorAll("code.sha").forEach((code) => {
   });
   code.after(b);
 });
+
+// ---------------------------------------------------------------- docs sidebar: open on wide screens
+const docnav = document.querySelector(".docnav__details");
+if (docnav && matchMedia("(min-width: 960px)").matches) docnav.open = true;
+
+// ---------------------------------------------------------------- docs search (titles and headings, no service)
+const search = document.querySelector("form[data-search]");
+if (search) {
+  const input = search.querySelector("input[type=search]");
+  const list = search.querySelector(".docsearch__results");
+  let index = null;
+  const load = () => (index ??= fetch(search.dataset.search).then((r) => r.json()).catch(() => []));
+  const norm = (s) => s.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "");
+  const show = async () => {
+    const q = norm(input.value.trim());
+    if (q.length < 2) { list.hidden = true; return; }
+    const words = q.split(/\s+/);
+    const hits = [];
+    for (const p of await load()) {
+      const title = norm(p.t);
+      if (words.every((w) => title.includes(w))) hits.push({ score: title.startsWith(words[0]) ? 0 : 1, text: p.t, sub: p.s, url: p.u });
+      for (const [h, id] of p.h) {
+        if (words.every((w) => norm(h).includes(w) || title.includes(w))) hits.push({ score: 2, text: h, sub: p.t, url: `${p.u}#${id}` });
+      }
+    }
+    hits.sort((a, b) => a.score - b.score);
+    list.replaceChildren(...(hits.length
+      ? hits.slice(0, 12).map((h) => build("li", {}, build("a", { href: h.url }, build("span", {}, h.text), build("small", {}, h.sub))))
+      : [build("li", { className: "docsearch__none" }, search.dataset.none)]));
+    list.hidden = false;
+  };
+  input.addEventListener("focus", load, { once: true });
+  input.addEventListener("input", show);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { input.value = ""; list.hidden = true; }
+    if (e.key === "ArrowDown") { list.querySelector("a")?.focus(); e.preventDefault(); }
+  });
+  list.addEventListener("keydown", (e) => {
+    const links = [...list.querySelectorAll("a")];
+    const i = links.indexOf(document.activeElement);
+    if (e.key === "ArrowDown") { links[i + 1]?.focus(); e.preventDefault(); }
+    if (e.key === "ArrowUp") { (links[i - 1] ?? input).focus(); e.preventDefault(); }
+    if (e.key === "Escape") { list.hidden = true; input.focus(); }
+  });
+  // Enter opens the first result; without results the form searches the repository on GitHub
+  search.addEventListener("submit", (e) => {
+    const first = list.querySelector("a");
+    if (first && !list.hidden) { e.preventDefault(); location.href = first.href; }
+  });
+}

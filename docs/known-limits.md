@@ -41,7 +41,8 @@ Partial: content-aware fill and the object eraser switch from patch synthesis to
 ## Scene Studio
 
 - Spatial Bezier handles on motion paths, track mattes, shape trim paths / repeaters, 2.5D camera parallax, stabilization and tracking are not built (see docs/scene-studio.md ▸ Limits).
-- Time-remapped video clips are seeked frame by frame while playing (the preview may stutter); reversed clips play no reversed sound.
+- Time-remapped video clips play from a decoded-frame cache at preview size; the first moment after starting or a jump is seeked. Reversed sound follows a plain reverse, not speed ramps. Sequential WebCodecs decoding (faster export, playback cache) was measured in Chromium with test videos (H.264 MP4 and VP9 WebM, 640×360 and 1280×720); real camera files, HEVC, AV1, Safari and Firefox are not verified, and the 3× real-time goal at 1080p on a mid-range laptop was not measured on such hardware.
+- Referenced media (desktop): checked with unit tests (saving, loading, lookup, folder matching, relink, embed); the desktop flows (import by path, reading back after a restart, *Find Missing Media…*, *Save Project with Media…*) were not run in the Tauri app. Files outside Desktop, Documents, Downloads, Pictures, Videos and Music must be found again once per session; older versions drop referenced items.
 - The timeline's context menus, keyframe rows and effects browser were exercised in a browser with synthetic events; real pointer drags of keyframes (Alt-scale) and the sound-driven tools on real footage are not verified.
 
 ## Panels and workspaces

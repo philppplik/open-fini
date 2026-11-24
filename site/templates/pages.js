@@ -113,7 +113,7 @@ ${news
     ${label(t("home.new.label"))}
     <h2 class="display h2" id="news-title">${t("home.new.title", { v: news.version })}</h2>
     <p class="section__lead">${news.title}</p>
-    <a class="more" href="${GITHUB.blob("CHANGELOG.md")}">${t("home.new.all")} →</a>
+    <a class="more" href="${u.page(lang, "changelog/")}#${news.version.replace(/[^\w]+/g, "-")}">${t("home.new.all")} →</a>
   </div>
   <ol class="news__list" role="list"${raw(lang === "en" ? "" : ' lang="en"')}>${news.items.map((it, i) => html`<li><span class="news__n">${two(i + 1)}</span>${it}</li>`)}</ol>
 </section>`
@@ -215,11 +215,11 @@ ${switcher(ctx, id)}
     <aside class="note note--limits" aria-labelledby="limits">
       <h2 class="note__h" id="limits">${t("studio.limits")}</h2>
       <div class="prose prose--sm">${raw(ctx.md(m.limits))}</div>
-      <p><a class="more" href="${s.planned ? GITHUB.blob("docs/concepts/proto-studio.md") : GITHUB.blob("docs/known-limits.md")}">${s.planned ? "docs/concepts/proto-studio.md" : t("studio.limitsMore")} →</a></p>
+      <p><a class="more" href="${s.planned ? u.page("en", "docs/dev/concepts/proto-studio/") : u.page("en", "docs/dev/known-limits/")}">${s.planned ? "docs/concepts/proto-studio.md" : t("studio.limitsMore")} →</a></p>
     </aside>
   </section>
-  ${s.docs ? html`<p class="wrap docs-link"><a class="btn" href="${GITHUB.wiki(s.docs)}">${t("studio.docs")}: ${m.title} →</a></p>` : ""}
-  <nav class="pager wrap" aria-label="${t("studio.switcher")}">
+  ${s.docs ? html`<p class="wrap docs-link"><a class="btn" href="${u.page("en", `docs/${s.docs.toLowerCase()}/`)}">${t("studio.docs")}: ${m.title} →</a></p>` : ""}
+  <nav class="pager wrap" aria-label="${t("studio.more")}">
     <a class="pager__prev" href="${u.page(lang, `studios/${prev.id}/`)}" rel="prev"><span class="label">${t("studio.prev")}</span><span class="display">← ${nameOf(prev)}</span></a>
     <a class="pager__next" href="${u.page(lang, `studios/${next.id}/`)}" rel="next"><span class="label">${t("studio.next")}</span><span class="display">${nameOf(next)} →</span></a>
   </nav>

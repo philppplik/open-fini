@@ -78,7 +78,7 @@ handed us) and sends it with a trailing path separator, which `normalizeOpenItem
 `__pycache__` and `venv` are skipped, symbolic links are never followed, and the caps are 3000 files, 50 MB per file, 200 MB in
 total and 16 levels; when a cap hits, the folder opens with a notice. The status bar shows progress. Folders are remembered in
 *Open Recent* (`{ name, path, isDir }`); reopening one reads it again by path and, if access was not kept (a folder outside
-Desktop, Documents, Downloads, Pictures after a restart), opens the folder dialog on it once. The web/PWA build keeps the
+Desktop, Documents, Downloads, Pictures, Videos, Music after a restart), opens the folder dialog on it once. The web/PWA build keeps the
 directory picker (File System Access) and cannot register a right-click item.
 
 ## How files reach the app (desktop)

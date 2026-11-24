@@ -97,7 +97,7 @@ function clipItems(ui, data) {
       icon: "clock-history",
       items: [
         { label: "Speed / Duration…", shortcut: "Mod+R", disabled: !speedy, run: () => ui.speedDialog() },
-        { label: "Reverse", disabled: !timed, run: () => ui.reverse() },
+        { label: "Reverse", disabled: !timed && !ids.some((id) => m.clips[id]?.type === "audio"), run: () => ui.reverse() },
         { label: "Freeze Frame", disabled: !timed || !one, run: () => ui.freeze(c.id) },
         { label: "Time Remapping", disabled: !timed || !one, checked: c.remap !== undefined, run: () => ui.toggleRemap(c.id) },
       ],

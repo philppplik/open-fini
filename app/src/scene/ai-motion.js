@@ -112,7 +112,7 @@ export function clipTime(m, a) {
   else if (a.action === "remap") next = M.setTimeRemap(m, c.id, a.on !== false);
   else throw new Error("action is reverse, freeze or remap.");
   const n = next.clips[id];
-  return { model: next, result: { clip: clipLine(next, n), remap: isTrack(n.remap) ? n.remap.kf.map((k) => `${r3(c.start + k.t)}s→${r3(k.v)}s`) : n.remap } };
+  return { model: next, result: { clip: clipLine(next, n), remap: isTrack(n.remap) ? n.remap.kf.map((k) => `${r3(c.start + k.t)}s→${r3(k.v)}s`) : n.remap, ...(n.rev ? { reversed: true } : {}) } };
 }
 
 /** Links or unlinks clips (linked clips are selected and moved together; video and its sound are linked). */

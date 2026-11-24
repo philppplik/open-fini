@@ -540,7 +540,7 @@ class LiveManager {
 // ==================================================================== snapshot packing
 
 async function packSnapshot(b) {
-  const bytes = await saveOfini(b.doc);
+  const bytes = await saveOfini(b.doc, { embedMedia: true }); // the others cannot read files on this computer
   const { unzipSync, zipSync, strToU8 } = await import("../../../vendor/fflate/fflate.js");
   const files = unzipSync(bytes);
   files[SYNC_FILE] = strToU8(JSON.stringify({ v: 1, kind: b.kind, state: b.stateJSON() }));
