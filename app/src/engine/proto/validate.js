@@ -14,6 +14,7 @@
 //   validate(model, { limits?, maxProblems? }) → { ok, errors, warnings, truncated }
 //   nodeProblems(model, node, { limits? }) → Problem[]   checks of one node against the model (used by ops.js)
 //   pageProblems(model, page) → Problem[]
+//   varsProblems(model) / stylesProblems(model) → Problem[] (errors)   checks of the variables and styles (ops.js)
 //   isBinding(v) / isColor(v)
 import { isKey } from "../../collab/fractional.js";
 import { isId } from "./ids.js";
@@ -379,6 +380,7 @@ function componentFields(C, path, n) {
             else if (d.type === "bool" && !isBinding(val)) bool(C, `${path}.props.${k}`, val);
             else if (d.type === "number") num(C, `${path}.props.${k}`, val);
             else if (d.type === "swap" && !isComponentRef(C.model, val)) C.r.err(`${path}.props.${k}`, "missing-component", `The component “${val}” does not exist.`);
+            else if (d.type === "slot" && (!Array.isArray(val) || val.length > 10000 || !val.every((x) => typeof x === "string"))) C.r.err(`${path}.props.${k}`, "slot", "A slot value is a list of the instance's child layer ids.");
             else if (d.type === "variant") C.r.err(`${path}.props.${k}`, "variant-prop", "Variant values belong in `variant`.");
           }
       }
@@ -401,6 +403,11 @@ function componentFields(C, path, n) {
       const defs = propsOfTarget(C.model, n.id) || {};
       for (const [key, prop] of Object.entries(n.bind)) {
         if (!BIND_KEY_RE.test(key)) C.r.err(`${path}.bind`, "bind-key", `“${key}” is not a <nodeId>.<field> key.`);
+        else {
+          const [layer, f] = key.split(".");
+          if (S.STRUCTURE_FIELDS.includes(f)) C.r.err(`${path}.bind`, "bind-field", `“${f}” cannot be bound to a property.`);
+          if (!isObj(C.model?.nodes?.[layer])) C.r.warn(`${path}.bind`, "missing-layer", `The bound layer “${layer}” does not exist.`);
+        }
         if (!isObj(defs[prop])) C.r.err(`${path}.bind.${key}`, "missing-prop", `There is no property “${prop}”.`);
       }
     }
@@ -708,6 +715,11 @@ function vars(C) {
           seen.add(cur);
           cur = colls[cur].extends;
         }
+        // an extending collection has the modes of its base (the mode operations keep them in step)
+        const base = colls[c.extends];
+        const want = Array.isArray(base?.modes) ? base.modes.map((m) => m?.id) : [];
+        const have = Array.isArray(c.modes) ? c.modes.map((m) => m?.id) : [];
+        if (have.length !== want.length || have.some((m) => !want.includes(m))) r.err(`${p}.modes`, "extends-modes", "An extending collection has exactly the modes of its base.");
       }
     }
   }
@@ -741,13 +753,44 @@ function vars(C) {
       else if (v.type === "string") str(C, vp, val);
       else if (v.type === "bool") bool(C, vp, val);
     }
+    if (v.ext !== undefined && obj(C, `${p}.ext`, v.ext))
+      for (const [coll, vals] of Object.entries(v.ext)) {
+        const ep = `${p}.ext.${coll}`;
+        let cur = colls[coll];
+        const seen = new Set([coll]);
+        let ok = false;
+        while (isObj(cur) && cur.extends != null && !seen.has(cur.extends)) {
+          if (cur.extends === v.coll) {
+            ok = true;
+            break;
+          }
+          seen.add(cur.extends);
+          cur = colls[cur.extends];
+        }
+        if (!ok) r.err(ep, "ext-collection", `The collection “${coll}” does not extend “${v.coll}”.`);
+        if (!obj(C, ep, vals)) continue;
+        for (const [mode, val] of Object.entries(vals)) {
+          const vp = `${ep}.${mode}`;
+          if (!modes.has(mode)) r.warn(vp, "missing-mode", `The collection has no mode “${mode}”.`);
+          if (isBinding(val)) {
+            const t = items[val.$var];
+            if (!isObj(t)) r.err(vp, "missing-variable", `The variable “${val.$var}” does not exist.`);
+            else if (t.type !== v.type) r.err(vp, "binding-type", `An alias must point to a ${v.type} variable.`);
+          } else if (v.type === "color") color(C, vp, val);
+          else if (v.type === "number") num(C, vp, val, { binding: false });
+          else if (v.type === "string") str(C, vp, val);
+          else if (v.type === "bool") bool(C, vp, val);
+        }
+      }
   }
   for (const [coll, n] of Object.entries(perColl)) if (n > C.limits.varsPerCollection) r.err(`vars.collections.${coll}`, "limit", `More than ${C.limits.varsPerCollection} variables in one collection.`);
   // alias cycles
   const state = new Map();
   const visit = (id) => {
     state.set(id, 1);
-    for (const val of Object.values(isObj(items[id]?.values) ? items[id].values : {})) {
+    const it = items[id];
+    const all = [...Object.values(isObj(it?.values) ? it.values : {}), ...Object.values(isObj(it?.ext) ? it.ext : {}).flatMap((o) => (isObj(o) ? Object.values(o) : []))];
+    for (const val of all) {
       if (!isBinding(val) || !isObj(items[val.$var])) continue;
       const t = val.$var;
       if (state.get(t) === 1) r.err(`vars.items.${id}`, "alias-cycle", `The variable “${id}” is an alias of itself (through “${t}”).`);
@@ -771,8 +814,25 @@ function styles(C) {
     if (s.kind === "text") textStyle(C, `${p}.value`, s.value, true);
     else if (s.kind === "effect" && list(C, `${p}.value`, s.value)) s.value.forEach((e, i) => effect(C, `${p}.value[${i}]`, e));
     else if (s.kind === "fill" && list(C, `${p}.value`, s.value)) s.value.forEach((f, i) => fill(C, `${p}.value[${i}]`, f));
-    else if (s.kind === "grid") obj(C, `${p}.value`, s.value);
+    else if (s.kind === "grid" && obj(C, `${p}.value`, s.value)) {
+      const { gap, rowGap, ...grid } = s.value;
+      layout(C, `${p}.value`, { type: "grid", grid, ...(gap !== undefined ? { gap } : {}), ...(rowGap !== undefined ? { rowGap } : {}) });
+    }
   }
+}
+
+/** Errors of the variables of a model (collections, modes, values, extending collections, alias cycles, limits). */
+export function varsProblems(model, { limits = S.LIMITS } = {}) {
+  const r = new Report(50);
+  vars({ model, r, limits });
+  return r.errors;
+}
+
+/** Errors of the styles of a model. */
+export function stylesProblems(model, { limits = S.LIMITS } = {}) {
+  const r = new Report(50);
+  styles({ model, r, limits });
+  return r.errors;
 }
 
 function media(C) {
