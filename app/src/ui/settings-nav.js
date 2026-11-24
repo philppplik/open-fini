@@ -8,7 +8,7 @@ export const NAV_GROUPS = [
   { id: "studios", title: N_("Studios and tools"), ids: ["studios", "canvas", "code", "toolbox", "layout"] },
   { id: "ai", title: N_("AI"), ids: ["ai"] },
   { id: "privacy", title: N_("Collaboration and privacy"), ids: ["collab", "security"] },
-  { id: "advanced", title: N_("Advanced"), ids: ["extensions", "troubleshooting", "about"] },
+  { id: "advanced", title: N_("Advanced"), ids: ["labs", "extensions", "troubleshooting", "about"] },
 ];
 
 /**

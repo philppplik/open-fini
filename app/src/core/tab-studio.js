@@ -10,14 +10,17 @@ const CANVAS = ["vector", "pixel", "layout"];
 
 /** True when `doc` is a Scene Studio document (the generic project container with kind "scene"). */
 const isScene = (doc) => doc?.office?.kind === "scene";
+/** True when `doc` is a Proto Studio design (kind "proto"). */
+const isProto = (doc) => doc?.office?.kind === "proto";
 
 /**
- * The studio a document opens in when nothing was remembered: Office and Scene documents in their studio, a website
+ * The studio a document opens in when nothing was remembered: Office, Scene and Proto documents in their studio, a website
  * project without design content in Code, otherwise the studio the document was created in (Vector by default).
  */
 export function naturalStudio(doc) {
   if (!doc) return null;
   if (isScene(doc)) return "scene";
+  if (isProto(doc)) return "proto";
   if (doc.office) return "office";
   if (doc.web && (doc.studio === "code" || !doc.pages?.[0]?.root?.children?.length)) return "code";
   return CANVAS.includes(doc.studio) ? doc.studio : "vector";
@@ -27,6 +30,7 @@ export function naturalStudio(doc) {
 export function editableStudios(doc) {
   if (!doc) return [];
   if (isScene(doc)) return ["scene"];
+  if (isProto(doc)) return ["proto"];
   if (doc.office) return ["office"];
   return doc.web ? [...CANVAS, "code"] : [...CANVAS];
 }

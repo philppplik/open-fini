@@ -25,7 +25,7 @@ const STR = String.raw`"((?:[^"\\\n]|\\.)*)"`;
 const sceneFile = (p) => p.startsWith("scene/") || p === "studios/scene.js";
 const slidesFile = (p) => p.startsWith("office/slides/") || p === "commands/office-slides.js";
 export const IMPLICIT = [
-  { test: (p) => p === "ui/menus.js" || p === "studios/office.js", re: new RegExp(String.raw`\blabel:\s*${STR}`, "g") },
+  { test: (p) => p === "ui/menus.js" || p === "studios/office.js" || p === "studios/proto.js", re: new RegExp(String.raw`\blabel:\s*${STR}`, "g") },
   { test: (p) => p.startsWith("commands/"), re: new RegExp(String.raw`\bdef\(\s*"[\w.\-]+"\s*,\s*${STR}`, "g") },
   // Office Suite app manifests (office/<kind>/manifest.js): app, format and template texts, translated by the launcher
   { test: (p) => /^office\/[\w-]+\/manifest\.js$/.test(p), re: new RegExp(String.raw`\b(?:label|description|blurb):\s*${STR}`, "g") },

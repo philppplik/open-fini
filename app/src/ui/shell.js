@@ -124,6 +124,19 @@ export function createShell(app, root) {
   };
   for (const ev of ["studio", "doc", "docs"]) app.on(ev, syncScene);
 
+  // Proto Studio (Labs: studios/proto.js, proto/host.js) is also loaded on first use; its stylesheet comes with it
+  const protoArea = h("div.of-protoarea", { hidden: true });
+  canvasArea.append(protoArea);
+  const syncProto = () => {
+    protoArea.hidden = app.studio !== "proto";
+    if (app.studio !== "proto" && !app.protoUI) return;
+    import("../proto/host.js").then((m) => m.syncProto(app, protoArea)).catch((err) => {
+      console.error(err);
+      app.toast(t("The Proto Studio could not be loaded: {message}", { message: err.message }), "danger", 6000);
+    });
+  };
+  for (const ev of ["studio", "doc", "docs"]) app.on(ev, syncProto);
+
   let codeModule = null;
   let mountedCode = null;
   async function syncCode() {
@@ -176,7 +189,7 @@ export function createShell(app, root) {
     undo.disabled = !app.isEnabled("edit.undo");
     redo.disabled = !app.isEnabled("edit.redo");
     exportBtn.disabled = !app.isEnabled("file.export");
-    welcome.el.classList.toggle("hidden", !!app.doc || app.studio === "vibe" || app.studio === "scene");
+    welcome.el.classList.toggle("hidden", !!app.doc || app.studio === "vibe" || app.studio === "scene" || app.studio === "proto");
     layout.classList.toggle("no-doc", !app.doc);
     layout.dataset.studio = app.studio;
     const d = app.doc;
