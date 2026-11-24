@@ -35,7 +35,7 @@ const byId = (map, each) => {
 
 const node = (n) => (isPlain(n) ? ordered(n, NODE_FIELDS) : sortDeep(n));
 const page = (p) => (isPlain(p) ? ordered(p, PAGE_FIELDS) : sortDeep(p));
-const named = (x) => (isPlain(x) ? ordered(x, ["id", "name", "kind", "coll", "type", "unit", "modes", "default", "extends", "values", "value", "scopes", "code"]) : sortDeep(x));
+const named = (x) => (isPlain(x) ? ordered(x, ["id", "name", "kind", "coll", "type", "unit", "modes", "default", "extends", "values", "ext", "value", "scopes", "code", "description"]) : sortDeep(x));
 const mediaItem = (m) => (isPlain(m) ? ordered(m, ["id", "mime", "name", "w", "h", "file", "bytes"]) : m);
 
 /** An equal model with keys in the canonical order (see the header). */

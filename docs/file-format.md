@@ -166,6 +166,11 @@ uses the same container: `"studio": "proto"` and `"office": { "kind": "proto", â
   per layer, 20 modes and 2,000 variables per collection, 64 options per variant property, 16 MiB per media item).
   Interactions and flows that point at a removed layer, and fills whose media is missing, are warnings. The File Doctor,
   `ofini validate` and `ofini info` run it.
+* **Components, variables and styles** (task T5, additive within schema 1): an instance's own children are slot
+  content and `props.<slot>` may list child ids per slot; a component binds a slot layer with
+  `"bind": { "<slotLayer>.children": "<slotProp>" }`. A variable may carry `ext: { <extendingCollection>: { <mode>:
+  value } }`, the overrides of a collection that `extends` its collection (whose modes mirror the base's). A `grid`
+  style's value is a CSS grid definition (`cols`, `rows`, `areas`, `autoFlow`, `dense`, `gap`, `rowGap`).
 * **Unknown fields are kept** (forward compatibility within a schema). A model with a newer `schema` opens read-only;
   older ones are upgraded step by step by `engine/proto/migrate.js`.
 * **Stable serialization**: writers store the canonical form (`engine/proto/serialize.js`): known fields in a fixed
