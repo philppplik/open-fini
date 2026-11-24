@@ -1,0 +1,69 @@
+/* OpenFini — Proto Studio (Labs preview): the design canvas between the Layers and Inspector panels. The design
+   itself lives in shadow roots (proto/view.js) and sees none of this file. */
+
+.of-layout[data-studio="proto"] { --of-tools-w: 0px; }
+.of-layout[data-studio="proto"] .of-toolbox,
+.of-layout[data-studio="proto"] .of-contextbar,
+.of-layout[data-studio="proto"] .cv,
+.of-layout[data-studio="proto"] .of-codearea,
+.of-layout[data-studio="proto"] .of-codeside-host,
+.of-layout[data-studio="proto"] .of-officearea,
+.of-layout[data-studio="proto"] .of-scenearea,
+.of-layout[data-studio="proto"] .of-vibearea { display: none !important; }
+.of-layout[data-studio="proto"] { grid-template-rows: var(--of-bar-h) var(--of-tabs-h) 0 minmax(0, 1fr) 0 var(--of-status-h); }
+.of-layout[data-studio="proto"] .of-protoarea { display: block; position: absolute; inset: 0; }
+.of-layout[data-studio="proto"] .of-welcome { display: none; }
+.of-layout[data-studio="proto"] .of-status__range,
+.of-layout[data-studio="proto"] .of-status__right .of-ibtn,
+.of-layout[data-studio="proto"] .of-status__zoom { display: none; }
+
+.of-proto-host { position: absolute; inset: 0; }
+.of-proto { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--of-bg-app); color: var(--of-text); outline: none; min-width: 0; }
+.of-proto__canvas { position: relative; flex: 1 1 auto; min-height: 0; }
+.of-proto__banner { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: color-mix(in srgb, var(--of-warning, #f59e0b) 16%, transparent); font-size: var(--of-fs-sm); }
+.of-proto__live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+
+/* ---- stage: world (camera transform) and the overlay canvas */
+.of-proto-stage { position: absolute; inset: 0; overflow: hidden; background: var(--of-proto-page, #f4f4f5); outline: none; touch-action: none; cursor: default; contain: strict; }
+.of-proto-stage:focus-visible { box-shadow: inset 0 0 0 2px var(--of-accent); }
+.of-proto-stage.is-panning { cursor: grab; }
+.of-proto-stage.is-panning:active { cursor: grabbing; }
+.of-proto-world { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; pointer-events: none; }
+.of-proto-root { position: absolute; }
+.of-proto-overlay { position: absolute; left: 0; top: 0; pointer-events: none; }
+
+/* ---- start screen */
+.of-proto-start { position: absolute; inset: 0; overflow: auto; padding: 48px max(24px, 8vw); background: var(--of-bg-app); color: var(--of-text); }
+.of-proto-start h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; font-size: 22px; }
+.of-proto-start p { margin: 0 0 24px; max-width: 640px; color: var(--of-text-muted, var(--of-text)); }
+.of-proto-start__badge { padding: 2px 8px; border-radius: 999px; background: var(--of-accent-soft, color-mix(in srgb, var(--of-accent) 18%, transparent)); color: var(--of-accent); font-size: var(--of-fs-sm); font-weight: 600; }
+.of-proto-start__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; max-width: 760px; }
+.of-proto-start__card { display: grid; gap: 6px; justify-items: start; padding: 16px; border: 1px solid var(--of-border-soft); border-radius: var(--of-radius, 8px); background: var(--of-bg-panel, transparent); color: var(--of-text); text-align: left; cursor: pointer; font: inherit; }
+.of-proto-start__card sl-icon { font-size: 24px; color: var(--of-accent); }
+.of-proto-start__card span { color: var(--of-text-muted, var(--of-text)); font-size: var(--of-fs-sm); }
+.of-proto-start__card:hover { border-color: var(--of-accent); }
+.of-proto-start__card:focus-visible, .of-proto-start__doc:focus-visible { outline: 2px solid var(--of-accent); outline-offset: 1px; }
+.of-proto-start__open { margin-top: 32px; }
+.of-proto-start__open h3 { margin: 0 0 8px; font-size: var(--of-fs-md); }
+.of-proto-start__doc { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 0; background: transparent; color: var(--of-text); cursor: pointer; font: inherit; }
+.of-proto-start__doc:hover { background: var(--of-hover); }
+
+/* ---- Layers panel */
+.of-proto-layers { display: flex; flex-direction: column; min-height: 0; height: 100%; }
+.of-proto-layers__list { flex: 1 1 auto; overflow: auto; padding: 4px 0; font-size: var(--of-fs-sm); }
+.of-proto-layers__row { display: flex; align-items: center; gap: 6px; height: 26px; padding-right: 8px; cursor: default; white-space: nowrap; outline: none; }
+.of-proto-layers__row:hover { background: var(--of-hover); }
+.of-proto-layers__row.is-selected { background: var(--of-accent-soft, color-mix(in srgb, var(--of-accent) 18%, transparent)); }
+.of-proto-layers__row:focus-visible { box-shadow: inset 0 0 0 2px var(--of-accent); }
+.of-proto-layers__row > sl-icon { flex: none; color: var(--of-text-muted, var(--of-text)); }
+.of-proto-layers__twisty { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.of-proto-layers__name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.of-proto-layers__flag { opacity: 0.6; }
+
+/* ---- Inspector */
+.of-proto-inspector { padding: 10px 12px; font-size: var(--of-fs-sm); }
+.of-proto-inspector__grid { display: grid; gap: 6px; }
+.of-proto-inspector__row { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: center; gap: 8px; }
+.of-proto-inspector__row > span { color: var(--of-text-muted, var(--of-text)); }
+.of-proto-inspector__row > output { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.of-proto-inspector__note { margin: 12px 0 0; color: var(--of-text-muted, var(--of-text)); }

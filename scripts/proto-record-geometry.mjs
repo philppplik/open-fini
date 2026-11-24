@@ -82,11 +82,12 @@ class Cdp {
   }
 }
 
-async function launch() {
+export async function launch({ width = 0, height = 0 } = {}) {
   const exe = BROWSERS.find((p) => existsSync(p));
   if (!exe) throw new Error("No Chrome, Edge or Chromium found. Set CHROME_PATH to the browser executable.");
   const profile = await mkdtemp(join(tmpdir(), "ofini-geometry-"));
-  const child = spawn(exe, ["--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", "--force-device-scale-factor=1", "about:blank"], { stdio: "ignore" });
+  const size = width && height ? [`--window-size=${width},${height}`] : []; // the benchmark (proto-perf.mjs) sets a viewport
+  const child = spawn(exe, ["--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`, "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", "--force-device-scale-factor=1", ...size, "about:blank"], { stdio: "ignore" });
   const portFile = join(profile, "DevToolsActivePort");
   for (let i = 0; i < 100 && !existsSync(portFile); i++) await sleep(100);
   const [port, path] = (await readFile(portFile, "utf8")).split(/\r?\n/);
@@ -109,7 +110,7 @@ async function launch() {
   };
 }
 
-async function evaluate(s, expression) {
+export async function evaluate(s, expression) {
   const r = await s("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
   if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text);
   return r.result.value;

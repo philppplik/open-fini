@@ -11,6 +11,7 @@ const LABELS = {
   code: N_("Blank Code"),
   vibe: N_("Blank Vibe"),
   scene: N_("Blank Scene"),
+  proto: N_("Blank Proto Design"),
 };
 
 /** Office apps with a blank command: [kind, label, icon]. The apps themselves load on first use. */

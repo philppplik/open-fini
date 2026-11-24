@@ -294,6 +294,19 @@ export function settingsSections(app) {
       groups: [],
     },
     {
+      id: "labs",
+      label: "Labs",
+      icon: "stars",
+      lead: "Previews of features that are still being built. They may change, and files made with them may need a newer version later.",
+      keywords: "labs preview experimental beta proto prototype interface design",
+      groups: [
+        {
+          title: "Studios",
+          items: [sw("labsProto", "Proto Studio", "Design application interfaces and prototypes on a canvas that is real HTML and CSS. The studio appears in the More menu and in File ▸ New. Turning it off takes effect at the next start.")],
+        },
+      ],
+    },
+    {
       id: "extensions",
       label: "Extensions",
       icon: "puzzle",

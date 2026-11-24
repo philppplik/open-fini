@@ -89,9 +89,16 @@ export function registerFileCommands(app) {
       doc.saved = true;
       ofiniDocs.add(doc);
       markUntrusted(app.prefs, doc); // protected mode: website scripts stay off in the preview until enabled
-      app.setStudio(["pixel", "layout", "code", "office", "scene"].includes(doc.studio) ? doc.studio : "vector");
+      app.setStudio(["pixel", "layout", "code", "office", "scene", "proto"].includes(doc.studio) ? doc.studio : "vector");
       app.openDoc(doc);
       requestAnimationFrame(() => app.cv?.fitPage());
+      // a Proto design while the Labs switch is off: say how to open it (studios/proto.js)
+      if (doc.office?.kind === "proto" && !app.prefs.labsProto) {
+        app.toast(t("This is a Proto Studio design. Turn on Settings ▸ Labs ▸ Proto Studio to edit it."), "warning", 12000, {
+          label: t("Turn on"),
+          run: () => (app.setPref("labsProto", true), app.setStudio("proto", { user: true })),
+        });
+      }
       addRecent({ name: file.name, bytes: file.bytes, path: file.path }).then((r) => app.emit("recents", r));
       return doc;
     }

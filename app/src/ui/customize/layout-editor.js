@@ -4,7 +4,7 @@ import { button, numField } from "../controls.js";
 import { STUDIOS, dockKeyOf } from "../../studios/index.js";
 import { PANELS } from "../panels/index.js";
 
-const LAYOUT_STUDIOS = ["vector", "pixel", "layout", "code", "scene", "vibe", "office:document", "office:slides", "office:board"];
+const LAYOUT_STUDIOS = ["vector", "pixel", "layout", "code", "scene", "proto", "vibe", "office:document", "office:slides", "office:board"];
 const APP_NAMES = { document: "Document", slides: "Presentation", board: "Whiteboard" };
 /** Name of a layout key: the studio, or the studio and its app. */
 const keyLabel = (key) => {
@@ -86,6 +86,7 @@ export function layoutEditor(app) {
   function render() {
     const tabs = h("div.of-seg", { role: "group", "aria-label": "Studio" });
     for (const s of LAYOUT_STUDIOS) {
+      if (!STUDIOS[s.split(":")[0]]) continue; // a Labs studio that is switched off
       const b = h("button.of-seg__btn", { type: "button", "aria-pressed": String(s === studio) }, keyLabel(s));
       b.addEventListener("click", () => ((studio = s), render()));
       tabs.append(b);

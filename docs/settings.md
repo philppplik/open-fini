@@ -23,6 +23,7 @@ device (`localStorage`); *Security and privacy ▸ Reset all settings* restores 
 | **Layout and workspaces** | Panels, dock side and width, built-in and saved workspaces per studio |
 | **Defaults for new things** | New-document size, unit, resolution and background per studio; export and text defaults |
 | **Profiles and backup** | Export / import `.ofprofile`, named profiles, reset everything |
+| **Labs** | Previews of features still being built: **Proto Studio** (`labsProto`, off by default) registers the [Proto Studio](proto-studio.md) at once; turning it off takes effect at the next start |
 | **About** | Version, license, source and documentation links · update checker (manual, optional daily automatic check, off by default; a newer version opens a dialog with Download, Later and Skip this version (`updateSkipped`); see core/updates.js, core/update-policy.js) |
 
 ## For developers

@@ -889,6 +889,48 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
   `tests/proto/view-patch.test.js` (the patch planner is pure), `tests/proto/perf/`, `docs/proto-studio.md`.
 * Acceptance: start-up bundle +≤ 1 KiB; open and save round trip; the 5,000-node fixture pans at 60 fps in Chromium
   (perf script), manual checks in WebView2 and WebKitGTK recorded in the PR.
+* As built (deviations and decisions the later tasks build on):
+  * Labs switch: the preference `labsProto` (*Settings ▸ Labs ▸ Proto Studio*); `studios/proto.js ▸ installProtoLabs`
+    registers the studio at start-up and as soon as the switch turns on (the registry cannot unregister, so off takes
+    effect at the next start). Opening a design while it is off shows a notice with *Turn on*. `newDocument` creates a
+    design with one desktop frame, `newBlank` an empty page; both come from the registry (File ▸ New, New Blank).
+  * Modules: `proto/host.js` (mount, start screen), `proto/workspace.js` (the instance, `app.protoUI`, with input and
+    panels), `proto/view.js` (stage, shadow roots, culling, level of detail), `proto/patch.js` (the pure planner:
+    `changedRoots`, `entriesFor`, `planPatch`, `cullState`), `proto/geometry.js` (cache, `hitTest`, `pickAt`,
+    `marqueeSelect`), `proto/measure.js`, `proto/overlay.js`, `proto/camera.js`, `proto/controller.js` (selection and
+    `opStep`), `proto/panels.js`, `commands/proto.js` (registered on first mount). Tests: `tests/proto/view-patch.test.js`,
+    `controller.test.js`, `perf/pipeline.test.js`; the browser benchmark is `tests/proto/perf/bench.html` driven by
+    `scripts/proto-perf.mjs`.
+  * Undo: `controller.run(op, label)` turns an operation into one document history step (`doc.tx`). Undo and redo
+    restore the stored models when nothing else changed in between, and otherwise apply the operation's inverse (and
+    the inverse of that replay for redo, which keeps created ids) to the current model, so T10 can rebase on top of
+    remote edits without `prj.rebase`. Updates that set a field to its current value are not recorded.
+  * Saving: `workspace.js ▸ ensureProto` loads the model once (`format.js ▸ loadModel`; a newer or invalid model opens
+    read-only with a banner) and makes `doc.office.manifest()` write the canonical model, so saved files are stable.
+  * Rendering: one host with its own shadow root per **top-level layer** (also free-floating layers; the concept's
+    single extra root for them was not needed), a shared constructable reset sheet, declarations from `css.js` with
+    `vars: "css"` and `root: "origin"` (the host carries `left`, `top` and the page z-order as `z-index`). Changed
+    top-level layers are found by node identity (`changedRoots`; a change inside a component re-resolves every frame
+    with an instance), re-resolved whole, and patched per element (style, attributes, text runs, SVG, child order).
+    Detached layers keep their elements and are patched when they come back. Geometry is measured in the animation
+    frame after a patch (and when a root's `ResizeObserver` or `document.fonts.ready` fire), rounded to 1/100 px.
+  * Culling and level of detail as in §4.2 with the constants in `patch.js` (`LOD_ZOOM` 0.25, `BLOCK_ZOOM` 0.05,
+    `LOD_PIXELS` 160, `DETACH_AFTER` 10 s, live margin half a viewport). A layer that was never measured renders once
+    to learn its size. The overlay draws the simplified layers from the geometry cache (fills, ellipses, text as line
+    blocks).
+  * Selection semantics (`geometry.js ▸ pickAt`): a click selects the top-level layer's child under the point (or the
+    top-level layer itself); with a selection, its siblings; Ctrl/Cmd deep; layers inside instances select the
+    outermost instance. The marquee selects top-level layers (T4 adds marquees inside frames with the Move tool).
+  * Panels: `proto-layers` (tree, top of the list in front, keyboard navigation, at most 2,000 rows until the
+    virtualized tree of T4) and `proto-inspector` (read-only name, type and box). The workspace API in the header of
+    `proto/workspace.js` (`run`, `select`, `pickAt`, `setTool`, `view.overlay.addLayer`, `on("change" | "selection" |
+    "camera" | "geometry")`) is what T4 tools and T10 collaboration build on.
+  * Small engine fix: `node.duplicate` offsets layers whose position is omitted (the default 0) as well.
+  * Measured with `scripts/proto-perf.mjs` (Microsoft Edge 158 headless, 1920 × 1080, Windows 11 on the
+    development machine, not the reference laptop): pan with 5,000 visible layers p95 17.0 ms (57–60 fps), zoom p95 17.3 ms; 20,000 layers
+    at 10 % with level of detail 60 fps; selection change p95 1.8 ms, hover 0.5 ms; property edit to painted frame in
+    10,000 layers p95 20.4 ms; 10,000 layers to first paint 188 ms, JS heap 27 MB. Manual checks in WebView2,
+    WKWebView and WebKitGTK are still open.
 
 **T4 · Core tools and panels** — L — deps: T3
 * Scope: tools Move/select, Scale, Frame (device presets), Rectangle, Ellipse, Line, Pen, Text (in-place editing),
