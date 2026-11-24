@@ -1,0 +1,391 @@
+{
+ "name": "constraints",
+ "description": "Absolutely positioned layers with every horizontal and vertical constraint, inside a parent with an inside stroke.",
+ "text": false,
+ "root": "root",
+ "model": {
+  "schema": 1,
+  "meta": {
+   "title": "Geometry fixture",
+   "created": "2026-11-23T00:00:00Z",
+   "unit": "px",
+   "app": "OpenFini"
+  },
+  "pages": {
+   "p1": {
+    "id": "p1",
+    "name": "Page 1",
+    "ord": "V",
+    "bg": "#ffffff",
+    "flows": []
+   }
+  },
+  "nodes": {
+   "root": {
+    "id": "root",
+    "type": "frame",
+    "name": "root",
+    "page": "p1",
+    "parent": null,
+    "ord": "V",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "w": {
+     "mode": "fixed",
+     "value": 400
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 300
+    },
+    "layout": {
+     "type": "none"
+    },
+    "strokes": [
+     {
+      "color": "#000000",
+      "w": 4,
+      "align": "inside"
+     }
+    ]
+   },
+   "l": {
+    "id": "l",
+    "type": "rect",
+    "name": "l",
+    "page": "p1",
+    "parent": "root",
+    "ord": "8",
+    "pos": "abs",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ],
+    "x": 10,
+    "y": 10,
+    "w": {
+     "mode": "fixed",
+     "value": 50
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "cx": "left",
+    "cy": "top"
+   },
+   "r": {
+    "id": "r",
+    "type": "rect",
+    "name": "r",
+    "page": "p1",
+    "parent": "root",
+    "ord": "G",
+    "pos": "abs",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ],
+    "x": 320,
+    "y": 10,
+    "w": {
+     "mode": "fixed",
+     "value": 60
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "cx": "right",
+    "cy": "bottom"
+   },
+   "lr": {
+    "id": "lr",
+    "type": "rect",
+    "name": "lr",
+    "page": "p1",
+    "parent": "root",
+    "ord": "O",
+    "pos": "abs",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ],
+    "x": 20,
+    "y": 60,
+    "w": {
+     "mode": "fixed",
+     "value": 200
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "cx": "leftRight",
+    "cy": "topBottom"
+   },
+   "c": {
+    "id": "c",
+    "type": "rect",
+    "name": "c",
+    "page": "p1",
+    "parent": "root",
+    "ord": "V",
+    "pos": "abs",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ],
+    "x": 150,
+    "y": 120,
+    "w": {
+     "mode": "fixed",
+     "value": 80
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "cx": "center",
+    "cy": "center"
+   },
+   "s": {
+    "id": "s",
+    "type": "rect",
+    "name": "s",
+    "page": "p1",
+    "parent": "root",
+    "ord": "d",
+    "pos": "abs",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ],
+    "x": 40,
+    "y": 200,
+    "w": {
+     "mode": "fixed",
+     "value": 100
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 50
+    },
+    "cx": "scale",
+    "cy": "scale"
+   },
+   "h": {
+    "id": "h",
+    "type": "rect",
+    "name": "h",
+    "page": "p1",
+    "parent": "root",
+    "ord": "l",
+    "pos": "abs",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ],
+    "x": 250,
+    "y": 200,
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "cx": "left",
+    "cy": "top"
+   },
+   "hf": {
+    "id": "hf",
+    "type": "frame",
+    "name": "hf",
+    "page": "p1",
+    "parent": "root",
+    "ord": "t",
+    "pos": "abs",
+    "x": 260,
+    "y": 220,
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 4,
+     "pad": [
+      3,
+      3,
+      3,
+      3
+     ],
+     "align": "start",
+     "justify": "start"
+    },
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ]
+   },
+   "hf1": {
+    "id": "hf1",
+    "type": "rect",
+    "name": "hf1",
+    "page": "p1",
+    "parent": "hf",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "hf2": {
+    "id": "hf2",
+    "type": "rect",
+    "name": "hf2",
+    "page": "p1",
+    "parent": "hf",
+    "ord": "l",
+    "w": {
+     "mode": "fixed",
+     "value": 15
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 25
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   }
+  },
+  "vars": {
+   "collections": {},
+   "items": {}
+  },
+  "styles": {},
+  "breakpoints": [
+   {
+    "id": "base",
+    "w": 1280
+   },
+   {
+    "id": "md",
+    "w": 991
+   },
+   {
+    "id": "sm",
+    "w": 478
+   }
+  ],
+  "code": {
+   "links": {},
+   "tokensFile": null
+  },
+  "media": {}
+ },
+ "recorded": {
+  "browser": "Edg/158.0.4370.33",
+  "date": "2026-11-23"
+ },
+ "boxes": {
+  "root": [
+   0,
+   0,
+   400,
+   300
+  ],
+  "l": [
+   10,
+   10,
+   50,
+   30
+  ],
+  "r": [
+   320,
+   10,
+   60,
+   30
+  ],
+  "lr": [
+   20,
+   60,
+   200,
+   20
+  ],
+  "c": [
+   150,
+   120,
+   80,
+   40
+  ],
+  "s": [
+   40,
+   199.98,
+   99.98,
+   49.98
+  ],
+  "h": [
+   250,
+   200,
+   0,
+   0
+  ],
+  "hf": [
+   260,
+   220,
+   45,
+   31
+  ],
+  "hf1": [
+   263,
+   223,
+   20,
+   20
+  ],
+  "hf2": [
+   287,
+   223,
+   15,
+   25
+  ]
+ }
+}

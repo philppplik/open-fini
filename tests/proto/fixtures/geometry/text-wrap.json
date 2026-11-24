@@ -1,0 +1,253 @@
+{
+ "name": "text-wrap",
+ "description": "Wrapping text (auto height) at fixed and fill widths, line heights in percent, px and auto, and a line clamp.",
+ "text": true,
+ "root": "root",
+ "model": {
+  "schema": 1,
+  "meta": {
+   "title": "Geometry fixture",
+   "created": "2026-11-23T00:00:00Z",
+   "unit": "px",
+   "app": "OpenFini"
+  },
+  "pages": {
+   "p1": {
+    "id": "p1",
+    "name": "Page 1",
+    "ord": "V",
+    "bg": "#ffffff",
+    "flows": []
+   }
+  },
+  "nodes": {
+   "root": {
+    "id": "root",
+    "type": "frame",
+    "name": "root",
+    "page": "p1",
+    "parent": null,
+    "ord": "V",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "w": {
+     "mode": "fixed",
+     "value": 260
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "column",
+     "gap": 8,
+     "pad": [
+      10,
+      10,
+      10,
+      10
+     ],
+     "align": "start",
+     "justify": "start"
+    }
+   },
+   "p1": {
+    "id": "p1",
+    "type": "text",
+    "name": "p1",
+    "page": "p1",
+    "parent": "root",
+    "ord": "G",
+    "pos": "flow",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "text": {
+     "runs": [
+      {
+       "t": "The quick brown fox jumps over the lazy dog and keeps running across the field.",
+       "s": {}
+      }
+     ],
+     "style": {
+      "font": "Arial",
+      "size": 16,
+      "weight": 400,
+      "lineHeight": {
+       "pct": 150
+      },
+      "color": "#000000"
+     },
+     "autoSize": "height"
+    }
+   },
+   "p2": {
+    "id": "p2",
+    "type": "text",
+    "name": "p2",
+    "page": "p1",
+    "parent": "root",
+    "ord": "V",
+    "pos": "flow",
+    "w": {
+     "mode": "fixed",
+     "value": 120
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "text": {
+     "runs": [
+      {
+       "t": "Narrow text column that wraps a lot.",
+       "s": {}
+      }
+     ],
+     "style": {
+      "font": "Arial",
+      "size": 14,
+      "weight": 400,
+      "lineHeight": {
+       "px": 18
+      },
+      "color": "#000000"
+     },
+     "autoSize": "height"
+    }
+   },
+   "p3": {
+    "id": "p3",
+    "type": "text",
+    "name": "p3",
+    "page": "p1",
+    "parent": "root",
+    "ord": "l",
+    "pos": "flow",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "text": {
+     "runs": [
+      {
+       "t": "Normal line height paragraph with a few words.",
+       "s": {}
+      }
+     ],
+     "style": {
+      "font": "Arial",
+      "size": 15,
+      "weight": 400,
+      "lineHeight": "auto",
+      "color": "#000000"
+     },
+     "autoSize": "height"
+    }
+   },
+   "p4": {
+    "id": "p4",
+    "type": "text",
+    "name": "p4",
+    "page": "p1",
+    "parent": "root",
+    "ord": "t",
+    "pos": "flow",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "text": {
+     "runs": [
+      {
+       "t": "This paragraph is clamped to two lines even though it is long enough to need more than two.",
+       "s": {}
+      }
+     ],
+     "style": {
+      "font": "Arial",
+      "size": 14,
+      "weight": 400,
+      "lineHeight": {
+       "pct": 140
+      },
+      "color": "#000000"
+     },
+     "autoSize": "height",
+     "maxLines": 2
+    }
+   }
+  },
+  "vars": {
+   "collections": {},
+   "items": {}
+  },
+  "styles": {},
+  "breakpoints": [
+   {
+    "id": "base",
+    "w": 1280
+   },
+   {
+    "id": "md",
+    "w": 991
+   },
+   {
+    "id": "sm",
+    "w": 478
+   }
+  ],
+  "code": {
+   "links": {},
+   "tokensFile": null
+  },
+  "media": {}
+ },
+ "recorded": {
+  "browser": "Edg/158.0.4370.33",
+  "date": "2026-11-23"
+ },
+ "boxes": {
+  "root": [
+   0,
+   0,
+   260,
+   243.19
+  ],
+  "p1": [
+   10,
+   10,
+   240,
+   72
+  ],
+  "p2": [
+   10,
+   90,
+   120,
+   54
+  ],
+  "p3": [
+   10,
+   152,
+   240,
+   34
+  ],
+  "p4": [
+   10,
+   194,
+   240,
+   39.19
+  ]
+ }
+}

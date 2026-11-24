@@ -1,0 +1,218 @@
+{
+ "name": "flex-abs-rel",
+ "description": "A flex row with an absolutely positioned layer (out of flow), reversed z order and relative sizes.",
+ "text": false,
+ "root": "root",
+ "model": {
+  "schema": 1,
+  "meta": {
+   "title": "Geometry fixture",
+   "created": "2026-11-23T00:00:00Z",
+   "unit": "px",
+   "app": "OpenFini"
+  },
+  "pages": {
+   "p1": {
+    "id": "p1",
+    "name": "Page 1",
+    "ord": "V",
+    "bg": "#ffffff",
+    "flows": []
+   }
+  },
+  "nodes": {
+   "root": {
+    "id": "root",
+    "type": "frame",
+    "name": "root",
+    "page": "p1",
+    "parent": null,
+    "ord": "V",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "w": {
+     "mode": "fixed",
+     "value": 500
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 150
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 10,
+     "pad": [
+      10,
+      10,
+      10,
+      10
+     ],
+     "align": "start",
+     "justify": "start",
+     "reverseZ": true
+    }
+   },
+   "a": {
+    "id": "a",
+    "type": "rect",
+    "name": "a",
+    "page": "p1",
+    "parent": "root",
+    "ord": "G",
+    "w": {
+     "mode": "rel",
+     "value": 20
+    },
+    "h": {
+     "mode": "rel",
+     "value": 50
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "b": {
+    "id": "b",
+    "type": "rect",
+    "name": "b",
+    "page": "p1",
+    "parent": "root",
+    "ord": "V",
+    "pos": "abs",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ],
+    "x": 300,
+    "y": 40,
+    "w": {
+     "mode": "fixed",
+     "value": 100
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 60
+    },
+    "cx": "right",
+    "cy": "top"
+   },
+   "c": {
+    "id": "c",
+    "type": "rect",
+    "name": "c",
+    "page": "p1",
+    "parent": "root",
+    "ord": "l",
+    "w": {
+     "mode": "fixed",
+     "value": 80
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 80
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "d": {
+    "id": "d",
+    "type": "rect",
+    "name": "d",
+    "page": "p1",
+    "parent": "root",
+    "ord": "t",
+    "w": {
+     "mode": "rel",
+     "value": 30
+    },
+    "h": {
+     "mode": "fill"
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   }
+  },
+  "vars": {
+   "collections": {},
+   "items": {}
+  },
+  "styles": {},
+  "breakpoints": [
+   {
+    "id": "base",
+    "w": 1280
+   },
+   {
+    "id": "md",
+    "w": 991
+   },
+   {
+    "id": "sm",
+    "w": 478
+   }
+  ],
+  "code": {
+   "links": {},
+   "tokensFile": null
+  },
+  "media": {}
+ },
+ "recorded": {
+  "browser": "Edg/158.0.4370.33",
+  "date": "2026-11-23"
+ },
+ "boxes": {
+  "root": [
+   0,
+   0,
+   500,
+   150
+  ],
+  "a": [
+   10,
+   10,
+   96,
+   65
+  ],
+  "b": [
+   300,
+   40,
+   100,
+   60
+  ],
+  "c": [
+   116,
+   10,
+   80,
+   80
+  ],
+  "d": [
+   206,
+   10,
+   144,
+   130
+  ]
+ }
+}

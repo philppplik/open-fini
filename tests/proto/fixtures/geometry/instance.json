@@ -1,0 +1,381 @@
+{
+ "name": "instance",
+ "description": "An instance of a component in a set: the variant is picked, the component's layers are expanded and an override applies.",
+ "text": false,
+ "root": "root",
+ "model": {
+  "schema": 1,
+  "meta": {
+   "title": "Geometry fixture",
+   "created": "2026-11-23T00:00:00Z",
+   "unit": "px",
+   "app": "OpenFini"
+  },
+  "pages": {
+   "p1": {
+    "id": "p1",
+    "name": "Page 1",
+    "ord": "V",
+    "bg": "#ffffff",
+    "flows": []
+   }
+  },
+  "nodes": {
+   "root": {
+    "id": "root",
+    "type": "frame",
+    "name": "root",
+    "page": "p1",
+    "parent": null,
+    "ord": "V",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "w": {
+     "mode": "fixed",
+     "value": 300
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "column",
+     "gap": 10,
+     "pad": [
+      10,
+      10,
+      10,
+      10
+     ],
+     "align": "start",
+     "justify": "start"
+    }
+   },
+   "i1": {
+    "id": "i1",
+    "type": "instance",
+    "name": "i1",
+    "page": "p1",
+    "parent": "root",
+    "ord": "V",
+    "pos": "flow",
+    "of": "set",
+    "variant": {
+     "size": "lg"
+    },
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "over": {
+     "lgb": {
+      "w": {
+       "mode": "fixed",
+       "value": 90
+      }
+     }
+    }
+   },
+   "i2": {
+    "id": "i2",
+    "type": "instance",
+    "name": "i2",
+    "page": "p1",
+    "parent": "root",
+    "ord": "l",
+    "pos": "flow",
+    "of": "set",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "hug"
+    }
+   },
+   "set": {
+    "id": "set",
+    "type": "componentSet",
+    "name": "set",
+    "page": "p1",
+    "parent": null,
+    "ord": "k",
+    "x": 400,
+    "y": 0,
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "column",
+     "gap": 16,
+     "pad": [
+      16,
+      16,
+      16,
+      16
+     ],
+     "align": "start",
+     "justify": "start"
+    },
+    "props": {
+     "size": {
+      "type": "variant",
+      "options": [
+       "md",
+       "lg"
+      ],
+      "default": "md"
+     }
+    }
+   },
+   "md": {
+    "id": "md",
+    "type": "component",
+    "name": "md",
+    "page": "p1",
+    "parent": "set",
+    "ord": "V",
+    "pos": "flow",
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "variant": {
+     "size": "md"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 8,
+     "pad": [
+      8,
+      16,
+      8,
+      16
+     ],
+     "align": "center",
+     "justify": "start"
+    },
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ]
+   },
+   "mda": {
+    "id": "mda",
+    "type": "rect",
+    "name": "mda",
+    "page": "p1",
+    "parent": "md",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": 16
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 16
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "mdb": {
+    "id": "mdb",
+    "type": "rect",
+    "name": "mdb",
+    "page": "p1",
+    "parent": "md",
+    "ord": "l",
+    "w": {
+     "mode": "fixed",
+     "value": 60
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 12
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "lg": {
+    "id": "lg",
+    "type": "component",
+    "name": "lg",
+    "page": "p1",
+    "parent": "set",
+    "ord": "l",
+    "pos": "flow",
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "variant": {
+     "size": "lg"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 12,
+     "pad": [
+      12,
+      24,
+      12,
+      24
+     ],
+     "align": "center",
+     "justify": "start"
+    },
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ]
+   },
+   "lga": {
+    "id": "lga",
+    "type": "rect",
+    "name": "lga",
+    "page": "p1",
+    "parent": "lg",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": 24
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 24
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "lgb": {
+    "id": "lgb",
+    "type": "rect",
+    "name": "lgb",
+    "page": "p1",
+    "parent": "lg",
+    "ord": "l",
+    "w": {
+     "mode": "fixed",
+     "value": 80
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 16
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   }
+  },
+  "vars": {
+   "collections": {},
+   "items": {}
+  },
+  "styles": {},
+  "breakpoints": [
+   {
+    "id": "base",
+    "w": 1280
+   },
+   {
+    "id": "md",
+    "w": 991
+   },
+   {
+    "id": "sm",
+    "w": 478
+   }
+  ],
+  "code": {
+   "links": {},
+   "tokensFile": null
+  },
+  "media": {}
+ },
+ "recorded": {
+  "browser": "Edg/158.0.4370.33",
+  "date": "2026-11-23"
+ },
+ "boxes": {
+  "root": [
+   0,
+   0,
+   300,
+   110
+  ],
+  "i1": [
+   10,
+   10,
+   174,
+   48
+  ],
+  "i1/lga": [
+   34,
+   22,
+   24,
+   24
+  ],
+  "i1/lgb": [
+   70,
+   26,
+   90,
+   16
+  ],
+  "i2": [
+   10,
+   68,
+   280,
+   32
+  ],
+  "i2/mda": [
+   26,
+   76,
+   16,
+   16
+  ],
+  "i2/mdb": [
+   50,
+   78,
+   60,
+   12
+  ]
+ }
+}

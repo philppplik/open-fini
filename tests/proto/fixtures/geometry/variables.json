@@ -1,0 +1,227 @@
+{
+ "name": "variables",
+ "description": "Spacing bound to number variables (padding, gap, a fixed width) resolves to the values of the active mode.",
+ "text": false,
+ "root": "root",
+ "model": {
+  "schema": 1,
+  "meta": {
+   "title": "Geometry fixture",
+   "created": "2026-11-23T00:00:00Z",
+   "unit": "px",
+   "app": "OpenFini"
+  },
+  "pages": {
+   "p1": {
+    "id": "p1",
+    "name": "Page 1",
+    "ord": "V",
+    "bg": "#ffffff",
+    "flows": []
+   }
+  },
+  "nodes": {
+   "root": {
+    "id": "root",
+    "type": "frame",
+    "name": "root",
+    "page": "p1",
+    "parent": null,
+    "ord": "V",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "w": {
+     "mode": "fixed",
+     "value": 300
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "modes": {
+     "cs": "loose"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": {
+      "$var": "vg"
+     },
+     "pad": [
+      {
+       "$var": "vp"
+      },
+      {
+       "$var": "vp"
+      },
+      {
+       "$var": "vp"
+      },
+      {
+       "$var": "vp"
+      }
+     ],
+     "align": "start",
+     "justify": "start"
+    }
+   },
+   "a": {
+    "id": "a",
+    "type": "rect",
+    "name": "a",
+    "page": "p1",
+    "parent": "root",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": {
+      "$var": "vw"
+     }
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "b": {
+    "id": "b",
+    "type": "rect",
+    "name": "b",
+    "page": "p1",
+    "parent": "root",
+    "ord": "l",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   }
+  },
+  "vars": {
+   "collections": {
+    "cs": {
+     "name": "Space",
+     "modes": [
+      {
+       "id": "tight",
+       "name": "Tight"
+      },
+      {
+       "id": "loose",
+       "name": "Loose"
+      }
+     ],
+     "default": "tight"
+    }
+   },
+   "items": {
+    "vg": {
+     "name": "space/gap",
+     "coll": "cs",
+     "type": "number",
+     "unit": "px",
+     "values": {
+      "tight": 4,
+      "loose": 16
+     }
+    },
+    "vp": {
+     "name": "space/pad",
+     "coll": "cs",
+     "type": "number",
+     "unit": "px",
+     "values": {
+      "tight": 2,
+      "loose": {
+       "$var": "vw2"
+      }
+     }
+    },
+    "vw2": {
+     "name": "space/pad-loose",
+     "coll": "cs",
+     "type": "number",
+     "unit": "px",
+     "values": {
+      "tight": 6,
+      "loose": 12
+     }
+    },
+    "vw": {
+     "name": "size/box",
+     "coll": "cs",
+     "type": "number",
+     "unit": "px",
+     "values": {
+      "tight": 40,
+      "loose": 64
+     }
+    }
+   }
+  },
+  "styles": {},
+  "breakpoints": [
+   {
+    "id": "base",
+    "w": 1280
+   },
+   {
+    "id": "md",
+    "w": 991
+   },
+   {
+    "id": "sm",
+    "w": 478
+   }
+  ],
+  "code": {
+   "links": {},
+   "tokensFile": null
+  },
+  "media": {}
+ },
+ "recorded": {
+  "browser": "Edg/158.0.4370.33",
+  "date": "2026-11-23"
+ },
+ "boxes": {
+  "root": [
+   0,
+   0,
+   300,
+   54
+  ],
+  "a": [
+   12,
+   12,
+   64,
+   30
+  ],
+  "b": [
+   92,
+   12,
+   196,
+   30
+  ]
+ }
+}

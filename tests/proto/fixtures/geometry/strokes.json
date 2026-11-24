@@ -1,0 +1,471 @@
+{
+ "name": "strokes",
+ "description": "Inside strokes take layout space (CSS borders, also with per-side widths); center and outside strokes do not.",
+ "text": false,
+ "root": "root",
+ "model": {
+  "schema": 1,
+  "meta": {
+   "title": "Geometry fixture",
+   "created": "2026-11-23T00:00:00Z",
+   "unit": "px",
+   "app": "OpenFini"
+  },
+  "pages": {
+   "p1": {
+    "id": "p1",
+    "name": "Page 1",
+    "ord": "V",
+    "bg": "#ffffff",
+    "flows": []
+   }
+  },
+  "nodes": {
+   "root": {
+    "id": "root",
+    "type": "frame",
+    "name": "root",
+    "page": "p1",
+    "parent": null,
+    "ord": "V",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "w": {
+     "mode": "fixed",
+     "value": 400
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "column",
+     "gap": 6,
+     "pad": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "align": "start",
+     "justify": "start"
+    }
+   },
+   "s1": {
+    "id": "s1",
+    "type": "frame",
+    "name": "s1",
+    "page": "p1",
+    "parent": "root",
+    "ord": "G",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "pos": "flow",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 5,
+     "pad": [
+      5,
+      5,
+      5,
+      5
+     ],
+     "align": "start",
+     "justify": "start"
+    },
+    "strokes": [
+     {
+      "color": "#000000",
+      "w": 3,
+      "align": "inside"
+     }
+    ]
+   },
+   "s1a": {
+    "id": "s1a",
+    "type": "rect",
+    "name": "s1a",
+    "page": "p1",
+    "parent": "s1",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "s1b": {
+    "id": "s1b",
+    "type": "rect",
+    "name": "s1b",
+    "page": "p1",
+    "parent": "s1",
+    "ord": "l",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "s2": {
+    "id": "s2",
+    "type": "frame",
+    "name": "s2",
+    "page": "p1",
+    "parent": "root",
+    "ord": "V",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "pos": "flow",
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 0,
+     "pad": [
+      5,
+      5,
+      5,
+      5
+     ],
+     "align": "start",
+     "justify": "start"
+    },
+    "strokes": [
+     {
+      "color": "#000000",
+      "w": 1,
+      "align": "inside",
+      "sides": [
+       1,
+       6,
+       10,
+       2
+      ]
+     }
+    ]
+   },
+   "s2a": {
+    "id": "s2a",
+    "type": "rect",
+    "name": "s2a",
+    "page": "p1",
+    "parent": "s2",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "s3": {
+    "id": "s3",
+    "type": "frame",
+    "name": "s3",
+    "page": "p1",
+    "parent": "root",
+    "ord": "l",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "pos": "flow",
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "flex",
+     "dir": "row",
+     "gap": 0,
+     "pad": [
+      5,
+      5,
+      5,
+      5
+     ],
+     "align": "start",
+     "justify": "start"
+    },
+    "strokes": [
+     {
+      "color": "#000000",
+      "w": 4,
+      "align": "center"
+     },
+     {
+      "color": "#ff0000",
+      "w": 2,
+      "align": "outside"
+     }
+    ]
+   },
+   "s3a": {
+    "id": "s3a",
+    "type": "rect",
+    "name": "s3a",
+    "page": "p1",
+    "parent": "s3",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "s4": {
+    "id": "s4",
+    "type": "frame",
+    "name": "s4",
+    "page": "p1",
+    "parent": "root",
+    "ord": "t",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "pos": "flow",
+    "w": {
+     "mode": "fixed",
+     "value": 120
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 60
+    },
+    "layout": {
+     "type": "none"
+    },
+    "strokes": [
+     {
+      "color": "#000000",
+      "w": 5,
+      "align": "inside"
+     }
+    ]
+   },
+   "s4a": {
+    "id": "s4a",
+    "type": "rect",
+    "name": "s4a",
+    "page": "p1",
+    "parent": "s4",
+    "ord": "V",
+    "pos": "abs",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ],
+    "x": 0,
+    "y": 0,
+    "w": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 20
+    }
+   },
+   "s4b": {
+    "id": "s4b",
+    "type": "rect",
+    "name": "s4b",
+    "page": "p1",
+    "parent": "s4",
+    "ord": "l",
+    "pos": "abs",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ],
+    "x": 90,
+    "y": 30,
+    "w": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "cx": "right",
+    "cy": "bottom"
+   }
+  },
+  "vars": {
+   "collections": {},
+   "items": {}
+  },
+  "styles": {},
+  "breakpoints": [
+   {
+    "id": "base",
+    "w": 1280
+   },
+   {
+    "id": "md",
+    "w": 991
+   },
+   {
+    "id": "sm",
+    "w": 478
+   }
+  ],
+  "code": {
+   "links": {},
+   "tokensFile": null
+  },
+  "media": {}
+ },
+ "recorded": {
+  "browser": "Edg/158.0.4370.33",
+  "date": "2026-11-23"
+ },
+ "boxes": {
+  "root": [
+   0,
+   0,
+   400,
+   245
+  ],
+  "s1": [
+   0,
+   0,
+   400,
+   56
+  ],
+  "s1a": [
+   8,
+   8,
+   40,
+   40
+  ],
+  "s1b": [
+   53,
+   8,
+   339,
+   20
+  ],
+  "s2": [
+   0,
+   62,
+   58,
+   61
+  ],
+  "s2a": [
+   7,
+   68,
+   40,
+   40
+  ],
+  "s3": [
+   0,
+   129,
+   50,
+   50
+  ],
+  "s3a": [
+   5,
+   134,
+   40,
+   40
+  ],
+  "s4": [
+   0,
+   185,
+   120,
+   60
+  ],
+  "s4a": [
+   0,
+   185,
+   20,
+   20
+  ],
+  "s4b": [
+   90,
+   215,
+   20,
+   20
+  ]
+ }
+}

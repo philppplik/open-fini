@@ -1,0 +1,255 @@
+{
+ "name": "grid-hug",
+ "description": "A hugging grid: fr and auto tracks sized from their contents, spans, padding and stretch alignment.",
+ "text": false,
+ "root": "root",
+ "model": {
+  "schema": 1,
+  "meta": {
+   "title": "Geometry fixture",
+   "created": "2026-11-23T00:00:00Z",
+   "unit": "px",
+   "app": "OpenFini"
+  },
+  "pages": {
+   "p1": {
+    "id": "p1",
+    "name": "Page 1",
+    "ord": "V",
+    "bg": "#ffffff",
+    "flows": []
+   }
+  },
+  "nodes": {
+   "root": {
+    "id": "root",
+    "type": "frame",
+    "name": "root",
+    "page": "p1",
+    "parent": null,
+    "ord": "V",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#93c5fd"
+     }
+    ],
+    "clip": false,
+    "w": {
+     "mode": "hug"
+    },
+    "h": {
+     "mode": "hug"
+    },
+    "layout": {
+     "type": "grid",
+     "gap": 8,
+     "rowGap": 4,
+     "pad": [
+      6,
+      6,
+      6,
+      6
+     ],
+     "align": "stretch",
+     "grid": {
+      "cols": [
+       {
+        "fr": 1
+       },
+       {
+        "auto": true
+       },
+       {
+        "fr": 2
+       }
+      ],
+      "autoFlow": "row"
+     }
+    }
+   },
+   "a": {
+    "id": "a",
+    "type": "rect",
+    "name": "a",
+    "page": "p1",
+    "parent": "root",
+    "ord": "G",
+    "w": {
+     "mode": "fixed",
+     "value": 40
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 20
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "b": {
+    "id": "b",
+    "type": "rect",
+    "name": "b",
+    "page": "p1",
+    "parent": "root",
+    "ord": "O",
+    "w": {
+     "mode": "fixed",
+     "value": 70
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 30
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "c": {
+    "id": "c",
+    "type": "rect",
+    "name": "c",
+    "page": "p1",
+    "parent": "root",
+    "ord": "V",
+    "w": {
+     "mode": "fixed",
+     "value": 50
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 10
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "d": {
+    "id": "d",
+    "type": "rect",
+    "name": "d",
+    "page": "p1",
+    "parent": "root",
+    "ord": "l",
+    "w": {
+     "mode": "fill"
+    },
+    "h": {
+     "mode": "fill"
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ]
+   },
+   "e": {
+    "id": "e",
+    "type": "rect",
+    "name": "e",
+    "page": "p1",
+    "parent": "root",
+    "ord": "t",
+    "w": {
+     "mode": "fixed",
+     "value": 100
+    },
+    "h": {
+     "mode": "fixed",
+     "value": 25
+    },
+    "pos": "flow",
+    "fills": [
+     {
+      "type": "solid",
+      "color": "#a1a1aa"
+     }
+    ],
+    "cell": {
+     "colSpan": 2
+    }
+   }
+  },
+  "vars": {
+   "collections": {},
+   "items": {}
+  },
+  "styles": {},
+  "breakpoints": [
+   {
+    "id": "base",
+    "w": 1280
+   },
+   {
+    "id": "md",
+    "w": 991
+   },
+   {
+    "id": "sm",
+    "w": 478
+   }
+  ],
+  "code": {
+   "links": {},
+   "tokensFile": null
+  },
+  "media": {}
+ },
+ "recorded": {
+  "browser": "Edg/158.0.4370.33",
+  "date": "2026-11-23"
+ },
+ "boxes": {
+  "root": [
+   0,
+   0,
+   218,
+   71
+  ],
+  "a": [
+   6,
+   6,
+   40,
+   20
+  ],
+  "b": [
+   54,
+   6,
+   70,
+   30
+  ],
+  "c": [
+   132,
+   6,
+   50,
+   10
+  ],
+  "d": [
+   6,
+   40,
+   40,
+   25
+  ],
+  "e": [
+   54,
+   40,
+   100,
+   25
+  ]
+ }
+}
