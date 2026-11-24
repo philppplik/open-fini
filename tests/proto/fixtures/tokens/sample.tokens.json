@@ -1,0 +1,301 @@
+{
+  "$extensions": {
+    "org.openfini": {
+      "collections": {
+        "c1": {
+          "name": "Color",
+          "modes": [
+            {
+              "id": "light",
+              "name": "Light"
+            },
+            {
+              "id": "dark",
+              "name": "Dark"
+            }
+          ],
+          "default": "light"
+        },
+        "c2": {
+          "name": "Brand B",
+          "modes": [
+            {
+              "id": "light",
+              "name": "Light"
+            },
+            {
+              "id": "dark",
+              "name": "Dark"
+            }
+          ],
+          "default": "light",
+          "extends": "c1"
+        },
+        "c3": {
+          "name": "Space",
+          "modes": [
+            {
+              "id": "base",
+              "name": "Base"
+            }
+          ],
+          "default": "base"
+        }
+      }
+    }
+  },
+  "color": {
+    "bg": {
+      "surface": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [
+            1,
+            1,
+            1
+          ],
+          "hex": "#ffffff"
+        },
+        "$extensions": {
+          "org.openfini": {
+            "id": "v1",
+            "collection": "c1",
+            "scopes": [
+              "fill"
+            ],
+            "code": {
+              "css": "--color-bg-surface"
+            }
+          },
+          "org.openfini.modes": {
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [
+                0.0941,
+                0.0941,
+                0.1059
+              ],
+              "hex": "#18181b"
+            }
+          }
+        }
+      }
+    },
+    "brand": {
+      "$root": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [
+            0.3098,
+            0.2745,
+            0.898
+          ],
+          "hex": "#4f46e5"
+        },
+        "$extensions": {
+          "org.openfini": {
+            "id": "v2",
+            "collection": "c1"
+          },
+          "org.openfini.modes": {
+            "dark": "{color.brand.bright}"
+          }
+        }
+      },
+      "bright": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [
+            0.5059,
+            0.549,
+            0.9725
+          ],
+          "hex": "#818cf8"
+        },
+        "$extensions": {
+          "org.openfini": {
+            "id": "v7",
+            "collection": "c1"
+          },
+          "org.openfini.modes": {
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [
+                0.5059,
+                0.549,
+                0.9725
+              ],
+              "hex": "#818cf8"
+            }
+          }
+        }
+      }
+    },
+    "text": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0.0941,
+          0.0941,
+          0.1059
+        ],
+        "hex": "#18181b"
+      },
+      "$extensions": {
+        "org.openfini": {
+          "id": "v3",
+          "collection": "c1"
+        },
+        "org.openfini.modes": {
+          "dark": {
+            "colorSpace": "srgb",
+            "components": [
+              0.9804,
+              0.9804,
+              0.9804
+            ],
+            "hex": "#fafafa"
+          }
+        }
+      }
+    }
+  },
+  "shadow": {
+    "color": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [
+          0,
+          0,
+          0
+        ],
+        "alpha": 0.1216,
+        "hex": "#000000"
+      },
+      "$extensions": {
+        "org.openfini": {
+          "id": "v12",
+          "collection": "c1"
+        },
+        "org.openfini.modes": {
+          "dark": {
+            "colorSpace": "srgb",
+            "components": [
+              0,
+              0,
+              0
+            ],
+            "alpha": 0.4,
+            "hex": "#000000"
+          }
+        }
+      }
+    }
+  },
+  "state": {
+    "paid": {
+      "$value": false,
+      "$extensions": {
+        "org.openfini": {
+          "id": "v30",
+          "collection": "c3",
+          "type": "bool"
+        }
+      }
+    }
+  },
+  "space": {
+    "4": {
+      "$type": "dimension",
+      "$value": {
+        "value": 16,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.openfini": {
+          "id": "v9",
+          "collection": "c3"
+        }
+      }
+    }
+  },
+  "Body": {
+    "Regular": {
+      "$type": "typography",
+      "$value": {
+        "fontFamily": "Inter",
+        "fontSize": {
+          "value": 16,
+          "unit": "px"
+        },
+        "fontWeight": 400,
+        "lineHeight": 1.5
+      },
+      "$extensions": {
+        "org.openfini": {
+          "style": {
+            "kind": "text",
+            "value": {
+              "font": "Inter",
+              "size": 16,
+              "weight": 400,
+              "lineHeight": {
+                "pct": 150
+              }
+            }
+          },
+          "id": "s2"
+        }
+      }
+    }
+  },
+  "Elevation": {
+    "2": {
+      "$type": "shadow",
+      "$value": {
+        "color": "{shadow.color}",
+        "offsetX": {
+          "value": 0,
+          "unit": "px"
+        },
+        "offsetY": {
+          "value": 4,
+          "unit": "px"
+        },
+        "blur": {
+          "value": 16,
+          "unit": "px"
+        },
+        "spread": {
+          "value": -2,
+          "unit": "px"
+        }
+      },
+      "$extensions": {
+        "org.openfini": {
+          "style": {
+            "kind": "effect",
+            "value": [
+              {
+                "type": "shadow",
+                "x": 0,
+                "y": 4,
+                "blur": 16,
+                "spread": -2,
+                "color": {
+                  "$alias": "{shadow.color}"
+                }
+              }
+            ]
+          },
+          "id": "s9"
+        }
+      }
+    }
+  }
+}

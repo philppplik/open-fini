@@ -953,6 +953,57 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
 * Acceptance: nested instances, overrides surviving edits of the main component, swap with a preferred list, slot
   content, detach equal to the resolved subtree; DTCG round trip of the specification's examples; alias cycles
   rejected; 1,000 instances resolve in under 50 ms.
+* As built (deviations and decisions the later tasks build on):
+  * Modules: `components.js` (helpers and operation handlers for components and instances), `variables.js` (families,
+    mode selection, value lookup, scopes, references, style application and the variable, mode and style operations),
+    `tokens.js` (DTCG, CSS, Tailwind v4, Swift). The handlers are registered in the one operation table of `ops.js`
+    (`apply` stays the only entry point). Their inverse is one generic exact operation, `restore { nodes?, pages?,
+    collections?, items?, styles? }` (`{ id: object | null }`), recorded by a journal in the draft; `restore` refuses
+    orphans and cycles. New operations: `component.create` (a frame becomes a component in place, anything else is
+    wrapped), `component.combine` ("size=md, state=hover" names become variant axes, other names one `variant` axis;
+    component properties move to the set), `component.addVariant`, `prop.define` / `prop.rename` / `prop.delete`
+    (cascading to variants' `variant`, `bind` and instance values), `prop.bind`, `instance.create` (the main
+    component's size applies), `instance.set`, `instance.swap`, `instance.override` (top-level fields per path),
+    `instance.reset`, `instance.detach`, `collection.*`, `mode.*`, `var.create` / `var.update` / `var.delete`
+    (`detach: true` replaces bindings by their values in each user's modes; without it a used variable is refused),
+    `node.bind` (binds list items such as `fills.0.color`, checks scopes unless `force`; `var: null` writes the value),
+    `style.create` (also `from` a layer) / `update` / `delete` / `apply` / `detach`, `tokens.import` (the result has a
+    `report`).
+  * Properties: a text property bound to `text` replaces the content (first run's style kept); every other binding sets
+    the field (`visible`, `of` of a nested instance for swap properties). Bindings apply to the layers of the instance's
+    own component; overrides apply after them. Main components render their stored layers (defaults are not applied).
+  * Slots: an instance's stored children are slot content (`props.<slot>` lists ids; unlisted children go to the first
+    slot property); a slot property is connected by `bind: { "<slotLayer>.children": prop }`, else the first free
+    `slot` layer. Content of a real instance keeps its own key; resolved nodes carry `slot` (the providing instance),
+    `src` (stored node with properties and overrides) and `base` (after expansion, still with bindings and style
+    references). New layers created inside an instance flow (`pos: "flow"`). `r.node` may be the stored object itself
+    when nothing changed it (treat it as immutable).
+  * Detach materializes the resolved subtree with new ids; the instance keeps its id and becomes a frame; slot layers
+    become frames; nested instances stay instances and receive the outer overrides that reached into them; slot content
+    of the detached instance keeps its ids. Instance children that fill no slot stay children of the frame.
+  * Extending collections: overrides live on the variable (`ext[collection][mode]`); an extending collection has its
+    base's modes (validated, kept in step by the mode operations, which run on the base only). Selecting any collection
+    of a family selects the family; a deeper selection replaces the inherited one, and inside one `modes` object the
+    most derived collection wins (`mergeModes`). The resolver's `opts.modes` apply over the page's modes (as in T2).
+  * Grid styles are CSS grid definitions; a container with a grid style becomes a grid (the style wins).
+  * `css.js`: `varRules` / `varSheet` emit `:root` (or `:host`) defaults and one `[data-mode-<collection slug>="<mode>"]`
+    rule per collection and mode with every variable of its family (base collections first). Aliases inside a family
+    are written as values; aliases into another family stay `var()` (they follow that family through the cascade; a
+    cross-family alias whose own family also switches modes deeper is a known CSS limitation). A unitless number
+    variable bound to a length prints `calc(var(--x, n) * 1px)`.
+  * Resolve cache: `createResolveCache()` passed as `opts.cache` reuses resolved real instances (the same objects) while
+    the stored nodes and children lists they read, `vars`, `styles` and the parent's modes are unchanged. Measured: 1,000
+    two- to four-layer instances resolve in about 11 ms without the cache (Node 24, Windows laptop); the test asserts
+    50 ms for the best of five runs.
+  * DTCG: export in the 2025.10 shapes (sRGB color objects with `hex`, dimension and duration objects, `$root` tokens
+    for names that are also groups); modes in `$extensions["org.openfini.modes"]`, collections, ids, scopes, code names
+    and brand overrides in `$extensions["org.openfini"]`; styles as typography, shadow, gradient or color tokens with the
+    exact style in the extension. Import reads both the 2025.10 objects and the older strings, `$type` inheritance,
+    `$root`, group `$extends`, `{a.b}` and `$ref` aliases, HSL and sRGB-linear colors; rem becomes px (×16) and s
+    becomes ms, both reported; cubicBezier, strokeStyle, border, transition, unreadable colors and broken aliases are
+    skipped and reported. Golden files: `tests/proto/fixtures/tokens/` (`UPDATE_GOLDEN=1` rewrites them).
+  * Like `ops.js`, the new modules have no app importer until T3 and ship as unminified source files (budget +39 KiB
+    gzip, recorded in `scripts/size-budget.json`).
 
 **T6 · Assets, components and variables UI** — M — deps: T4, T5
 * Scope: Assets panel (components, sets, styles, drag to insert), component section of the Design panel (create

@@ -424,3 +424,41 @@ test("convergence: seeded random concurrent histories through the adapter", () =
     }
   }
 });
+
+test("components, instances, overrides, variables and styles of T5 sync through the operations", () => {
+  const base = design();
+  const a = new Peer(base, "a");
+  const b = new Peer(base, "b");
+  a.run({ op: "collection.create", id: "c1", name: "Color", modes: [{ id: "light", name: "Light" }, { id: "dark", name: "Dark" }] });
+  a.run({ op: "var.create", id: "v1", coll: "c1", name: "brand", type: "color", values: { light: "#4f46e5", dark: "#818cf8" } });
+  a.run({ op: "component.create", ids: ["nA2"], name: "Card" });
+  deliver([a, b], (x) => x.reverse());
+  assert.equal(b.model.nodes.nA2.type, "component");
+  assert.equal(b.model.vars.items.v1.values.dark, "#818cf8");
+  // B places an instance and overrides a layer inside it; A binds the component's fill to the variable meanwhile
+  b.run({ op: "instance.create", of: "nA2", page: PAGE, id: "nI1", fields: { x: 900 } });
+  b.run({ op: "instance.override", id: "nI1", path: "nA3", set: { visible: false } });
+  a.run({ op: "node.update", id: "nA2", set: { fills: [{ type: "solid", color: "#ffffff" }] } });
+  a.run({ op: "node.bind", id: "nA2", path: "fills.0.color", var: "v1", force: true });
+  a.run({ op: "style.create", id: "s1", name: "Body", kind: "text", value: { font: "Inter", size: 16 } });
+  deliver([a, b], shuffle(rng(21)));
+  for (const p of [a, b]) {
+    assert.equal(p.model.nodes.nI1?.of, "nA2", p.site);
+    assert.equal(p.model.nodes.nI1.over.nA3.visible, false, p.site);
+    assert.deepEqual(p.model.nodes.nA2.fills[0].color, { $var: "v1" }, p.site);
+    assert.equal(p.model.styles.s1?.name, "Body", p.site);
+    const v = validate(p.model);
+    assert.ok(v.ok, `${p.site}: ${JSON.stringify(v.errors.slice(0, 2))}`);
+  }
+  converged([a, b]);
+  // Undo of B's override (a T5 operation with a `restore` inverse) keeps A's later edit of another layer
+  a.run({ op: "node.update", id: "nB", set: { y: 40 } });
+  deliver([a, b]);
+  b.undo();
+  deliver([a, b]);
+  for (const p of [a, b]) {
+    assert.ok(!p.model.nodes.nI1.over?.nA3, `${p.site}: override undone`);
+    assert.equal(p.model.nodes.nB.y, 40, `${p.site}: A's edit kept`);
+  }
+  converged([a, b]);
+});

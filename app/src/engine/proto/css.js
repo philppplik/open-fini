@@ -16,6 +16,10 @@
 //   treeCss(root, opts?) → Map<key, result>     every node of a resolved tree
 //   boxModel(r, parent, opts?) → { pos, w, h, pad, border, layout, place }   the geometry css.js emits; layout.js uses it
 //   declsToText(decls) / declsToObject(decls)
+//   varRules(model, { root?, selector? }) → [{ selector, decls }]   custom properties of every variable: defaults on
+//       `root` (":root"; ":host" inside a shadow root) and one rule per collection and mode on its `data-mode-*`
+//       attribute, so a layer's `modes` switch the values of its subtree through the cascade (the canvas and the export
+//       use the same rules); varSheet(model, opts) → the rules as text; cssLiteral(item, value) one value
 //   PROPERTIES                                   the allow-list
 //
 // Options
@@ -40,7 +44,7 @@
 //   * Constraints other than left/top need the design-time size of the parent and of the layer on that axis; when
 //     one is not fixed they fall back to left/top.
 import { field, DEFAULT_TEXT_STYLE } from "./schema.js";
-import { slug } from "./resolve.js";
+import { slug, cssVarName, familyOf, chainOf, rawValue, variableValue, modeIdsOf, isBinding } from "./variables.js";
 
 /** Every property css.js may emit. */
 export const PROPERTIES = Object.freeze(
@@ -257,8 +261,15 @@ function printers(r, opts) {
   const bound = r.bound || {};
   const css = opts.vars === "css" && opts.resolver;
   const ref = (path, literal) => (css && bound[path] ? `var(${opts.resolver.cssName(bound[path])}, ${literal})` : literal);
+  const items = css ? opts.resolver.model?.vars?.items || {} : {};
   return {
-    px: (path, v) => ref(path, `${fmt(numOr(v, 0))}px`),
+    // a number variable without a unit holds a plain number; lengths multiply it by 1px
+    px: (path, v) => {
+      const lit = `${fmt(numOr(v, 0))}px`;
+      if (!css || !bound[path]) return lit;
+      const unit = items[bound[path]]?.unit;
+      return unit === "px" || unit === "%" ? ref(path, lit) : `calc(var(${opts.resolver.cssName(bound[path])}, ${fmt(numOr(v, 0))}) * 1px)`;
+    },
     num: (path, v) => ref(path, fmt(numOr(v, 0))),
     color(path, v, opacity = 1) {
       const lit = hexAlpha(v, 1);
@@ -682,3 +693,83 @@ export function treeCss(root, opts = {}) {
 export const declsToText = (decls) => decls.map(([p, v]) => `${p}: ${v};`).join(" ");
 /** { property: value } with CSS property names (for style.setProperty). */
 export const declsToObject = (decls) => Object.fromEntries(decls);
+
+// ------------------------------------------------------------------------------------------------- variable rules
+
+const STRING_UNSAFE = /["\\<>;{}\n\r]/g;
+
+/** A variable value as a custom property value: colors as hex, numbers with the variable's unit, strings quoted. */
+export function cssLiteral(item, v) {
+  if (item?.type === "color") return HEX_RE.test(v) ? String(v).toLowerCase() : null;
+  if (item?.type === "number") return finite(v) ? `${fmt(v)}${item.unit === "px" || item.unit === "%" || item.unit === "ms" ? item.unit : ""}` : null;
+  if (item?.type === "string") return typeof v === "string" ? `"${v.replace(STRING_UNSAFE, " ")}"` : null;
+  return null;
+}
+
+/**
+ * The value of a variable in `modes` for a custom property: an alias inside the variable's collection family is
+ * followed to its value (exact in every rule); an alias into another family stays a `var()` reference, so it follows
+ * that family's mode through the cascade.
+ */
+function cssValue(model, id, modes) {
+  const colls = model.vars?.collections || {};
+  const items = model.vars?.items || {};
+  const root = (cid) => chainOf(colls, cid).slice(-1)[0];
+  const fam = root(items[id]?.coll);
+  const seen = new Set();
+  let cur = id;
+  while (!seen.has(cur)) {
+    seen.add(cur);
+    const v = rawValue(model, cur, modes);
+    if (!isBinding(v)) return cssLiteral(items[id], v);
+    const t = items[v.$var];
+    if (!t) return null;
+    if (root(t.coll) !== fam) return `var(${cssVarName(t, v.$var)})`;
+    cur = v.$var;
+  }
+  return null;
+}
+
+/** The attribute selector of a collection's mode: [data-mode-<collection slug>="<mode>"]. */
+export const modeSelector = (model, collId, mode) => `[data-mode-${slug(model.vars?.collections?.[collId]?.name) || slug(collId)}="${String(mode).replace(/[^A-Za-z0-9_-]/g, "")}"]`;
+
+/**
+ * Custom property rules for every variable (see the header).
+ * @param {object} model
+ * @param {{ root?: string, selector?: (collId: string, mode: string) => string }} [opts]
+ * @returns {{ selector: string, decls: [string, string][] }[]}
+ */
+export function varRules(model, { root = ":root", selector = (c, m) => modeSelector(model, c, m) } = {}) {
+  const colls = model?.vars?.collections || {};
+  const items = model?.vars?.items || {};
+  const byName = (ids) => ids.sort((a, b) => (cssVarName(items[a], a) < cssVarName(items[b], b) ? -1 : cssVarName(items[a], a) > cssVarName(items[b], b) ? 1 : 0));
+  const decls = (ids, modes) => {
+    const out = [];
+    for (const id of ids) {
+      const v = cssValue(model, id, modes);
+      if (v !== null) out.push([cssVarName(items[id], id), v]);
+    }
+    return out;
+  };
+  const all = byName(Object.keys(items).filter((id) => colls[items[id]?.coll]));
+  const rules = [{ selector: root, decls: decls(all, {}) }];
+  // base collections first, then the ones that extend them (a deeper selection on the same element wins)
+  const order = Object.keys(colls).sort((a, b) => chainOf(colls, a).length - chainOf(colls, b).length || (a < b ? -1 : a > b ? 1 : 0));
+  for (const c of order) {
+    const fam = new Set(familyOf(colls, c));
+    const ids = all.filter((id) => fam.has(items[id].coll));
+    if (!ids.length) continue;
+    for (const m of modeIdsOf(colls, c)) rules.push({ selector: selector(c, m), decls: decls(ids, { [c]: m }) });
+  }
+  return rules.filter((r) => r.decls.length);
+}
+
+/** The rules of `varRules` as CSS text. */
+export function varSheet(model, opts = {}) {
+  return varRules(model, opts)
+    .map((r) => `${r.selector} {\n${r.decls.map(([k, v]) => `  ${k}: ${v};`).join("\n")}\n}`)
+    .join("\n");
+}
+
+/** The concrete value of a variable (for exporters that print literals). */
+export const varValue = (model, id, modes = {}) => variableValue(model, id, modes);

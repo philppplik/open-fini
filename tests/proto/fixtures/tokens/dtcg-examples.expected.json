@@ -1,0 +1,367 @@
+{
+  "vars": {
+    "collections": {
+      "cm0izyamp": {
+        "name": "Tokens",
+        "modes": [
+          {
+            "id": "default",
+            "name": "Default"
+          }
+        ],
+        "default": "default"
+      }
+    },
+    "items": {
+      "vfzgh5e85": {
+        "name": "base/blue/100",
+        "coll": "cm0izyamp",
+        "type": "color",
+        "values": {
+          "default": "#dbebff"
+        }
+      },
+      "vh2era61f": {
+        "name": "base/blue/500",
+        "coll": "cm0izyamp",
+        "type": "color",
+        "values": {
+          "default": "#3b82f6"
+        },
+        "description": "Primary blue"
+      },
+      "vlsa7njr6": {
+        "name": "base/blue/900",
+        "coll": "cm0izyamp",
+        "type": "color",
+        "values": {
+          "default": "#1e3a8a"
+        }
+      },
+      "vpgrz8r5b": {
+        "name": "base/green",
+        "coll": "cm0izyamp",
+        "type": "color",
+        "values": {
+          "default": "#21c45d"
+        }
+      },
+      "ve85qk491": {
+        "name": "base/linear-gray",
+        "coll": "cm0izyamp",
+        "type": "color",
+        "values": {
+          "default": "#7c7c7c"
+        }
+      },
+      "vmv8zpeao": {
+        "name": "base/glass",
+        "coll": "cm0izyamp",
+        "type": "color",
+        "values": {
+          "default": "#ffffff80"
+        }
+      },
+      "vvavixp5o": {
+        "name": "base/oklch-hex",
+        "coll": "cm0izyamp",
+        "type": "color",
+        "values": {
+          "default": "#b3261e"
+        }
+      },
+      "vy4z5d4eb": {
+        "name": "brand",
+        "coll": "cm0izyamp",
+        "type": "color",
+        "values": {
+          "default": {
+            "$var": "vh2era61f"
+          }
+        }
+      },
+      "vnij2tu95": {
+        "name": "brand/strong",
+        "coll": "cm0izyamp",
+        "type": "color",
+        "values": {
+          "default": {
+            "$var": "vlsa7njr6"
+          }
+        }
+      },
+      "vawa5njb4": {
+        "name": "brand/soft",
+        "coll": "cm0izyamp",
+        "type": "color",
+        "values": {
+          "default": {
+            "$var": "vfzgh5e85"
+          }
+        }
+      },
+      "v52aon4ii": {
+        "name": "space/sm",
+        "coll": "cm0izyamp",
+        "type": "number",
+        "values": {
+          "default": 8
+        },
+        "unit": "px"
+      },
+      "v7s9zyv06": {
+        "name": "space/md",
+        "coll": "cm0izyamp",
+        "type": "number",
+        "values": {
+          "default": 16
+        },
+        "unit": "px"
+      },
+      "v1zbpv39v": {
+        "name": "space/lg",
+        "coll": "cm0izyamp",
+        "type": "number",
+        "values": {
+          "default": 24
+        },
+        "unit": "px"
+      },
+      "vss735eja": {
+        "name": "space/gutter",
+        "coll": "cm0izyamp",
+        "type": "number",
+        "values": {
+          "default": {
+            "$var": "v7s9zyv06"
+          }
+        },
+        "unit": "px"
+      },
+      "vvbwvmo8d": {
+        "name": "motion/fast",
+        "coll": "cm0izyamp",
+        "type": "number",
+        "values": {
+          "default": 100
+        },
+        "unit": "ms"
+      },
+      "vb79xy5b2": {
+        "name": "motion/slow",
+        "coll": "cm0izyamp",
+        "type": "number",
+        "values": {
+          "default": 500
+        },
+        "unit": "ms"
+      },
+      "v1sd85tbw": {
+        "name": "opacity/disabled",
+        "coll": "cm0izyamp",
+        "type": "number",
+        "values": {
+          "default": 0.4
+        }
+      },
+      "vifoc8jrs": {
+        "name": "font/family",
+        "coll": "cm0izyamp",
+        "type": "string",
+        "values": {
+          "default": "Inter, Helvetica, sans-serif"
+        }
+      },
+      "v17mn1bfv": {
+        "name": "font/mono",
+        "coll": "cm0izyamp",
+        "type": "string",
+        "values": {
+          "default": "JetBrains Mono"
+        }
+      },
+      "vnccl0xjk": {
+        "name": "font/weight/regular",
+        "coll": "cm0izyamp",
+        "type": "number",
+        "values": {
+          "default": 400
+        }
+      },
+      "vn42t5p9n": {
+        "name": "font/weight/bold",
+        "coll": "cm0izyamp",
+        "type": "number",
+        "values": {
+          "default": 700
+        }
+      },
+      "vajx236o1": {
+        "name": "font/weight/semi",
+        "coll": "cm0izyamp",
+        "type": "number",
+        "values": {
+          "default": 600
+        }
+      },
+      "vjds93zz0": {
+        "name": "theme/lg",
+        "coll": "cm0izyamp",
+        "type": "number",
+        "values": {
+          "default": 32
+        },
+        "unit": "px"
+      },
+      "vaymj15m8": {
+        "name": "theme/sm",
+        "coll": "cm0izyamp",
+        "type": "number",
+        "values": {
+          "default": 8
+        },
+        "unit": "px"
+      },
+      "v5nm021eo": {
+        "name": "theme/md",
+        "coll": "cm0izyamp",
+        "type": "number",
+        "values": {
+          "default": 16
+        },
+        "unit": "px"
+      },
+      "vnsnoy0vx": {
+        "name": "theme/gutter",
+        "coll": "cm0izyamp",
+        "type": "number",
+        "values": {
+          "default": {
+            "$var": "v7s9zyv06"
+          }
+        },
+        "unit": "px"
+      }
+    }
+  },
+  "styles": {
+    "s0tjkd33o": {
+      "name": "type/body",
+      "kind": "text",
+      "value": {
+        "font": "JetBrains Mono",
+        "size": 16,
+        "weight": {
+          "$var": "vnccl0xjk"
+        },
+        "tracking": 0,
+        "lineHeight": {
+          "pct": 150
+        }
+      }
+    },
+    "sd0ijouhr": {
+      "name": "type/heading",
+      "kind": "text",
+      "value": {
+        "font": "Georgia",
+        "size": 32,
+        "weight": 700,
+        "tracking": -0.5,
+        "lineHeight": {
+          "pct": 120
+        }
+      }
+    },
+    "s2eq7vs36": {
+      "name": "shadow/card",
+      "kind": "effect",
+      "value": [
+        {
+          "type": "shadow",
+          "x": 0,
+          "y": 4,
+          "blur": 12,
+          "spread": -2,
+          "color": {
+            "$var": "vmv8zpeao"
+          }
+        }
+      ]
+    },
+    "sp1sycwum": {
+      "name": "shadow/layered",
+      "kind": "effect",
+      "value": [
+        {
+          "type": "shadow",
+          "x": 0,
+          "y": 1,
+          "blur": 2,
+          "spread": 0,
+          "color": "#0000001a"
+        },
+        {
+          "type": "shadow",
+          "x": 0,
+          "y": 8,
+          "blur": 24,
+          "spread": 0,
+          "color": "#00000033",
+          "inset": true
+        }
+      ]
+    },
+    "sglf75xn1": {
+      "name": "gradient/sunrise",
+      "kind": "fill",
+      "value": [
+        {
+          "type": "linear",
+          "angle": 180,
+          "stops": [
+            {
+              "at": 0,
+              "color": "#f97316"
+            },
+            {
+              "at": 1,
+              "color": {
+                "$var": "vy4z5d4eb"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "report": {
+    "created": 26,
+    "updated": 0,
+    "styles": 5,
+    "skipped": [
+      {
+        "path": "motion.ease",
+        "reason": "cubicBezier tokens have no variable or style in Proto."
+      },
+      {
+        "path": "border.thin",
+        "reason": "border tokens have no variable or style in Proto."
+      },
+      {
+        "path": "base.oklch-only",
+        "reason": "The color cannot be read (only sRGB, sRGB linear and HSL, or a hex fallback)."
+      },
+      {
+        "path": "broken",
+        "reason": "The alias {nowhere.at.all} does not point to a variable."
+      }
+    ],
+    "converted": [
+      "space.md: 1rem → 16px",
+      "theme.md: 1rem → 16px",
+      "type.heading: 2rem → 32px"
+    ],
+    "warnings": []
+  }
+}
