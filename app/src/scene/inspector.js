@@ -198,7 +198,7 @@ export function createInspector(ui) {
         c.remap !== undefined ? animRow(id, "Source time", "remap", { min: 0, step: 0.04, unit: "s" }) : null,
         h("div.of-scene-insp__btns",
           btn("Speed / Duration…", () => ui.speedDialog([id]), "clock-history"),
-          timed ? btn("Reverse", () => ui.reverse([id]), "arrow-repeat") : null,
+          timed || c.type === "audio" ? btn(c.rev ? N_("Play forward") : "Reverse", () => ui.reverse([id]), "arrow-repeat") : null,
           timed ? btn("Freeze frame", () => ui.freeze(id), "pause") : null)));
     }
 

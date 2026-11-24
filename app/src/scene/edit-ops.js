@@ -87,19 +87,49 @@ export function pasteClips(m, board, at, { track = null } = {}) {
 
 // ---------------------------------------------------------------------------------------------- time
 
+/** The sound clips linked to a video clip that play the same source range (its own sound, placed with it). */
+export function soundPartners(m, id) {
+  const c = m.clips[id];
+  if (!c?.link || c.type !== "video") return [];
+  return Object.values(m.clips).filter((a) => a.type === "audio" && a.link === c.link && a.media === c.media && Math.abs(a.start - c.start) < EPS && Math.abs(a.dur - c.dur) < EPS && Math.abs(a.in - c.in) < EPS && Math.abs(a.speed - c.speed) < EPS).map((a) => a.id);
+}
+
+const toggleRev = (m, ids) => ({ ...m, clips: { ...m.clips, ...Object.fromEntries(ids.map((id) => {
+  const { rev, ...rest } = m.clips[id];
+  return [id, rev ? rest : { ...rest, rev: true }];
+})) } });
+
 /**
- * Plays a video or composition clip backwards (time remapping, scene format 3). An already remapped clip has its
- * remap keyframes reversed; a constant remap (a freeze frame) stays.
+ * Plays a clip backwards. Video and composition clips use time remapping (scene format 3): an already remapped clip
+ * has its remap keyframes reversed; a constant remap (a freeze frame) stays. The linked sound of a video clip (same
+ * file, same range) turns with it. A sound clip toggles `rev` (format 4): its source range plays backwards.
  */
-export function reverseClip(m, id) {
+export function reverseClip(m, id, { withSound = true } = {}) {
   const c = m.clips[id];
   if (!c) throw new Error(`There is no clip “${id}”.`);
-  if (c.type !== "video" && c.type !== "comp") throw new Error("Only video and composition clips can play in reverse.");
+  if (c.type === "audio") return toggleRev(m, [id]);
+  if (c.type !== "video" && c.type !== "comp") throw new Error("Only video, sound and composition clips can play in reverse.");
   const f = 1 / m.fps;
-  if (isTrack(c.remap)) return reverseKeys(m, c.remap.kf.map((k) => ({ id, path: "remap", t: k.t })));
-  if (c.remap !== undefined) return m;
-  const end = Math.max(0, c.dur - f);
-  return { ...m, clips: { ...m.clips, [id]: { ...c, remap: { kf: [{ t: 0, v: c.in + end * c.speed }, { t: end, v: c.in }] } } } };
+  if (c.remap !== undefined && !isTrack(c.remap)) return m;
+  const sound = withSound ? soundPartners(m, id) : [];
+  // a ramp or a hand-made remap does not map onto a sound clip: only a plain reverse turns the sound
+  const plain = !isTrack(c.remap) || (c.remap.kf.length === 2 && c.remap.kf.every((k) => !k.e || k.e === "linear"));
+  const next = isTrack(c.remap)
+    ? reverseKeys(m, c.remap.kf.map((k) => ({ id, path: "remap", t: k.t })))
+    : { ...m, clips: { ...m.clips, [id]: { ...c, remap: { kf: [{ t: 0, v: c.in + Math.max(0, c.dur - f) * c.speed }, { t: Math.max(0, c.dur - f), v: c.in }] } } } };
+  return sound.length && plain ? toggleRev(next, sound) : next;
+}
+
+/** Reverses several clips; a sound clip that turns with its selected picture is not turned back. */
+export function reverseClips(m, ids) {
+  let next = m;
+  const done = new Set();
+  for (const id of ids) if (["video", "comp"].includes(m.clips[id]?.type)) {
+    for (const a of soundPartners(next, id)) done.add(a);
+    next = reverseClip(next, id);
+  }
+  for (const id of ids) if (m.clips[id]?.type === "audio" && !done.has(id)) next = toggleRev(next, [id]);
+  return next;
 }
 
 /**

@@ -8,6 +8,8 @@
 //   encodeWav(buffer) → Uint8Array (16-bit PCM)      gateCurve(samples, rate, thresholdDb, release) → Float32Array
 // What sounds is evaluate.js ▸ flattenAudio: audio clips plus the sound of compositions (nested, with the
 // composition clip's speed, trim, volume, fades and pan applied).
+//   reverseSamples(Float32Array) → Float32Array      sourceWindow(clip, a, b) → { offset, length, slice }
+// A reversed sound clip (`rev`, format 4) plays a reversed copy of its source range (cached per buffer and range).
 // Limits: changing the speed changes the pitch (no time-stretch yet); time-remapped compositions are silent.
 import { clipEnd, duration, sequence } from "./model.js";
 import { flattenAudio } from "./evaluate.js";
@@ -38,6 +40,44 @@ export function gateCurve(samples, rate, thresholdDb = -45, release = 0.15) {
   return out;
 }
 
+/** The samples in reverse order (a new array). Pure (unit-tested). */
+export function reverseSamples(d) {
+  const n = d.length;
+  const out = new Float32Array(n);
+  for (let i = 0; i < n; i++) out[i] = d[n - 1 - i];
+  return out;
+}
+
+/**
+ * Where the clip-local range [a, b) plays from (buffer seconds) and for how long. A reversed clip plays a reversed
+ * copy of only its source range [in, in + dur · speed) (`slice`), in which clip-local time a starts at a · speed.
+ * Pure (unit-tested).
+ */
+export function sourceWindow(clip, a, b) {
+  const length = Math.max(0, (b - a) * clip.speed);
+  if (!clip.rev) return { offset: Math.max(0, clip.in + a * clip.speed), length, slice: null };
+  return { offset: Math.max(0, a * clip.speed), length, slice: [clip.in, clip.in + clip.dur * clip.speed] };
+}
+
+const reversedCache = new WeakMap(); // decoded buffer → Map("from:to" → reversed AudioBuffer)
+
+/** A reversed copy of the range [from, to) seconds of an AudioBuffer, cached per buffer and range. */
+export function reversedSlice(buffer, from, to) {
+  let byRange = reversedCache.get(buffer);
+  if (!byRange) reversedCache.set(buffer, (byRange = new Map()));
+  const s0 = Math.max(0, Math.min(buffer.length - 1, Math.floor(from * buffer.sampleRate)));
+  const s1 = Math.max(s0 + 1, Math.min(buffer.length, Math.ceil(to * buffer.sampleRate)));
+  const key = `${s0}:${s1}`;
+  let r = byRange.get(key);
+  if (!r) {
+    r = new AudioBuffer({ length: s1 - s0, numberOfChannels: buffer.numberOfChannels, sampleRate: buffer.sampleRate });
+    for (let ch = 0; ch < buffer.numberOfChannels; ch++) r.copyToChannel(reverseSamples(buffer.getChannelData(ch).subarray(s0, s1)), ch);
+    if (byRange.size > 16) byRange.delete(byRange.keys().next().value);
+    byRange.set(key, r);
+  }
+  return r;
+}
+
 // Samples a function of clip-local time into an automation curve for [a, b] (clip-local seconds).
 function curve(fn, a, b) {
   const n = Math.max(2, Math.ceil((b - a) * CURVE_RATE) + 1);
@@ -47,11 +87,13 @@ function curve(fn, a, b) {
 }
 
 // Builds and schedules the graph of one clip. `when` = context time at which timeline time `t0` sounds.
-function schedule(ctx, dest, clip, buffer, when, t0, rate, until) {
+function schedule(ctx, dest, clip, source, when, t0, rate, until) {
   const end = Math.min(clipEnd(clip), until);
-  if (end <= t0 + 1e-4 || !buffer) return null;
+  if (end <= t0 + 1e-4 || !source) return null;
   const a = Math.max(0, t0 - clip.start); // clip-local start
   const b = end - clip.start;
+  const win = sourceWindow(clip, a, b);
+  const buffer = win.slice ? reversedSlice(source, win.slice[0], win.slice[1]) : source;
   const at = when + Math.max(0, clip.start - t0) / rate;
   const len = (b - a) / rate;
   const src = ctx.createBufferSource();
@@ -84,8 +126,8 @@ function schedule(ctx, dest, clip, buffer, when, t0, rate, until) {
       if (p.makeup) link(ctx.createGain()).gain.value = Math.pow(10, p.makeup / 20);
     } else if (e.type === "gate") {
       // the gate is a gain curve computed from the source samples the clip plays
-      const s0 = Math.floor((clip.in + a * clip.speed) * buffer.sampleRate);
-      const s1 = Math.min(buffer.length, Math.ceil((clip.in + b * clip.speed) * buffer.sampleRate));
+      const s0 = Math.floor(win.offset * buffer.sampleRate);
+      const s1 = Math.min(buffer.length, Math.ceil((win.offset + win.length) * buffer.sampleRate));
       if (s1 > s0 + 1) {
         const g = link(ctx.createGain());
         const c = gateCurve(buffer.getChannelData(0).subarray(s0, s1), buffer.sampleRate, p.threshold, p.release);
@@ -102,7 +144,7 @@ function schedule(ctx, dest, clip, buffer, when, t0, rate, until) {
     else pan.pan.value = clip.pan(a);
   }
   node.connect(dest);
-  src.start(at, Math.max(0, clip.in + a * clip.speed), Math.max(0.001, (b - a) * clip.speed));
+  src.start(at, win.offset, Math.max(0.001, win.length));
   return src;
 }
 

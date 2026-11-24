@@ -32,7 +32,7 @@ export function sceneMotionTools(app) {
       by: S.num("move: seconds (negative = earlier)"), factor: S.num("scale: time factor"), pivot: T("scale: fixed time"), preset: S.str("ease: easing preset"), value: { description: "value: the new value (number or #rrggbb)" },
     }, ["id", "action"], (a) => sceneEdit(app, "Keyframes", async (m) => (await mo()).keyframeEdit(m, a))),
 
-    tool("scene_clip_time", "Clip time of a video or composition clip: reverse (plays backwards), freeze (holds the frame at `at` for the rest of the clip; splits there), remap (on: time remapping keyframes you can then edit with scene_keyframes path remap for speed ramps; on: false turns it off).", {
+    tool("scene_clip_time", "Clip time of a video or composition clip: reverse (plays backwards; the linked sound of the same file turns with it, and a sound clip can be reversed on its own), freeze (holds the frame at `at` for the rest of the clip; splits there), remap (on: time remapping keyframes you can then edit with scene_keyframes path remap for speed ramps; on: false turns it off).", {
       id: S.str("Clip id"), action: S.str("reverse, freeze or remap", { enum: ["reverse", "freeze", "remap"] }), at: T("freeze: timeline time of the held frame"), on: S.bool("remap: on (default) or off"),
     }, ["id", "action"], (a) => sceneEdit(app, "Clip Time", async (m) => (await mo()).clipTime(m, a))),
 

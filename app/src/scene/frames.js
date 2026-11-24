@@ -3,7 +3,8 @@
 // exact frame). Shared by scene/export.js, scene/analysis.js and vibe/tools/scene.js.
 //
 //   renderExact(store, model, t, { seq, scale, ... }) → Promise<canvas>
-//   createExactRenderer(store) → { render(model, t, opts) → Promise<canvas>, canvas }   reuses one canvas (export loop)
+//   createExactRenderer(store, { fast }) → { render(model, t, opts) → Promise<canvas>, canvas }   reuses one canvas
+//     (export loop); `fast`: sources are decoded sequentially with WebCodecs where possible (store.frameAt)
 // Invariant: sources are captured as bitmaps per clip before drawing, so two clips of the same media item at
 // different times (picture in picture, a dissolve into the same file) each get their own frame.
 import { frameState } from "./evaluate.js";
@@ -23,7 +24,7 @@ function wanted(model, t, seq, out = new Map(), depth = 0) {
   return out;
 }
 
-export function createExactRenderer(store) {
+export function createExactRenderer(store, { fast = false } = {}) {
   const frames = new Map(); // keyOf(clip id, time) → bitmap for the frame being drawn
   const owned = new Set();
   const comp = createCompositor({ provider: { source: (_media, time, clip) => frames.get(keyOf(clip?.id, time)) || null } });
@@ -43,7 +44,7 @@ export function createExactRenderer(store) {
       frames.clear();
       // sequential on purpose: one element per media item serves all its clips
       for (const [id, need] of wanted(model, t, opts.seq)) {
-        const src = await store.frameAt(need.media, need.time);
+        const src = await store.frameAt(need.media, need.time, fast ? { fast } : undefined);
         if (!src) continue;
         try {
           if (src instanceof ImageBitmap || src instanceof HTMLImageElement) frames.set(id, src);

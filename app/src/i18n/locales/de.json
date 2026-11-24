@@ -4567,5 +4567,6 @@
   "Saved {name} with its media in {folder}.": "{name} mit seinen Medien in {folder} gespeichert.",
   "Some linked media files are offline; their clips are missing from the export. Relink them in the Media panel.": "Einige verknüpfte Mediendateien sind offline; ihre Clips fehlen im Export. Verknüpfe sie im Bedienfeld Medien neu.",
   "The media is now stored in the project ({size} MB more when saved).": "Die Medien sind jetzt im Projekt gespeichert (beim Speichern {size} MB mehr).",
-  "The project could not be saved with its media: {message}": "Das Projekt konnte nicht mit seinen Medien gespeichert werden: {message}"
+  "The project could not be saved with its media: {message}": "Das Projekt konnte nicht mit seinen Medien gespeichert werden: {message}",
+  "Play forward": "Vorwärts abspielen"
 }

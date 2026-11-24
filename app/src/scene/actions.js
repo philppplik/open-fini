@@ -95,7 +95,7 @@ export function createActions(ui) {
       editSelected(edge === "start" ? "Trim Start" : "Trim End", (m) => E.trimTo(m, list, edge, S.t));
     },
     reverse(ids) {
-      editSelected("Reverse", (m) => targets(ids).reduce((acc, id) => (["video", "comp"].includes(acc.clips[id]?.type) ? E.reverseClip(acc, id) : acc), m));
+      editSelected("Reverse", (m) => E.reverseClips(m, targets(ids)));
     },
     freeze(id = sel()[0], at = S.t) {
       const c = seq().clips[id];
@@ -177,7 +177,7 @@ export function createActions(ui) {
       const pct = h("sl-input", { type: "number", label: t("Speed (%)"), value: String(Math.round(c.speed * 100)), min: "5", max: "2000" });
       const dur = h("sl-input", { type: "text", label: t("Duration"), value: M.timecode(seq(), c.dur), "help-text": t("hours:minutes:seconds:frames") });
       const ripple = h("sl-checkbox", {}, t("Ripple edit, shifting later clips"));
-      const rev = h("sl-checkbox", { checked: c.remap !== undefined && isTrack(c.remap) && c.remap.kf[0].v > c.remap.kf[c.remap.kf.length - 1].v ? true : undefined, disabled: !list.some((id) => ["video", "comp"].includes(seq().clips[id].type)) || undefined }, t("Reverse speed"));
+      const rev = h("sl-checkbox", { checked: c.rev || (c.remap !== undefined && isTrack(c.remap) && c.remap.kf[0].v > c.remap.kf[c.remap.kf.length - 1].v) ? true : undefined }, t("Reverse speed"));
       pct.addEventListener("sl-input", () => {
         const s = +pct.value / 100;
         if (s > 0) dur.value = M.timecode(seq(), (c.dur * c.speed) / s);
@@ -203,7 +203,8 @@ export function createActions(ui) {
                   const k = next.clips[id];
                   if (k.remap !== undefined) next = M.setTimeRemap(next, id, false);
                   next = M.setSpeed(next, id, s, { ripple: ripple.checked });
-                  if (rev.checked && ["video", "comp"].includes(k.type)) next = E.reverseClip(next, id);
+                  if (rev.checked && ["video", "comp"].includes(k.type)) next = E.reverseClip(next, id, { withSound: false });
+                  else if (k.type === "audio" && !!next.clips[id].rev !== rev.checked) next = E.reverseClip(next, id); // sound: toggles rev
                 }
                 return next;
               });
