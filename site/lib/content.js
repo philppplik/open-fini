@@ -4,22 +4,27 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseFrontMatter, renderMarkdown } from "../../app/src/engine/web/markdown.js";
 import { DEFAULT_LANG } from "./i18n.js";
+import { a11yFixes } from "./docs.js";
 
-/** Markdown to HTML with the app's own renderer; links stay as written. */
-export function md(source) {
-  return renderMarkdown(String(source ?? ""), { headingIds: false, highlight: true, externalLinkAttrs: false }).html;
+/**
+ * Markdown to HTML with the app's own renderer.
+ * @param {string} source
+ * @param {(url: string, kind: string) => string|null} [resolveUrl] rewrites links (site: and site-en: URLs, docs links)
+ */
+export function md(source, resolveUrl) {
+  return a11yFixes(renderMarkdown(String(source ?? ""), { headingIds: false, highlight: true, externalLinkAttrs: false, ...(resolveUrl ? { resolveUrl } : {}) }).html);
 }
 
 /** Inline Markdown (one paragraph) without the surrounding <p>. */
-export function mdInline(source) {
-  return md(source).trim().replace(/^<p>([\s\S]*)<\/p>$/, "$1");
+export function mdInline(source, resolveUrl) {
+  return md(source, resolveUrl).trim().replace(/^<p>([\s\S]*)<\/p>$/, "$1");
 }
 
 /**
  * @param {string} body
  * @returns {{ intro: string, sections: { id: string, icon: string|null, title: string, html: string }[] }}
  */
-export function splitSections(body) {
+export function splitSections(body, resolveUrl) {
   const parts = body.split(/^## /m);
   const intro = parts.shift() ?? "";
   const sections = parts.map((p) => {
@@ -34,9 +39,9 @@ export function splitSections(body) {
       id = m[1];
       icon = m[2] ?? null;
     }
-    return { id: id ?? heading.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""), icon, title: heading, html: md(text) };
+    return { id: id ?? heading.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""), icon, title: heading, html: md(text, resolveUrl) };
   });
-  return { intro: md(intro), sections };
+  return { intro: md(intro, resolveUrl), sections };
 }
 
 /**
@@ -44,9 +49,10 @@ export function splitSections(body) {
  * @param {string} dir site/content
  * @param {string} name e.g. "home" or "studios/vector"
  * @param {string} lang
+ * @param {(url: string, kind: string) => string|null} [resolveUrl]
  * @returns {{ meta: Record<string, any>, intro: string, sections: any[], lang: string, fallback: boolean }}
  */
-export function loadContent(dir, name, lang) {
+export function loadContent(dir, name, lang, resolveUrl) {
   let file = join(dir, `${name}.${lang}.md`);
   let used = lang;
   if (!existsSync(file)) {
@@ -54,5 +60,5 @@ export function loadContent(dir, name, lang) {
     used = DEFAULT_LANG;
   }
   const { meta, body } = parseFrontMatter(readFileSync(file, "utf8"));
-  return { meta, ...splitSections(body), lang: used, fallback: used !== lang };
+  return { meta, ...splitSections(body, resolveUrl), lang: used, fallback: used !== lang };
 }

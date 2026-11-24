@@ -775,7 +775,7 @@ sl-dialog::part(title) { font-size: var(--of-fs-lg); font-weight: 600; }
 .of-dialog__footer { display: flex; gap: 8px; justify-content: flex-end; }
 .of-newdoc { display: flex; flex-direction: column; gap: 14px; user-select: none; }
 .of-newdoc__studio { display: flex; align-items: center; gap: 10px; }
-.of-newdoc__blank { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin: 10px 0 0; padding: 8px 12px; width: 100%; text-align: left; border: 1px solid var(--of-accent); border-radius: var(--of-radius); background: var(--of-accent-soft); color: var(--of-text); cursor: pointer; }
+.of-newdoc__blank { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin: 10px 0 0; padding: 8px 12px; width: 100%; height: auto; /* .of-btn is one line high (26px); this button has two */ text-align: left; border: 1px solid var(--of-accent); border-radius: var(--of-radius); background: var(--of-accent-soft); color: var(--of-text); cursor: pointer; }
 .of-newdoc__blank span { font-size: var(--of-fs-sm); color: var(--of-text-dim); }
 .of-newdoc__cols { display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
 .of-presets__tabs { display: flex; gap: 2px; margin-bottom: 10px; flex-wrap: wrap; }

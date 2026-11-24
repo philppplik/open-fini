@@ -32,6 +32,9 @@ export async function fetchRelease({ token } = {}) {
     const res = await fetch(sumsAsset.browser_download_url, { signal: AbortSignal.timeout(15000), headers: { "User-Agent": "openfini-site-build" } });
     if (res.ok) sums = parseSums(await res.text());
   }
+  // publication dates of every published release, for the changelog page and feed.xml
+  const list = await (await getJson(`https://api.github.com/repos/${REPO}/releases?per_page=100`, token)).json();
+  const history = list.filter((x) => !x.draft && !x.prerelease).map((x) => ({ tag: x.tag_name, publishedAt: x.published_at }));
   return {
     tag: r.tag_name,
     version: r.tag_name.replace(/^v/, ""),
@@ -41,6 +44,7 @@ export async function fetchRelease({ token } = {}) {
     assets: r.assets
       .filter((a) => classifyAsset(a.name))
       .map((a) => ({ name: a.name, size: a.size, url: a.browser_download_url, ...(sums[a.name] ? { sha256: sums[a.name] } : {}) })),
+    history,
   };
 }
 
@@ -61,4 +65,20 @@ export async function loadRelease({ snapshot, offline = false, update = false, t
   }
   if (!existsSync(snapshot)) return null;
   return JSON.parse(readFileSync(snapshot, "utf8"));
+}
+
+/**
+ * Open issues labelled "good first issue" for the Community page; an empty list when offline.
+ * @param {{ offline?: boolean, token?: string, log?: (s: string) => void }} opts
+ * @returns {Promise<{ number: number, title: string, url: string }[]>}
+ */
+export async function loadGoodFirstIssues({ offline = false, token, log = () => {} } = {}) {
+  if (offline) return [];
+  try {
+    const list = await (await getJson(`https://api.github.com/repos/${REPO}/issues?state=open&labels=good%20first%20issue&per_page=20`, token)).json();
+    return list.filter((i) => !i.pull_request).map((i) => ({ number: i.number, title: i.title, url: i.html_url }));
+  } catch (err) {
+    log(`issues: ${err.message}`);
+    return [];
+  }
 }

@@ -48,6 +48,7 @@ export function urls(base, origin) {
   const page = (lang, path = "") => `${b}${lang === DEFAULT_LANG ? "" : `${lang}/`}${path}`;
   return {
     base: b,
+    origin,
     page,
     asset: (path) => `${b}assets/${path}`,
     absolute: (lang, path = "") => `${origin}${page(lang, path)}`,

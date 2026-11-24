@@ -1,6 +1,6 @@
 # Concept: the OpenFini website
 
-Status: **in progress**. Tasks W1–W12 are built (see [Built so far](#built-so-far)); W13–W18 are open. A multi-page website for OpenFini, hosted on GitHub Pages, built from this repository
+Status: **in progress**. Tasks W1–W17 are built (see [Built so far](#built-so-far)); W18, the launch review, is open. Maintenance how-to: [website.md](../website.md). A multi-page website for OpenFini, hosted on GitHub Pages, built from this repository
 (`/site`) and deployed by a GitHub Actions workflow. This page covers the information architecture, the visual
 direction, the technology decision, quality targets (performance, accessibility, SEO, English and German) and a build
 plan of small tasks.
@@ -247,7 +247,7 @@ Total: roughly 4–6 weeks of part-time work; W1–W5 and W12 give a useful, dep
 
 ## Built so far
 
-W1–W12 landed together. How to work on the site:
+W1–W12 landed in one pull request, W13–W17 in a second. How to work on the site (details in [website.md](../website.md)):
 
 ```sh
 npm run site:build      # site/dist; release from the GitHub API, or site/data/release.json offline
@@ -259,8 +259,16 @@ node site/build.mjs --update-snapshot              # refresh the committed relea
 
 - **Pages:** `/`, `/studios/`, one page per studio (the seven shipped ones plus Proto, marked *coming in 1.3.x*, with
   the release artwork in place of a screenshot), `/features/`, `/download/`, all mirrored under `/de/`; `/404.html`
-  and an unlinked `/styleguide/` (`noindex`). Docs, changelog, roadmap, community, press and privacy pages are not
-  built yet; the header and footer link to the Markdown sources on GitHub until then.
+  and an unlinked `/styleguide/` (`noindex`). W13–W17 added `/docs/` (the wiki, grouped like `_Sidebar.md`, with search), `/docs/dev/` (docs, concepts
+  and decision records with their status), `/changelog/` (anchors such as `#1-2-0`, publication dates, *Latest* badge),
+  `/roadmap/` (waves and items from the concept's prioritized list), `/community/`, `/press/` (with a generated ZIP)
+  and `/privacy/`; the documentation is English only, with a German entry page at `/de/docs/`.
+- **W13–W17:** docs link rewriting and GitHub-style heading anchors (`site/lib/docs.js`), a search index of titles
+  and headings (`assets/search.json`, searched by `site.js`; without JavaScript the form searches GitHub), Open Graph and
+  Twitter meta with generated social cards, JSON-LD `SoftwareApplication` on Home and Download, `feed.xml` (Atom,
+  changelog), and the *Site quality gates* CI job (html-validate, axe-core on every page via `scripts/site-check.mjs`,
+  Lighthouse CI budgets on four pages). The README, `package.json`, the wiki footer and *Help ▸ OpenFini Website* link
+  to the site.
 - **Build:** `site/build.mjs` renders `site/content/**/*.{en,de}.md` (front matter, body split at `## ` headings with
   optional `{id icon}` suffixes) with the app's `renderMarkdown`, wraps them with the template functions in
   `site/templates/`, writes an SVG sprite (studio icons from `app/assets/icons`, Bootstrap icons from the vendored

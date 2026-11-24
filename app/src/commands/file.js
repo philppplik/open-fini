@@ -316,6 +316,7 @@ export function registerFileCommands(app) {
   def("help.checkUpdates", "Check for Updates…", async (a) => (await import("../ui/update-check.js")).checkForUpdatesCommand(a));
   def("help.askOpenFini", "Ask about OpenFini…", async (a) => (await import("../vibe/quick-actions.js")).askAboutOpenFini(a));
   def("help.issues", "Report an Issue…", async (a) => (await import("../ui/diagnostics-dialog.js")).reportIssueDialog(a));
+  def("help.website", "OpenFini Website", async (a) => (await import("../ui/links.js")).openLink("https://philppplik.github.io/open-fini/", { app: a }), { icon: "globe2" });
   def("help.docs", "Documentation", async (a) => (await import("../ui/links.js")).openLink("https://github.com/philppplik/open-fini#readme", { app: a }));
   // troubleshooting and security (docs/troubleshooting.md, docs/security.md)
   def("help.troubleshoot", "Troubleshooting…", async (a, o) => (await import("../ui/diagnostics-dialog.js")).troubleshootingDialog(a, o?.tab), { shortcut: "Mod+Shift+F1", icon: "bug" });
