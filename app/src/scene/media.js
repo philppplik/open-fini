@@ -4,8 +4,11 @@
 //   probeMedia(bytes, name, mime)        → { kind, mime, name, duration, w, h, hasAudio, bytes }   (import)
 //   createMediaStore(getModel, onReady)  → store
 //     store.source(mediaId, time, clip)  → <video> | ImageBitmap | null   the compositor's provider (viewer)
-//     store.setPlaying(playing, rate)    video elements follow the transport
-//     store.frameAt(mediaId, time)       → Promise<CanvasImageSource|null>   frame-accurate (export, analysis, tools)
+//     store.setPlaying(playing, rate)    video elements follow the transport; time-remapped clips play from a cache
+//                                        of decoded frames around the playhead (filled ahead in the playing direction)
+//     store.frameAt(mediaId, time, { fast }) → Promise<CanvasImageSource|null>   frame-accurate (export, analysis,
+//                                        tools); `fast` decodes sequentially with WebCodecs (scene/decode.js) where it can
+//     store.releaseReaders()             closes the export's decoders
 //     store.audio(mediaId)               → Promise<AudioBuffer|null>         decoded once, cached
 //     store.peaks(mediaId)               → Promise<{ rate, data: Float32Array }|null>   waveform (100 values / s)
 //     store.thumb(mediaId, time, h)      → canvas | null (returns null and calls onReady when it becomes available)
@@ -14,6 +17,8 @@
 // it is, so the viewer repaints; object URLs are revoked by destroy(); decoding never blocks the UI thread longer
 // than one frame (elements and the browser's decoders do the work). An item without bytes (referenced media that
 // is offline or not read yet, scene/media-refs.js) is treated as not ready, and nothing is cached for it.
+
+import { createFrameReader, planPrefetch } from "./decode.js";
 
 const VIDEO_EXT = /\.(mp4|m4v|mov|webm|mkv|ogv)$/i;
 const AUDIO_EXT = /\.(mp3|wav|m4a|aac|ogg|oga|opus|flac|weba)$/i;
@@ -99,6 +104,9 @@ export function createMediaStore(getModel, onReady = () => {}) {
   const buffers = new Map(); // media id → Promise<AudioBuffer|null>
   const peakCache = new Map();
   const thumbs = new Map(); // "id@t@h" → canvas | "loading"
+  const readers = new Map(); // media id → { p: Promise<reader|null>, r } sequential decoders of the export
+  const cacheReaders = new Map(); // media id → the same, for the playback cache of time-remapped clips
+  const caches = new Map(); // media id → { frames: Map<µs, ImageBitmap>, busy, last, dir, used }
   let playing = false;
   let rate = 1;
   let dead = false;
@@ -158,7 +166,16 @@ export function createMediaStore(getModel, onReady = () => {}) {
     const el = v.el;
     const want = Math.max(0, Math.min(time, (el.duration || Infinity) - 0.001));
     const speed = (clip?.speed || 1) * rate;
-    // a time-remapped clip (reverse, freeze, speed ramp) is seeked frame by frame instead of played
+    v.used = performance.now();
+    // a time-remapped clip (reverse, freeze, speed ramp) cannot simply play: while playing, its frames come from the
+    // decoded-frame cache around the playhead; until a frame is there, the element is seeked as before
+    if (playing && clip?.remap !== undefined) {
+      const bmp = remapFrame(id, want);
+      if (bmp) {
+        if (!el.paused) el.pause();
+        return bmp;
+      }
+    }
     if (playing && clip?.remap === undefined) {
       if (el.playbackRate !== speed) el.playbackRate = Math.max(0.0625, Math.min(16, speed));
       if (el.paused) {
@@ -173,10 +190,118 @@ export function createMediaStore(getModel, onReady = () => {}) {
     return el.readyState >= 2 ? el : null;
   }
 
-  // one hidden element per media item for frame-accurate reads; requests are serialized
-  function frameAt(id, time) {
+  // ---- sequential decoding (scene/decode.js): one WebCodecs reader per media item, opened on first use; null when
+  // the browser or the file does not allow it (the element is seeked instead)
+  const readerOf = (map, id) => {
+    let r = map.get(id);
+    if (!r) {
+      const md = getModel().media[id];
+      r = { p: md?.bytes ? createFrameReader(md.bytes, md.mime).catch(() => null) : Promise.resolve(null), r: undefined };
+      r.p.then((x) => {
+        r.r = x;
+        if (dead || map.get(id) !== r) x?.close();
+      });
+      map.set(id, r);
+    }
+    return r;
+  };
+
+  // decoded-frame cache of time-remapped clips while playing: every frame a decode run passes is kept (scaled to
+  // preview size), so a reversed clip decodes each group of pictures once instead of seeking for every frame
+  const CACHE_FRAMES = 120;
+  const CACHE_WIDTH = 640;
+  function remapFrame(id, time) {
+    const md = getModel().media[id];
+    const c = caches.get(id) || { frames: new Map(), failed: new Set(), busy: false, last: null, dir: 0, used: 0 };
+    if (!caches.has(id)) caches.set(id, c);
+    const rd = readerOf(cacheReaders, id);
+    const reader = rd.r;
+    if (!reader || reader.closed) {
+      if (rd.r === undefined) rd.p.then(() => !dead && onReady());
+      return null;
+    }
+    const now = performance.now();
+    if (c.last && now - c.last.at < 300 && Math.abs(time - c.last.time) > 1e-5) c.dir = Math.sign(time - c.last.time);
+    else if (!c.last || now - c.last.at >= 300) c.dir = 0;
+    c.last = { time, at: now };
+    c.used = now;
+    const ts = reader.timeOf(time);
+    pump(id, c, reader, md);
+    return c.frames.get(ts) || null;
+  }
+  function pump(id, c, reader, md) {
+    if (c.busy || dead || !playing) return;
+    const plan = planPrefetch(reader.times, c.last.time, c.dir, 1);
+    const idx = plan.find((i) => !c.frames.has(reader.times[i]) && !c.failed.has(reader.times[i]));
+    if (idx === undefined) return;
+    c.busy = true;
+    const scale = Math.min(1, CACHE_WIDTH / Math.max(1, md.w || CACHE_WIDTH));
+    const opts = scale < 1 ? { resizeWidth: Math.max(1, Math.round(md.w * scale)), resizeHeight: Math.max(1, Math.round(md.h * scale)), resizeQuality: "medium" } : {};
+    const jobs = [];
+    const keep = (frame) => {
+      const ts = frame.timestamp;
+      if (c.frames.has(ts)) return frame.close();
+      jobs.push(createImageBitmap(frame, opts).then((b) => {
+        if (dead || caches.get(id) !== c) return b.close();
+        c.frames.set(ts, b);
+        trimCache(c, reader);
+      }, () => {}).finally(() => frame.close()));
+    };
+    const want = reader.times[idx];
+    reader.frameAt(want / 1e6, { keep })
+      .then(() => Promise.all(jobs))
+      .then(() => !c.frames.has(want) && c.failed.add(want)) // never ask for a frame the decoder did not give twice
+      .catch(() => {})
+      .finally(() => {
+        c.busy = false;
+        if (!dead) {
+          onReady();
+          if (playing) setTimeout(() => pump(id, c, reader, md), 0);
+        }
+      });
+  }
+  function trimCache(c, reader) {
+    if (c.frames.size <= CACHE_FRAMES) return;
+    const at = reader.timeOf(c.last?.time || 0);
+    // drop the frames farthest from the playhead, but keep the ones ahead of it in the playing direction
+    const order = [...c.frames.keys()].sort((a, b) => {
+      const da = (a - at) * (c.dir || 1) < 0 ? Math.abs(a - at) * 4 : Math.abs(a - at);
+      const db = (b - at) * (c.dir || 1) < 0 ? Math.abs(b - at) * 4 : Math.abs(b - at);
+      return db - da;
+    });
+    for (const ts of order.slice(0, c.frames.size - CACHE_FRAMES)) {
+      c.frames.get(ts).close?.();
+      c.frames.delete(ts);
+    }
+  }
+  function dropCache(id) {
+    const c = caches.get(id);
+    if (c) for (const b of c.frames.values()) b.close?.();
+    caches.delete(id);
+    const r = cacheReaders.get(id);
+    r?.r?.close();
+    cacheReaders.delete(id);
+  }
+
+  // one hidden element per media item for frame-accurate reads; requests are serialized. `fast`: decode the file
+  // sequentially with WebCodecs where it can (the export: frames are asked for in increasing time)
+  function frameAt(id, time, { fast = false } = {}) {
     const md = getModel().media[id];
     if (!md) return Promise.resolve(null);
+    if (fast && md.kind === "video" && md.bytes) {
+      const rd = readerOf(readers, id);
+      return rd.p.then(async (reader) => {
+        if (reader && !reader.closed) {
+          try {
+            const f = await reader.frameAt(Math.max(0, Math.min(time, (md.duration || time + 1) - 0.001)));
+            if (f) return f;
+          } catch {
+            /* the decoder failed on this file: seek instead from now on */
+          }
+        }
+        return frameAt(id, time);
+      });
+    }
     if (md.kind === "image") {
       const got = images.get(id);
       if (got && typeof got !== "string") return Promise.resolve(got);
@@ -280,6 +405,9 @@ export function createMediaStore(getModel, onReady = () => {}) {
   }
 
   function release(id) {
+    dropCache(id);
+    readers.get(id)?.r?.close();
+    readers.delete(id);
     const x = exact.get(id);
     if (x) {
       x.el.pause();
@@ -324,7 +452,13 @@ export function createMediaStore(getModel, onReady = () => {}) {
         }
       }
       const media = getModel()?.media || {};
-      for (const id of new Set([...urls.keys(), ...images.keys(), ...exact.keys(), ...buffers.keys(), ...peakCache.keys()])) if (!media[id]) release(id);
+      for (const id of new Set([...urls.keys(), ...images.keys(), ...exact.keys(), ...buffers.keys(), ...peakCache.keys(), ...caches.keys(), ...readers.keys()])) if (!media[id]) release(id);
+      for (const [id, c] of caches) if (!playing && now - c.used > 20000) dropCache(id); // the cache serves playback only
+    },
+    /** Closes the sequential decoders of the export (call when it is done; they reopen on demand). */
+    releaseReaders() {
+      for (const r of readers.values()) r.r?.close();
+      readers.clear();
     },
     /** Drops everything held for one media item (its file changed: Relink); it loads again on demand. */
     forget(id) {
@@ -344,6 +478,9 @@ export function createMediaStore(getModel, onReady = () => {}) {
     url: urlOf,
     destroy() {
       dead = true;
+      for (const id of [...caches.keys(), ...cacheReaders.keys()]) dropCache(id);
+      for (const r of readers.values()) r.r?.close();
+      readers.clear();
       for (const v of [...videos.values(), ...exact.values()]) {
         v.el.pause();
         v.el.removeAttribute("src");

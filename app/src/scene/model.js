@@ -44,7 +44,8 @@
 // bounce and elastic easings, nested compositions, remap and collapse on composition clips, sound of compositions;
 // 3 = anchor point (ax, ay), keyframes inside crop / mask / text / shape (NESTED_ANIMATABLE), time remapping of
 // video clips (reverse, freeze frames, speed ramps), clip label colors, links, disabled clips (off), track solo;
-// 4 = referenced media (path, size, hash on a media item; its bytes are read from the file, not stored).
+// 4 = referenced media (path, size, hash on a media item; its bytes are read from the file, not stored), reversed
+//     audio clips (rev: the source range plays backwards).
 // Every addition is optional, so a version 1 file loads unchanged and evaluates to the same frames.
 import { normBehaviors, normalizeParents } from "./rig.js";
 import { valueAt, isTrack, setKeyframe as kfSet, removeKeyframe as kfRemove, retime, normalizeValue, applyEasing, setTangents as kfTangents, tangentsOf, moveKeys, pasteKeys as kfPaste } from "./keyframes.js";
@@ -344,6 +345,7 @@ export function normalizeClip(m, c) {
   if (typeof c.label === "string" && /^#[0-9a-f]{6}$/i.test(c.label)) out.label = c.label;
   if (isId(c.link)) out.link = c.link;
   if (c.off) out.off = true;
+  if (type === "audio" && c.rev) out.rev = true; // format 4: the source range plays backwards
   if (type !== "audio") {
     out.x = normalizeValue(c.x, m.width / 2);
     out.y = normalizeValue(c.y, m.height / 2);
@@ -1245,6 +1247,7 @@ export function describeClip(m, c) {
   if (c.comp) o.comp = c.comp;
   if (c.remap !== undefined) o.remap = brief(c.remap);
   if (c.collapse) o.collapse = true;
+  if (c.rev) o.reversed = true;
   if (c.off) o.off = true;
   if (c.link) o.link = c.link;
   if (c.label) o.label = c.label;

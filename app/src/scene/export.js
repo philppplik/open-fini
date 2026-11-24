@@ -8,8 +8,9 @@
 //             "frames" (PNG sequence in a ZIP) | "wav" (sound only) | "png" (the frame at range.in)
 // Invariants: the export never changes the document; `signal` aborts between frames and releases the encoders; a
 // frame that fails to render aborts the export with the frame's time in the message (never a silent black frame).
-// Limits: export speed is bounded by seeking the sources (about real time for HD); frame rates above the
-// sequence's are not interpolated.
+// Speed: video sources are decoded front to back with WebCodecs (scene/decode.js: MP4 / MOV and WebM / MKV with a
+// codec the browser decodes); other files are seeked frame by frame (about real time for HD). `fast: false` forces
+// seeking. Limits: frame rates above the sequence's are not interpolated.
 import { duration } from "./model.js";
 import { createExactRenderer } from "./frames.js";
 import { renderAudio, encodeWav } from "./audio.js";
@@ -138,6 +139,14 @@ const silent = (buffer) => {
 };
 
 export async function exportScene(store, model, opts = {}) {
+  try {
+    return await exportFrames(store, model, opts);
+  } finally {
+    store.releaseReaders?.(); // the decoders hold a file's frames; they reopen on the next export
+  }
+}
+
+async function exportFrames(store, model, opts) {
   const { format = "mp4", onProgress = () => {}, signal = null } = opts;
   const total = duration(model);
   const { from, to } = exportRange(total, opts.range, format);
@@ -146,7 +155,7 @@ export async function exportScene(store, model, opts = {}) {
   const notes = [];
   // referenced media that is offline (scene/media-refs.js) renders like a missing source: say so instead of a silent gap
   if (Object.values(model.media || {}).some((x) => typeof x.path === "string" && x.path && !x.bytes?.length)) notes.push(N_("Some linked media files are offline; their clips are missing from the export. Relink them in the Media panel."));
-  const renderer = createExactRenderer(store);
+  const renderer = createExactRenderer(store, { fast: opts.fast !== false });
   const frameCount = Math.max(1, Math.round((to - from) * fps));
   const frameAt = async (i) => {
     const t = from + i / fps;

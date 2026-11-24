@@ -246,7 +246,8 @@ export function createTimeline(ui) {
         const x0 = Math.max(0, Math.floor(x));
         const x1 = Math.min(W, Math.ceil(x + w));
         for (let px = x0; px < x1; px++) {
-          const st = c.in + ((px - x) / S.zoom) * c.speed;
+          // a reversed sound clip (rev) reads its source range from the end
+          const st = c.rev ? c.in + (c.dur - (px - x + 1) / S.zoom) * c.speed : c.in + ((px - x) / S.zoom) * c.speed;
           const i0 = Math.floor(st * pk.rate);
           const i1 = Math.max(i0 + 1, Math.floor((st + c.speed / S.zoom) * pk.rate));
           let v = 0;
