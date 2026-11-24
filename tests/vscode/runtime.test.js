@@ -52,6 +52,15 @@ function frame(code, { handlers = {}, cfg = {} } = {}) {
   return { ready: readyP, requests, logs, invoke, ctx };
 }
 
+/** Resolves once `pred()` holds, checking after every macrotask; fails after `ms` (generous: only a hang reaches it). */
+async function until(pred, ms = 5000) {
+  const end = Date.now() + ms;
+  while (!pred()) {
+    if (Date.now() > end) throw new Error("timed out waiting for the extension");
+    await new Promise((r) => setTimeout(r, 1));
+  }
+}
+
 const editor = (text, sel) => ({ path: "src/a.js", languageId: "javascript", version: 3, text, selections: [sel] });
 
 describe("vscode API shim", () => {
@@ -242,7 +251,9 @@ exports.activate = () => {
 };`;
     const f = frame(code, { handlers: { "window.pick": () => 1, "window.input": () => "hello" } });
     assert.equal((await f.ready).error, undefined);
-    await new Promise((r) => setTimeout(r, 30));
+    // show() asks the host on a later task and each reply arrives on another task (setTimeout), so the fixed 30 ms
+    // sleep raced with busy runners: wait for the results themselves
+    await until(() => f.ctx.picked !== undefined && f.ctx.typed !== undefined && f.requests.some((r) => r.m === "status.item"));
     const st = f.requests.find((r) => r.m === "status.item");
     assert.deepEqual([st.p.text, st.p.alignment, st.p.priority, st.p.visible, st.p.command.command], ["$(sync~spin) Syncing", "right", 5, true, "toy.sync"]);
     assert.equal(JSON.stringify(f.ctx.picked), JSON.stringify(["two"]), "items set after show() are offered");
