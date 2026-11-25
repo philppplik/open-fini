@@ -313,10 +313,10 @@ export function downloadPage(ctx) {
   <div class="dl__primary" data-dl aria-live="polite">
     <p class="dl__hint">${t("dl.detecting")}</p>
   </div>
-  <p class="dl__notice" data-dl-notice hidden></p>
   ${release
     ? html`<div class="table-wrap">${table}</div>
-      <p class="dim small">${t("dl.sumsNote")} <a href="${release.url}">${t("dl.notes")} →</a></p>`
+      <p class="dim small">${t("dl.sumsNote")} <a href="${release.url}">${t("dl.notes")} →</a></p>
+      <p class="dl__notice" data-dl-notice hidden></p>`
     : html`<p>${t("dl.none")} <a href="${GITHUB.releases}">GitHub →</a></p>`}
   <script type="application/json" id="release-data">${raw(JSON.stringify(data).replace(/</g, "\\u003c"))}</script>
 </section>
