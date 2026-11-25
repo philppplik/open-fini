@@ -3,8 +3,8 @@
 // and fix. Static definitions; the logic loads on the first call (proto/ai-ops.js and engine/proto/lint.js, pure and
 // unit-tested; proto/ai-runtime.js for the undo step, images and attachments). Every write tool is ONE undoable step
 // ("Vibe: …") through engine/proto/ops.js, validated by the engine, and recorded in the AI log like every tool call.
-// Names match the MCP tools of the concept (§8) where they overlap. proto_write_html, proto_to_code and
-// proto_interaction arrive with T8, T7 and T9.
+// Names match the MCP tools of the concept (§8) where they overlap. proto_interaction (T9) edits prototype interactions
+// and flows; proto_write_html and proto_to_code arrive with T8 and T7.
 import { tool, S } from "./helpers.js";
 
 const ops = () => import("../../proto/ai-ops.js");
@@ -388,6 +388,93 @@ export function protoTools(app, ctx = {}) {
         return { ops: [{ op: "media.put", id: mediaId, media: { mime: img.mime, name: img.name, w: img.w, h: img.h, bytes: img.bytes } }, ...c.ops], result: { reference: c.ids[0], frame: a.frame !== false ? c.ids[1] : null, media: mediaId, size: `${W} × ${H}` } };
       });
       return { ...r, ...hints, next: "Look at the attached image, build the screen inside the frame with proto_create (auto layout, real text, these colors), then proto_screenshot with compare set to the reference id, and correct. Delete the reference layer when done." };
+    }),
+
+    tool("proto_interaction", "Prototype interactions and flows (one undo step per call). actions: list (interactions of a layer, or of every layer on the page, with the page's flows and the screens each flow reaches), add (id, interaction), set (id, index, interaction), delete (id, index), connect (from = layer, to = top-level frame or empty to remove: a click that navigates; trigger and transition optional), addFlow (start = top-level frame, name), updateFlow (flow, name?, start?), deleteFlow (flow). An interaction is { on: { type: click|doubleClick|press|hover|mouseEnter|mouseLeave|drag|key (key, mods)|afterDelay (ms)|variableChange (var) }, do: [actions] }; actions: { act: navigate|openOverlay|swapOverlay, to: frame, tr? } (openOverlay also pos center|top|bottom|…, dim \"#00000066\" or null, closeOutside), { act: back|closeOverlay }, { act: scrollTo, to: layer }, { act: variant, set: { axis: option }, target?: instance }, { act: set, var, value: expr }, { act: if, cond: expr, then: [], else: [] }, { act: openUrl, url }. Transitions tr: { type: instant|dissolve|moveIn|moveOut|push|slide|smart, dir: left|right|up|down, dur: ms, ease: ease-out|linear|… or { spring: [mass, stiffness, damping] } }. Expressions: literals, { var }, { var, op: \"==\", value }, { op: not|and|or|+|-|==|<…, args: [] }. Frames, layers and variables may be given by name. The user plays it with Prototype ▸ Preview (Ctrl+Alt+Enter).", {
+      action: S.str("What to do", { enum: ["list", "add", "set", "delete", "connect", "addFlow", "updateFlow", "deleteFlow"] }),
+      id: S.str("Layer id or name (list, add, set, delete)"), index: S.num("Interaction number from list (set, delete)", { minimum: 0 }),
+      interaction: OBJ("The interaction { on, do } (add, set)"), from: S.str("Layer id or name (connect)"), to: S.str("Top-level frame id or name (connect); empty removes"),
+      trigger: S.str("Trigger of connect (default click)"), transition: OBJ("Transition of connect, e.g. { type: \"smart\", dur: 300, ease: \"ease-out\" }"),
+      start: S.str("Start frame (addFlow, updateFlow)"), name: S.str("Flow name"), flow: S.str("Flow id or name (updateFlow, deleteFlow)"), page: S.str("Page id (default: the page on screen)"),
+    }, ["action"], async (a) => {
+      const [R, I] = await Promise.all([rt(), import("../../engine/proto/interactions.js")]);
+      const tg = R.protoTarget(app);
+      const m0 = tg.model();
+      const page = a.page || tg.page;
+      const layer = (m, k, { top = false } = {}) => {
+        if (k == null || k === "") throw new Error("Name a layer (id or name).");
+        const nodes = Object.values(m.nodes);
+        const hit = m.nodes[k] || nodes.find((n) => n.name === k && n.page === page && (!top || n.parent == null)) || nodes.find((n) => n.name === k && (!top || n.parent == null)) || nodes.find((n) => String(n.name).toLowerCase() === String(k).toLowerCase() && (!top || n.parent == null));
+        if (!hit) throw new Error(`There is no ${top ? "top-level frame" : "layer"} “${k}”. Call proto_describe for the ids.`);
+        return hit.id;
+      };
+      const flowOf = (m, k) => {
+        const fl = m.pages[page]?.flows || [];
+        const f = fl.find((x) => x.id === k) || fl.find((x) => x.name === k) || fl.find((x) => String(x.name).toLowerCase() === String(k).toLowerCase());
+        if (!f) throw new Error(`There is no flow “${k}” on this page (flows: ${fl.map((x) => x.name).join(", ") || "none"}).`);
+        return f.id;
+      };
+      const nameOf = (m) => (id) => m.nodes[id]?.name || m.vars?.items?.[id]?.name || id;
+      if (a.action === "list") {
+        const ids = a.id ? [layer(m0, a.id)] : Object.values(m0.nodes).filter((n) => n.page === page && Array.isArray(n.proto) && n.proto.length).map((n) => n.id);
+        const flows = (m0.pages[page]?.flows || []).map((f) => {
+          const g = I.flowGraph(m0, f);
+          return { id: f.id, name: f.name, start: f.start, screens: g.screens.map((s) => `${s} ${nameOf(m0)(s)}`), ...(g.missing.length ? { missing: g.missing } : {}) };
+        });
+        return { flows, layers: ids.slice(0, 200).map((id) => ({ id, name: m0.nodes[id]?.name, interactions: (m0.nodes[id]?.proto || []).map((it, i) => ({ index: i, text: I.describe(it, nameOf(m0)), interaction: it })) })) };
+      }
+      return edit(app, `Prototype: ${a.action}`, async (m, _t, A) => {
+        const N = A.names(m);
+        // names → ids inside an interaction (targets, variables, expressions)
+        const fixExpr = (e, d = 0) => {
+          if (d > 32 || !isObjLike(e)) return e;
+          const out = { ...e };
+          if (typeof out.var === "string") out.var = N.variable(out.var);
+          if (Array.isArray(out.args)) out.args = out.args.map((x) => fixExpr(x, d + 1));
+          if (isObjLike(out.value)) out.value = fixExpr(out.value, d + 1);
+          return out;
+        };
+        const fixActs = (list, d = 0) => (Array.isArray(list) ? list.map((x) => {
+          if (!isObjLike(x)) return x;
+          const b = { ...x };
+          if (typeof b.to === "string") b.to = layer(m, b.to, { top: b.act !== "scrollTo" });
+          if (typeof b.target === "string") b.target = layer(m, b.target);
+          if (b.act === "set" && typeof b.var === "string") b.var = N.variable(b.var);
+          if (b.act === "set") b.value = fixExpr(b.value);
+          if (b.act === "if") {
+            b.cond = fixExpr(b.cond);
+            if (d < 8) {
+              b.then = fixActs(b.then || [], d + 1);
+              b.else = fixActs(b.else || [], d + 1);
+            }
+          }
+          return b;
+        }) : list);
+        const fixIt = (it) => {
+          if (!isObjLike(it)) throw new Error("Pass interaction as { on: { type }, do: [actions] }.");
+          const on = isObjLike(it.on) ? { ...it.on } : it.on;
+          if (on?.type === "variableChange" && typeof on.var === "string") on.var = N.variable(on.var);
+          return { on, do: fixActs(it.do) };
+        };
+        switch (a.action) {
+          case "add":
+            return { ops: [{ op: "interaction.add", id: layer(m, a.id), interaction: fixIt(a.interaction) }], result: {} };
+          case "set":
+            return { ops: [{ op: "interaction.set", id: layer(m, a.id), index: a.index ?? 0, interaction: fixIt(a.interaction) }], result: {} };
+          case "delete":
+            return { ops: [{ op: "interaction.delete", id: layer(m, a.id), index: a.index ?? 0 }], result: {} };
+          case "connect":
+            return { ops: [{ op: "interaction.connect", from: layer(m, a.from || a.id), to: a.to ? layer(m, a.to, { top: true }) : null, ...(a.trigger ? { trigger: a.trigger } : {}), ...(a.transition ? { tr: a.transition } : {}) }], result: {} };
+          case "addFlow":
+            return { ops: [{ op: "flow.create", start: layer(m, a.start, { top: true }), name: a.name || "Flow" }], result: {} };
+          case "updateFlow":
+            return { ops: [{ op: "flow.update", page, id: flowOf(m, a.flow), set: { ...(a.name ? { name: a.name } : {}), ...(a.start ? { start: layer(m, a.start, { top: true }) } : {}) } }], result: {} };
+          case "deleteFlow":
+            return { ops: [{ op: "flow.delete", page, id: flowOf(m, a.flow) }], result: {} };
+          default:
+            throw new Error(`Unknown action “${a.action}”.`);
+        }
+      });
     }),
   ];
 }

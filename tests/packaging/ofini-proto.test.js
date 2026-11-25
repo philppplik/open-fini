@@ -20,6 +20,7 @@ import { renderSvg } from "../../cli/lib/proto-svg.mjs";
 import { lintModel, LINT_RULES, RULE_ALIASES } from "../../cli/lib/proto-lint.mjs";
 import { lint as designLint, RULES as DESIGN_RULES } from "../../app/src/engine/proto/lint.js";
 import { PROTO_COMMANDS } from "../../cli/lib/proto.mjs";
+import { flowModel } from "../proto/flow-fixture.js";
 
 const SAMPLE = JSON.parse(readFileSync(new URL("../proto/fixtures/schema-1/sample.json", import.meta.url), "utf8"));
 const GEOMETRY = new URL("../proto/fixtures/geometry/", import.meta.url);
@@ -447,4 +448,27 @@ test("help, completion and the interactive mode know the proto commands", async 
   assert.deepEqual(complete("proto render --no", { commands: COMMANDS, cwd: dir })[0], ["--node", "--no-color"]);
   assert.deepEqual(complete("help proto li", { commands: COMMANDS, cwd: dir })[0], ["lint"]);
   assert.ok(complete("new pr", { commands: COMMANDS, cwd: dir })[0].includes("proto"));
+});
+
+test("proto flows lists each flow's screens and interactions; exit 1 when a target is missing", async () => {
+  const m = flowModel();
+  writeFileSync(p("flow.ofini"), designBytes(m, "Flow"));
+  const r = await run("proto", "flows", "flow.ofini");
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /Onboarding/);
+  assert.match(r.out, /4 screens/);
+  assert.match(r.out, /Next button:.*navigate to Details \(smart animate, 300 ms\)/);
+  const j = json(await run("proto", "flows", "flow.ofini", "--json"));
+  assert.equal(j.flows.length, 1);
+  assert.deepEqual(j.flows[0].screens.map((s) => s.id), ["home", "menu", "details", "done"]);
+  assert.ok(j.flows[0].edges.some((e) => e.from === "home" && e.to === "details" && e.fromName === "Home"));
+  assert.deepEqual(j.problems, []);
+  const broken = structuredClone(m);
+  delete broken.nodes.done;
+  delete broken.nodes.h3;
+  writeFileSync(p("broken.json"), JSON.stringify(broken));
+  const b = await run("proto", "flows", "broken.json", "--json");
+  assert.equal(b.code, 1);
+  assert.match(json(b).problems[0].message, /“done”, which does not exist/);
+  assert.equal((await run("proto", "flows", "sample.json", "--page", "nope")).code, 2);
 });

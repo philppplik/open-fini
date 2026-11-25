@@ -11,6 +11,7 @@ import { createMoveTool } from "./select.js";
 import { createShapeTool, createLineTool, createZoomTool } from "./draw.js";
 import { createPenTool } from "./pen.js";
 import { createTextTool } from "./text.js";
+import { createConnectTool } from "./connect.js";
 import { FRAME_PRESETS } from "./presets.js";
 import { createCommentTool } from "../comments.js";
 
@@ -41,6 +42,8 @@ export function createTools(ws) {
     zoom: createZoomTool(ws),
     comment: createCommentTool(ws),
   };
+  // Prototype mode (T9): the Move tool with the connection handle (no toolbar button; the mode selects it)
+  tools.connect = createConnectTool(ws, tools.move);
   let current = tools.move;
   let switching = false;
 
@@ -72,6 +75,8 @@ export function createTools(ws) {
     get: (id) => tools[id] || null,
     /** Makes `id` the current tool (the Move tool for unknown ids). */
     set(id) {
+      if (id === "move" && ws.mode === "prototype") id = "connect";
+      if (id === "connect" && ws.mode !== "prototype") id = "move";
       const next = tools[id] || tools.move;
       if (next === current || switching) return;
       switching = true;
@@ -83,8 +88,9 @@ export function createTools(ws) {
       }
       current = next;
       for (const [k, b] of buttons) {
-        b.setAttribute("aria-pressed", String(k === next.id));
-        b.classList.toggle("active", k === next.id);
+        const on = k === next.id || (k === "move" && next.id === "connect");
+        b.setAttribute("aria-pressed", String(on));
+        b.classList.toggle("active", on);
       }
       ws.setTool(next);
       ws.setHover(null);
