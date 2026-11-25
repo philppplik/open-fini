@@ -42,6 +42,7 @@ ofini completion powershell | Out-String | Invoke-Expression   # $PROFILE
 | `ofini unpack <file> [folder]` | Unpacks a project into a folder (`--pretty` indents `document.json` for diffs in Git) |
 | `ofini pack <folder> [file]` | Packs such a folder into an `.ofini` file (the type marker first and stored) |
 | `ofini diff <a> <b>` | Structural comparison: title, kind, pages, layer counts, text stories, stored parts; exit code 1 when they differ |
+| `ofini proto <command>` | Proto designs: `info`, `tree`, `inspect`, `validate`, `lint`, `render`, `assets`, `tokens`, `diff`, `apply` ([below](#proto-designs)) |
 | `ofini version` | Version, document format, Node.js and platform |
 | `ofini help [command]` | Help, options and examples of a command |
 | `ofini completion <shell>` | Completion script for bash, zsh, fish or PowerShell |
@@ -91,7 +92,7 @@ With several files the worst code wins; one unreadable file does not stop the ot
 | Presentation | `pptx`, `odp`, `pdf` |
 | Whiteboard | `excalidraw`, `tldraw`, `svg`, `pdf` |
 | Scene | project only |
-| Proto (Labs) | project only (`ofini info` and `ofini validate` check the design; code export follows with `ofini proto`) |
+| Proto (Labs) | project only; SVG, assets and tokens with [`ofini proto`](#proto-designs) (code export follows) |
 | Every project | `ofini`, `json` (the document content, indented) |
 
 `convert` reads `.ofini` and the formats the Office apps open: `.docx`, `.odt`, `.rtf`, `.html`, `.md`, `.txt`,
@@ -108,8 +109,59 @@ text layout uses their metrics, so line breaks can differ slightly from the app,
 `vector`, `pixel`, `layout` (sizes: `full-hd`, `hd`, `4k`, `mobile`, `tablet`, `a3`, `a4`, `a5`, `letter`, `legal`,
 `tabloid`, `business-card`, `postcard`, `square`, `story`, `open-graph`, `icon`, or `WIDTHxHEIGHT` with `px`, `mm`,
 `in` or `pt`), `code` (the Code studio's website templates), `document`, `sheet`, `slides`, `board` (the Office apps'
-templates) and `scene` (the Scene Studio's templates). `ofini new --list` prints every template id. New projects have
-no preview image; the app adds one when it saves them.
+templates), `scene` (the Scene Studio's templates) and `proto` (`blank`, `desktop` with a 1440 × 1024 frame, `phone`
+with a 390 × 844 frame; `--size` makes one frame of any size). `ofini new --list` prints every template id. New
+projects have no preview image; the app adds one when it saves them.
+
+## Proto designs
+
+`ofini proto <command>` works with Proto Studio designs (Labs) through the same engine modules as the app
+([concept §9](concepts/proto-studio.md#9-cli)). A design is read from an `.ofini` file, from its `document.json` (after
+`ofini unpack`) or from a bare model (`*.json`); commands that change a design write the same kind of file, keep the
+rest of an `.ofini` file (preview, media) and refuse a design with validation errors or a newer schema. `ofini help
+proto <command>` lists every option.
+
+| Command | What it does |
+| --- | --- |
+| `ofini proto info <file...>` | Pages, frames, layers by type, components with variants and instance counts, variable collections and modes, styles, media, flows, health |
+| `ofini proto tree <file> [--page] [--node] [--depth] [--boxes]` | The layer outline: id, type, name, sizes, layout, text, instance, bindings, styles, modes, interactions; `--boxes` adds positions and sizes from the pure solver |
+| `ofini proto inspect <file> --node <ids> [--resolved] [--css]` | Full JSON of layers (also instance-inner keys such as `n5/n22`), the resolved layer, its CSS declarations and its solver box |
+| `ofini proto validate <file...> [--strict]` | Schema, references and limits; exit code 1 on errors (and on a newer schema) |
+| `ofini proto lint <file...> [--rules] [--format text\|json\|sarif] [--fix]` | Design lint (below); exit code 1 on errors (`--strict`: warnings too); `--fix` writes `<name>.fixed.ofini` (or `--out`, `--in-place`) |
+| `ofini proto render <file> [--node \| --page] [--out]` | SVG of layers (default: the top-level layers of the first page, one file each) through the pure layout solver; `--mode`, `--scale`, `--background`, `--media embed\|link\|none` |
+| `ofini proto assets <file> [--node] [--out dir]` | Vector layers (or the chosen layers) as SVG and embedded media as files, into `<name>-assets` |
+| `ofini proto tokens <file> [--format dtcg\|css\|tailwind\|swift\|json] [--mode]` | Design tokens: DTCG 2025.10 (default), CSS custom properties, Tailwind v4 `@theme`, Swift, or plain values per variable name (`json`) |
+| `ofini proto tokens import <file> <tokens.json\|->` | Imports DTCG tokens (`--collection`, `--mode`); needs `--out`, `--in-place` or `--dry-run` |
+| `ofini proto diff <a> <b>` | Structural diff: pages, layers (with the changed fields), collections, variables, styles, media; exit code 1 when they differ |
+| `ofini proto apply <file> <ops.json\|->` | Applies operations (one object, an array or `{ "ops": [...] }`; also `--ops '<json>'`) as one all-or-nothing batch; needs `--out`, `--in-place` or `--dry-run`; `--seed` makes new ids reproducible |
+
+`--mode Theme=dark,Density=compact` picks variable modes by collection and mode name (or id); for `render`, `inspect`
+and `tree --boxes` they are set on the top-level layer, so they win over the mode it picks itself. `--node` takes ids,
+exact layer names or instance-inner keys, comma-separated.
+
+**Lint rules.** `schema` (validation errors and warnings), `unresolved` (variables, components or modes that cannot be
+resolved), `stale-override` (instance overrides of layers the main component no longer has; fixable), `text-overflow`,
+`clipped` (a layer sticking out of a parent that clips), `touch-target` (click or press targets smaller than 24 × 24 px)
+and `empty-frame`. The geometry rules use the pure solver and are marked approximate. `--format sarif` writes SARIF
+2.1.0 for code-scanning annotations in CI. The design rules of the assistant's linter (contrast, unbound values) join
+when they land in the engine.
+
+**Approximate.** Without a browser, layout and text come from the pure solver with the PDF base-14 font metrics (no
+kerning, no real fonts), so text positions can differ by a pixel or two from the canvas. The SVG render also draws conic
+gradients with their first color and leaves out inner shadows and background blur (reported as warnings). PNG needs the
+app's renderer: `--format png` exits with code 4. Code export (`ofini proto export`), imports and `ofini mcp` follow
+with later Proto tasks.
+
+```sh
+ofini new proto app.ofini --template phone
+ofini proto tree app.ofini --boxes
+ofini proto lint 'designs/*.ofini' --format sarif > proto.sarif   # CI annotations
+ofini proto render app.ofini -o shots/ --mode Theme=dark
+ofini proto tokens app.ofini -t css -o tokens.css
+ofini proto tokens import app.ofini brand.tokens.json --in-place
+echo '{"op":"node.update","id":"n2","set":{"name":"Title"}}' | ofini proto apply app.ofini - --in-place
+ofini proto diff main.ofini feature.ofini --json
+```
 
 ## Examples
 

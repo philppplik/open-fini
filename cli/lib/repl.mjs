@@ -13,11 +13,17 @@ export function complete(line, { commands, cwd = process.cwd() }) {
   const cur = words[words.length - 1];
   const names = [...Object.keys(commands), "exit", "clear"];
   if (words.length <= 1) return [names.filter((n) => n.startsWith(cur)), cur];
-  const cmd = commands[words[0]];
+  let cmd = commands[words[0]];
+  if (cmd?.subcommands) {
+    // command groups (proto): the second word is the subcommand, whose options apply after it
+    if (words.length === 2) return [[...Object.keys(cmd.subcommands), "help"].filter((k) => k.startsWith(cur)), cur];
+    cmd = cmd.subcommands[words[1]] || null;
+  }
   if (cur.startsWith("-") && cmd) {
     const flags = [...Object.keys(cmd.flags), ...Object.keys(GLOBAL_FLAGS)].map((f) => `--${f}`);
     return [flags.filter((f) => f.startsWith(cur)), cur];
   }
+  if (words[0] === "help" && words.length === 3 && commands[words[1]]?.subcommands) return [Object.keys(commands[words[1]].subcommands).filter((k) => k.startsWith(cur)), cur];
   if (words[0] === "new" && words.length === 2) return [NEW_KINDS.filter((k) => k.startsWith(cur)), cur];
   if ((words[0] === "help" && words.length === 2) || (words[0] === "completion" && words.length === 2)) {
     const list = words[0] === "help" ? Object.keys(commands) : ["bash", "zsh", "fish", "powershell"];
