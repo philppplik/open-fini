@@ -30,6 +30,7 @@ export async function commentEnv(app, doc) {
   return {
     officeItem: board ? (a) => board.describeBoardAnchor(a, doc.office.model) : undefined,
     findNode: (id) => doc.find(id) || null,
+    protoModel: doc.office?.kind === "proto" ? () => doc.office.model : undefined,
     pageName: (id) => pages.find((p) => p.id === id)?.name ?? null,
     nodeBounds: (n) => {
       try {

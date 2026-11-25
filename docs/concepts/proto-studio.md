@@ -1038,6 +1038,47 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
 * Files: `app/src/proto/panels/{assets,variables,binding}.js`, `app/src/proto/panels/design.js`,
   `tests/proto/panels-model.test.js` (pure view models).
 * Acceptance: every action one undo step; a mode switch repaints only affected frames; keyboard access as in T4.
+* As built (deviations and decisions the later tasks build on):
+  * Modules: `proto/panels/model.js` (pure view models and the operations every panel action runs: `assetList`,
+    `insertInstanceOp`, `instanceInfo`, `componentInfo`, `propBindTargets`, `bindCandidates`, `bindOp`, `variableTable`,
+    `cellOp`, `resetCellOp`, `modeChoices`, `modeOp`, `styleSlotInfo`, the style operations, `tokenExport`; tested in
+    `tests/proto/panels-model.test.js`), `panels/binding.js` (the shared popover, the variable picker and `bindable`, the
+    bind button or bound chip of a Design field), `panels/assets.js` (dock id `proto-assets`, a tab next to Layers),
+    `panels/variables.js` (dock id `proto-variables`, bottom dock). No engine operation was added; every action is one
+    operation (a batch for several layers) through `ws.apply`, so one undo step. The workspace gained `goTo(id)`,
+    `comments`, `commentAnchor()` and `revealComment(anchor)`; the Proto layout now gives the bottom dock its height
+    (it was fixed at 0) and the Window menu shows in the studio.
+  * Component section: create (a frame becomes the component in place) and combine come from the selection; properties
+    are edited in place (rename, defaults, variant options as a comma list); an inner layer binds its `text`,
+    `visible`, `of` (nested instance) or `children` (slot) to a property in a *Component property* section. Text property
+    defaults start as “Text”.
+  * Instance section: swap lists every component and set; variant pickers start from the variant an instance of one
+    variant keeps; overrides count active and inactive paths plus set property values. Overrides of inner layers are not
+    edited from the panel (canvas clicks select the outer instance, T3); they come from the assistant and reset here.
+  * Bindings: opacity, corner radius (also per corner), gap, row gap, padding sides, fill, stroke and shadow colors,
+    stroke width, font, font size, weight, letter spacing, text color and visibility. Width and height and line height
+    are not bindable from the panel yet (`w.value` works through `node.bind`). Variables outside their scopes are listed
+    disabled. Editing a list (fills, padding) keeps bindings of the other items.
+  * Variables panel: a brand table shows the chain's variables; editing a cell writes `ext[brand][mode]`; *Reset to the
+    base value* removes it. Deleting a used variable or collection detaches (layers keep their values) after a
+    confirmation. Tokens import merges into the shown collection (a base collection) or the file's own collections.
+  * Styles: a palette button per section (fill, stroke, effect, text, grid layout); while a style is applied the section
+    shows the style chip instead of the local fields. A stroke uses fill styles, so a stroke style is created from the
+    layer's fills.
+  * Mode switcher: one select per collection family with more than one mode or a brand (`Auto` inherits); a frame's
+    `modes` change re-renders only that top-level layer (T3's `changedRoots`).
+  * Comments (T10 follow-up): anchor kind `proto` (`protocol.js ▸ ANCHOR`, `anchors.js ▸ protoAnchor`: `page`, `pin` in
+    world coordinates, `node` and `off` for the deepest layer under the point, `quote`); `proto/comments.js` draws the
+    pins over the canvas (DOM buttons of the comment UI, two frames after a change so they follow the measured boxes),
+    drags them (`reanchor`), and adds the Comment tool (C). `comments-host` asks `app.protoUI.commentAnchor()` for
+    *Add Comment* and reveals `proto` anchors in the workspace; `comment-context.js` resolves them for the assistant.
+    The assistant's `add_comment` with a `layer_id` still resolves only layers of the classic studios.
+  * Lint (T11/T13 follow-up): `cli/lib/proto-lint.mjs` runs `engine/proto/lint.js` for the design rules; the CLI-only
+    checks are `schema`, `unresolved` and `clipped`. `stale-override` and `text-overflow` are aliases; the CLI's own
+    touch-target and empty-frame checks are gone in favor of the engine's. Safe fixes become one operation or batch;
+    unsafe ones a `suggestion`.
+  * Assets previews are the solver's display list painted into a canvas (`ai-render.js`), cached per component and the
+    identities of its subtree, variables and styles.
 
 **T7 · Code export** — L — deps: T5, T13
 * Scope: `codegen/lower.js` (IR, tag inference, class names), emitters HTML + CSS, React (CSS Modules or Tailwind,
@@ -1149,7 +1190,7 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
     presence changes), and *Follow* sets the page and the camera that fits the member's visible rect. The workspace
     needed no new hooks: the runtime listens to the stage's pointer events and to `ws.on("selection" | "camera" |
     "page")`.
-  * Not done in T10: the comment anchor kind `proto` with pins on the overlay (comments on a Proto design are document
+  * Not done in T10 (added with T6): the comment anchor kind `proto` with pins on the overlay (comments on a Proto design are document
     comments for now); it needs the comment composer's canvas hooks, which T4 is changing, and follows as its own task.
   * Tests: `tests/proto/collab.test.js` (two and three peers with the real controller, shuffled delivery, late joiner,
     chunked media, malformed records, 300 seeded random histories in CI; 2,000 checked with `PROTO_COLLAB_SEEDS=2000`).

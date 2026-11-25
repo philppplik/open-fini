@@ -79,6 +79,15 @@ export function resolveTarget(anchor, env = {}) {
       if (info) out.layer = info;
       return out;
     }
+    case "proto": {
+      // a Proto design (docs/proto-studio.md ▸ Comments): the layer of the design model, or a point on its page
+      const m = env.protoModel?.() || null;
+      const page = a.page ? { id: a.page, name: m?.pages?.[a.page]?.name ?? undefined } : undefined;
+      const node = a.node && m ? m.nodes?.[a.node] || null : null;
+      if (a.node && !node) return { type: "layer", exists: false, layerId: a.node, note: "The layer was deleted; the comment keeps its saved position.", ...(a.pin ? { pin: a.pin } : {}), ...(quote ? { quote } : {}), ...(page ? { page } : {}) };
+      if (node) return { type: "layer", exists: true, layerId: a.node, name: node.name, layerType: node.type, ...(page ? { page } : {}), ...(a.pin ? { point: a.pin } : {}), note: "A Proto design layer: use the proto_* tools with this id." };
+      return { type: "region", exists: true, ...(page ? { page } : {}), point: a.pin, ...(quote ? { quote } : {}) };
+    }
     case "region":
       return { type: "region", exists: true, page: { id: a.page, name: env.pageName?.(a.page) ?? undefined }, point: a.pin || (a.rect ? { x: a.rect.x, y: a.rect.y } : undefined), ...(a.rect && (a.rect.w || a.rect.h) ? { rect: a.rect } : {}), ...(quote ? { quote } : {}) };
     case "page":

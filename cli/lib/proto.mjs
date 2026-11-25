@@ -23,7 +23,7 @@ import { CliError, EXIT } from "./project.mjs";
 import { plural, withoutExt, readInput, writeOutput, replaceFile, needArgs, eachFile, safeFileName } from "./io.mjs";
 import { readProto, assertWritable, protoBytes, pagesOf, findPage, topLayers, topOf, findNodes, parseModes, sizeText, fmtNum, withModes } from "./proto-model.mjs";
 import { renderSvg } from "./proto-svg.mjs";
-import { LINT_RULES, lintModel, applyFixes } from "./proto-lint.mjs";
+import { LINT_RULES, lintModel, applyFixes, resolveRules, RULE_ALIASES } from "./proto-lint.mjs";
 
 const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const MIME_EXT = { "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp", "image/avif": "avif", "image/svg+xml": "svg" };
@@ -269,9 +269,9 @@ async function cmdLint(flags, args, ctx) {
   if (!["text", "json", "sarif"].includes(format)) throw new UsageError(`Unknown format “${flags.format}”. Formats: text, json, sarif.`);
   let rules = Object.keys(LINT_RULES);
   if (flags.rules) {
-    rules = String(flags.rules).split(",").map((s) => s.trim()).filter(Boolean);
-    const bad = rules.filter((r) => !LINT_RULES[r]);
-    if (bad.length) throw new UsageError(`Unknown rule “${bad.join(", ")}”. Rules: ${Object.keys(LINT_RULES).join(", ")}.`);
+    const res = resolveRules(String(flags.rules).split(",").map((s) => s.trim()).filter(Boolean));
+    if (res.unknown.length) throw new UsageError(`Unknown rule “${res.unknown.join(", ")}”. Rules: ${Object.keys(LINT_RULES).join(", ")}.`);
+    rules = res.rules;
   }
   if (!flags.fix && (flags["in-place"] || flags.out)) throw new UsageError("--in-place and --out need --fix.");
   const files = expandAll(args, ctx.cwd);
@@ -661,12 +661,12 @@ export const PROTO_COMMANDS = {
   inspect: { summary: "Full JSON of layers, resolved values, CSS and solver boxes", usage: "ofini proto inspect <file> --node <ids> [--resolved] [--css]", flags: { ...IO, ...MODE, node: { type: "string", desc: "Layer ids, names or instance-inner keys such as n5/n22 (comma-separated)" }, resolved: { type: "bool", short: "r", desc: "Show the resolved layer (instances expanded, variables replaced, styles applied)" }, css: { type: "bool", desc: "Add the CSS declarations the canvas and code export use" } }, run: cmdInspect, examples: ["ofini proto inspect app.ofini --node n5 --resolved", "ofini proto inspect app.ofini --node n5/n22 --css --json"] },
   validate: { summary: "Check designs against the schema; exit code 1 on errors", usage: "ofini proto validate <file...> [--strict]", flags: { ...IO, strict: { type: "bool", desc: "Treat warnings as errors" }, verbose: { type: "bool", short: "v", desc: "Also list warnings of valid designs" } }, run: cmdValidate, examples: ["ofini proto validate 'designs/*.ofini'", "ofini proto validate --strict --json app.ofini"] },
   lint: {
-    summary: "Design lint (schema, overrides, text overflow, clipping, touch targets); exit code 1 on errors",
+    summary: "Design lint (the assistant's design rules plus schema checks); exit code 1 on errors",
     usage: "ofini proto lint <file...> [--rules <ids>] [--format text|json|sarif] [--fix [--in-place | --out <file>]]",
     flags: { ...IO, ...FORCE, rules: { type: "string", desc: `Rules to run (default all): ${Object.keys(LINT_RULES).join(", ")}` }, format: { type: "string", short: "t", desc: "text (default), json or sarif (for CI annotations)" }, strict: { type: "bool", desc: "Exit code 1 also for warnings" }, fix: { type: "bool", desc: "Apply machine-applicable fixes (default: writes <name>.fixed.ofini)" }, "in-place": { type: "bool", desc: "With --fix: replace the design file" }, out: { type: "string", short: "o", desc: "With --fix: write the fixed design here" } },
-    details: Object.entries(LINT_RULES).map(([k, v]) => `${k.padEnd(15)} ${v.severity.padEnd(8)} ${v.summary}${v.fixable ? " (fixable)" : ""}`),
+    details: [...Object.entries(LINT_RULES).map(([k, v]) => `${k.padEnd(17)} ${v.severity.padEnd(8)} ${v.summary}${v.fixable ? " (fixable)" : ""}`), ...Object.entries(RULE_ALIASES).map(([k, v]) => `${k.padEnd(17)} alias of ${v}`)],
     run: cmdLint,
-    examples: ["ofini proto lint app.ofini", "ofini proto lint 'designs/*.ofini' --format sarif > proto.sarif", "ofini proto lint app.ofini --rules schema,stale-override --fix --in-place"],
+    examples: ["ofini proto lint app.ofini", "ofini proto lint 'designs/*.ofini' --format sarif > proto.sarif", "ofini proto lint app.ofini --rules schema,inactive-override --fix --in-place"],
   },
   render: {
     summary: "Render layers to SVG through the pure layout solver (approximate)",

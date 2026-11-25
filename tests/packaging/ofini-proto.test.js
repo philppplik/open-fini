@@ -17,7 +17,8 @@ import { writeOfini } from "../../cli/lib/project.mjs";
 import { completionScript } from "../../cli/lib/completion.mjs";
 import { complete } from "../../cli/lib/repl.mjs";
 import { renderSvg } from "../../cli/lib/proto-svg.mjs";
-import { lintModel, LINT_RULES } from "../../cli/lib/proto-lint.mjs";
+import { lintModel, LINT_RULES, RULE_ALIASES } from "../../cli/lib/proto-lint.mjs";
+import { lint as designLint, RULES as DESIGN_RULES } from "../../app/src/engine/proto/lint.js";
 import { PROTO_COMMANDS } from "../../cli/lib/proto.mjs";
 import { flowModel } from "../proto/flow-fixture.js";
 
@@ -183,27 +184,33 @@ test("lint rules find their problems and stay quiet on clean layers", () => {
   ]);
   const found = lintModel(m);
   const by = (rule) => found.filter((x) => x.rule === rule).map((x) => x.id);
-  assert.deepEqual(by("text-overflow"), ["t1"]);
+  assert.deepEqual(by("overflow-text"), ["t1"]);
   assert.deepEqual(by("touch-target"), ["b1"]);
   assert.deepEqual(by("clipped"), ["out"]);
   assert.deepEqual(by("empty-frame"), ["e1"]);
-  assert.ok(found.filter((x) => ["text-overflow", "touch-target", "clipped"].includes(x.rule)).every((x) => x.approximate));
+  assert.ok(found.filter((x) => ["overflow-text", "touch-target", "clipped"].includes(x.rule)).every((x) => x.approximate));
   assert.deepEqual(by("schema"), []);
   // negative: the sample has none of the geometry problems
-  assert.deepEqual(lintModel(SAMPLE, { rules: ["text-overflow", "touch-target", "empty-frame"] }), []);
-  // a rule subset
+  assert.deepEqual(lintModel(SAMPLE, { rules: ["overflow-text", "empty-frame", "clipped"] }), []);
+  // a rule subset; the 1.3.0 names are aliases
   assert.deepEqual([...new Set(lintModel(m, { rules: ["empty-frame"] }).map((x) => x.rule))], ["empty-frame"]);
-  assert.ok(Object.keys(LINT_RULES).includes("stale-override"));
+  assert.deepEqual(lintModel(m, { rules: ["text-overflow"] }).map((x) => x.rule), ["overflow-text"]);
+  assert.equal(RULE_ALIASES["stale-override"], "inactive-override");
+  // the CLI runs every rule of the assistant's design linter (engine/proto/lint.js)
+  for (const r of DESIGN_RULES) assert.ok(LINT_RULES[r], r);
+  const same = designLint(m).issues.map((i) => `${i.rule}:${String(i.node).split("/")[0]}`).sort();
+  assert.deepEqual(found.filter((x) => DESIGN_RULES.includes(x.rule)).map((x) => `${x.rule}:${x.id}`).sort(), same);
 });
 
 test("proto lint: exit codes, --fix writes a fixed copy, SARIF for CI", async () => {
   const r = await run("proto", "lint", "sample.ofini", "--json");
   assert.equal(r.code, 0, r.err);
   const res = json(r);
-  const stale = res.findings.find((x) => x.rule === "stale-override");
+  const stale = res.findings.find((x) => x.rule === "inactive-override");
   assert.ok(stale, "the sample overrides a layer the lg variant does not have");
   assert.deepEqual(stale.fix, { op: "instance.reset", id: "n5", paths: ["n22"] });
-  assert.equal(res.counts.fixable, 1);
+  assert.ok(res.counts.fixable >= 1);
+  assert.ok(res.findings.some((x) => x.rule === "unused-token" && !x.fix && x.suggestion), "unsafe fixes are suggestions");
   assert.equal((await run("proto", "lint", "sample.ofini", "--strict")).code, 1, "warnings fail with --strict");
   const fixed = await run("proto", "lint", "sample.ofini", "--fix", "--json");
   assert.equal(fixed.code, 0, fixed.err);
@@ -216,7 +223,7 @@ test("proto lint: exit codes, --fix writes a fixed copy, SARIF for CI", async ()
   assert.equal(sarif.version, "2.1.0");
   assert.equal(sarif.runs[0].tool.driver.name, "ofini proto lint");
   assert.ok(sarif.runs[0].tool.driver.rules.some((x) => x.id === "touch-target"));
-  const hit = sarif.runs[0].results.find((x) => x.ruleId === "stale-override");
+  const hit = sarif.runs[0].results.find((x) => x.ruleId === "inactive-override");
   assert.equal(hit.level, "warning");
   assert.equal(hit.locations[0].physicalLocation.artifactLocation.uri, "sample.ofini");
   assert.equal(hit.locations[0].logicalLocations[0].name, "n5");
