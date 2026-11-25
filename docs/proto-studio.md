@@ -84,7 +84,8 @@ The panels dock like everywhere else ([workspaces](workspaces.md)).
 
 * **Pages** (left): the pages of the design. Click to show a page, double-click or F2 to rename, Alt+Up/Down to move,
   the trash button or Delete to delete (the last page stays), + to add. The prototype flows of the page are listed
-  below; a click shows the flow's first frame.
+  below: the play button plays a flow, a click shows its first frame, double-click renames, + adds a flow at the
+  selected frame (or the page's first frame).
 * **Layers** (left): the layers of the page, top of the list = in front. Click selects, Shift-click selects a range,
   Ctrl-click adds; double-click a name (or F2, Enter) to rename; the eye and lock buttons hide and lock; drag rows to
   reorder or to move layers into another frame (the middle of a frame's row drops inside); the search field filters by
@@ -99,7 +100,54 @@ The panels dock like everywhere else ([workspaces](workspaces.md)).
   center and outside strokes, drop and inner shadows, layer and background blur); *Text* (font, size, weight, line
   height, letter spacing, alignment, case, decoration, color, auto width / auto height / fixed size, maximum lines);
   *Accessibility and code* (HTML element, role, accessible name); *Export* comes with code export. Drag a field's
-  label to scrub a value. With nothing selected the panel shows the page's name and background.
+  label to scrub a value. With nothing selected the panel shows the page's name and background. The *Prototype* tab
+  next to *Design* switches to Prototype mode ([Prototypes](#prototypes)).
+
+## Prototypes
+
+A prototype is the design made clickable: layers react to the pointer, keys and time, screens follow each other with
+animated transitions, and the result plays like the finished app.
+
+**Prototype mode.** Click *Prototype* at the top of the Design panel (or *Prototype ▸ Prototype Mode*, Shift+E
+switches). The canvas shows every connection as an arrow from a layer to the frame it opens (dashed for overlays and
+scrolling), *Back* and *Close* marks, and a ▶ badge above each flow's first frame. The selected layer gets a round
+handle at its right edge: **drag it onto a frame** to make a click there navigate to that frame (one undo step); drag
+an existing connection's handle onto empty canvas to remove it. Selecting, moving and resizing work as in Design mode.
+
+**Interactions** (the Prototype panel, for one selected layer). Each interaction has a trigger and a list of actions:
+
+| Triggers | Actions |
+| --- | --- |
+| On click, On double click, While pressing, While hovering, Mouse enter, Mouse leave, On drag, Key (with Shift, Alt, Ctrl, Cmd/Win), After delay, Variable changes | Navigate to, Back, Scroll to, Open overlay (position, dimmed background, close when clicking outside), Swap overlay, Close overlay, Change to variant, Set variable, Conditional (if, then, else), Open link |
+
+*While hovering* and *While pressing* last as long as the pointer: the variants, variables and overlays they changed
+come back when it leaves or is released. *Change to variant* switches the instance the layer belongs to (or a chosen
+instance); put the interaction on a variant of a component set (for example `state=default` → `state=hover`) and
+every instance reacts. *Set variable* takes a value (`true`, `3`, text) or an expression such as `{ "op": "not",
+"args": [{ "var": "v1" }] }`; *Toggle* flips a boolean. Layers bound to variables (visibility, text, colors) update
+as the prototype changes them. *Open link* opens http(s), mailto and tel links after the usual confirmation.
+
+**Transitions** (navigate, back, overlays, variants): Instant, Dissolve, Move in, Move out, Push, Slide (with a
+direction) and **Smart animate**, with an easing (linear, ease, ease in, ease out, ease in and out, or a spring that
+takes as long as it needs to settle) and a duration. Smart animate matches the layers of the two screens: the same
+layer, the only instances of one component, then layers with the same name path (give corresponding layers the same
+names), then the layers inside matched instances; they move, resize and change color, opacity and corner radius from
+the old screen to the new one. Layers only one screen has fade.
+
+**Scrolling** (Prototype panel). *Overflow scrolling* lets a frame scroll content that does not fit (vertical,
+horizontal or both); *When scrolling* makes a layer in auto layout stick to the top, bottom, left or right edge of its
+scrolling frame (a fixed header or tab bar).
+
+**Flows** are named starting points. Add one in the Pages panel, with *Add flow starting point* in the Prototype panel
+of a top-level frame, or *Prototype ▸ Add Flow Starting Point*.
+
+**Playing.** *Prototype ▸ Preview Prototype* (Ctrl+Alt+Enter, Cmd+Option+Return on a Mac) plays the selection's frame,
+else the page's first flow; *Preview in New Window* opens the player in a window of its own (a separate window on the
+desktop, a pop-up window in the browser), which keeps reading the design as you edit. The player has a flow picker,
+Back, Restart (R), the device frame (phone, tablet, watch or desktop by the frame's size) and hotspot hints: a click
+that hits nothing flashes the layers that react. Keys: R restarts, ← and → go to the previous and next flow, Backspace
+goes back, Esc closes the player in the app. Edits made while the player is open show from the next screen or after
+a restart.
 
 ## Editing together
 
@@ -161,4 +209,8 @@ the pure engine in `app/src/engine/proto/`. Live collaboration is the records ad
 performance are described in the concept
 ([§4](concepts/proto-studio.md#4-rendering)); `node scripts/proto-perf.mjs` measures the targets of §4.3 in a headless
 Chromium-based browser, and `tests/proto/perf/bench.html` runs the same benchmark by hand in any browser
-(`node scripts/serve.mjs --root .`, then open `/tests/proto/perf/bench.html`).
+(`node scripts/serve.mjs --root .`, then open `/tests/proto/perf/bench.html`). Prototypes: the model, operations and
+smart animate matching are `app/src/engine/proto/interactions.js` with the expression language `expr.js`; the player is
+`app/src/proto/player/` (`state.js` the pure state machine, `render.js` one screen, `animate.js` transitions with the
+Web Animations API, `player.js` the UI); the Prototype panel `app/src/proto/panels/prototype.js`, the connections
+`app/src/proto/tools/connect.js`; tests in `tests/proto/{interactions,expr,player-state}.test.js`.

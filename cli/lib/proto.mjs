@@ -15,6 +15,7 @@ import { treeCss } from "../../app/src/engine/proto/css.js";
 import { exportTokens, tokensCss, tokensTailwind, tokensSwift } from "../../app/src/engine/proto/tokens.js";
 import { variableValue } from "../../app/src/engine/proto/variables.js";
 import { seededRandom } from "../../app/src/engine/proto/ids.js";
+import { flowGraph, describe as describeInteraction, interactionProblems } from "../../app/src/engine/proto/interactions.js";
 import { UsageError } from "./args.mjs";
 import { table, bytes as fmtBytes, sev } from "./term.mjs";
 import { expandAll } from "./glob.mjs";
@@ -588,6 +589,63 @@ async function cmdApply(flags, args, ctx) {
   return 0;
 }
 
+// ------------------------------------------------------------------------------------------------ flows
+
+/** Prototype flows of a design: start frames, the screens each flow reaches, and their interactions. */
+function designFlows(model, pageSpec) {
+  const pages = pageSpec !== undefined ? [findPage(model, pageSpec)] : pagesOf(model);
+  const name = (id) => model.nodes[id]?.name || model.vars?.items?.[id]?.name || id;
+  const out = [];
+  const problems = [];
+  for (const p of pages) {
+    for (const f of model.pages[p.id]?.flows || []) {
+      if (!isObj(f)) continue;
+      const g = flowGraph(model, f);
+      if (!model.nodes[f.start]) problems.push({ flow: f.id, message: `The flow “${f.name || f.id}” starts at “${f.start}”, which does not exist.` });
+      for (const id of g.missing) problems.push({ flow: f.id, message: `The flow “${f.name || f.id}” leads to “${id}”, which does not exist.` });
+      const screens = g.screens.map((id) => {
+        const layers = [];
+        const visit = (nid, depth) => {
+          const n = model.nodes[nid];
+          if (!n || depth > 64) return;
+          if (Array.isArray(n.proto) && n.proto.length) layers.push({ id: n.id, name: n.name || "", interactions: n.proto.map((it) => ({ text: describeInteraction(it, name), ...(interactionProblems(model, it).length ? { problems: interactionProblems(model, it) } : {}) })) });
+          for (const c of children(model, nid) || []) visit(c, depth + 1);
+        };
+        visit(id, 0);
+        return { id, name: name(id), layers };
+      });
+      out.push({ page: p.id, pageName: p.name, id: f.id, name: f.name || f.id, start: f.start, ...(f.description ? { description: f.description } : {}), screens, edges: g.edges.map((e) => ({ ...e, fromName: name(e.from), toName: name(e.to) })) });
+    }
+  }
+  return { flows: out, problems };
+}
+
+async function cmdFlows(flags, args, ctx) {
+  needArgs(args, 1, "file");
+  const files = expandAll(args, ctx.cwd);
+  const { worst, results } = await eachFile(ctx, files, async (f) => {
+    const { state } = openDesign(ctx, f, flags);
+    const r = designFlows(state.model, flags.page);
+    if (!ctx.out.json) {
+      const { c } = ctx.out;
+      const lines = [c.bold(f)];
+      if (!r.flows.length) lines.push(c.dim("  No flows. Add one in the Pages panel (Prototype mode) or with flow.create."));
+      for (const fl of r.flows) {
+        lines.push(`  ${c.bold(fl.name)} ${c.dim(`(${fl.id}, page ${fl.pageName})`)}  starts at ${fl.screens[0]?.name || fl.start}, ${plural(fl.screens.length, "screen")}`);
+        for (const sc of fl.screens) {
+          lines.push(`    ${sc.name} ${c.dim(sc.id)}`);
+          for (const l of sc.layers) for (const it of l.interactions) lines.push(`      ${c.dim(`${l.name || l.id}:`)} ${it.text}${it.problems ? c.yellow(` (${it.problems[0]})`) : ""}`);
+        }
+      }
+      for (const pr of r.problems) lines.push(c.yellow(`  ${pr.message}`));
+      ctx.out.result(lines.join("\n") + (files.length > 1 ? "\n" : ""));
+    }
+    return { code: r.problems.length ? EXIT.PROBLEMS : 0, result: { file: f, ...r } };
+  });
+  if (ctx.out.json) ctx.out.data(files.length === 1 ? results[0] : results);
+  return worst;
+}
+
 // ------------------------------------------------------------------------------------------------ command table
 
 const IO = { name: { type: "string", desc: "File name to assume for standard input (-)" } };
@@ -625,6 +683,7 @@ export const PROTO_COMMANDS = {
     run: cmdTokens,
     examples: ["ofini proto tokens app.ofini > tokens.json", "ofini proto tokens app.ofini -t css -o tokens.css", "ofini proto tokens app.ofini -t json --mode Theme=dark", "ofini proto tokens import app.ofini brand.tokens.json --in-place", "ofini proto tokens import app.ofini dark.tokens.json --mode Dark -o themed.ofini"],
   },
+  flows: { summary: "Prototype flows: start frames, the screens each flow reaches and their interactions; exit code 1 when a target is missing", usage: "ofini proto flows <file...> [--page <p>]", flags: { ...IO, page: { type: "string", short: "p", desc: "Page id, name or number (default: every page)" } }, run: cmdFlows, examples: ["ofini proto flows app.ofini", "ofini proto flows app.ofini --page Screens --json"] },
   diff: { summary: "Structural diff of two designs; exit code 1 when they differ", usage: "ofini proto diff <a> <b>", flags: { ...IO }, run: cmdDiff, examples: ["ofini proto diff v1.ofini v2.ofini", "ofini proto diff main.ofini feature.ofini --json"] },
   apply: {
     summary: "Apply operations from JSON (one undoable step in the app's terms) for scripting",
@@ -636,4 +695,4 @@ export const PROTO_COMMANDS = {
   },
 };
 
-export { describeNode, flatTokens };
+export { describeNode, flatTokens, designFlows };

@@ -42,7 +42,7 @@ ofini completion powershell | Out-String | Invoke-Expression   # $PROFILE
 | `ofini unpack <file> [folder]` | Unpacks a project into a folder (`--pretty` indents `document.json` for diffs in Git) |
 | `ofini pack <folder> [file]` | Packs such a folder into an `.ofini` file (the type marker first and stored) |
 | `ofini diff <a> <b>` | Structural comparison: title, kind, pages, layer counts, text stories, stored parts; exit code 1 when they differ |
-| `ofini proto <command>` | Proto designs: `info`, `tree`, `inspect`, `validate`, `lint`, `render`, `assets`, `tokens`, `diff`, `apply` ([below](#proto-designs)) |
+| `ofini proto <command>` | Proto designs: `info`, `tree`, `inspect`, `validate`, `lint`, `render`, `assets`, `tokens`, `flows`, `diff`, `apply` ([below](#proto-designs)) |
 | `ofini version` | Version, document format, Node.js and platform |
 | `ofini help [command]` | Help, options and examples of a command |
 | `ofini completion <shell>` | Completion script for bash, zsh, fish or PowerShell |
@@ -132,6 +132,7 @@ proto <command>` lists every option.
 | `ofini proto assets <file> [--node] [--out dir]` | Vector layers (or the chosen layers) as SVG and embedded media as files, into `<name>-assets` |
 | `ofini proto tokens <file> [--format dtcg\|css\|tailwind\|swift\|json] [--mode]` | Design tokens: DTCG 2025.10 (default), CSS custom properties, Tailwind v4 `@theme`, Swift, or plain values per variable name (`json`) |
 | `ofini proto tokens import <file> <tokens.json\|->` | Imports DTCG tokens (`--collection`, `--mode`); needs `--out`, `--in-place` or `--dry-run` |
+| `ofini proto flows <file...> [--page]` | Prototype flows: the screens each flow reaches from its start and the interactions on them; exit code 1 when a start frame or a target is missing |
 | `ofini proto diff <a> <b>` | Structural diff: pages, layers (with the changed fields), collections, variables, styles, media; exit code 1 when they differ |
 | `ofini proto apply <file> <ops.json\|->` | Applies operations (one object, an array or `{ "ops": [...] }`; also `--ops '<json>'`) as one all-or-nothing batch; needs `--out`, `--in-place` or `--dry-run`; `--seed` makes new ids reproducible |
 

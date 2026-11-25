@@ -25,7 +25,7 @@ export function registerProtoCommands(app) {
   const model = () => ws().model();
 
   // tools (single keys while no text field has focus)
-  const tool = (id, label, key, icon) => def(`proto.tool.${id}`, label, () => ws().tools.set(id), { icon, shortcut: key, checked: (a) => on(a) && a.protoUI.tool === id });
+  const tool = (id, label, key, icon) => def(`proto.tool.${id}`, label, () => ws().tools.set(id), { icon, shortcut: key, checked: (a) => on(a) && (a.protoUI.tool === id || (id === "move" && a.protoUI.tool === "connect")) });
   tool("move", "Move Tool", "V", "cursor");
   tool("frame", "Frame Tool", "F", "hash");
   tool("rect", "Rectangle Tool", "R", "square");
@@ -91,6 +91,26 @@ export function registerProtoCommands(app) {
   def("proto.zoom100", "Actual Size", () => ws().zoomTo(1), { shortcut: "Shift+0" });
   def("proto.zoomFit", "Zoom to Fit", () => ws().zoomToFit(), { icon: "arrows-expand", shortcut: "Shift+1" });
   def("proto.zoomSelection", "Zoom to Selection", () => ws().zoomToSelection(), { enabled: (a) => on(a) && a.protoUI.selection.length > 0, shortcut: "Shift+2" });
+
+  // prototype (T9)
+  const mode = (m) => (a) => on(a) && a.protoUI.mode === m;
+  def("proto.modeDesign", "Design Mode", () => ws().setMode("design"), { icon: "palette", checked: mode("design") });
+  def("proto.modePrototype", "Prototype Mode", () => ws().setMode("prototype"), { icon: "bezier2", checked: mode("prototype") });
+  def("proto.togglePrototype", "Switch Design and Prototype Mode", () => ws().setMode(ws().mode === "prototype" ? "design" : "prototype"), { shortcut: "Shift+E" });
+  def("proto.play", "Preview Prototype", () => ws().play({}), { icon: "play-circle", shortcut: "Mod+Alt+Enter" });
+  def("proto.playWindow", "Preview in New Window", () => ws().play({ window: true }), { icon: "box-arrow-up-right" });
+  def("proto.addFlow", "Add Flow Starting Point", () => addFlow(), { icon: "signpost-split", enabled: (a) => editable(a) && Object.values(a.protoUI.model().nodes).some((n) => n.parent == null && n.page === a.protoUI.page) });
+
+  function addFlow() {
+    const w = ws();
+    const m = w.model();
+    let n = w.selection[0] ? m.nodes[w.selection[0]] : null;
+    while (n && n.parent != null) n = m.nodes[n.parent];
+    n ||= Object.values(m.nodes).find((x) => x.parent == null && x.page === w.page);
+    if (!n) return;
+    const count = (m.pages[w.page]?.flows || []).length + 1;
+    w.apply({ op: "flow.create", start: n.id, page: w.page, name: t("Flow {n}", { n: count }) }, t("Add flow"));
+  }
 
   function addPage() {
     const w = ws();

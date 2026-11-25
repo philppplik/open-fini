@@ -6,6 +6,9 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Proto Studio: prototypes and the player (Labs)** ([user guide](docs/proto-studio.md#prototypes), task T9): a Prototype tab next to Design turns on Prototype mode, where connections show as arrows on the canvas and dragging the handle of a layer onto a frame connects them. Interactions per layer: click, double click, while pressing, while hovering, mouse enter and leave, drag, keys, after a delay and variable changes, with navigate, back, scroll to, overlays (position, dimmed background, close outside), change to variant, set variable, conditionals and links. Transitions: dissolve, move in and out, push, slide and smart animate (layers matched by name between screens), with easing curves and springs. Frames can scroll their overflow and layers can stick to an edge. Flows (starting points) live in the Pages panel. *Prototype ▸ Preview Prototype* (Ctrl+Alt+Enter) plays it in the app or in a window of its own, with a flow picker, back, restart, device frames and hotspot hints. The assistant edits prototypes with the new `proto_interaction` tool and the *prototype a flow* skill, and `ofini proto flows` lists the flows of a design.
+
 ## [1.3.0] — Proto Studio preview, live sharing everywhere, faster Scene
 
 ### Fixed
