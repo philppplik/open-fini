@@ -343,6 +343,7 @@ export function skillsCatalog(skills) {
   const packs = skills.filter((s) => s.pack);
   const packLines = [];
   if (packs.some((s) => s.pack === "guides")) packLines.push(`- Studio guides (load the one for a studio before your first edits there): ${packs.filter((s) => s.pack === "guides").map((s) => s.name).join(", ")}`);
+  if (packs.some((s) => s.pack === "proto")) packLines.push(`- Proto Studio skills (screens, components, tokens, audits): ${packs.filter((s) => s.pack === "proto").map((s) => s.name).join(", ")}`);
   if (packs.some((s) => s.pack === "knowledge")) packLines.push(`- OpenFini knowledge (questions about the app itself: features, formats, shortcuts, settings, privacy, help): ${packs.filter((s) => s.pack === "knowledge").map((s) => s.name).join(", ")}`);
   const lines = skills.filter((s) => !s.pack).map((s) => {
     const d = (s.description || "").replace(/\s+/g, " ").trim();
@@ -373,7 +374,7 @@ export async function hydrateSkill(skill) {
   return { ...full, pack: skill.pack, source: skill.source };
 }
 
-/** Body of the studio guide for a studio id (vector, pixel, layout, code, document, sheet, slides, board, vibe), or "". */
+/** Body of the studio guide for a studio id (vector, pixel, layout, code, document, sheet, slides, board, scene, proto, vibe), or "". */
 export async function studioGuide(studio) {
   const name = GUIDE_FOR_STUDIO[studio];
   const stub = name && PACK_SKILL_LIST.find((s) => s.name === name);
@@ -389,6 +390,7 @@ const STUDIO_NOTES = {
   code: "You are working in the Code studio: a small project of HTML, CSS and JavaScript files with a live preview. Write semantic, accessible, dependency-free code unless the user asks otherwise.",
   office: "You are working in the Office studio, an office suite: text documents, and every other Office app this version has (office_formats lists them: spreadsheets, presentations, whiteboards). Call office_describe first to see the active document and its kind, then use that app's tools; create documents with office_new. Every edit is one undoable step; never claim a format or app that office_formats does not list.",
   scene: "You are working in the Scene Studio: video editing and motion design on a timeline (tracks, clips, keyframes, effects, captions, sound). Call scene_describe first and load studio-guide-scene; every tool call is one undo step. Look at your work with scene_render_frame; understand footage with scene_transcribe, scene_analyze_audio, scene_detect_shots and scene_sample_frames before you cut.",
+  proto: "You are working in the Proto Studio (Labs preview): app and web interface design on a canvas that is real HTML and CSS (frames with auto layout, components with variants, variables with modes). Call proto_describe first and load studio-guide-proto; every tool call is one undo step. Build whole screens with one proto_create call, look with proto_screenshot and finish with proto_lint.",
   export: "You are working in the Export studio: choosing formats, sizes and quality. Explain trade-offs briefly.",
   vibe: "You can drive every studio (Vector, Pixel, Layout, Code) through tools. Pick the studio that fits the task and say what you are doing.",
 };

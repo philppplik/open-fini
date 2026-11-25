@@ -1128,6 +1128,47 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
   `app/src/ai/packs/studio-guides.js`, `tests/proto/lint.test.js`, `tests/vibe/proto-tools.test.js`.
 * Acceptance: every write tool is one undo step and validated; each lint rule has positive and negative fixtures; a
   scripted agent run (mock provider) builds a login screen with auto layout.
+* As built (deviations and decisions the later tasks build on):
+  * Modules: `vibe/tools/proto.js` (20 static definitions, group *Proto*, verify hint "proto_describe and
+    proto_screenshot"), `proto/ai-ops.js` (pure: `describe`, `nodeLine`, `getNodes`, `search`, `createOps`,
+    `updateOps`, `fieldsOf`, `names`, `renameOps`, `contentOps`, `responsive`), `proto/ai-render.js` (pure display list
+    from the solver, `paintCanvas`), `proto/ai-runtime.js` (`protoTarget`, `renderImage`, `readImage`, `imageHints`) and
+    `engine/proto/lint.js` (`lint`, `fixOps`, `suggestName`, `suggestTag`, `contrastRatio`). Like the Scene Studio's
+    tools (`scene/ai-ops.js`), the pure part lives next to the studio, not in `vibe/`.
+  * Commits: `protoTarget(app).run(ops, label)` applies a tool's operations as one `batch` through `app.protoUI.run`
+    when the design is mounted (the same path as the editor), else through the same `opStep` undo step on the
+    document history; labels are "Vibe: …". A failing operation throws the engine's `OpError` and nothing changes.
+  * Specs: `createOps` turns nested specs with shorthands (sizes as numbers, "hug", "fill", "50%"; `layout: "row"`;
+    `gap`, `pad`, `justify: "between"`; `fill`, `stroke`, `shadow: "md"`; text style keys; `{ "$var": name }`; type
+    aliases row, column, stack, box) into `node.create` / `instance.create` operations with **pre-assigned ids**, so
+    redo and collaboration replay the same ids and the tool can return them (`refs`). Nested frames default to a
+    transparent column that hugs (a div), text layers without a name take their first words. Names of variables,
+    styles and components resolve to ids everywhere.
+  * Additions beyond the section 7 table: `proto_new` (a design from the tools, like `scene_new`); `proto_screenshot`
+    has `compare` (side by side with a reference image and a mean pixel difference), which stands in for
+    `visual_diff` on designs. Tool names `proto_variables` and `proto_styles` take an `action`, like `proto_component`.
+  * Engine addition: the operation `media.put { id?, media | null }` (add, replace or remove one media item; the
+    inverse puts the previous item back; bytes are shared, never copied). `proto_from_screenshot` uses it for the
+    reference image; the Image tool of T4 and the importers of T8 can use it too.
+  * Screenshots: the canvas DOM cannot be rasterized portably (an SVG foreignObject taints the canvas in WebKit and
+    loses the app fonts), so `proto_screenshot` paints the solver's boxes (fills, gradients, images, strokes, drop
+    shadows, blur, text lines with the app's fonts and the canvas measurer) and says it is approximate. In Node the
+    tools work without it (it needs the app window).
+  * Lint rules (`RULES`): contrast (WCAG 2, against the composited solid backgrounds; gradients and images skip),
+    touch-target (under 24 px warning, under 44 px info; interactive = tag, a11y role, click interaction or a
+    button-like name), unbound-color and unbound-spacing (only when variables exist; a value equal to exactly one
+    variable gets a `node.bind` fix), off-grid (gap and padding off 4 px), detached-style (local values equal to a
+    style), inactive-override (`components.overridePaths`), detached-instance (a frame named like a component; the
+    fix replaces it with an instance and runs only when its id is named), empty-frame, naming (default names with a
+    suggested name), overflow-text (fixed text boxes, text past a clipping container), unused-token (variables and
+    styles nobody uses; deleting runs only when named). Layers inside instances are reported by key and never fixed
+    directly. Touch targets, overflow and contrast use the solver, so they are approximate in the same way.
+  * Skills: lazy pack `proto` (`app/src/ai/packs/proto.js`): proto-screen-from-brief, proto-screen-from-screenshot,
+    proto-component-variants, proto-tokens-dark-mode, proto-handoff, proto-design-audit; *prototype a flow* follows
+    with T9. Studio guide `studio-guide-proto`; the system prompt note, compact tool list (context `proto`), plan_work
+    studio `proto` and the sub-agent tool set `proto` know the studio.
+  * OCR in `proto_from_screenshot` uses only local engines of the registry (no data leaves the device); colors and
+    text need the app window.
 
 **T12 · MCP server** — L — deps: T7, T11
 * Scope: `engine/proto/mcp/` handler (lifecycle, tools, resources with subscribe, prompts), app document host, file

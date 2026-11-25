@@ -26,6 +26,9 @@
 //   page.move       { id, index? | ord? }
 //   page.delete     { id }                                    with its layers; the last page cannot be deleted
 //   meta.update     { set?, unset? }                          title, created, app
+//   media.put       { id?, media: { mime, name?, w?, h?, bytes } | null }   add, replace or (null) remove one media item;
+//                                                             the inverse puts the previous item back (T11: reference
+//                                                             images; image fills refer to media by id)
 //   batch           { ops: [op] }                             one atomic step
 //   restore         { nodes?, pages?, collections?, items?, styles? }   exact state: { id: object | null } (null removes);
 //                                                             the inverse of the component, variable and style operations
@@ -903,6 +906,34 @@ function metaUpdateOp(d, op) {
   return { inverse: { op: "meta.update", set: inv.set, unset: inv.unset }, ids: [] };
 }
 
+function mediaPutOp(d, op) {
+  const all = isPlain(d.m.media) ? d.m.media : {};
+  if (op.media !== null && !isPlain(op.media)) throw new OpError("bad-op", "`media` must be { mime, name?, w?, h?, bytes } or null.");
+  let id = op.id;
+  if (id == null) {
+    if (op.media === null) throw new OpError("bad-op", "Removing media needs its id.");
+    id = newId(ID_PREFIX.media, all, d.random);
+  } else if (!isId(id)) throw new OpError("id", `“${id}” is not a valid id.`);
+  const old = own(all, id) ? all[id] : null;
+  if (op.media === null && !old) return { inverse: { op: "media.put", id, media: null }, ids: [] };
+  let item = null;
+  if (op.media !== null) {
+    const m = op.media;
+    if (!S.MEDIA_TYPES.includes(m.mime)) throw new OpError("mime", `Media of type “${m.mime}” is not supported (${S.MEDIA_TYPES.join(", ")}).`);
+    if (m.bytes != null && !(m.bytes instanceof Uint8Array)) throw new OpError("bad-op", "Media bytes must be a Uint8Array.");
+    if (m.bytes && m.bytes.length > S.LIMITS.mediaBytes) throw new OpError("limit", `The media is larger than ${S.LIMITS.mediaBytes / 1048576} MiB.`);
+    for (const k of ["w", "h"]) if (m[k] !== undefined && !(typeof m[k] === "number" && m[k] >= 0 && m[k] <= 100000)) throw new OpError("invalid", `media.${k}: Expected a size in pixels.`);
+    // bytes are shared, never copied (models are immutable values)
+    item = { ...m, id };
+  }
+  const next = { ...all };
+  if (item) next[id] = item;
+  else delete next[id];
+  d.m.media = next;
+  d.changed = true;
+  return { inverse: { op: "media.put", id, media: old }, ids: [id] };
+}
+
 function batchOp(d, op) {
   if (!Array.isArray(op.ops)) throw new OpError("bad-op", "`ops` must be a list.");
   const inverses = [];
@@ -972,6 +1003,7 @@ const HANDLERS = {
   "page.move": pageMoveOp,
   "page.delete": pageDeleteOp,
   "meta.update": metaUpdateOp,
+  "media.put": mediaPutOp,
   batch: batchOp,
 };
 

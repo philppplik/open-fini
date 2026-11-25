@@ -437,6 +437,18 @@ algorithms and limits: [scene-studio.md](scene-studio.md#assistant).
 dialog. Skills: `rough-cut-from-transcript`, `video-captions`, `social-cutdowns`, `title-animation`,
 `lower-third`, `photo-slideshow`, `beat-synced-edit`, `video-summary`.
 
+### Proto Studio tools
+
+Group **Proto** (20 tools, Labs) designs interfaces in the Proto Studio; each write call is one undo step validated by
+the design engine. Details: [proto-studio.md](proto-studio.md#assistant).
+
+| Group | Tools |
+| --- | --- |
+| Proto | `proto_describe`, `proto_get_node`, `proto_search`, `proto_screenshot`, `proto_new`, `proto_create`, `proto_update`, `proto_move`, `proto_delete`, `proto_duplicate`, `proto_component`, `proto_variables`, `proto_styles`, `proto_tokens`, `proto_lint`, `proto_fix`, `proto_responsive`, `proto_content`, `proto_rename`, `proto_from_screenshot` |
+
+Skills (pack `proto`): `proto-screen-from-brief`, `proto-screen-from-screenshot`, `proto-component-variants`,
+`proto-tokens-dark-mode`, `proto-handoff`, `proto-design-audit`; studio guide `studio-guide-proto`.
+
 ## Permissions
 
 | Mode | Behavior |
