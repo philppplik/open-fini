@@ -6,6 +6,9 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- **Choose any studios for the header** ([docs/studios.md](docs/studios.md)): *Settings ▸ Studios* no longer stops at five. Show every studio you like (Vector, Pixel, Layout, Code, Vibe, Office apps, Scene and enabled Labs studios), reorder them by drag or arrow buttons, *Show all studios* or *Reset to default*. A header that is too narrow moves the rightmost studios into *More* one by one instead of all at once, and the active studio always stays. Hidden studios remain in *More*, the Studio menu and the command palette, and opening their files still works.
+
 ## [1.3.0] — Proto Studio preview, live sharing everywhere, faster Scene
 
 ### Fixed

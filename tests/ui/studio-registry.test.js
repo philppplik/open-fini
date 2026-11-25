@@ -9,7 +9,6 @@ import {
   reorderVisibleStudio,
   studioForDigit,
   studioIconSpec,
-  MAX_VISIBLE_STUDIOS,
   DEFAULT_VISIBLE_STUDIOS,
 } from "../../app/src/studios/registry.js";
 import { chromeMode, createWindowControls } from "../../app/src/platform/window-controls.js";
@@ -46,10 +45,11 @@ test("studioIconSpec uses the glyph library unless a system icon is given", () =
   assert.equal(studioIconSpec({ icon: "x", systemIcon: "file-earmark" }), "file-earmark");
 });
 
-test("resolveVisibleStudios: defaults, unknown ids, duplicates, the hard maximum and never empty", () => {
+test("resolveVisibleStudios: defaults, unknown ids, duplicates, no cap by default and never empty", () => {
   assert.deepEqual(resolveVisibleStudios(undefined, ids), DEFAULT_VISIBLE_STUDIOS);
   assert.deepEqual(resolveVisibleStudios(["vibe", "nope", "vibe", "pixel"], ids), ["vibe", "pixel"]);
-  assert.equal(resolveVisibleStudios(ids, ids).length, MAX_VISIBLE_STUDIOS);
+  assert.deepEqual(resolveVisibleStudios(ids, ids), ids); // every studio may be shown
+  assert.equal(resolveVisibleStudios(ids, ids, { max: 3 }).length, 3);
   assert.deepEqual(resolveVisibleStudios([], ids), DEFAULT_VISIBLE_STUDIOS);
   assert.deepEqual(resolveVisibleStudios(["gone"], ["only"]), ["only"]);
   // a studio registered later does not enter the header by itself
@@ -61,9 +61,10 @@ test("overflowStudios lists everything that is not in the header", () => {
   assert.deepEqual(overflowStudios(ids, ids), []);
 });
 
-test("toggleVisibleStudio enforces the maximum of five and at least one", () => {
+test("toggleVisibleStudio has no cap by default, honors an explicit one and keeps at least one", () => {
   let v = ["vector", "pixel", "layout", "code", "vibe"];
-  const full = toggleVisibleStudio(v, "office");
+  assert.deepEqual(toggleVisibleStudio(v, "office").visible, [...v, "office"]);
+  const full = toggleVisibleStudio(v, "office", { max: 5 });
   assert.deepEqual(full.visible, v);
   assert.match(full.error, /at most 5/);
   const removed = toggleVisibleStudio(v, "pixel");

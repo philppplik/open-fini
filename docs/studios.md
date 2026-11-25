@@ -279,7 +279,7 @@ The studios are defined in `app/src/studios/registry.js`. A new studio is one ca
 (`systemIcon` uses a Shoelace icon instead of an `assets/icons` glyph). The header, More menu, Studio menu, `studio.<id>`
 commands, welcome cards, New document dialog and Alt+N shortcuts are all derived from it.
 
-The header shows at most **five** studios (preference `visibleStudios`, default Vector, Pixel, Layout, Code, Vibe). Every
-other registered studio is in the **More** menu; opening one from there shows it in place of the More label until you pick
-another studio. Choose and order the header studios in **Settings ▸ Studios** (drag or arrow buttons, at least one, never
-more than five). Alt+1 to Alt+N follow the header order. The Office studio registers this way and starts in the *More* menu; planned studios (video, motion, render) will too.
+The header shows the studios you pick (preference `visibleStudios`, default Vector, Pixel, Layout, Code, Vibe; any number,
+at least one). When the window is too narrow, the rightmost ones move into **More** one by one (`ui/header-fit.js`), never
+the active one. Every other registered studio is in the **More** menu; opening one from there shows it in place of the More label until you pick
+another studio. Choose and order the header studios in **Settings ▸ Studios** (drag or arrow buttons, *Show all studios*, *Reset to default*; at least one). Alt+1 to Alt+N follow the header order. The Office studio registers this way and starts in the *More* menu; planned studios (video, motion, render) will too.
