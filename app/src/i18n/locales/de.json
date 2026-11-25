@@ -4530,7 +4530,6 @@
   "This view could not be loaded.": "Diese Ansicht konnte nicht geladen werden.",
   "Views": "Ansichten",
   "This browser blocks the storage the sign-in needs during the redirect. Allow site data for OpenFini or use the desktop app.": "Dieser Browser blockiert den Speicher, den die Anmeldung während der Weiterleitung braucht. Erlauben Sie Websitedaten für OpenFini oder verwenden Sie die Desktop-App.",
-  "Live sharing everywhere, panel windows, more file types": "Live-Teilen überall, Panel-Fenster, mehr Dateitypen",
   "Live sharing that keeps up": "Live-Teilen, das mithält",
   "Spreadsheet, Presentation, Whiteboard, Document, Scene and Pixel now share live. Edits arrive in any order, undo only reverts your own step, and large pictures and strokes come through.": "Spreadsheet, Presentation, Whiteboard, Document, Scene und Pixel lassen sich jetzt live teilen. Änderungen kommen in jeder Reihenfolge an, Rückgängig nimmt nur deinen eigenen Schritt zurück, und große Bilder und Striche kommen durch.",
   "Panels in their own windows": "Panels in eigenen Fenstern",
@@ -4750,5 +4749,10 @@
   "Watch": "Smartwatch",
   "Watch Frame": "Smartwatch-Rahmen",
   "Width mode": "Breitenmodus",
-  "Wrap": "Umbrechen"
+  "Wrap": "Umbrechen",
+  "Proto Studio preview, live sharing everywhere, faster Scene": "Proto Studio als Vorschau, Live-Teilen überall, schnellere Scene",
+  "Proto Studio (Labs)": "Proto Studio (Labs)",
+  "A new studio for UI design and prototyping: frames with auto layout and grid, components and variables, live editing together, the assistant and ofini proto in the terminal. Turn it on in Settings ▸ Labs.": "Ein neues Studio für UI-Design und Prototypen: Rahmen mit Auto-Layout und Raster, Komponenten und Variablen, gemeinsames Live-Bearbeiten, der Assistent und ofini proto im Terminal. Einschalten unter Einstellungen ▸ Labs.",
+  "Faster, lighter Scene projects": "Schnellere, leichtere Scene-Projekte",
+  "On the desktop, video and sound stay in their files instead of the project. Export is much faster, reversed and ramped clips play smoothly, and sound can play backwards.": "Auf dem Desktop bleiben Video und Ton in ihren Dateien statt im Projekt. Der Export ist deutlich schneller, rückwärts und zeitverzerrt laufende Clips spielen flüssig, und Ton kann rückwärts laufen."
 }

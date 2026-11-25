@@ -4,8 +4,10 @@
 export const WHATS_NEW = [
   {
     version: "1.3.0",
-    title: "Live sharing everywhere, panel windows, more file types",
+    title: "Proto Studio preview, live sharing everywhere, faster Scene",
     items: [
+      { icon: "vector-pen", title: "Proto Studio (Labs)", text: "A new studio for UI design and prototyping: frames with auto layout and grid, components and variables, live editing together, the assistant and ofini proto in the terminal. Turn it on in Settings ▸ Labs." },
+      { icon: "film", title: "Faster, lighter Scene projects", text: "On the desktop, video and sound stay in their files instead of the project. Export is much faster, reversed and ramped clips play smoothly, and sound can play backwards." },
       { icon: "people", title: "Live sharing that keeps up", text: "Spreadsheet, Presentation, Whiteboard, Document, Scene and Pixel now share live. Edits arrive in any order, undo only reverts your own step, and large pictures and strokes come through." },
       { icon: "window-plus", title: "Panels in their own windows", text: "Drag a panel out of the app or choose Open in Window. Dock Back returns it." },
       { icon: "file-earmark-code", title: "Many more file types", text: "About 70 languages and formats open and save in the Code studio, from Python and PHP to Dockerfile and .env. Right-click a file to embed it in the current file." },
