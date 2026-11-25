@@ -941,6 +941,31 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
   `tests/proto/{snap,tools-math}.test.js`.
 * Acceptance: every tool action is one undo step; Layers and Design usable by keyboard alone (tab order, ARIA);
   manual checks in Chromium and Firefox listed in the PR.
+* As built (deviations and decisions the later tasks build on):
+  * Modules: `proto/tools/` (`index.js` registry and toolbar, `select.js` Move tool, `draw.js` Frame, Rectangle,
+    Ellipse, Line and Zoom, `pen.js`, `text.js` with in-place editing, `presets.js`, `common.js`) with two pure
+    modules tested in Node: `math.js` (handles, resize, rotation, constraints, insertion points, padding and gap
+    handles, grid track text, text runs after an edit) and `snap.js` (snap targets, guides, distance labels);
+    `tools/edit.js` builds every edit of the tools, panels and commands as one `ops.js` operation (a batch for several
+    layers), also pure and tested. Panels: `proto/panels/{pages,layers,design}.js`; `proto/panels.js` of T3 is gone.
+    The Design panel keeps the dock id `proto-inspector` (saved layouts keep working) and is titled *Design*.
+  * Workspace additions (header of `proto/workspace.js`): `apply(op, label)` (a refused op becomes a notice),
+    `preview(op)` (a drag renders the operation's result without recording it; the drop runs the operation once, so
+    every gesture is one undo step and collaboration sees one change), `box(id)`, `tools`, `setHover`, `setMarquee`,
+    `setCursor`, `editText`, `rename`, `copy` / `cut` / `paste` (an in-app clipboard), and the `tool` event. Tools get
+    `down` / `move` / `up` / `hover` / `key` / `draw` / `deactivate`. `view.js` gained `elementOf(key)`,
+    `remeasure(rootId)` and `invalidate(rootId)` for in-place text editing. No engine change was needed.
+  * Resizing a frame applies its absolute children's constraints to their stored boxes in the same batch, because the
+    CSS of `right`, `center` and `scale` constraints is computed from the design-time size (T2). Rotated layers resize
+    by their axis-aligned box (no rotated handles yet).
+  * A new text is previewed while typing and created with its text on finish (one step; nothing when it stays empty);
+    a text layer named after its content keeps following it. Editing uses `contenteditable="plaintext-only"` (falls back
+    to `true` with plain-text paste) and keeps run styles outside the edited range (`math.js ▸ editRuns`).
+  * Undo and redo shortcuts now reach the Proto Studio (`ui/shortcuts.js` treats it like the Office Suite).
+  * Not in this task: the Scale tool (K), the Image tool (needs the media upload of T8), the Comment tool (T10) and
+    Alt-toggling hug, fill and fixed while resizing; alignment of auto layout children is the 3 × 3 matrix in the
+    Design panel (padding and gap have canvas handles); equal-spacing snapping; copy and paste stay inside OpenFini
+    (no system clipboard format yet); multi-selection fields show the first layer's value.
 
 **T5 · Components, variables, styles and DTCG tokens (engine)** — L — deps: T2
 * Scope: component and component set ops, property definitions and bindings, instance resolution with overrides by

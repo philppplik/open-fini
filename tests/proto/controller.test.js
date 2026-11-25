@@ -200,8 +200,8 @@ test("studio: registered only with the Labs switch, and complete like other stud
   assert.equal(s.workspace, true);
   assert.equal(typeof s.newDocument, "function");
   assert.equal(typeof s.newBlank, "function");
-  assert.deepEqual(s.essentials.left, [["proto-layers"]]);
-  assert.deepEqual([...s.top, ...s.bottom].sort(), ["proto-inspector", "proto-layers"]);
+  assert.deepEqual(s.essentials.left, [["proto-pages"], ["proto-layers"]]);
+  assert.deepEqual([...s.top, ...s.bottom].sort(), ["proto-inspector", "proto-layers", "proto-pages"]);
   assert.equal(PROTO_STUDIO.id, "proto");
   assert.ok(PROTO_MENUS.every((m) => m.studios.includes("proto")));
   const doc = { office: { kind: "proto" } };
