@@ -34,6 +34,7 @@ const EMPTY_TEXT = {
   "scene-media": N_("Import video, audio or pictures to fill the media bin."),
   "scene-effects": N_("Select a clip on the timeline to add effects."),
   "scene-inspector": N_("Select a clip to edit its properties."),
+  "proto-pages": N_("Open a Proto design to see its pages."),
   "proto-layers": N_("Open a Proto design to see its layers."),
   "proto-inspector": N_("Select a layer to see its properties."),
   "doc-outline": N_("Add headings to the document to build an outline."),
@@ -94,9 +95,10 @@ export const PANELS = {
   "scene-media": { title: "Media", icon: "film", create: slotPanel("scene-media") },
   "scene-effects": { title: "Effects", icon: "stars", create: slotPanel("scene-effects") },
   "scene-inspector": { title: "Inspector", icon: "sliders", create: slotPanel("scene-inspector") },
-  // Proto Studio (proto/panels.js)
+  // Proto Studio (proto/panels/: pages.js, layers.js, design.js)
+  "proto-pages": { title: "Pages", icon: "files", create: slotPanel("proto-pages") },
   "proto-layers": { title: "Layers", icon: "layers", create: slotPanel("proto-layers") },
-  "proto-inspector": { title: "Inspector", icon: "sliders", create: slotPanel("proto-inspector") },
+  "proto-inspector": { title: "Design", icon: "sliders", create: slotPanel("proto-inspector") },
   // Office apps (ui/office/workspace.js, office/slides/view.js, office/board/sidebar.js)
   "doc-outline": { title: "Outline", icon: "list-nested", create: slotPanel("doc-outline") },
   "doc-styles": { title: "Styles", icon: "fonts", create: slotPanel("doc-styles") },

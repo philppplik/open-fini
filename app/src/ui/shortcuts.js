@@ -28,7 +28,7 @@ export function installShortcuts(app) {
   };
   // The Code studio has no canvas selection: only these general commands apply there.
   const generalInCode = /^(file|studio|help|vibe)\.|^edit\.(preferences)$|^view\.(theme|lowPower)$/;
-  // Office Studio: a workspace studio like Code and Vibe, but undo/redo are the app's (its edits live in doc history)
+  // Office and Proto: workspace studios like Code and Vibe, but undo/redo are the app's (their edits live in doc history)
   const generalInOffice = /^(file|studio|help|vibe)\.|^edit\.(preferences|undo|redo)$|^view\.(theme|lowPower)$/;
   const workspaceStudio = (s) => !!STUDIOS[s]?.workspace; // Code, Vibe, Office and later workspace studios
   rebuild();
@@ -56,7 +56,7 @@ export function installShortcuts(app) {
     // commands
     for (const t of table) {
       if (t.studios && !t.studios.includes(app.studio)) continue;
-      if (!t.studios && workspaceStudio(app.studio) && !(app.studio === "office" ? generalInOffice : generalInCode).test(t.id)) continue;
+      if (!t.studios && workspaceStudio(app.studio) && !(app.studio === "office" || app.studio === "proto" ? generalInOffice : generalInCode).test(t.id)) continue;
       if (t.key === key && t.mod === mod && t.alt === ev.altKey && t.shift === ev.shiftKey) {
         if (app.isEnabled(t.id)) {
           ev.preventDefault();

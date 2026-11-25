@@ -25,17 +25,18 @@ export const PROTO_STUDIO = {
   newDocument: (app) => host().then((m) => m.newProto(app, { starter: "desktop" })),
   newBlank: (app) => host().then((m) => m.newProto(app, { starter: "blank" })),
   tools: [],
-  // Layers (left) and the Inspector (right) are dockable around the canvas; Pages, Design and Prototype come with T4+
-  top: ["proto-layers"],
+  // Pages and Layers (left) and the Design panel (right, id proto-inspector) dock around the canvas
+  top: ["proto-pages", "proto-layers"],
   bottom: ["proto-inspector"],
-  essentials: { left: [["proto-layers"]], right: [["proto-inspector"]], sizes: { left: 240, right: 280 } },
+  essentials: { left: [["proto-pages"], ["proto-layers"]], right: [["proto-inspector"]], sizes: { left: 240, right: 280 } },
 };
 
 /** Menus of the Proto Studio (merged into ui/menus.js MENUS). The commands register when the first design mounts. */
 export const PROTO_MENUS = [
-  { label: "Edit", studios: ["proto"], items: ["edit.undo", "edit.redo", "-", "proto.duplicate", "proto.delete", "-", "proto.selectAll", "proto.deselect", "proto.selectParent", "proto.selectChildren", "-", "edit.preferences"] },
-  { label: "Insert", studios: ["proto"], items: ["proto.addFrame", "proto.addPhoneFrame"] },
-  { label: "View", studios: ["proto"], items: ["proto.zoomIn", "proto.zoomOut", "proto.zoom100", "proto.zoomFit", "proto.zoomSelection", "-", "view.theme"] },
+  { label: "Edit", studios: ["proto"], items: ["edit.undo", "edit.redo", "-", "proto.cut", "proto.copy", "proto.paste", "proto.duplicate", "proto.delete", "-", "proto.selectAll", "proto.deselect", "proto.selectParent", "proto.selectChildren", "-", "proto.rename", "proto.editText", "-", "edit.preferences"] },
+  { label: "Insert", studios: ["proto"], items: ["proto.addFrame", "proto.addLaptopFrame", "proto.addTabletFrame", "proto.addPhoneFrame", "proto.addWatchFrame", "-", "proto.tool.frame", "proto.tool.rect", "proto.tool.ellipse", "proto.tool.line", "proto.tool.pen", "proto.tool.text", "-", "proto.addPage"] },
+  { label: "Object", studios: ["proto"], items: ["proto.autoLayout", "proto.gridLayout", "proto.removeAutoLayout", "-", "proto.group", "proto.ungroup", "-", "proto.bringToFront", "proto.bringForward", "proto.sendBackward", "proto.sendToBack", "-", "proto.toggleVisible", "proto.toggleLock"] },
+  { label: "View", studios: ["proto"], items: ["proto.zoomIn", "proto.zoomOut", "proto.zoom100", "proto.zoomFit", "proto.zoomSelection", "-", "proto.tool.move", "proto.tool.hand", "proto.tool.zoom", "-", "view.theme"] },
 ];
 
 /**

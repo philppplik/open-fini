@@ -16,6 +16,7 @@
 //     fit(rect?, opts?)                    camera that shows `rect` (default: everything on the page)
 //     geo                                  the geometry cache;  roots → Map of per-layer records (state, box)
 //     requestDraw()                        redraw the overlay on the next frame
+//     elementOf(key) / remeasure(rootId) / invalidate(rootId)   in-place editing (T4 text tool)
 //     on(event, fn) → off                  "frame" (after measuring and drawing), "camera", "geometry"
 //     stage / world / canvas / overlay     elements and the overlay (overlay.addLayer for tools)
 //     destroy()
@@ -437,6 +438,32 @@ export function createView(container, { overlayState = () => ({ selection: [], h
     },
     /** The world box of a top-level layer: measured, or its design-time size. */
     rootBox: (id) => (roots.has(id) ? boxOf(roots.get(id)) : null),
+    /** The element of a rendered layer (a resolved key) inside its shadow root, or null (T4: in-place text editing). */
+    elementOf(key) {
+      for (const rec of roots.values()) {
+        const el = rec.els.get(key);
+        if (el) return el;
+      }
+      return null;
+    },
+    /** Measures a top-level layer again on the next frame (its DOM changed outside a patch, e.g. while typing). */
+    remeasure(rootId) {
+      const rec = roots.get(rootId);
+      if (rec) rec.measure = true;
+      schedule();
+    },
+    /** Rebuilds a top-level layer's elements from scratch on the next frame (after an editor changed its DOM). */
+    invalidate(rootId) {
+      const rec = roots.get(rootId);
+      if (!rec) return;
+      rec.content.replaceChildren();
+      rec.els.clear();
+      rec.entries = null;
+      rec.rootEl = null;
+      rec.stale = true;
+      if (rec.attached && rec.state === "live") patch(rec);
+      schedule();
+    },
     requestDraw() {
       schedule();
     },
