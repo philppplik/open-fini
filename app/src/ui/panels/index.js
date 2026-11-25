@@ -37,6 +37,8 @@ const EMPTY_TEXT = {
   "proto-pages": N_("Open a Proto design to see its pages."),
   "proto-layers": N_("Open a Proto design to see its layers."),
   "proto-inspector": N_("Select a layer to see its properties."),
+  "proto-assets": N_("Open a Proto design to see its components and styles."),
+  "proto-variables": N_("Open a Proto design to see its variables."),
   "doc-outline": N_("Add headings to the document to build an outline."),
   "doc-styles": N_("Open a document to manage its paragraph styles."),
   "slides-thumbs": N_("Add a slide to see it here."),
@@ -95,10 +97,12 @@ export const PANELS = {
   "scene-media": { title: "Media", icon: "film", create: slotPanel("scene-media") },
   "scene-effects": { title: "Effects", icon: "stars", create: slotPanel("scene-effects") },
   "scene-inspector": { title: "Inspector", icon: "sliders", create: slotPanel("scene-inspector") },
-  // Proto Studio (proto/panels/: pages.js, layers.js, design.js)
+  // Proto Studio (proto/panels/: pages.js, layers.js, design.js, assets.js, variables.js)
   "proto-pages": { title: "Pages", icon: "files", create: slotPanel("proto-pages") },
   "proto-layers": { title: "Layers", icon: "layers", create: slotPanel("proto-layers") },
   "proto-inspector": { title: "Design", icon: "sliders", create: slotPanel("proto-inspector") },
+  "proto-assets": { title: "Assets", icon: "grid", create: slotPanel("proto-assets") },
+  "proto-variables": { title: "Variables", icon: "hexagon", create: slotPanel("proto-variables") },
   // Office apps (ui/office/workspace.js, office/slides/view.js, office/board/sidebar.js)
   "doc-outline": { title: "Outline", icon: "list-nested", create: slotPanel("doc-outline") },
   "doc-styles": { title: "Styles", icon: "fonts", create: slotPanel("doc-styles") },

@@ -6,6 +6,7 @@ import { t, N_ } from "../i18n/index.js";
 import { roots as rootIds, pageList } from "../engine/proto/tree.js";
 import { isContainer, field } from "../engine/proto/schema.js";
 import * as E from "../proto/tools/edit.js";
+import * as P from "../proto/panels/model.js";
 import { lockedSet } from "../proto/tools/common.js";
 
 let done = false;
@@ -35,6 +36,7 @@ export function registerProtoCommands(app) {
   tool("text", "Text Tool", "T", "fonts");
   tool("hand", "Hand Tool", "H", "hand-index");
   tool("zoom", "Zoom Tool", "Z", "zoom-in");
+  tool("comment", "Comment Tool", "C", "chat-quote");
 
   // insert
   def("proto.addFrame", "Desktop Frame", () => ws().addFrame("desktop"), { icon: "display", enabled: editable });
@@ -66,6 +68,15 @@ export function registerProtoCommands(app) {
   });
   def("proto.group", "Group Selection", () => runOp(E.group(model(), sel()), t("Group")), { icon: "bounding-box", enabled: hasSel, shortcut: "Mod+G" });
   def("proto.ungroup", "Ungroup", () => ungroup(), { enabled: (a) => hasSel(a) && a.protoUI.selection.some((id) => isContainer(a.protoUI.model().nodes[id]?.type)), shortcut: "Mod+Shift+G" });
+
+  // object: components (T6)
+  const inst = (a) => single(a) && node(a)?.type === "instance";
+  const pick = (res) => res?.ids?.[0] && ws().select([res.ids[0]]);
+  def("proto.createComponent", "Create Component", () => pick(runOp(P.componentOp(model(), sel()), t("Create component"))), { icon: "grid", enabled: (a) => hasSel(a) && P.canCreateComponent(a.protoUI.model(), a.protoUI.selection), shortcut: "Mod+Alt+K" });
+  def("proto.combineVariants", "Combine as Variants", () => pick(runOp(P.combineOp(model(), sel()), t("Combine as variants"))), { icon: "collection", enabled: (a) => hasSel(a) && P.canCombine(a.protoUI.model(), a.protoUI.selection) });
+  def("proto.goToMain", "Go to Main Component", () => ws().goTo(P.mainOf(model(), sel()[0])?.id), { icon: "box-arrow-up-right", enabled: (a) => on(a) && a.protoUI.selection.length === 1 && !!P.mainOf(a.protoUI.model(), a.protoUI.selection[0]) });
+  def("proto.resetInstance", "Reset Overrides", () => runOp({ op: "instance.reset", id: sel()[0] }, t("Reset overrides")), { icon: "arrow-counterclockwise", enabled: inst });
+  def("proto.detachInstance", "Detach Instance", () => runOp({ op: "instance.detach", ids: sel().filter((id) => model().nodes[id]?.type === "instance") }, t("Detach instance")), { icon: "scissors", enabled: (a) => hasSel(a) && a.protoUI.selection.some((id) => a.protoUI.model().nodes[id]?.type === "instance"), shortcut: "Mod+Alt+B" });
 
   // object: order, visibility, lock
   const order = (where, label) => () => runOp(E.reorder(model(), sel(), where), t(label));

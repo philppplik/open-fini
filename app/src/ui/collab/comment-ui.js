@@ -131,6 +131,12 @@ export function installCommentUI(app, c) {
         const n = d.find(a.node);
         return n ? t("Layer “{name}”", { name: n.name || n.type }) : t("Deleted layer “{name}”", { name: a.quote || "?" });
       }
+      case "proto": {
+        const n = a.node ? d.office?.model?.nodes?.[a.node] : null;
+        if (n) return t("Layer “{name}”", { name: n.name || n.type });
+        if (a.node) return t("Deleted layer “{name}”", { name: a.quote || "?" });
+        return t("A point on the page");
+      }
       case "region":
         return t("A point on the page");
       case "page":

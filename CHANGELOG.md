@@ -6,6 +6,13 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Proto Studio: components, variables and styles in the UI (Labs)** ([user guide](docs/proto-studio.md#components-and-instances), task T6): an **Assets** panel with the design's components and variant sets (previews, search, drag onto the canvas to insert an instance, create a component or combine components as variants from the selection, swap selected instances) and its styles; an **Instance** section in the Design panel (go to the main component, swap, variant pickers, property values, overrides indicator, reset, detach) and a **Component** section (variants, properties with defaults and variant options, binding text, visibility, nested instances and slots of inner layers to properties); a **Variables** panel (collections as tables with modes, brands that extend a collection and override some values, aliases, scopes, code names, create, rename and delete); a variable picker on every bindable Design field with the bound state shown; a mode switcher per frame and page; styles per section (apply, create from the selection, update, rename, detach); and design tokens import and export from the UI (DTCG JSON, CSS custom properties, Tailwind v4 `@theme`, Swift). Every action is one undo step. New commands: Create Component (Ctrl+Alt+K), Combine as Variants, Go to Main Component, Reset Overrides, Detach Instance (Ctrl+Alt+B). The Window menu now works in the Proto Studio.
+- **Proto Studio: comments on the canvas (Labs)** ([user guide](docs/proto-studio.md#comments)): a Comment tool (C) and numbered comment pins that follow their layers, open their thread and can be dragged; the new comment anchor kind `proto` ([collaboration](docs/collaboration.md#anchoring-model-per-studio)); *Show where* opens the design at the layer.
+
+### Changed
+- **`ofini proto lint` runs the assistant's design rules** ([docs/cli.md](docs/cli.md)): contrast, touch targets, unbound colors and spacing, off-grid spacing, detached styles and instances, inactive overrides, empty frames, default names, overflowing text and unused tokens now come from `engine/proto/lint.js`, the same code as `proto_lint` and `proto_fix`; `schema`, `unresolved` and `clipped` stay CLI checks. `--fix` applies the fixes the engine marks safe. The rule names `stale-override` and `text-overflow` still work as aliases of `inactive-override` and `overflow-text`, but findings now carry the new names.
+
 ## [1.3.0] — Proto Studio preview, live sharing everywhere, faster Scene
 
 ### Fixed
