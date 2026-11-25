@@ -1122,6 +1122,26 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
   `ofini new proto`. T7 adds `export` and `tokens`, T8 `import`, T12 `ofini mcp`.
 * Files: `cli/lib/{proto.mjs,main.mjs,completion.mjs}`, `tests/packaging/ofini-proto.test.js`, `docs/cli.md`.
 * Acceptance: every command runs in plain Node on the fixtures; `--json` shapes tested; exit codes as ADR 0032.
+* As built (deviations and decisions the later tasks build on):
+  * Modules: `cli/lib/proto.mjs` (the command table `PROTO_COMMANDS`, a command group: `main.mjs` dispatches the
+    first word after `proto` and parses that subcommand's options; help, completion and the interactive mode know
+    groups), `proto-model.mjs` (reading designs from `.ofini`, `document.json` or a bare model; writing back the same
+    container; page, layer and mode lookups; `withModes`), `proto-svg.mjs` (`renderSvg`), `proto-lint.mjs`
+    (`LINT_RULES`, `lintModel`, `applyFixes`) and `io.mjs` (the file helpers moved out of `main.mjs`). No engine
+    module changed. T7 adds `export` to `PROTO_COMMANDS`, T8 `import`.
+  * Beyond the scope: `inspect` (raw and resolved layers, CSS, solver box), `tokens` and `tokens import` (moved here
+    from T7 because `tokens.js` exists: DTCG, CSS, Tailwind, Swift and plain JSON values), `apply` (engine operations
+    from JSON, standard input or `--ops`, one batch, `--seed` for reproducible ids), `validate --strict`.
+  * The SVG render lays out the layer inside its top-level layer and draws from the resolved fields (not from the CSS
+    declarations); it is approximate (base-14 metrics; conic gradients as their first color; no inner shadows, shadow
+    spread by growing the outline, no background blur; per-side strokes ignore radii). PNG exits 4. `--mode` is set on
+    the top-level layer, because a layer's own `modes` win over the resolver's `modes`.
+  * Lint rules until T11's `engine/proto/lint.js`: `schema`, `unresolved`, `stale-override` (fix: `instance.reset`
+    with the path), `text-overflow`, `clipped`, `touch-target` (24 px, WCAG 2.5.8), `empty-frame`; the geometry rules
+    are marked approximate; SARIF 2.1.0 output. T11 can add its rules to `LINT_RULES` / `lintModel`.
+  * Assets: no layer field marks layers for export yet, so `assets` writes every vector layer (or the `--node` layers).
+  * Writing a changed design needs `--out`, `--in-place` (atomic rename, no backup) or `--dry-run`; `lint --fix`
+    defaults to `<name>.fixed.ofini` like the Doctor's `.repaired` copies.
 
 **T14 · Code studio live link** — M — deps: T6, T7
 * Scope: tokens file link with two-way sync (10.2), export into a Code project with guarded regions and hash checks

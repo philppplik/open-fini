@@ -13,6 +13,8 @@ import { createOutput, table, bytes as fmtBytes, sev } from "./term.mjs";
 import { expandAll } from "./glob.mjs";
 import { CliError, EXIT, NEW_KINDS, SIZE_PRESETS, createProject, openInput, readOfini, templatesFor, writeOfini, projectKind } from "./project.mjs";
 import { exportProject, formatsFor, formatFromName, projectText } from "./export.mjs";
+import { plural, withoutExt, readInput, writeOutput, needArgs, eachFile, safeFileName } from "./io.mjs";
+import { PROTO_COMMANDS, PROTO_SUMMARY } from "./proto.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const VERSION = (() => {
@@ -22,67 +24,6 @@ export const VERSION = (() => {
     return "0.0.0";
   }
 })();
-
-// ------------------------------------------------------------------------------------------------ helpers
-
-const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-const withoutExt = (p) => p.slice(0, p.length - extname(p).length);
-
-function readInput(ctx, path, { name } = {}) {
-  if (path === "-") {
-    if (!ctx.io.stdin) throw new CliError("No standard input is available.", EXIT.IO);
-    const data = ctx.io.readStdin ? ctx.io.readStdin() : readFileSync(0);
-    return { bytes: new Uint8Array(data), name: name || "stdin.ofini", path: "-" };
-  }
-  const abs = resolve(ctx.cwd, path);
-  try {
-    const st = statSync(abs);
-    if (st.isDirectory()) throw new CliError(`${path} is a folder; this command needs a file.`, EXIT.IO);
-    return { bytes: new Uint8Array(readFileSync(abs)), name: basename(abs), path, abs };
-  } catch (e) {
-    if (e instanceof CliError) throw e;
-    throw new CliError(e.code === "ENOENT" ? `${path}: no such file.` : `${path}: cannot read (${e.code || e.message}).`, EXIT.IO);
-  }
-}
-
-function writeOutput(ctx, path, data, { force = false } = {}) {
-  if (path === "-") {
-    ctx.io.stdout.write(data);
-    return "-";
-  }
-  const abs = resolve(ctx.cwd, path);
-  if (existsSync(abs) && !force) throw new CliError(`${path} already exists. Use --force to overwrite it.`, EXIT.IO);
-  try {
-    mkdirSync(dirname(abs), { recursive: true });
-    writeFileSync(abs, data);
-  } catch (e) {
-    throw new CliError(`${path}: cannot write (${e.code || e.message}).`, EXIT.IO);
-  }
-  return path;
-}
-
-function needArgs(args, n, what) {
-  if (args.length < n) throw new UsageError(`Missing ${what}.`);
-}
-
-/** Runs `fn` for each file, collecting results; I/O errors of one file do not stop the others. */
-async function eachFile(ctx, files, fn) {
-  let worst = 0;
-  const results = [];
-  for (const f of files) {
-    try {
-      const r = await fn(f);
-      results.push(r.result);
-      worst = Math.max(worst, r.code);
-    } catch (e) {
-      if (!(e instanceof CliError)) throw e;
-      ctx.out.error(e.message);
-      results.push({ file: f, error: e.message });
-      worst = Math.max(worst, e.code);
-    }
-  }
-  return { worst, results };
-}
 
 // ------------------------------------------------------------------------------------------------ info
 
@@ -335,11 +276,6 @@ async function cmdFormats(flags, args, ctx) {
 }
 
 // ------------------------------------------------------------------------------------------------ extract / ls
-
-function safeFileName(s, fallback) {
-  const n = String(s || "").replace(/[\\/:*?"<>|\x00-\x1f]+/g, "_").replace(/^\.+/, "").trim().slice(0, 120);
-  return n || fallback;
-}
 
 async function cmdExtract(flags, args, ctx) {
   needArgs(args, 1, "file");
@@ -612,10 +548,11 @@ export const COMMANDS = {
   formats: { summary: "List export and import formats (for a file: what it can become)", usage: "ofini formats [file]", flags: { ...IO_FLAGS }, run: cmdFormats, examples: ["ofini formats", "ofini formats budget.ofini"] },
   extract: { summary: "Extract pictures and media, text or the document JSON", usage: "ofini extract <file> (--assets [--out dir] | --text | --json) [--out file]", flags: { ...IO_FLAGS, ...FORCE, assets: { type: "bool", desc: "Write embedded pictures, pixel layers, media and website files to a folder" }, text: { type: "bool", desc: "Print the text" }, json: { type: "bool", desc: "Print document.json, indented" }, out: { type: "string", short: "o", desc: "Output folder (--assets) or file" } }, run: cmdExtract, examples: ["ofini extract brochure.ofini --assets", "ofini extract brochure.ofini --text > brochure.txt", "ofini extract brochure.ofini --json -o brochure.json"] },
   ls: { summary: "List the parts inside a project file", usage: "ofini ls <file>", flags: { ...IO_FLAGS }, run: cmdLs, examples: ["ofini ls poster.ofini"] },
-  new: { summary: "Create an empty project from the app's templates", usage: "ofini new <kind> <file> [--template <id>] [--size <size>] [--pages <n>]", flags: { ...FORCE, template: { type: "string", desc: "Template id (ofini new --list)" }, title: { type: "string", desc: "Document title (default: the file name)" }, size: { type: "string", desc: `Page size for vector, pixel, layout: ${SIZE_PRESETS.slice(0, 6).join(", ")}, … or WxH[px|mm|in|pt]` }, pages: { type: "string", desc: "Number of pages (vector, pixel, layout)" }, list: { type: "bool", short: "l", desc: "List kinds and templates" } }, run: cmdNew, examples: ["ofini new vector logo.ofini", "ofini new layout flyer.ofini --size a5 --pages 2", "ofini new sheet budget.ofini --template budget", "ofini new code site.ofini --template landing", "ofini new --list"] },
+  new: { summary: "Create an empty project from the app's templates", usage: "ofini new <kind> <file> [--template <id>] [--size <size>] [--pages <n>]", flags: { ...FORCE, template: { type: "string", desc: "Template id (ofini new --list)" }, title: { type: "string", desc: "Document title (default: the file name)" }, size: { type: "string", desc: `Page size for vector, pixel, layout (frame size for proto): ${SIZE_PRESETS.slice(0, 6).join(", ")}, … or WxH[px|mm|in|pt]` }, pages: { type: "string", desc: "Number of pages (vector, pixel, layout)" }, list: { type: "bool", short: "l", desc: "List kinds and templates" } }, run: cmdNew, examples: ["ofini new vector logo.ofini", "ofini new layout flyer.ofini --size a5 --pages 2", "ofini new sheet budget.ofini --template budget", "ofini new code site.ofini --template landing", "ofini new proto app.ofini --template phone", "ofini new --list"] },
   pack: { summary: "Pack a folder (from unpack) into an .ofini file", usage: "ofini pack <folder> [file.ofini]", flags: { ...FORCE }, run: cmdPack, examples: ["ofini pack poster poster.ofini"] },
   unpack: { summary: "Unpack an .ofini file into a folder", usage: "ofini unpack <file> [folder]", flags: { ...IO_FLAGS, ...FORCE, pretty: { type: "bool", desc: "Indent document.json (for diffs in Git)" } }, run: cmdUnpack, examples: ["ofini unpack poster.ofini --pretty"] },
   diff: { summary: "Compare two projects structurally; exit code 1 when they differ", usage: "ofini diff <a> <b>", flags: {}, run: cmdDiff, examples: ["ofini diff v1.ofini v2.ofini"] },
+  proto: { summary: PROTO_SUMMARY, usage: "ofini proto <command> [options] <file...>", flags: {}, subcommands: PROTO_COMMANDS, run: null, examples: ["ofini proto tree app.ofini", "ofini proto render app.ofini --node n1 -o checkout.svg", "ofini proto lint 'designs/*.ofini' --format sarif > lint.sarif", "ofini proto help render"] },
   version: { summary: "Print the version", usage: "ofini version", flags: {}, run: cmdVersion, examples: [] },
   help: { summary: "Help for a command", usage: "ofini help [command]", flags: {}, run: cmdHelp, examples: ["ofini help doctor"] },
   completion: { summary: "Print a shell completion script", usage: "ofini completion <bash|zsh|fish|powershell>", flags: {}, run: cmdCompletion, examples: ["ofini completion bash >> ~/.bashrc", "ofini completion powershell | Out-String | Invoke-Expression"] },
@@ -656,22 +593,38 @@ function generalHelp(c) {
   ].join("\n");
 }
 
-function commandHelp(c, name) {
-  const cmd = COMMANDS[name];
+function commandHelp(c, name, sub = null) {
+  const group = COMMANDS[name];
+  const cmd = sub ? group.subcommands[sub] : group;
+  const full = sub ? `${name} ${sub}` : name;
   const flags = Object.entries(cmd.flags).map(([k, v]) => [`  ${v.short ? `-${v.short}, ` : "    "}--${k}${v.type === "string" ? " <value>" : v.optional ? "[=value]" : ""}`, v.desc || ""]);
-  const out = [`${c.bold(`ofini ${name}`)}: ${cmd.summary}`, "", `${c.bold("Usage")}  ${cmd.usage}`];
+  const out = [`${c.bold(`ofini ${full}`)}: ${cmd.summary}`, "", `${c.bold("Usage")}  ${cmd.usage}`];
+  if (cmd.subcommands) out.push("", c.bold("Commands"), table([], Object.entries(cmd.subcommands).map(([k, v]) => [`  ${c.bold(k)}`, v.summary])));
+  if (cmd.details) out.push("", ...cmd.details.map((l) => (l ? `  ${l}` : "")));
   if (flags.length) out.push("", c.bold("Options"), table([], flags));
   out.push("", c.dim("  also: --json, --quiet, --no-color, --help"));
   if (cmd.examples.length) out.push("", c.bold("Examples"), ...cmd.examples.map((e) => `  ${e}`));
   if (name === "doctor") out.push("", c.bold("Fixes"), table([], Object.entries(FIXES).map(([k, v]) => [`  ${k}`, v.safe ? "safe" : c.yellow("--fix=all"), v.label])));
+  if (cmd.subcommands) out.push("", c.dim(`Help for one command: ofini help ${name} <command>`));
   return out.join("\n");
+}
+
+/** JSON help of a command (or subcommand): its table entry without the implementation. */
+function helpData(name, sub) {
+  const { run: _run, subcommands, ...rest } = sub ? COMMANDS[name].subcommands[sub] : COMMANDS[name];
+  const out = { command: sub ? `${name} ${sub}` : name, ...rest };
+  if (subcommands) out.subcommands = Object.fromEntries(Object.entries(subcommands).map(([k, v]) => [k, v.summary]));
+  return out;
 }
 
 async function cmdHelp(flags, args, ctx) {
   const name = args[0] && (COMMANDS[args[0]] ? args[0] : ALIASES[args[0]]);
   if (args[0] && !name) throw new UsageError(`Unknown command “${args[0]}”. Run ofini help for the list.`);
-  if (ctx.out.json) ctx.out.data(name ? { command: name, ...COMMANDS[name], run: undefined } : { commands: Object.fromEntries(Object.entries(COMMANDS).map(([k, v]) => [k, v.summary])), exitCodes: Object.fromEntries(EXIT_CODES) });
-  else ctx.out.result(name ? commandHelp(ctx.out.c, name) : generalHelp(ctx.out.c));
+  const subs = name && COMMANDS[name].subcommands;
+  const sub = subs && args[1] ? args[1] : null;
+  if (sub && !subs[sub]) throw new UsageError(`Unknown command “${name} ${sub}”. Commands: ${Object.keys(subs).join(", ")}.`);
+  if (ctx.out.json) ctx.out.data(name ? helpData(name, sub) : { commands: Object.fromEntries(Object.entries(COMMANDS).map(([k, v]) => [k, v.summary])), exitCodes: Object.fromEntries(EXIT_CODES) });
+  else ctx.out.result(name ? commandHelp(ctx.out.c, name, sub) : generalHelp(ctx.out.c));
   return 0;
 }
 
@@ -710,15 +663,38 @@ export async function main(argv, io = {}) {
     out.hint("Run “ofini help” for the list of commands.");
     return EXIT.USAGE;
   }
+  // a command group (ofini proto <command>): the first word picks the subcommand and its options
+  let spec = def;
+  let full = cmd;
+  const helpCtx = () => ({ out, io, cwd: io.cwd });
+  if (def.subcommands) {
+    const sub = rest[0];
+    if (sub === "help") return cmdHelp({}, [cmd, ...rest.slice(1, 2)], helpCtx()).catch((e) => (out.error(e.message), EXIT.USAGE));
+    if (!sub || sub.startsWith("-")) {
+      if (sub === "-h" || sub === "--help" || rest.includes("--help")) return cmdHelp({}, [cmd], helpCtx());
+      out.error(`Missing command for “ofini ${cmd}”. Commands: ${Object.keys(def.subcommands).join(", ")}.`);
+      out.hint(`Run “ofini help ${cmd}” for details.`);
+      return EXIT.USAGE;
+    }
+    if (!def.subcommands[sub]) {
+      const near = Object.keys(def.subcommands).find((k) => k.startsWith(sub.slice(0, 2)));
+      out.error(`Unknown command “${cmd} ${sub}”.${near ? ` Did you mean “${cmd} ${near}”?` : ""}`);
+      out.hint(`Run “ofini help ${cmd}” for the list of commands.`);
+      return EXIT.USAGE;
+    }
+    spec = def.subcommands[sub];
+    full = `${cmd} ${sub}`;
+    rest = rest.slice(1);
+  }
   try {
-    const { flags, args } = parseArgs(rest, def.flags);
+    const { flags, args } = parseArgs(rest, spec.flags);
     out = createOutput({ ...io, json: !!flags.json, quiet: !!flags.quiet, color: flags.color ?? null });
-    if (flags.help) return cmdHelp({}, [cmd], { out, io, cwd: io.cwd });
-    return await def.run(flags, args, { out, io, cwd: io.cwd });
+    if (flags.help) return cmdHelp({}, full.split(" "), helpCtx());
+    return await spec.run(flags, args, { out, io, cwd: io.cwd });
   } catch (e) {
     if (e instanceof UsageError) {
       out.error(e.message);
-      out.hint(`Usage: ${def.usage}   (ofini help ${cmd})`);
+      out.hint(`Usage: ${spec.usage}   (ofini help ${full})`);
       return EXIT.USAGE;
     }
     if (e instanceof CliError) {

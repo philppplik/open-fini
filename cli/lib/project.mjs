@@ -31,7 +31,9 @@ const ASSET_EXT = { "application/vnd.iccprofile": "icc", "image/png": "png", "im
 const PX = 96 / 72;
 
 /** Kinds `ofini new` creates, in help order. */
-export const NEW_KINDS = ["vector", "pixel", "layout", "code", "document", "sheet", "slides", "board", "scene"];
+export const NEW_KINDS = ["vector", "pixel", "layout", "code", "document", "sheet", "slides", "board", "scene", "proto"];
+/** Starter frames of `ofini new proto` (the sizes of the Proto Studio's start screen, proto/workspace.js). */
+const PROTO_FRAMES = { desktop: { name: "Desktop", w: 1440, h: 1024 }, phone: { name: "Phone", w: 390, h: 844 } };
 export const DESIGN_STUDIOS = new Set(["vector", "pixel", "layout"]);
 
 /** The kind of an open project: "document"|"sheet"|"slides"|"board"|"scene" (Office kinds), "website", or "design". */
@@ -206,6 +208,7 @@ export async function templatesFor(kind) {
     return [...TEMPLATES.map((t) => ({ id: t.id, label: t.name })), ...STARTERS.filter((s) => !TEMPLATES.some((t) => t.id === s.id)).map((s) => ({ id: s.id, label: s.name }))];
   }
   if (kind === "scene") return (await import("../../app/src/scene/model.js")).TEMPLATES.map((t) => ({ id: t.id, label: t.label }));
+  if (kind === "proto") return [{ id: "blank", label: "Blank page" }, ...Object.entries(PROTO_FRAMES).map(([id, f]) => ({ id, label: `${f.name} frame (${f.w} × ${f.h})` }))];
   const m = officeApp(kind);
   if (!m) throw new CliError(`Unknown kind “${kind}”. Kinds: ${NEW_KINDS.join(", ")}.`, EXIT.USAGE);
   return (m.templates || []).map((t) => ({ id: t.id, label: t.label }));
@@ -239,6 +242,14 @@ export async function createProject(kind, { template = "blank", title = "", size
     const { templateScene } = await import("../../app/src/scene/model.js");
     const model = templateScene(template, { title });
     return wrapOffice(model, "scene", title || "Untitled scene");
+  }
+  if (kind === "proto") {
+    const { protoStarter } = await import("./proto-model.mjs");
+    const name = title || "Untitled design";
+    const frame = size ? { name: "Frame", ...(({ width, height }) => ({ w: width, h: height }))(parseSize(size, "proto")) } : PROTO_FRAMES[template] || null;
+    const doc = new Doc({ name, studio: "proto", width: 1440, height: 1024, pages: 1 });
+    doc.office = new OfficeProject(protoStarter({ title: name, frame }), "proto");
+    return doc;
   }
   const impl = await loadOfficeApp(kind);
   const label = officeApp(kind).label.toLowerCase();
