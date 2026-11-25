@@ -12,7 +12,7 @@ import { escHtml } from "./util.js";
 import { htmlMarkup, page, screenFiles, hrefOf, assetFiles, varsCss } from "./html.js";
 
 /** An arbitrary value: spaces become underscores (Tailwind turns them back), double quotes single quotes. */
-export const arb = (v) => String(v).replace(/_/g, "\\_").replace(/"/g, "'").replace(/\s*,\s*/g, ",").replace(/\s+/g, "_");
+export const arb = (v) => String(v).replace(/\\/g, "\\\\").replace(/_/g, "\\_").replace(/"/g, "'").replace(/\s*,\s*/g, ",").replace(/\s+/g, "_");
 
 const PX = /^(-?\d+(?:\.\d+)?)px$/;
 
