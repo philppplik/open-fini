@@ -19,6 +19,11 @@ A new **Proto Studio** for interface design and prototyping (frames, components,
 links) is designed separately: [concepts/proto-studio.md](concepts/proto-studio.md) (proposed, not built yet). The
 2.0 plan only references it where items overlap, such as components, constraints and live booleans.
 
+A new **World Studio** for 3D (modeling with a modifier stack, sculpting basics, PBR materials with a node editor and
+custom shaders, WebGPU rendering with a WebGL 2 fallback, animation on the Scene Studio's timeline, glTF first, 3D in
+the other studios, assistant, MCP and `ofini world`) is designed for the 1.4.x releases:
+[concepts/world-studio.md](concepts/world-studio.md) and [ADR 0035](adr/0035-world-studio.md) (proposed, not built yet).
+
 These are plans, not promises: the order can change with feedback and contributions.
 
 ## What is missing today
