@@ -3,8 +3,9 @@
 // and fix. Static definitions; the logic loads on the first call (proto/ai-ops.js and engine/proto/lint.js, pure and
 // unit-tested; proto/ai-runtime.js for the undo step, images and attachments). Every write tool is ONE undoable step
 // ("Vibe: …") through engine/proto/ops.js, validated by the engine, and recorded in the AI log like every tool call.
-// Names match the MCP tools of the concept (§8) where they overlap. proto_write_html, proto_to_code and
-// proto_interaction arrive with T8, T7 and T9.
+// Names match the MCP tools of the concept (§8) where they overlap. proto_write_html (T8) runs the HTML importer
+// (engine/proto/import/html.js; in the app the HTML renders in a sandboxed frame first, proto/html-probe.js);
+// proto_to_code and proto_interaction arrive with T7 and T9.
 import { tool, S } from "./helpers.js";
 
 const ops = () => import("../../proto/ai-ops.js");
@@ -100,6 +101,39 @@ export function protoTools(app, ctx = {}) {
       });
       if (a.select !== false && r.roots?.length) app.protoUI?.select?.(r.roots);
       return r;
+    }),
+
+    tool("proto_write_html", "Creates layers from HTML and CSS as one undo step (HTML → design): flex and grid become auto layout, sizes become fixed, hug or fill, text keeps its styled runs, backgrounds, borders, radii and shadows map to fills, strokes and effects, :root custom properties become variables, inline SVG becomes vector layers and data: images become image layers. Scripts never run and nothing remote is loaded. In the app the HTML is rendered in a sandboxed frame at `width` first (exact boxes); elsewhere a static CSS cascade is used (approximate). Write one self-contained snippet with a <style> block; returns the ids and an import report.", {
+      html: S.str("HTML with CSS (a <style> block and/or style attributes); a fragment or a whole document"),
+      width: S.num("Viewport width to lay the HTML out at (default: the parent's width, else 1280)", { minimum: 100, maximum: 10000 }),
+      parent: S.str("Container layer id (default: the top level of the page)"), page: S.str("Page id (top level; default: the page on screen)"),
+      x: S.num("Left position on the page (top level; default: right of the page's frames)"), y: S.num("Top position on the page (top level)"),
+      select: S.bool("Select the created layers (default true)"),
+    }, ["html"], async (a) => {
+      const [R, I] = await Promise.all([rt(), import("../../engine/proto/import/index.js")]);
+      const target = R.protoTarget(app);
+      const m = target.model();
+      if (a.parent && !m.nodes[a.parent]) throw new Error(`There is no layer “${a.parent}”. Call proto_describe for the ids.`);
+      const parentNode = a.parent ? m.nodes[a.parent] : null;
+      const width = a.width || (parentNode?.w?.mode === "fixed" ? parentNode.w.value : 1280);
+      let probe = null;
+      if (typeof document !== "undefined") probe = await (await import("../../proto/html-probe.js")).probeHtml(a.html, { width });
+      const result = I.importInto(m, { name: "HTML", text: a.html, from: "html", probe, width });
+      const page = a.page || parentNode?.page || target.page;
+      const flow = !!parentNode && ["flex", "grid"].includes(parentNode.layout?.type);
+      let at = null;
+      if (!parentNode) {
+        if (a.x !== undefined || a.y !== undefined) at = [a.x ?? 0, a.y ?? 0];
+        else {
+          const tops = Object.values(m.nodes).filter((n) => n.parent == null && n.page === page);
+          const right = tops.length ? Math.max(...tops.map((n) => (n.x || 0) + (n.w?.mode === "fixed" ? n.w.value : 0))) + 100 : 0;
+          at = [Math.round(right), 0];
+        }
+      } else if (!flow) at = [a.x ?? 0, a.y ?? 0];
+      const ops = I.applyImport(result, { page, parent: a.parent || null, at, flow });
+      const res = target.run(ops, "Write HTML");
+      if (a.select !== false && res && result.roots.length) app.protoUI?.select?.(result.roots);
+      return { ok: true, changed: !!res, roots: result.roots, created: ops.filter((o) => o.op === "node.create").length, exact: !!probe, report: result.report.toJSON() };
     }),
 
     tool("proto_update", "Changes fields of layers as one undo step. set takes the proto_create shorthands (w, h, layout, gap, pad, align, justify, fill, stroke, radius, shadow, text, size, weight, color, name, tag, opacity, visible…) and dotted paths (\"layout.gap\", \"text.style.size\", \"fills.0.color\"); layout keys merge into the existing layout. unset removes fields; bind maps field paths to variable names (null unbinds and keeps the value).", {

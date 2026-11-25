@@ -18,7 +18,11 @@
 //   tools / setTool(tool|null)              the tools (tools/index.js; tools.set(id)); setTool installs a tool object
 //   hover / setHover(id) / setMarquee(rect) / setCursor(css) / requestDraw()   overlay state for tools
 //   editing / editText(id) / setEditing(state)   in-place text editing (tools/text.js); rename(id) in the Layers panel
-//   copy() / cut() / paste() / zoomIn() / zoomOut() / zoomTo(z) / zoomAround(sx, sy, dir) / zoomToFit() / zoomToSelection()
+//   copy() / cut() / paste() / pasteLocal(payload?) — copy also writes the system clipboard (proto/paste.js: an
+//     OpenFini MIME payload plus HTML carrying it); paste reads the system clipboard (Proto layers, SVG, HTML, images,
+//     text) and falls back to the in-app clipboard; Ctrl/Cmd+C, X and V on the canvas use the browser's clipboard
+//     events; files dropped on the canvas are imported (HTML, SVG, Sketch, Penpot, images)
+//   zoomIn() / zoomOut() / zoomTo(z) / zoomAround(sx, sy, dir) / zoomToFit() / zoomToSelection()
 //   addFrame(preset?) / deleteSelection() / duplicateSelection() / selectAll() / selectParent() / selectChildren()
 //   goTo(id)                                shows a layer (its page, selected, in view)
 //   comments / commentAnchor() / revealComment(anchor)   comment pins and the Comment tool (proto/comments.js)
@@ -289,6 +293,46 @@ export function mountProto(host, doc, app) {
     ];
   }
 
+  // ------------------------------------------------------------------------------------------- clipboard and drops
+  let clip = null; // proto/paste.js, loaded when the design mounts (clipboard events must answer synchronously)
+  import("./paste.js").then((m) => (clip = m)).catch(() => {});
+  const onCanvas = (e) => !editing && (e.composedPath?.() || []).includes(root);
+  root.addEventListener("copy", (e) => {
+    if (!clip || !onCanvas(e) || !ctl.selection.length) return;
+    clipboard = E.copyNodes(prj.model, ctl.selection);
+    clip.writeClipEvent(e, clip.clipOf(prj.model, ctl.selection));
+    e.preventDefault();
+    app.emit("commands");
+  });
+  root.addEventListener("cut", (e) => {
+    if (!clip || !onCanvas(e) || !ctl.selection.length || info.readOnly) return;
+    clipboard = E.copyNodes(prj.model, ctl.selection);
+    clip.writeClipEvent(e, clip.clipOf(prj.model, ctl.selection));
+    e.preventDefault();
+    api.deleteSelection();
+  });
+  root.addEventListener("paste", (e) => {
+    if (!clip || !onCanvas(e) || info.readOnly) return;
+    e.preventDefault();
+    clip.readTransfer(e.clipboardData).then((item) => (item ? clip.insertItem(api, app, item) : api.pasteLocal())).catch((err) => app.toast(err.message, "danger", 5000));
+  });
+  stage.addEventListener("dragover", (e) => {
+    if (info.readOnly || !(e.dataTransfer?.types || []).includes("Files")) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  });
+  stage.addEventListener("drop", (e) => {
+    if (info.readOnly || !e.dataTransfer?.files?.length) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const p = stagePoint(e);
+    const at = toWorld(view.camera, p.x, p.y);
+    const files = [...e.dataTransfer.files];
+    import("./paste.js")
+      .then(async (P) => P.importFiles(api, app, await Promise.all(files.map(async (f) => ({ name: f.name, mime: f.type, bytes: new Uint8Array(await f.arrayBuffer()) }))), { at }))
+      .catch((err) => app.toast(err.message, "danger", 5000));
+  });
+
   // ------------------------------------------------------------------------------------------- keyboard
   root.addEventListener("keydown", (e) => {
     const el = e.composedPath?.()[0] || e.target;
@@ -307,6 +351,8 @@ export function mountProto(host, doc, app) {
     }
     if (mod) {
       if (key === "a" && !e.shiftKey && !e.altKey) return done(), api.selectAll();
+      // copy, cut and paste: let the browser fire its clipboard events on the canvas (the system clipboard)
+      if ((key === "c" || key === "x" || key === "v") && !e.shiftKey && !e.altKey && clip && !editing) return void e.stopPropagation();
       return; // undo, redo, copy, paste, save and the rest are commands
     }
     if (e.altKey) return;
@@ -546,6 +592,9 @@ export function mountProto(host, doc, app) {
     copy() {
       if (!ctl.selection.length) return false;
       clipboard = E.copyNodes(prj.model, ctl.selection);
+      const model = prj.model;
+      const sel = ctl.selection.slice();
+      import("./paste.js").then((P) => P.writeSystemClipboard(P.clipOf(model, sel))).catch(() => {});
       app.emit("commands");
       return true;
     },
@@ -555,10 +604,26 @@ export function mountProto(host, doc, app) {
       return true;
     },
     get canPaste() {
-      return !!clipboard;
+      // the system clipboard may hold something too (it is read when pasting)
+      return !info.readOnly;
     },
-    /** Pastes into the selected container, next to the selection, or onto the page (to the right of its frames). */
-    paste() {
+    /** Edit ▸ Paste: the system clipboard (Proto layers, SVG, HTML, images, text), else the in-app clipboard. */
+    async paste() {
+      if (info.readOnly) return null;
+      const P = await import("./paste.js");
+      let item = null;
+      try {
+        item = await P.readSystemClipboard();
+      } catch {
+        item = null; // the browser refused access: the in-app clipboard still works
+      }
+      if (item) return P.insertItem(api, app, item);
+      if (!clipboard) app.toast(t("Use Ctrl+V to paste (the browser blocked clipboard access)."), "warning", 3500);
+      return api.pasteLocal();
+    },
+    /** Pastes Proto layers into the selected container, next to the selection, or onto the page (to the right of its frames). */
+    pasteLocal(payload = clipboard) {
+      const clipboard = payload;
       if (!clipboard || info.readOnly) return null;
       const m = prj.model;
       const sel = ctl.selection.map((id) => m.nodes[id]).filter(Boolean);
