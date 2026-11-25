@@ -978,6 +978,57 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
 * Acceptance: nested instances, overrides surviving edits of the main component, swap with a preferred list, slot
   content, detach equal to the resolved subtree; DTCG round trip of the specification's examples; alias cycles
   rejected; 1,000 instances resolve in under 50 ms.
+* As built (deviations and decisions the later tasks build on):
+  * Modules: `components.js` (helpers and operation handlers for components and instances), `variables.js` (families,
+    mode selection, value lookup, scopes, references, style application and the variable, mode and style operations),
+    `tokens.js` (DTCG, CSS, Tailwind v4, Swift). The handlers are registered in the one operation table of `ops.js`
+    (`apply` stays the only entry point). Their inverse is one generic exact operation, `restore { nodes?, pages?,
+    collections?, items?, styles? }` (`{ id: object | null }`), recorded by a journal in the draft; `restore` refuses
+    orphans and cycles. New operations: `component.create` (a frame becomes a component in place, anything else is
+    wrapped), `component.combine` ("size=md, state=hover" names become variant axes, other names one `variant` axis;
+    component properties move to the set), `component.addVariant`, `prop.define` / `prop.rename` / `prop.delete`
+    (cascading to variants' `variant`, `bind` and instance values), `prop.bind`, `instance.create` (the main
+    component's size applies), `instance.set`, `instance.swap`, `instance.override` (top-level fields per path),
+    `instance.reset`, `instance.detach`, `collection.*`, `mode.*`, `var.create` / `var.update` / `var.delete`
+    (`detach: true` replaces bindings by their values in each user's modes; without it a used variable is refused),
+    `node.bind` (binds list items such as `fills.0.color`, checks scopes unless `force`; `var: null` writes the value),
+    `style.create` (also `from` a layer) / `update` / `delete` / `apply` / `detach`, `tokens.import` (the result has a
+    `report`).
+  * Properties: a text property bound to `text` replaces the content (first run's style kept); every other binding sets
+    the field (`visible`, `of` of a nested instance for swap properties). Bindings apply to the layers of the instance's
+    own component; overrides apply after them. Main components render their stored layers (defaults are not applied).
+  * Slots: an instance's stored children are slot content (`props.<slot>` lists ids; unlisted children go to the first
+    slot property); a slot property is connected by `bind: { "<slotLayer>.children": prop }`, else the first free
+    `slot` layer. Content of a real instance keeps its own key; resolved nodes carry `slot` (the providing instance),
+    `src` (stored node with properties and overrides) and `base` (after expansion, still with bindings and style
+    references). New layers created inside an instance flow (`pos: "flow"`). `r.node` may be the stored object itself
+    when nothing changed it (treat it as immutable).
+  * Detach materializes the resolved subtree with new ids; the instance keeps its id and becomes a frame; slot layers
+    become frames; nested instances stay instances and receive the outer overrides that reached into them; slot content
+    of the detached instance keeps its ids. Instance children that fill no slot stay children of the frame.
+  * Extending collections: overrides live on the variable (`ext[collection][mode]`); an extending collection has its
+    base's modes (validated, kept in step by the mode operations, which run on the base only). Selecting any collection
+    of a family selects the family; a deeper selection replaces the inherited one, and inside one `modes` object the
+    most derived collection wins (`mergeModes`). The resolver's `opts.modes` apply over the page's modes (as in T2).
+  * Grid styles are CSS grid definitions; a container with a grid style becomes a grid (the style wins).
+  * `css.js`: `varRules` / `varSheet` emit `:root` (or `:host`) defaults and one `[data-mode-<collection slug>="<mode>"]`
+    rule per collection and mode with every variable of its family (base collections first). Aliases inside a family
+    are written as values; aliases into another family stay `var()` (they follow that family through the cascade; a
+    cross-family alias whose own family also switches modes deeper is a known CSS limitation). A unitless number
+    variable bound to a length prints `calc(var(--x, n) * 1px)`.
+  * Resolve cache: `createResolveCache()` passed as `opts.cache` reuses resolved real instances (the same objects) while
+    the stored nodes and children lists they read, `vars`, `styles` and the parent's modes are unchanged. Measured: 1,000
+    two- to four-layer instances resolve in about 11 ms without the cache (Node 24, Windows laptop); the test asserts
+    50 ms for the best of five runs.
+  * DTCG: export in the 2025.10 shapes (sRGB color objects with `hex`, dimension and duration objects, `$root` tokens
+    for names that are also groups); modes in `$extensions["org.openfini.modes"]`, collections, ids, scopes, code names
+    and brand overrides in `$extensions["org.openfini"]`; styles as typography, shadow, gradient or color tokens with the
+    exact style in the extension. Import reads both the 2025.10 objects and the older strings, `$type` inheritance,
+    `$root`, group `$extends`, `{a.b}` and `$ref` aliases, HSL and sRGB-linear colors; rem becomes px (×16) and s
+    becomes ms, both reported; cubicBezier, strokeStyle, border, transition, unreadable colors and broken aliases are
+    skipped and reported. Golden files: `tests/proto/fixtures/tokens/` (`UPDATE_GOLDEN=1` rewrites them).
+  * Like `ops.js`, the new modules have no app importer until T3 and ship as unminified source files (budget +39 KiB
+    gzip, recorded in `scripts/size-budget.json`).
 
 **T6 · Assets, components and variables UI** — M — deps: T4, T5
 * Scope: Assets panel (components, sets, styles, drag to insert), component section of the Design panel (create
@@ -1022,6 +1073,51 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
   `tests/proto/collab.test.js`, `docs/collaboration.md`.
 * Acceptance: convergence property test (thousands of seeded random concurrent histories through the adapter);
   malformed records rejected; two-window manual test over BroadcastChannel.
+* As built (deviations and decisions the later tasks build on):
+  * `proto/collab.js` (`protoCollabAdapter`) runs on the existing records engine (`collab/office-sync.js`, op kind
+    `office`); `"proto"` is in `LIVE_OFFICE_KINDS` and `ui/collab/live.js` loads the adapter for the kind. Records as in
+    §13 with these choices: the structure record `n:<id>` also carries `name`, `visible` and `locked`; `n:<id>/text`
+    carries the content of every layer kind (`text`, `d`, `rule`, `alt`); `opacity` and `blend` are in `look`, `sticky`
+    in `lay`, `tag`, `a11y` and `modes` in `proto`; fields this version does not know travel in `n:<id>/x`. A group
+    record exists only when the layer has one of its fields. Values are canonical (sorted keys) and cached per node
+    object, so unchanged layers cost nothing per flush.
+  * Generic over the model (for T5 and later tasks): `COLLECTIONS` lists the id-keyed maps that sync per entry (`p:`
+    pages, `vc:` `vars.collections`, `v:` `vars.items`, `s:` styles, `media:` media without bytes); every other
+    top-level key (meta, breakpoints, code, and anything a later task adds) is one `meta:<key>` record, so new data
+    syncs without code changes. A new id-keyed map that should merge per entry is one line in `COLLECTIONS`; a new node
+    field is one entry in `GROUPS` (until then it travels in `n:<id>/x`). Components and instances are nodes, so T5's
+    component operations sync through the node records as they are.
+  * Validation: remote node records go through `validate.js ▸ nodeProblems`, the other records through `validate()` on
+    the model without layers. Shape errors reject a record (when a layer fails as a whole its records are tried one by
+    one, so one bad record does not hold back the others of the layer); reference problems (`missing-*`, cycles,
+    limits, binding types) are accepted, because rejecting them depends on arrival order and would make replicas
+    diverge, and the resolver treats them as warnings.
+  * Tree repair, the same on every replica: layers of a missing page are hidden; layers whose parent is missing, is no
+    container, is on another page, or is a component set while the layer is no component, go to the top level of their
+    page (a move into a concurrently deleted frame keeps the layer); a parent cycle from concurrent moves is broken at
+    the layer with the smallest id (the tree CRDT undoes the newest move instead, but the record adapter has no clocks).
+    A text layer whose text record was removed by a concurrent delete while someone renamed it gets the default text.
+    The children index is updated incrementally for the changed layers (`adoptIndex`), as `ops.js` does locally.
+  * `office-sync.js` change for every adapter: records the model changed as a side effect of a remote op (not only the
+    keys of the op) are compared with the view and retried when they differ. Without it, a layer that came back (undo
+    of a delete) missed a group record that had survived in the view, and a repaired placement was never retried.
+  * Undo: nothing new; the workspace's `opStep` replays the inverse on the current model, which keeps remote edits (the
+    binding's `prj.rebase` hook is installed but the Proto history does not use it).
+  * A snapshot opened by a late joiner still has the container fields; the adapter's `prepare` loads it
+    (`format.js ▸ loadModel`) before the binding starts.
+  * Presence: `proto/presence.js` publishes the Proto page, the pointer and the visible rect in world units and the
+    selected ids (the existing presence message; `studio: "proto"`), draws the others' pointers and selection outlines
+    in their colors through `view.overlay.addLayer` (added once per workspace by `ui/collab/overlay.js`, redrawn on
+    presence changes), and *Follow* sets the page and the camera that fits the member's visible rect. The workspace
+    needed no new hooks: the runtime listens to the stage's pointer events and to `ws.on("selection" | "camera" |
+    "page")`.
+  * Not done in T10: the comment anchor kind `proto` with pins on the overlay (comments on a Proto design are document
+    comments for now); it needs the comment composer's canvas hooks, which T4 is changing, and follows as its own task.
+  * Tests: `tests/proto/collab.test.js` (two and three peers with the real controller, shuffled delivery, late joiner,
+    chunked media, malformed records, 300 seeded random histories in CI; 2,000 checked with `PROTO_COLLAB_SEEDS=2000`).
+    Manual check: two tabs of the dev server in a *This device* room (share live, open live, concurrent fill and move
+    of one layer, Undo of the fill in one tab keeps the other's move, pointer and selection outline of the other tab,
+    Follow).
 
 **T11 · Vibe tools, lint and skills** — M — deps: T5
 * Scope: `vibe/tools/proto.js` with the tools of section 7 whose capability exists (describe, get, screenshot,

@@ -27,12 +27,46 @@
 //   page.delete     { id }                                    with its layers; the last page cannot be deleted
 //   meta.update     { set?, unset? }                          title, created, app
 //   batch           { ops: [op] }                             one atomic step
+//   restore         { nodes?, pages?, collections?, items?, styles? }   exact state: { id: object | null } (null removes);
+//                                                             the inverse of the component, variable and style operations
+// Components and instances (components.js, T5):
+//   component.create    { ids, name?, id?, layout? }          a frame becomes a component, other layers are wrapped
+//   component.combine   { ids, name?, id? }                   components → a component set ("size=md, state=hover" names
+//                                                             become variant properties)
+//   component.addVariant { set, from?, variant?, name? }      a copy of a variant with new variant values
+//   prop.define         { id, name, def }                     add or replace a property definition (cascades to values)
+//   prop.rename         { id, name, to } / prop.delete { id, name }
+//   prop.bind           { id, layer, field, prop|null }       connect a property to "<layer>.<field>"
+//   instance.create     { of, parent?, page?, index?|before?|after?, id?, variant?, props?, fields? }
+//   instance.set        { id, variant?, props? }              values; null removes one
+//   instance.swap       { id, of }                            another main component, overrides kept
+//   instance.override   { id, path, set?, unset? }            fields of a layer inside the instance ("n31/n22")
+//   instance.reset      { id, paths?, props? }                remove overrides (and property values)
+//   instance.detach     { ids }                               materialize the resolved subtree
+// Variables, modes and styles (variables.js, T5):
+//   collection.create   { id?, name, modes?: [{ id?, name }], default?, extends? }
+//   collection.update   { id, set?, unset? } (name, default, description) / collection.delete { id, detach? }
+//   mode.create         { coll, id?, name, from?, index? } / mode.update { coll, id, name } / mode.delete { coll, id }
+//   var.create          { id?, coll, name, type, values?|value?, unit?, scopes?, code?, description?, ext? }
+//   var.update          { id, set?, unset? }                  e.g. { "values.dark": "#000000" }, { "ext.c2.light": … }
+//   var.delete          { ids, detach? }                      refused while used, unless detach (bindings → values)
+//   node.bind           { id, path, var|null, force? }        bind a field ("fills.0.color") or replace the binding by
+//                                                             its value; checks the variable's scopes unless force
+//   style.create        { id?, name, kind, value?, from?: layerId, apply? }
+//   style.update        { id, set?, unset? } / style.delete { ids, detach? }
+//   style.apply         { ids, slot, style|null }             style.detach { ids, slot? } (bake into local fields)
+// Tokens (tokens.js, T5):
+//   tokens.import       { tokens, collection?, mode?, replace? }   DTCG JSON into variables and styles
 //
 // Options: apply(model, op, { random }) — the random source for new ids (tests pass ids.js ▸ seededRandom).
 import { keysBetween, isKey } from "../../collab/fractional.js";
 import { newId, isId, ID_PREFIX } from "./ids.js";
 import { indexOf, adoptIndex, parentKey, pageKey, pageList } from "./tree.js";
-import { nodeProblems, pageProblems, componentCycleProblems } from "./validate.js";
+import { nodeProblems, pageProblems, componentCycleProblems, varsProblems, stylesProblems } from "./validate.js";
+import { variableOps } from "./variables.js";
+import { componentOps } from "./components.js";
+import { tokenOps } from "./tokens.js";
+import { createResolver } from "./resolve.js";
 import * as S from "./schema.js";
 
 export class OpError extends Error {
@@ -76,6 +110,80 @@ class Draft {
     this.structural = false;
     this.components = false;
     this.reserved = new Set();
+    this.varsOwned = false;
+    this.stylesOwned = false;
+    this.varsChanged = false;
+    this.stylesChanged = false;
+    /** journals of the operations that record their inverse as one `restore` (innermost last) */
+    this.journals = [];
+  }
+
+  /** Remembers the state of an entry before its first change, for every recording operation. */
+  log(kind, id, old) {
+    for (const j of this.journals) if (!j[kind].has(id)) j[kind].set(id, old === undefined ? null : old);
+  }
+
+  /**
+   * Runs `fn` (which returns the ids it created or affected) and returns { inverse, ids } where `inverse` is one
+   * `restore` operation that puts back every node, page, collection, variable and style `fn` changed.
+   */
+  record(fn) {
+    const j = { nodes: new Map(), pages: new Map(), collections: new Map(), items: new Map(), styles: new Map() };
+    this.journals.push(j);
+    let ids;
+    try {
+      ids = fn();
+    } finally {
+      this.journals.splice(this.journals.indexOf(j), 1);
+    }
+    const inverse = { op: "restore" };
+    for (const k of Object.keys(j)) if (j[k].size) inverse[k] = Object.fromEntries(j[k]);
+    return { inverse, ids: ids || [] };
+  }
+
+  /** Makes the cached children index of the working model the live one (for readers such as the resolver). */
+  syncIndex() {
+    if (this.nodesOwned) adoptIndex(this.m.nodes, this.ix);
+  }
+
+  varsForWrite() {
+    if (!this.varsOwned) {
+      const v = isPlain(this.m.vars) ? this.m.vars : {};
+      this.m.vars = { ...v, collections: { ...(isPlain(v.collections) ? v.collections : {}) }, items: { ...(isPlain(v.items) ? v.items : {}) } };
+      this.varsOwned = true;
+    }
+    this.varsChanged = true;
+    this.changed = true;
+    return this.m.vars;
+  }
+
+  /** Sets (or with null removes) a variable collection. */
+  putColl(id, c) {
+    const v = this.varsForWrite();
+    this.log("collections", id, v.collections[id]);
+    if (c === null) delete v.collections[id];
+    else v.collections[id] = c;
+  }
+
+  /** Sets (or with null removes) a variable. */
+  putItem(id, item) {
+    const v = this.varsForWrite();
+    this.log("items", id, v.items[id]);
+    if (item === null) delete v.items[id];
+    else v.items[id] = item;
+  }
+
+  /** Sets (or with null removes) a style. */
+  putStyle(id, s) {
+    if (!this.stylesOwned) {
+      this.m.styles = { ...(isPlain(this.m.styles) ? this.m.styles : {}) };
+      this.stylesOwned = true;
+    }
+    this.log("styles", id, this.m.styles[id]);
+    if (s === null) delete this.m.styles[id];
+    else this.m.styles[id] = s;
+    this.stylesChanged = true;
+    this.changed = true;
   }
 
   node(id) {
@@ -110,6 +218,7 @@ class Draft {
   put(node) {
     const nodes = this.nodesForWrite();
     const old = nodes[node.id];
+    if (this.journals.length) this.log("nodes", node.id, old);
     const ix = this.index();
     if (!old) {
       nodes[node.id] = node;
@@ -131,6 +240,7 @@ class Draft {
     const nodes = this.nodesForWrite();
     const old = nodes[id];
     if (!old) return;
+    if (this.journals.length) this.log("nodes", id, old);
     this.index().remove(parentKey(old), id);
     delete nodes[id];
     this.touched.delete(id);
@@ -153,6 +263,7 @@ class Draft {
       this.m.pages = { ...this.m.pages };
       this.pagesOwned = true;
     }
+    if (this.journals.length) this.log("pages", p.id, this.m.pages[p.id]);
     this.m.pages[p.id] = p;
     this.touchedPages.add(p.id);
     this.changed = true;
@@ -163,6 +274,7 @@ class Draft {
       this.m.pages = { ...this.m.pages };
       this.pagesOwned = true;
     }
+    if (this.journals.length) this.log("pages", id, this.m.pages[id]);
     delete this.m.pages[id];
     this.touchedPages.delete(id);
     this.changed = true;
@@ -240,6 +352,14 @@ class Draft {
       const p = m.pages[id];
       if (!p) continue;
       const errs = pageProblems(m, p).filter((x) => x.severity === "error");
+      if (errs.length) throw new OpError("invalid", `${errs[0].path}: ${errs[0].message}`, errs);
+    }
+    if (this.varsChanged) {
+      const errs = varsProblems(m);
+      if (errs.length) throw new OpError("invalid", `${errs[0].path}: ${errs[0].message}`, errs);
+    }
+    if (this.stylesChanged) {
+      const errs = stylesProblems(m);
       if (errs.length) throw new OpError("invalid", `${errs[0].path}: ${errs[0].message}`, errs);
     }
     if (this.structural || this.components) {
@@ -468,7 +588,8 @@ function createOp(d, op) {
     const fields = fieldsCheck(spec.fields);
     const node = { ...S.nodeDefaults(spec.type), ...fields, id, type: spec.type, page, parent: parentId, ord: ordKey };
     const lt = parentNode?.layout?.type;
-    if (fields.pos === undefined && (lt === "flex" || lt === "grid")) node.pos = "flow";
+    // slot content (the children of an instance) flows in the slot's layout
+    if (fields.pos === undefined && (lt === "flex" || lt === "grid" || parentNode?.type === "instance")) node.pos = "flow";
     d.put(node);
     ids.push(id);
     const kids = spec.children ?? [];
@@ -599,7 +720,7 @@ function remap(n, map) {
   }
   if (isPlain(n.bind)) n.bind = Object.fromEntries(Object.entries(n.bind).map(([k, v]) => [k.replace(/^[^.]+/, (id) => m(id)), v]));
   if (isPlain(n.props)) {
-    if (n.type === "instance") n.props = Object.fromEntries(Object.entries(n.props).map(([k, v]) => [k, m(v)]));
+    if (n.type === "instance") n.props = Object.fromEntries(Object.entries(n.props).map(([k, v]) => [k, Array.isArray(v) ? v.map(m) : m(v)]));
     else
       for (const [k, def] of Object.entries(n.props))
         if (isPlain(def) && def.type === "swap") n.props[k] = { ...def, ...(def.default != null ? { default: m(def.default) } : {}), ...(Array.isArray(def.preferred) ? { preferred: def.preferred.map(m) } : {}) };
@@ -794,7 +915,50 @@ function batchOp(d, op) {
   return { inverse: { op: "batch", ops: inverses.reverse() }, ids };
 }
 
+/** Exact state of entries: { kind: { id: object | null } }; the inverse of recording operations. */
+function restoreOp(d, op) {
+  return d.record(() => {
+    const ids = [];
+    const map = (k) => {
+      const v = op[k];
+      if (v === undefined) return [];
+      if (!isPlain(v)) throw new OpError("bad-op", `\`${k}\` must be an object of id → value.`);
+      for (const [id, x] of Object.entries(v)) if (x !== null && !isPlain(x)) throw new OpError("bad-op", `${k}.${id} must be an object or null.`);
+      return Object.entries(v);
+    };
+    const nodes = map("nodes");
+    for (const [id, n] of nodes) if (n === null) d.drop(id);
+    for (const [id, n] of nodes)
+      if (n !== null) {
+        if (n.id !== id || !S.NODE_TYPES.includes(n.type) || !isKey(n.ord)) throw new OpError("invalid", `The layer “${id}” is not a valid layer.`);
+        d.put(n);
+        ids.push(id);
+      }
+    for (const [id, n] of nodes) if (n === null && d.kids(id).length) throw new OpError("orphans", `Removing “${id}” would leave its children without a parent.`);
+    for (const [id, n] of nodes)
+      if (n !== null) {
+        if (n.parent != null && d.inside(n.parent, id)) throw new OpError("cycle", "A layer cannot be inside itself.");
+        checkDepth(d, id);
+      }
+    const pages = map("pages");
+    for (const [id, p] of pages) {
+      if (p === null) {
+        if (d.kids(pageKey(id)).length) throw new OpError("orphans", `The page “${id}” still has layers.`);
+        d.dropPage(id);
+      } else {
+        if (p.id !== id) throw new OpError("invalid", `The page “${id}” is not a valid page.`);
+        d.putPage(p);
+      }
+    }
+    for (const [id, c] of map("collections")) d.putColl(id, c);
+    for (const [id, v] of map("items")) d.putItem(id, v);
+    for (const [id, s] of map("styles")) d.putStyle(id, s);
+    return ids;
+  });
+}
+
 const HANDLERS = {
+  restore: restoreOp,
   "node.create": createOp,
   "node.insert": insertOp,
   "node.update": updateOp,
@@ -810,6 +974,9 @@ const HANDLERS = {
   "meta.update": metaUpdateOp,
   batch: batchOp,
 };
+
+const KIT = { OpError, runOp: (d, op) => runOp(d, op), patch, clone, createResolver };
+Object.assign(HANDLERS, componentOps(KIT), variableOps(KIT), tokenOps(KIT));
 
 /** Names of every operation. */
 export const OPS = Object.freeze(Object.keys(HANDLERS));
@@ -833,6 +1000,7 @@ export function apply(model, op, opts = {}) {
   const next = d.finish();
   const out = { model: next, inverse: r.inverse, ids: r.ids };
   if (r.map) out.map = r.map;
+  if (r.report) out.report = r.report;
   return out;
 }
 

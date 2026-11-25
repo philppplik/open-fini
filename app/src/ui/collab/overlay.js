@@ -3,6 +3,8 @@
 //   * Vector / Pixel / Layout: other members' pointers (labeled colored arrows), their selection halos and the
 //     activity "Show" flash are drawn on the canvas overlay (app event "overlay-extra"); comment markers are small DOM
 //     buttons over the stage that follow their anchors (layer, region or page) and open the thread when clicked.
+//   * Proto Studio: other members' pointers and selection outlines on the design canvas's own overlay (a drawing layer
+//     added with view.overlay.addLayer, proto/presence.js), redrawn when their presence changes.
 //   * Code studio and Office studio: other members' carets are absolutely positioned DOM marks placed with the editor's
 //     own geometry (CodeMirror coordsAtPos, the Office editor's posToDom), refreshed a few times per second.
 // Only members on the same document are shown. Cursors are hidden in low-power mode unless Settings ▸ Profile and
@@ -12,6 +14,7 @@ import { t } from "../../i18n/index.js";
 import { pageBounds } from "../../core/transform.js";
 import { filterThreads } from "../../collab/comments.js";
 import { codeRange, pinNumbers, resolvePin } from "../../collab/anchors.js";
+import { drawPresence } from "../../proto/presence.js";
 
 export function installOverlay(app, c) {
   const showCursors = () => app.prefs.collabCursors === "on" || (app.prefs.collabCursors !== "off" && !app.perf.low);
@@ -129,6 +132,30 @@ export function installOverlay(app, c) {
     });
     for (let i = want.length; i < kids.length; i++) kids[i].remove();
   }
+
+  // ---------------------------------------------------------------- Proto canvas: pointers and selections
+  const protoLayers = new WeakSet();
+  const ensureProtoLayer = () => {
+    const ws = app.protoUI;
+    if (!ws?.view?.overlay || protoLayers.has(ws)) return;
+    protoLayers.add(ws);
+    ws.view.overlay.addLayer((ctx, s) => {
+      if (!c.session || app.protoUI !== ws || !showCursors()) return;
+      const members = [];
+      for (const m of c.session.members) {
+        const p = m.presence;
+        if (p?.studio === "proto" && p.doc === ws.doc.id && p.page === ws.page) members.push({ color: m.profile?.color || "#888888", nick: m.profile?.nick || "?", presence: p });
+      }
+      if (members.length) drawPresence(ctx, { cam: s.cam, geo: ws.view.geo, members });
+    });
+  };
+  ensureProtoLayer();
+  app.on("protostatus", ensureProtoLayer);
+  c.events?.addEventListener("change", (e) => {
+    if (e.detail !== "presence" && e.detail !== "members" && e.detail !== "status") return;
+    ensureProtoLayer();
+    app.protoUI?.view?.requestDraw();
+  });
 
   // ---------------------------------------------------------------- code and office carets (DOM)
   const carets = h("div.of-ccarets", { "aria-hidden": "true" });

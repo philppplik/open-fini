@@ -12,7 +12,8 @@
 //     arrived, an element of a page that is still on its way, a value the app normalizes) is no longer "deleted" by
 //     the next local edit of a peer (that used to propagate data loss to everyone);
 //   * remote ops are reconciled key by key against the model; keys the model could not take are retried with the
-//     next remote message (so delivery order does not matter);
+//     next remote message (so delivery order does not matter), and so are records the model changed as a side effect
+//     (an adapter that drops or moves something to keep its model whole);
 //   * media bytes larger than `inlineMedia` travel as immutable chunk records `blob:<media id>/<i>` (≤ 45 KiB each)
 //     and are assembled into `model.media[id].bytes` once every chunk is there (they used to stay local);
 //   * `rebase(cur, from, to)` lets Undo/Redo revert only the records of the user's own step instead of restoring a
@@ -212,6 +213,16 @@ export class OfficeSync {
     for (const k of keys) {
       if (isBlob(k) || this.unapplied.size >= 10_000) continue;
       if (!same(after[k] ?? null, this.crdt.map.get(k)?.v ?? null)) this.unapplied.add(k);
+    }
+    // records the model changed as a side effect (the fields of a layer someone deleted while I changed them, a layer
+    // an adapter placed elsewhere to keep its tree whole): where they differ from the view they are retried, so they
+    // come back when the model can hold them again
+    for (const rec of [cur, after]) {
+      for (const k of Object.keys(rec)) {
+        if (this.unapplied.size >= 10_000) break;
+        if (keys.has(k) || isBlob(k) || cur[k] === after[k] || this.unapplied.has(k)) continue;
+        if (!same(after[k] ?? null, this.crdt.map.get(k)?.v ?? null)) this.unapplied.add(k);
+      }
     }
     this.base = after;
     return next;

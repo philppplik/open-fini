@@ -10,7 +10,7 @@
 //   TextBinding  Code studio projects and one-file text documents: one RGA (collab/text-crdt.js) per text file, bound
 //                to the project text and to CodeMirror (remote changes are not added to the editor's history).
 //   OfficeBinding  Office Suite apps that declare a `collabAdapter` (office/apps.js: Document, Spreadsheet, Presentation,
-//                Whiteboard) and Scene Studio documents (scene/collab.js): their model is flattened into keyed records
+//                Whiteboard), Scene Studio documents (scene/collab.js) and Proto designs (proto/collab.js): their model is flattened into keyed records
 //                and merged with collab/office-sync.js (last writer wins per record; Undo/Redo rebased on top of
 //                remote edits; large media as chunk records). Office kinds without an adapter are shared as copies.
 //
@@ -71,6 +71,7 @@ async function loadAdapter(doc) {
   if (!adapters.has(kind)) {
     let a = null;
     if (kind === "scene") a = (await import("../../scene/collab.js")).sceneCollabAdapter;
+    else if (kind === "proto") a = (await import("../../proto/collab.js")).protoCollabAdapter;
     else {
       await import("../../office/index.js").then((m) => m.loadOfficeApp(kind)).catch(() => null);
       a = loadedOfficeApp(kind)?.collabAdapter || null;

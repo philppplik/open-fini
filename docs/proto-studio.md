@@ -6,8 +6,8 @@ Design application interfaces and prototypes on a canvas that is real HTML and C
 
 > **Preview.** Proto is being built in steps during the 1.3.x releases. Until the preview ends it is reachable only
 > with **Settings ▸ Labs ▸ Proto Studio**. What is there today: the canvas, the drawing tools, auto layout and grid,
-> the Pages, Layers and Design panels, undo, and saving. Components, variables, prototyping, code export and the
-> assistant follow.
+> the Pages, Layers and Design panels, undo, saving, and editing together in a collaboration room. Components,
+> variables, prototyping, code export and the assistant follow.
 
 ## Turning it on
 
@@ -101,10 +101,33 @@ The panels dock like everywhere else ([workspaces](workspaces.md)).
   *Accessibility and code* (HTML element, role, accessible name); *Export* comes with code export. Drag a field's
   label to scrub a value. With nothing selected the panel shows the page's name and background.
 
+## Editing together
+
+A design can be shared live in a collaboration room like every other document
+([collaboration](collaboration.md#live-editing-edit-together-beta)): right-click the document tab or use **File ▸ Share with Collaboration Room…** and choose *Share as linked live
+document*. Everyone who opens it edits the same design.
+
+* **What merges**: each layer travels as a few parts (structure and name, geometry, layout, look, content, component
+  data, prototype data), and pages, variables, collections and styles each on their own. Two people who change
+  different parts merge: one changes the fill of a button while the other moves it, and both changes stay. When two
+  people change the same part of the same layer at the same moment, the later change wins on every device and the one
+  whose change was replaced gets a notice.
+* **Moves never break the tree**: when someone deletes a frame while you move a layer into it, your layer stays, at
+  the top level of the page. Two moves that would put two frames inside each other are resolved the same way on every
+  device.
+* **Undo** reverts only your own steps, on top of what the others did since.
+* **Presence**: the others' pointers (with their names) and the outlines of what they selected are drawn on the canvas
+  of the page you are looking at, in their colors. *Follow* in the Collaboration window shows their page and what they
+  see.
+* Images travel in parts, so a large image arrives a little after the layer that shows it. Members who join later get
+  the current design.
+
 ## For developers
 
 Code: `app/src/studios/proto.js` (definition, menus, Labs switch), `app/src/proto/` (host, workspace, renderer) and
-the pure engine in `app/src/engine/proto/`. The renderer and its performance are described in the concept
+the pure engine in `app/src/engine/proto/`. Live collaboration is the records adapter `app/src/proto/collab.js`
+(records, validation and tree repair in its header; tests in `tests/proto/collab.test.js`) and
+`app/src/proto/presence.js`. The renderer and its performance are described in the concept
 ([§4](concepts/proto-studio.md#4-rendering)); `node scripts/proto-perf.mjs` measures the targets of §4.3 in a headless
 Chromium-based browser, and `tests/proto/perf/bench.html` runs the same benchmark by hand in any browser
 (`node scripts/serve.mjs --root .`, then open `/tests/proto/perf/bench.html`).
