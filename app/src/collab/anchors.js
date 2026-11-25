@@ -4,6 +4,7 @@
 //
 // Public API
 //   canvasAnchor({ pageId, node, bounds, point, quote }) → anchor     Vector / Pixel / Layout click
+//   protoAnchor({ page, node, bounds, point, quote }) → anchor        Proto Studio click (kind "proto": world coordinates)
 //   resolvePin(anchor, { bounds, page }) → {x, y} | null              page coordinates where the pin is drawn
 //   moveAnchor(anchor, { node, bounds, point }) → anchor              result of dragging a pin to a new place
 //   codeAnchor({ path, from, to, quote }) → anchor                    from/to = { line (1-based), col (0-based) }
@@ -33,9 +34,27 @@ export function canvasAnchor({ pageId, node = null, bounds = null, point, quote 
   return { kind: "region", ...base, ...(quote ? { quote: clip(quote) } : {}) };
 }
 
+/**
+ * A comment on a Proto design (kind "proto"): the page, the clicked point in world coordinates (`pin`) and, when the
+ * point is on a layer, the layer and the point relative to its box (`off`), so the pin follows the layer when it moves
+ * or resizes and stays at its last place when the layer is deleted (it then is a page comment).
+ */
+export function protoAnchor({ page, node = null, bounds = null, point, quote }) {
+  const x = round(num(point?.x));
+  const y = round(num(point?.y));
+  const out = { kind: "proto", page, pin: { x, y } };
+  if (node && bounds && (bounds.w > 0 || bounds.h > 0)) {
+    out.node = node.id;
+    out.off = { x: frac(x, bounds.x, bounds.w), y: frac(y, bounds.y, bounds.h) };
+  }
+  const q = quote ?? node?.name;
+  if (q) out.quote = clip(q);
+  return out;
+}
+
 export function resolvePin(anchor, { bounds = null, page = null } = {}) {
   if (!anchor) return null;
-  if (anchor.kind === "node") {
+  if (anchor.kind === "node" || anchor.kind === "proto") {
     if (bounds && anchor.off) return { x: bounds.x + anchor.off.x * bounds.w, y: bounds.y + anchor.off.y * bounds.h };
     if (bounds && !anchor.pin) return { x: bounds.x + bounds.w, y: bounds.y }; // comments made before pins: top right corner
     if (anchor.pin) return { ...anchor.pin }; // the layer is gone: the pin stays where it was

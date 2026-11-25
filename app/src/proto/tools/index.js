@@ -12,6 +12,7 @@ import { createShapeTool, createLineTool, createZoomTool } from "./draw.js";
 import { createPenTool } from "./pen.js";
 import { createTextTool } from "./text.js";
 import { FRAME_PRESETS } from "./presets.js";
+import { createCommentTool } from "../comments.js";
 
 /** Tools in toolbar order: id, icon, label, shortcut. */
 export const TOOLS = Object.freeze([
@@ -24,6 +25,7 @@ export const TOOLS = Object.freeze([
   { id: "text", icon: "fonts", label: N_("Text"), key: "T" },
   { id: "hand", icon: "hand-index", label: N_("Hand"), key: "H" },
   { id: "zoom", icon: "zoom-in", label: N_("Zoom"), key: "Z" },
+  { id: "comment", icon: "chat-quote", label: N_("Comment"), key: "C" },
 ]);
 
 export function createTools(ws) {
@@ -37,6 +39,7 @@ export function createTools(ws) {
     text: createTextTool(ws),
     hand: { id: "hand", cursor: "grab", down: () => false },
     zoom: createZoomTool(ws),
+    comment: createCommentTool(ws),
   };
   let current = tools.move;
   let switching = false;

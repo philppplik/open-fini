@@ -139,12 +139,17 @@ proto <command>` lists every option.
 and `tree --boxes` they are set on the top-level layer, so they win over the mode it picks itself. `--node` takes ids,
 exact layer names or instance-inner keys, comma-separated.
 
-**Lint rules.** `schema` (validation errors and warnings), `unresolved` (variables, components or modes that cannot be
-resolved), `stale-override` (instance overrides of layers the main component no longer has; fixable), `text-overflow`,
-`clipped` (a layer sticking out of a parent that clips), `touch-target` (click or press targets smaller than 24 × 24 px)
-and `empty-frame`. The geometry rules use the pure solver and are marked approximate. `--format sarif` writes SARIF
-2.1.0 for code-scanning annotations in CI. The design rules of the assistant's linter (contrast, unbound values) join
-when they land in the engine.
+**Lint rules.** The design rules are the ones the assistant's `proto_lint` and `proto_fix` run
+(`app/src/engine/proto/lint.js`), so the CLI and the assistant report the same findings: `contrast`, `touch-target`
+(under 24 px a warning, under 44 px a note), `unbound-color`, `unbound-spacing`, `off-grid`, `detached-style`,
+`inactive-override` (instance overrides of layers the main component no longer has), `detached-instance`, `empty-frame`,
+`naming`, `overflow-text` and `unused-token`. Three checks of the file itself run only in the CLI: `schema` (validation
+errors and warnings), `unresolved` (variables, components or modes that cannot be resolved) and `clipped` (a layer
+sticking out of a parent that clips). The names of 1.3.0 still work in `--rules`: `stale-override` means
+`inactive-override`, `text-overflow` means `overflow-text`. `--fix` applies the fixes the engine marks safe (one batch per
+finding); the others (deleting unused tokens, replacing detached copies) are listed as `suggestion` in JSON. Engine
+`info` findings are `note`s. The geometry rules use the pure solver and are marked approximate. `--format sarif` writes
+SARIF 2.1.0 for code-scanning annotations in CI.
 
 **Approximate.** Without a browser, layout and text come from the pure solver with the PDF base-14 font metrics (no
 kerning, no real fonts), so text positions can differ by a pixel or two from the canvas. The SVG render also draws conic

@@ -6,8 +6,9 @@ Design application interfaces and prototypes on a canvas that is real HTML and C
 
 > **Preview.** Proto is being built in steps during the 1.3.x releases. Until the preview ends it is reachable only
 > with **Settings ▸ Labs ▸ Proto Studio**. What is there today: the canvas, the drawing tools, auto layout and grid,
-> the Pages, Layers and Design panels, undo, saving, editing together in a collaboration room and the assistant's
-> tools. Panels for components and variables, prototyping and code export follow.
+> the Pages, Layers, Assets, Design and Variables panels, components and instances, variables with modes and brands,
+> styles, design tokens, comments, undo, saving, editing together in a collaboration room and the assistant's tools.
+> Prototyping and code export follow.
 
 ## Turning it on
 
@@ -38,6 +39,7 @@ and View menus). After drawing a layer the Move tool comes back.
 | Text | T | Click for a text that grows with what you type, drag for a fixed width that wraps. Type, then Escape or click elsewhere |
 | Hand | H | Drag to pan (Space and the middle mouse button pan with every tool) |
 | Zoom | Z | Click to zoom in, Alt-click to zoom out, drag a rectangle to zoom to it |
+| Comment | C | Click a layer or the page to write a comment there ([Comments](#comments)) |
 
 A new layer goes into the frame under the pointer; in a frame with auto layout it lands in the flow at the pointer.
 
@@ -99,7 +101,75 @@ The panels dock like everywhere else ([workspaces](workspaces.md)).
   center and outside strokes, drop and inner shadows, layer and background blur); *Text* (font, size, weight, line
   height, letter spacing, alignment, case, decoration, color, auto width / auto height / fixed size, maximum lines);
   *Accessibility and code* (HTML element, role, accessible name); *Export* comes with code export. Drag a field's
-  label to scrub a value. With nothing selected the panel shows the page's name and background.
+  label to scrub a value. With nothing selected the panel shows the page's name and background. Components, instances,
+  variable bindings, styles and modes add their sections ([below](#components-and-instances)).
+* **Assets** (left, a tab next to Layers): the components and component sets of the design with previews, and the
+  styles; search by name. Drag a component onto the canvas to insert an instance.
+* **Variables** (bottom): the variables of a collection as a table ([below](#variables-modes-and-styles)).
+
+## Components and instances
+
+A **component** is a reusable layer: every **instance** of it shows the component and follows its changes.
+
+* **Create** one from the selection with the grid button next to the layer name in the Design panel, *Object ▸ Create
+  Component* (Ctrl+Alt+K) or *Create component* in the Assets panel. A frame becomes the component; other selections are
+  wrapped in one.
+* **Variants**: select several components and choose *Combine as variants*. Names such as `size=md, state=hover` become
+  variant properties (size and state); other names become one property *variant*. The Design panel of a component set
+  lists its variants (click to select one) and *Add variant* copies the selected one.
+* **Properties** (Design panel of a component or set, the + button): text, boolean, number, instance swap, slot and,
+  for sets, variant properties. Rename them in place, set defaults (variant options are written `sm, md, lg`), and
+  delete them. To connect a property, select the layer inside the component: the *Component property* section binds its
+  text content, its visibility, a nested instance (swap) or a slot.
+* **Insert** an instance by dragging a component from the **Assets** panel onto the canvas (it lands in the frame under
+  the pointer, in its auto layout at the pointer), by double-clicking it or pressing Enter on it (into the selected
+  frame, or the middle of the view). Right-click an asset to go to the main component or to swap the selected instances.
+* **Instances** have an *Instance* section in the Design panel: the main component with *Go to main component*, *Swap*,
+  a picker per variant property, a field per property, how many overrides and property values the instance has (and
+  how many no longer apply because the main component changed), *Reset overrides*, *Reset all* (also the property
+  values) and *Detach* (Ctrl+Alt+B; the instance becomes ordinary layers). The same commands are in the Object and
+  context menus.
+
+## Variables, modes and styles
+
+**Variables** are named colors, numbers, texts and booleans grouped in **collections** with **modes** (Light and Dark,
+Compact and Comfortable). Open the **Variables** panel (bottom; *Window ▸ Variables*):
+
+* The collection menu at the top switches collections; + creates one (with Light and Dark modes); the … menu creates a
+  **brand** (a collection that extends the current one and overrides some of its values), renames, adds modes and
+  deletes. Mode names are edited in the column headers; their menu makes a mode the default or deletes it.
+* The table has a row per variable and a column per mode. Type values in the cells (colors also with the swatch);
+  the hexagon button of a cell makes it an **alias** of another variable (shown as a chip; *Detach alias* writes the
+  value back). In a brand, values you change override the base for that brand only (marked with a bar; *Reset to the
+  base value* removes the override); unchanged values are shown in italics.
+* The row menu sets **scopes** (where a variable can be used: fills, strokes, text color, gap, padding, corner radius…),
+  the **code name** (the CSS custom property of code export) and deletes the variable (layers keep its value).
+* **Design tokens**: the … menu imports a DTCG JSON file (W3C Design Tokens Community Group format, with modes and
+  aliases; a notice tells what was created, updated and skipped) and exports the variables and styles as DTCG JSON, CSS
+  custom properties, Tailwind CSS v4 `@theme` or Swift.
+
+**Binding.** Fields in the Design panel that can take a variable (opacity, corner radius, gap, padding, fill, stroke and
+shadow colors, stroke width, font, font size, weight, letter spacing, text color, visibility) have a small hexagon
+button. It opens a picker with the variables of the right type (those whose scopes exclude the field are disabled); a
+bound field shows the variable's name, and the scissors button detaches it (the field keeps the current value).
+
+**Modes per frame.** Frames, components and instances have a *Variable modes* section (the page has one too when
+nothing is selected): choose the mode of each collection (and the brand) for that frame and everything in it, or *Auto*
+to inherit it. Only the frames that use the variables repaint.
+
+**Styles** are named fills, text styles, effects and grids. The palette button in the Fill, Stroke, Effects, Text and
+grid sections applies a style, creates one from the selected layer, updates it from the selection, renames it or
+detaches it (the values stay on the layer). While a style is applied, the section shows the style instead of the local
+values. The Assets panel lists the styles: click one to apply it to the selection; right-click to rename, update or
+delete it.
+
+## Comments
+
+Comments on a design are the app's comments (saved in the file, shared with a room, listed in the Comments panel). Use
+the **Comment** tool (C) and click a layer or an empty spot, or *Studio ▸ Add Comment* for the selected layer. A
+numbered pin marks the place; it follows its layer when the layer moves or resizes, and stays where it was when the layer
+is deleted. Click a pin to read and answer the thread; drag it to another place (your own comments, or as the host).
+*Show where* in the Comments panel selects the layer and shows it.
 
 ## Editing together
 
@@ -153,10 +223,12 @@ the canvas itself, so they can differ slightly from what you see (text widths, b
 Code: `app/src/studios/proto.js` (definition, menus, Labs switch), `app/src/proto/` (host, workspace, renderer) and
 the pure engine in `app/src/engine/proto/`. Live collaboration is the records adapter `app/src/proto/collab.js`
 (records, validation and tree repair in its header; tests in `tests/proto/collab.test.js`) and
-`app/src/proto/presence.js`. The assistant's tools are `app/src/vibe/tools/proto.js` (definitions) with
+`app/src/proto/presence.js`. The Assets, Variables and binding UI are `app/src/proto/panels/{assets,variables,binding}.js`
+on the pure view models of `app/src/proto/panels/model.js` (tests in `tests/proto/panels-model.test.js`); comment pins
+and the Comment tool are `app/src/proto/comments.js`. The assistant's tools are `app/src/vibe/tools/proto.js` (definitions) with
 `app/src/proto/ai-ops.js` (pure: outline, specs to operations, content, names, responsive check),
 `app/src/proto/ai-render.js` (display list and canvas painter), `app/src/proto/ai-runtime.js` (undo step, images) and
-`app/src/engine/proto/lint.js` (rules and fixes, shared with the MCP server and the CLI); skills in
+`app/src/engine/proto/lint.js` (rules and fixes, shared with the MCP server and `ofini proto lint`); skills in
 `app/src/ai/packs/proto.js` and the studio guide in `app/src/ai/packs/studio-guides.js`. The renderer and its
 performance are described in the concept
 ([§4](concepts/proto-studio.md#4-rendering)); `node scripts/proto-perf.mjs` measures the targets of §4.3 in a headless

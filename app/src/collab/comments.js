@@ -8,7 +8,7 @@
 // Thread = { id, anchor, author, nick, color, ts, resolved?, resolvedBy?, resolvedAt?, ai?, messages: [Message] }
 // Message = { id, author, nick, color, text, ts, edited?, deleted?, mentions?, ai? }
 // `ai: true` (additive, 1.0.x): written by the Vibe assistant; every comment UI shows an "AI" badge next to the name.
-// Anchor = { kind: "doc"|"page"|"node"|"region"|"text"|"line"|"element", page?, node?, rect?, pin?, off?, elem?, path?, line?, endLine?, col?, endCol?, from?, to?, quote? }
+// Anchor = { kind: "doc"|"page"|"node"|"region"|"text"|"line"|"element"|"item"|"proto", page?, node?, rect?, pin?, off?, elem?, path?, line?, endLine?, col?, endCol?, from?, to?, quote? }
 //          (how each studio builds one: collab/anchors.js)
 //
 // Public API
