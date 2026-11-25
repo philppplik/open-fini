@@ -1,6 +1,6 @@
 // Proto Studio workspace: the canvas (proto/view.js) of one open design, its input (tools, pan, zoom, keyboard,
 // context menu), the controller (proto/controller.js), the tools (proto/tools/) and the Pages, Layers and Design panels
-// (proto/panels/). One instance per open Proto document, created by proto/host.js; it is `app.protoUI` while its
+// and Code (proto/panels/). One instance per open Proto document, created by proto/host.js; it is `app.protoUI` while its
 // document is active.
 //
 //   mountProto(host, doc, app) → ws
@@ -46,9 +46,10 @@ import { inFlow, lockedSet } from "./tools/common.js";
 import { createLayersPanel } from "./panels/layers.js";
 import { createPagesPanel } from "./panels/pages.js";
 import { createDesignPanel } from "./panels/design.js";
+import { createCodePanel } from "./panels/code.js";
 
 const isMod = (e) => (/Mac|iPhone|iPad/.test(navigator.platform || "") ? e.metaKey : e.ctrlKey);
-const PANELS = ["proto-pages", "proto-layers", "proto-inspector"];
+const PANELS = ["proto-pages", "proto-layers", "proto-inspector", "proto-code"];
 export const clearProtoPanels = (app) => PANELS.forEach((id) => setPanelSlot(app, id, null));
 export { FRAME_PRESETS };
 
@@ -594,10 +595,12 @@ export function mountProto(host, doc, app) {
   layers = createLayersPanel(api);
   pages = createPagesPanel(api);
   design = createDesignPanel(api);
+  const code = createCodePanel(api);
   function publishPanels() {
     setPanelSlot(app, "proto-pages", { el: pages.el, show: () => pages.render() });
     setPanelSlot(app, "proto-layers", { el: layers.el, show: () => layers.render() });
     setPanelSlot(app, "proto-inspector", { el: design.el, show: () => design.render() });
+    setPanelSlot(app, "proto-code", { el: code.el, show: () => code.render() });
   }
   render();
   return api;

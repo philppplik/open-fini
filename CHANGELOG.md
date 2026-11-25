@@ -6,6 +6,9 @@ All notable changes to OpenFini are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- **Proto Studio: code export (Labs)** ([user guide](docs/proto-studio.md#code-export), task T7): designs become code in five formats, HTML + CSS, React with CSS Modules, React with Tailwind, HTML + Tailwind (v4) and SwiftUI, from one intermediate representation built from the same CSS the canvas renders (checked in Chromium: within 1 px of the canvas geometry). Components become reusable components with typed variant and property props, slots and instance swaps; variables become CSS custom properties with their modes, Tailwind theme tokens or Swift constants; images are written as files; layers get semantic elements (headings, buttons, links, images) with their accessible names and roles; frames with the same name become one responsive screen with breakpoints. A new **Code** panel shows the code of the selection with copy and ZIP download, the Design panel has an *Export* section, the assistant has `proto_to_code`, and `ofini proto export --format html|react|react-tailwind|tailwind|swiftui` writes it from the terminal.
+
 ## [1.3.0] — Proto Studio preview, live sharing everywhere, faster Scene
 
 ### Fixed

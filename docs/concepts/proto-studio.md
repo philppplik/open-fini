@@ -1047,6 +1047,53 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
   `tests/proto/codegen/*.test.js` with snapshots.
 * Acceptance: deterministic snapshots; exported HTML rendered in Chromium matches T2's recorded geometry per fixture;
   generated React passes a syntax check (TypeScript compiler only if it is already a dev dependency).
+* As built (deviations and decisions the later tasks build on):
+  * Modules: `engine/proto/codegen/` with `lower.js` (`lower(model, { ids, page, modes, assetUrl, dataIds, collapse })`
+    → IR `{ screens, components, assets, vars, fonts, warnings, breakpoints }`; the IR node shape is in its header:
+    `{ key, id, type, name, base, el, decls, attrs, text?, svg?, image?, children, box, r, instance?, bind?, slot?, href? }`),
+    the emitters `html.js` (`emitHtml`, also `htmlMarkup`, `svgMarkup`, `svgFile`, `RESET_CSS`), `react.js` (`emitReact(ir,
+    { styling: "modules" | "tailwind", ts })`), `tailwind.js` (`emitTailwind`, `twClasses(decls)`), `swiftui.js`
+    (`emitSwiftUI`) and `index.js` (`exportCode(model, { format, ids, page, modes, ts, dataIds, collapse })` →
+    `{ format, files: [{ path, text } | { path, bytes, mime }], entry, warnings, ir }`, `FORMATS`, `zipEntries`). The
+    emitters load on demand per format. T12 (`proto_to_code` over MCP) and T14 (export into a Code project) call
+    `exportCode`; T14 adds the guarded regions around the files it writes (`dataIds: true` gives the `data-proto-id`
+    attributes of §10.4). The concept's `emit/` folder and `classes`/`tokens` IR fields became one flat folder and
+    `base` (class names are made unique per stylesheet by the emitters) plus `decls` with `var()` references.
+  * Declarations are css.js's (`vars: "css"`, `root: "none"`, `scroll: true`) without `box-sizing` (every export sets
+    border-box globally: a reset, Tailwind's preflight); four-value `padding`, `border-radius` and `border-width` are
+    shortened; roots get `position: relative`. Verified in Chromium 156 with `scripts/proto-export-roundtrip.mjs`: all 16
+    geometry fixtures within 1 px (2 px with text); `tests/proto/codegen/roundtrip.test.js` runs it with
+    `PROTO_ROUNDTRIP=1`.
+  * Tags: the `tag` field (checked against a list of HTML elements; void elements with children fall back), else text
+    from the text style's name (`H1`…`H6`, heading, title, display) or size (32 px h1, 24 px h2, 20 px semibold h3, else
+    p), click interactions (`navigate` to an exported screen or `openUrl` with http, https, mailto or tel → `a`, else
+    `button`), images with one image fill and no hug size → `img` with `object-fit`, vectors → inline `svg`, names
+    (button, nav, header, footer, form, card/section). Phrasing-only parents turn children into spans. Hidden layers are
+    left out (bound visibility is a conditional instead). Wrappers that draw nothing, hug a single flow child and sit in a
+    flex parent are collapsed (`collapse: false` keeps them).
+  * Classes: kebab-case layer names; equal name and equal declarations share one class. Responsive merge: top-level
+    frames with the same name on one page and the same shape; the media query uses the smallest design breakpoint at or
+    above the narrower frame's width (else its width). There is no `responsive` link field yet.
+  * React components: variants that share one structure print one tree with the declarations common to all variants on
+    the layer's class and the rest under `[data-variant="<slug>"]` (CSS Modules) or a `VARIANT_CLASSES` table (Tailwind);
+    a `VARIANTS` table maps every combination of axis values (up to 256) to the best-matching variant like `pickVariant`.
+    Different structures render a `switch`. Usages pass non-default variant values and properties and a `className` with
+    the instance's differences from the component root (Tailwind marks overriding classes `!`). Instances with `over`
+    are written out (warning `overrides`). A single slot is `children`. Code links (`code.react.path`, `export`,
+    `props` mapping) import instead of generating.
+  * SwiftUI: components are `<Name>View` structs with enum axes, `switch` over variants, swap and slot properties as
+    `AnyView`; vectors are written as SVG assets; breakpoint variants are not exported. The app's Code studio formatter
+    is not run over the output: the emitters print formatted code themselves (two-space indentation), which keeps the
+    output deterministic and the exporter usable in Node.
+  * UI: `proto/panels/code.js` (dock id `proto-code`, a tab next to Design in Essentials; format remembered in
+    `localStorage`), the Design panel's Export section (`exportSection`), ZIP download through fflate and
+    `platform.saveFile`. Vibe tool `proto_to_code` (read-only; `file` and `maxChars` for long exports). CLI `ofini proto
+    export` with `--format` (alias `--target`, so T9 can add `prototype`), `--node`, `--page`, `--out` (`-` prints),
+    `--js`, `--data-ids`, `--keep-wrappers`, `--mode`. `ofini proto tokens` had already moved to T13.
+  * Tests: `tests/proto/codegen/codegen.test.js` (golden files for the sample design and `fixtures/codegen/kit.json` in
+    all five formats, determinism, Lezer syntax checks of TSX, JSX and CSS, balanced Swift, the IR equals the canvas
+    declarations, tag and component lowering, breakpoints, code links, Tailwind mapping); CLI and Vibe tool tests.
+    Budget +29 KiB gzip, all lazy.
 
 **T8 · Imports: HTML and CSS, SVG, clipboard, Sketch, Penpot** — L — deps: T5
 * Scope: `import/html.js` (computed-style mapper in the app, static path for the CLI), SVG through the existing

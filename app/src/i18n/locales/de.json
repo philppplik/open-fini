@@ -4649,7 +4649,6 @@
   "Edit properties": "Eigenschaften bearbeiten",
   "Effect": "Effekt",
   "End color": "Endfarbe",
-  "Exporting layers as images and code comes with a later update of this preview.": "Der Export von Ebenen als Bilder und Code folgt in einem späteren Update dieser Vorschau.",
   "Fill container": "Container füllen",
   "Fill opacity": "Deckkraft der Füllung",
   "Fill type": "Füllungsart",
@@ -4754,5 +4753,19 @@
   "Proto Studio (Labs)": "Proto Studio (Labs)",
   "A new studio for UI design and prototyping: frames with auto layout and grid, components and variables, live editing together, the assistant and ofini proto in the terminal. Turn it on in Settings ▸ Labs.": "Ein neues Studio für UI-Design und Prototypen: Rahmen mit Auto-Layout und Raster, Komponenten und Variablen, gemeinsames Live-Bearbeiten, der Assistent und ofini proto im Terminal. Einschalten unter Einstellungen ▸ Labs.",
   "Faster, lighter Scene projects": "Schnellere, leichtere Scene-Projekte",
-  "On the desktop, video and sound stay in their files instead of the project. Export is much faster, reversed and ramped clips play smoothly, and sound can play backwards.": "Auf dem Desktop bleiben Video und Ton in ihren Dateien statt im Projekt. Der Export ist deutlich schneller, rückwärts und zeitverzerrt laufende Clips spielen flüssig, und Ton kann rückwärts laufen."
+  "On the desktop, video and sound stay in their files instead of the project. Export is much faster, reversed and ramped clips play smoothly, and sound can play backwards.": "Auf dem Desktop bleiben Video und Ton in ihren Dateien statt im Projekt. Der Export ist deutlich schneller, rückwärts und zeitverzerrt laufende Clips spielen flüssig, und Ton kann rückwärts laufen.",
+  "{n} notes": "{n} Hinweise",
+  "Binary file ({n} bytes)": "Binärdatei ({n} Bytes)",
+  "Code format": "Code-Format",
+  "Code of “{name}”": "Code von „{name}“",
+  "Code of {n} layers": "Code von {n} Ebenen",
+  "Code of the page “{name}”": "Code der Seite „{name}“",
+  "Copied to the clipboard.": "In die Zwischenablage kopiert.",
+  "Download as ZIP": "Als ZIP herunterladen",
+  "Export code…": "Code exportieren …",
+  "Exports the selected layers, or the page, as code with their components, variables and images.": "Exportiert die ausgewählten Ebenen oder die Seite als Code mit ihren Komponenten, Variablen und Bildern.",
+  "Generated code": "Erzeugter Code",
+  "Open a Proto design to see its code.": "Öffnen Sie ein Proto-Design, um seinen Code zu sehen.",
+  "Show code": "Code anzeigen",
+  "The clipboard is not available here.": "Die Zwischenablage ist hier nicht verfügbar."
 }

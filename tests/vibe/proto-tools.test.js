@@ -125,6 +125,28 @@ test("components, variables, styles and tokens by name", async () => {
   assert.ok(desc.variables[0].variables.some((l) => /color\/accent = →color\/primary/.test(l)));
 });
 
+test("proto_to_code exports the page or chosen layers in each format, read-only", async () => {
+  const { doc, run } = protoApp({ starter: "blank" });
+  const c = await run("proto_create", { nodes: [LOGIN] });
+  const before = doc.history.entries.length;
+  const html = await run("proto_to_code");
+  assert.equal(html.format, "html");
+  assert.equal(html.entry, "index.html");
+  const page = html.files.find((f) => f.path === "index.html").text;
+  assert.match(page, /<button class="sign-in-button" type="button">/);
+  assert.match(page, /<h2 class="welcome-back">Welcome back<\/h2>/);
+  const react = await run("proto_to_code", { format: "react", ids: [c.roots[0]] });
+  assert.ok(react.files.some((f) => f.path === "src/screens/Login.tsx"));
+  const one = await run("proto_to_code", { format: "swiftui", file: "Screens/LoginView.swift" });
+  assert.deepEqual(one.files.map((f) => f.path), ["Screens/LoginView.swift"]);
+  assert.match(one.files[0].text, /struct LoginView: View/);
+  const small = await run("proto_to_code", { format: "react-tailwind", maxChars: 1000 });
+  assert.ok(small.files.some((f) => f.truncated || f.omitted));
+  await assert.rejects(run("proto_to_code", { ids: ["nope"] }), /proto_describe/);
+  await assert.rejects(run("proto_to_code", { file: "missing.css" }), /No file/);
+  assert.equal(doc.history.entries.length, before, "exporting changes nothing");
+});
+
 test("lint, fix, content, rename, responsive and get_node", async () => {
   const { doc, run, model } = protoApp({ starter: "blank" });
   const c = await run("proto_create", { nodes: [{ ...LOGIN, children: [...LOGIN.children, { type: "text", ref: "faint", text: "Forgot password?", color: "#e4e4e7" }, { type: "frame", ref: "empty" }] }] });

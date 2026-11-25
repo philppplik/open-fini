@@ -2,7 +2,7 @@
 // the selection's layers (§3.2): name; position, rotation, alignment, constraints, grid cells and "ignore auto layout";
 // sizing (fixed, hug, fill, relative, with minimum and maximum); auto layout (flex direction, wrap, gap, padding, an
 // alignment matrix) or grid (tracks, gaps, padding); appearance (opacity, blend, corner radius, clipping); fills,
-// strokes and effects; text; accessibility and code; an export placeholder. With nothing selected it shows the page.
+// strokes and effects; text; accessibility and code; code export (panels/code.js). With nothing selected it shows the page.
 // Scrubbing a label or using the arrow keys previews live; a committed value is ONE operation for all selected layers
 // (one undo step). Variable binding buttons come with T6.
 //
@@ -14,6 +14,7 @@ import { field, isContainer, BLENDS, CONSTRAINTS_X, CONSTRAINTS_Y, TEXT_CASE, TE
 import * as E from "../tools/edit.js";
 import { parseTracks, formatTracks } from "../tools/math.js";
 import { TYPE_LABELS, ICONS } from "./layers.js";
+import { exportSection } from "./code.js";
 
 const SIZE_MODES = [
   ["fixed", N_("Fixed")],
@@ -201,7 +202,7 @@ export function createDesignPanel(ws) {
     out.push(effectSection(nodes));
     if (nodes.every((x) => x.type === "text")) out.push(textSection(nodes));
     out.push(codeSection(nodes));
-    out.push(sec(t("Export"), [note(t("Exporting layers as images and code comes with a later update of this preview."))]));
+    out.push(exportSection(ws, { sec, ids }));
     return out;
   }
 

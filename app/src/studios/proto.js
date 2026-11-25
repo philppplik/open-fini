@@ -25,10 +25,11 @@ export const PROTO_STUDIO = {
   newDocument: (app) => host().then((m) => m.newProto(app, { starter: "desktop" })),
   newBlank: (app) => host().then((m) => m.newProto(app, { starter: "blank" })),
   tools: [],
-  // Pages and Layers (left) and the Design panel (right, id proto-inspector) dock around the canvas
+  // Pages and Layers (left) and the Design and Code panels (right, tabs; ids proto-inspector, proto-code) dock around
+  // the canvas
   top: ["proto-pages", "proto-layers"],
-  bottom: ["proto-inspector"],
-  essentials: { left: [["proto-pages"], ["proto-layers"]], right: [["proto-inspector"]], sizes: { left: 240, right: 280 } },
+  bottom: ["proto-inspector", "proto-code"],
+  essentials: { left: [["proto-pages"], ["proto-layers"]], right: [["proto-inspector", "proto-code"]], sizes: { left: 240, right: 280 } },
 };
 
 /** Menus of the Proto Studio (merged into ui/menus.js MENUS). The commands register when the first design mounts. */

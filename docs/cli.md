@@ -131,6 +131,7 @@ proto <command>` lists every option.
 | `ofini proto render <file> [--node \| --page] [--out]` | SVG of layers (default: the top-level layers of the first page, one file each) through the pure layout solver; `--mode`, `--scale`, `--background`, `--media embed\|link\|none` |
 | `ofini proto assets <file> [--node] [--out dir]` | Vector layers (or the chosen layers) as SVG and embedded media as files, into `<name>-assets` |
 | `ofini proto tokens <file> [--format dtcg\|css\|tailwind\|swift\|json] [--mode]` | Design tokens: DTCG 2025.10 (default), CSS custom properties, Tailwind v4 `@theme`, Swift, or plain values per variable name (`json`) |
+| `ofini proto export <file> [--format html\|react\|react-tailwind\|tailwind\|swiftui] [--node \| --page] [--out dir\|-]` | Code export ([user guide](proto-studio.md#code-export)) into `<name>-<format>` (default html): pages, components, variables and images; `--js` for JavaScript React, `--data-ids` marks elements with layer ids, `--keep-wrappers`, `--mode`; `-o -` prints the text files |
 | `ofini proto tokens import <file> <tokens.json\|->` | Imports DTCG tokens (`--collection`, `--mode`); needs `--out`, `--in-place` or `--dry-run` |
 | `ofini proto diff <a> <b>` | Structural diff: pages, layers (with the changed fields), collections, variables, styles, media; exit code 1 when they differ |
 | `ofini proto apply <file> <ops.json\|->` | Applies operations (one object, an array or `{ "ops": [...] }`; also `--ops '<json>'`) as one all-or-nothing batch; needs `--out`, `--in-place` or `--dry-run`; `--seed` makes new ids reproducible |
@@ -149,8 +150,8 @@ when they land in the engine.
 **Approximate.** Without a browser, layout and text come from the pure solver with the PDF base-14 font metrics (no
 kerning, no real fonts), so text positions can differ by a pixel or two from the canvas. The SVG render also draws conic
 gradients with their first color and leaves out inner shadows and background blur (reported as warnings). PNG needs the
-app's renderer: `--format png` exits with code 4. Code export (`ofini proto export`), imports and `ofini mcp` follow
-with later Proto tasks.
+app's renderer: `--format png` exits with code 4. Code export runs the same exporter as the app and is not approximate.
+Imports and `ofini mcp` follow with later Proto tasks.
 
 ```sh
 ofini new proto app.ofini --template phone
@@ -158,6 +159,7 @@ ofini proto tree app.ofini --boxes
 ofini proto lint 'designs/*.ofini' --format sarif > proto.sarif   # CI annotations
 ofini proto render app.ofini -o shots/ --mode Theme=dark
 ofini proto tokens app.ofini -t css -o tokens.css
+ofini proto export app.ofini -t react -o web/
 ofini proto tokens import app.ofini brand.tokens.json --in-place
 echo '{"op":"node.update","id":"n2","set":{"name":"Title"}}' | ofini proto apply app.ofini - --in-place
 ofini proto diff main.ofini feature.ofini --json

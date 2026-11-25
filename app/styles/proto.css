@@ -137,3 +137,24 @@
 .of-proto-design__item-body { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
 .of-proto-design__item-actions { display: flex; flex: none; }
 .of-proto-design.is-readonly .of-proto-design__sec { opacity: 0.7; }
+
+/* Code panel and the Design panel's Export section (proto/panels/code.js) */
+.of-proto-code { display: flex; flex-direction: column; min-height: 0; height: 100%; font-size: var(--of-fs-sm); }
+.of-proto-code__bar { display: flex; align-items: center; gap: 4px; padding: 6px 8px 0; }
+.of-proto-code__bar > select { flex: 1 1 auto; }
+.of-proto-code__scope { padding: 6px 10px 4px; color: var(--of-text-muted, var(--of-text)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.of-proto-code__pre { flex: 1 1 auto; min-height: 120px; margin: 0 8px 8px; padding: 8px; overflow: auto; border: 1px solid var(--of-border-soft); border-radius: 6px; background: var(--of-bg-app); font: 12px/1.5 var(--of-mono, ui-monospace, monospace); white-space: pre; tab-size: 2; }
+.of-proto-code__pre:focus-visible { outline: 2px solid var(--of-accent); outline-offset: -1px; }
+.of-proto-code__notes { margin: 0 8px 8px; color: var(--of-text-muted, var(--of-text)); }
+.of-proto-code__notes ul { margin: 4px 0 0; padding-left: 16px; }
+.of-proto-code__actions { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 10px; }
+.of-proto-code__btn { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 1px solid var(--of-border-soft); border-radius: 5px; background: var(--of-bg-app); color: var(--of-text); font: inherit; cursor: pointer; }
+.of-proto-code__btn:hover { border-color: var(--of-accent); }
+.of-proto-code__btn:focus-visible { outline: 2px solid var(--of-accent); outline-offset: 1px; }
+.of-proto-code .tok-comment { color: var(--of-syn-comment, #6a737d); font-style: italic; }
+.of-proto-code .tok-keyword, .of-proto-code .tok-tag { color: var(--of-syn-keyword, #8c3fd6); }
+.of-proto-code .tok-string, .of-proto-code .tok-attributeName { color: var(--of-syn-string, #2f7d32); }
+.of-proto-code .tok-number, .of-proto-code .tok-atom { color: var(--of-syn-number, #b35900); }
+.of-proto-code .tok-function, .of-proto-code .tok-typeName { color: var(--of-syn-function, #1f5fbf); }
+.of-proto-code .tok-propertyName { color: var(--of-syn-prop, #a33b6b); }
+.of-proto-code .tok-variable { color: var(--of-syn-attr, #8a6d00); }
