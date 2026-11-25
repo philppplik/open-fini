@@ -22,6 +22,7 @@ All notable changes to OpenFini are documented here. The format follows
 ### Fixed
 - Live editing of records-based documents (Office apps, Scene Studio, Proto): fields that a remote change dropped as a side effect (an element deleted while someone else changed it) come back when the element is restored, instead of staying lost on some devices.
 - The *Blank* button of the New Document dialog no longer overlaps the preset tabs below it.
+- Website: the Download page no longer jumps when the script finds a newer release (cumulative layout shift 0.028, over the 0.02 gate in the site quality checks); the "newer release" note now sits below the file table instead of above it.
 
 ## [1.3.0] — Live sharing everywhere, panel windows, more file types
 
