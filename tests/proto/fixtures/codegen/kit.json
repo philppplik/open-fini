@@ -1,0 +1,1220 @@
+{
+ "schema": 1,
+ "meta": {
+  "title": "Component kit",
+  "created": "2026-11-25T00:00:00Z",
+  "unit": "px",
+  "app": "OpenFini"
+ },
+ "pages": {
+  "p1": {
+   "id": "p1",
+   "name": "Screens",
+   "ord": "V",
+   "bg": "#f4f4f5",
+   "flows": []
+  },
+  "p2": {
+   "id": "p2",
+   "name": "Components",
+   "ord": "W",
+   "bg": "#ffffff",
+   "flows": []
+  }
+ },
+ "nodes": {
+  "badge": {
+   "id": "badge",
+   "type": "rect",
+   "name": "Badge",
+   "page": "p1",
+   "parent": "settings",
+   "ord": "V",
+   "x": 300,
+   "y": 16,
+   "w": {
+    "mode": "fixed",
+    "value": 74
+   },
+   "h": {
+    "mode": "fixed",
+    "value": 24
+   },
+   "pos": "abs",
+   "cx": "right",
+   "a11y": {
+    "label": "New",
+    "role": "status"
+   },
+   "fills": [
+    {
+     "angle": 90,
+     "stops": [
+      {
+       "at": 0,
+       "color": "#6366f1"
+      },
+      {
+       "at": 1,
+       "color": "#a855f7"
+      }
+     ],
+     "type": "linear"
+    }
+   ],
+   "radius": [
+    12,
+    12,
+    12,
+    12
+   ]
+  },
+  "blg": {
+   "id": "blg",
+   "type": "component",
+   "name": "size=lg",
+   "page": "p2",
+   "parent": "set",
+   "ord": "W",
+   "w": {
+    "mode": "hug"
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "pos": "flow",
+   "layout": {
+    "align": "center",
+    "dir": "row",
+    "gap": 8,
+    "pad": [
+     12,
+     20,
+     12,
+     20
+    ],
+    "type": "flex"
+   },
+   "fills": [
+    {
+     "color": {
+      "$var": "vBrand"
+     },
+     "type": "solid"
+    }
+   ],
+   "radius": 8,
+   "variant": {
+    "size": "lg"
+   },
+   "bind": {
+    "blgi.visible": "showIcon",
+    "blgt.text": "label"
+   }
+  },
+  "blgi": {
+   "id": "blgi",
+   "type": "ellipse",
+   "name": "Dot",
+   "page": "p2",
+   "parent": "blg",
+   "ord": "V",
+   "w": {
+    "mode": "fixed",
+    "value": 8
+   },
+   "h": {
+    "mode": "fixed",
+    "value": 8
+   },
+   "pos": "flow",
+   "fills": [
+    {
+     "color": "#ffffff",
+     "type": "solid"
+    }
+   ]
+  },
+  "blgt": {
+   "id": "blgt",
+   "type": "text",
+   "name": "Label",
+   "page": "p2",
+   "parent": "blg",
+   "ord": "W",
+   "pos": "flow",
+   "text": {
+    "autoSize": "width",
+    "runs": [
+     {
+      "s": {},
+      "t": "Button"
+     }
+    ],
+    "style": {
+     "color": "#ffffff",
+     "font": "Inter",
+     "lineHeight": {
+      "pct": 150
+     },
+     "size": 16,
+     "weight": 600
+    }
+   }
+  },
+  "bsm": {
+   "id": "bsm",
+   "type": "component",
+   "name": "size=sm",
+   "page": "p2",
+   "parent": "set",
+   "ord": "V",
+   "w": {
+    "mode": "hug"
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "pos": "flow",
+   "layout": {
+    "align": "center",
+    "dir": "row",
+    "gap": 8,
+    "pad": [
+     8,
+     12,
+     8,
+     12
+    ],
+    "type": "flex"
+   },
+   "fills": [
+    {
+     "color": {
+      "$var": "vBrand"
+     },
+     "type": "solid"
+    }
+   ],
+   "radius": 8,
+   "variant": {
+    "size": "sm"
+   },
+   "bind": {
+    "bsmi.visible": "showIcon",
+    "bsmt.text": "label"
+   }
+  },
+  "bsmi": {
+   "id": "bsmi",
+   "type": "ellipse",
+   "name": "Dot",
+   "page": "p2",
+   "parent": "bsm",
+   "ord": "V",
+   "w": {
+    "mode": "fixed",
+    "value": 8
+   },
+   "h": {
+    "mode": "fixed",
+    "value": 8
+   },
+   "pos": "flow",
+   "fills": [
+    {
+     "color": "#ffffff",
+     "type": "solid"
+    }
+   ]
+  },
+  "bsmt": {
+   "id": "bsmt",
+   "type": "text",
+   "name": "Label",
+   "page": "p2",
+   "parent": "bsm",
+   "ord": "W",
+   "pos": "flow",
+   "text": {
+    "autoSize": "width",
+    "runs": [
+     {
+      "s": {},
+      "t": "Button"
+     }
+    ],
+    "style": {
+     "color": "#ffffff",
+     "font": "Inter",
+     "lineHeight": {
+      "pct": 150
+     },
+     "size": 14,
+     "weight": 600
+    }
+   }
+  },
+  "card": {
+   "id": "card",
+   "type": "component",
+   "name": "Card",
+   "page": "p2",
+   "parent": null,
+   "ord": "W",
+   "x": 0,
+   "y": 200,
+   "w": {
+    "mode": "fixed",
+    "value": 320
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "tag": "article",
+   "layout": {
+    "dir": "column",
+    "gap": 12,
+    "pad": [
+     16,
+     16,
+     16,
+     16
+    ],
+    "type": "flex"
+   },
+   "fills": [
+    {
+     "color": {
+      "$var": "vSurface"
+     },
+     "type": "solid"
+    }
+   ],
+   "strokes": [
+    {
+     "align": "inside",
+     "color": "#e4e4e7",
+     "w": 1
+    }
+   ],
+   "radius": 12,
+   "effects": [
+    {
+     "blur": 16,
+     "color": "#0000001f",
+     "spread": -2,
+     "type": "shadow",
+     "x": 0,
+     "y": 4
+    }
+   ],
+   "props": {
+    "body": {
+     "type": "slot"
+    },
+    "title": {
+     "default": "Card title",
+     "type": "text"
+    }
+   },
+   "bind": {
+    "cards.children": "body",
+    "cardt.text": "title"
+   }
+  },
+  "cards": {
+   "id": "cards",
+   "type": "slot",
+   "name": "Body",
+   "page": "p2",
+   "parent": "card",
+   "ord": "W",
+   "w": {
+    "mode": "fill"
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "pos": "flow",
+   "layout": {
+    "dir": "column",
+    "gap": 8,
+    "pad": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "type": "flex"
+   }
+  },
+  "cardt": {
+   "id": "cardt",
+   "type": "text",
+   "name": "Title",
+   "page": "p2",
+   "parent": "card",
+   "ord": "V",
+   "pos": "flow",
+   "text": {
+    "autoSize": "width",
+    "runs": [
+     {
+      "s": {},
+      "t": "Card title"
+     }
+    ],
+    "style": {
+     "color": {
+      "$var": "vText"
+     },
+     "font": "Inter",
+     "lineHeight": {
+      "pct": 150
+     },
+     "size": 20,
+     "weight": 600
+    }
+   }
+  },
+  "home": {
+   "id": "home",
+   "type": "frame",
+   "name": "Home",
+   "page": "p1",
+   "parent": null,
+   "ord": "V",
+   "x": 0,
+   "y": 0,
+   "w": {
+    "mode": "fixed",
+    "value": 1280
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "layout": {
+    "dir": "column",
+    "gap": 24,
+    "pad": [
+     48,
+     64,
+     48,
+     64
+    ],
+    "type": "flex"
+   },
+   "fills": [
+    {
+     "color": {
+      "$var": "vSurface"
+     },
+     "type": "solid"
+    }
+   ]
+  },
+  "homeC1": {
+   "id": "homeC1",
+   "type": "instance",
+   "name": "Feature card",
+   "page": "p1",
+   "parent": "homeGrid",
+   "ord": "V",
+   "w": {
+    "mode": "fill"
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "pos": "flow",
+   "props": {
+    "body": [
+     "homeC1b"
+    ],
+    "title": "Fast"
+   },
+   "of": "card"
+  },
+  "homeC1b": {
+   "id": "homeC1b",
+   "type": "text",
+   "name": "Body text",
+   "page": "p1",
+   "parent": "homeC1",
+   "ord": "V",
+   "w": {
+    "mode": "fill"
+   },
+   "pos": "flow",
+   "text": {
+    "autoSize": "width",
+    "runs": [
+     {
+      "s": {},
+      "t": "Lays out like CSS."
+     }
+    ],
+    "style": {
+     "color": "#52525b",
+     "font": "Inter",
+     "lineHeight": {
+      "pct": 150
+     },
+     "size": 14,
+     "weight": 400
+    }
+   }
+  },
+  "homeC2": {
+   "id": "homeC2",
+   "type": "instance",
+   "name": "Feature card",
+   "page": "p1",
+   "parent": "homeGrid",
+   "ord": "W",
+   "w": {
+    "mode": "fill"
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "pos": "flow",
+   "props": {
+    "title": "Open"
+   },
+   "of": "card"
+  },
+  "homeCta": {
+   "id": "homeCta",
+   "type": "instance",
+   "name": "Sign up",
+   "page": "p1",
+   "parent": "homeWrap",
+   "ord": "V",
+   "w": {
+    "mode": "hug"
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "pos": "flow",
+   "props": {
+    "label": "Sign up",
+    "showIcon": false
+   },
+   "variant": {
+    "size": "lg"
+   },
+   "of": "set",
+   "proto": [
+    {
+     "do": [
+      {
+       "act": "navigate",
+       "to": "settings"
+      }
+     ],
+     "on": {
+      "type": "click"
+     }
+    }
+   ]
+  },
+  "homeGrid": {
+   "id": "homeGrid",
+   "type": "frame",
+   "name": "Cards",
+   "page": "p1",
+   "parent": "home",
+   "ord": "X",
+   "w": {
+    "mode": "fill"
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "pos": "flow",
+   "layout": {
+    "gap": 24,
+    "grid": {
+     "cols": [
+      {
+       "fr": 1
+      },
+      {
+       "fr": 1
+      }
+     ]
+    },
+    "pad": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "type": "grid"
+   }
+  },
+  "homeH": {
+   "id": "homeH",
+   "type": "text",
+   "name": "Headline",
+   "page": "p1",
+   "parent": "home",
+   "ord": "W",
+   "w": {
+    "mode": "fill"
+   },
+   "pos": "flow",
+   "text": {
+    "autoSize": "height",
+    "runs": [
+     {
+      "s": {},
+      "t": "Build faster\nwith components"
+     }
+    ],
+    "style": {
+     "color": {
+      "$var": "vText"
+     },
+     "font": "Inter",
+     "lineHeight": {
+      "pct": 120
+     },
+     "size": 48,
+     "weight": 700
+    }
+   }
+  },
+  "homeLogo": {
+   "id": "homeLogo",
+   "type": "text",
+   "name": "Logo",
+   "page": "p1",
+   "parent": "homeNav",
+   "ord": "V",
+   "pos": "flow",
+   "text": {
+    "autoSize": "width",
+    "runs": [
+     {
+      "s": {},
+      "t": "Acme"
+     }
+    ],
+    "style": {
+     "color": {
+      "$var": "vText"
+     },
+     "font": "Inter",
+     "lineHeight": {
+      "pct": 150
+     },
+     "size": 20,
+     "weight": 700
+    }
+   }
+  },
+  "homeNav": {
+   "id": "homeNav",
+   "type": "frame",
+   "name": "Top bar",
+   "page": "p1",
+   "parent": "home",
+   "ord": "V",
+   "w": {
+    "mode": "fill"
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "pos": "flow",
+   "layout": {
+    "align": "center",
+    "dir": "row",
+    "gap": {
+     "$var": "vGap"
+    },
+    "justify": "space-between",
+    "pad": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "type": "flex"
+   }
+  },
+  "homeSm": {
+   "id": "homeSm",
+   "type": "frame",
+   "name": "Home",
+   "page": "p1",
+   "parent": null,
+   "ord": "W",
+   "x": 0,
+   "y": 1000,
+   "w": {
+    "mode": "fixed",
+    "value": 390
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "layout": {
+    "dir": "column",
+    "gap": 24,
+    "pad": [
+     24,
+     16,
+     24,
+     16
+    ],
+    "type": "flex"
+   },
+   "fills": [
+    {
+     "color": {
+      "$var": "vSurface"
+     },
+     "type": "solid"
+    }
+   ]
+  },
+  "homeSmC1": {
+   "id": "homeSmC1",
+   "type": "instance",
+   "name": "Feature card",
+   "page": "p1",
+   "parent": "homeSmGrid",
+   "ord": "V",
+   "w": {
+    "mode": "fill"
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "pos": "flow",
+   "props": {
+    "body": [
+     "homeSmC1b"
+    ],
+    "title": "Fast"
+   },
+   "of": "card"
+  },
+  "homeSmC1b": {
+   "id": "homeSmC1b",
+   "type": "text",
+   "name": "Body text",
+   "page": "p1",
+   "parent": "homeSmC1",
+   "ord": "V",
+   "w": {
+    "mode": "fill"
+   },
+   "pos": "flow",
+   "text": {
+    "autoSize": "width",
+    "runs": [
+     {
+      "s": {},
+      "t": "Lays out like CSS."
+     }
+    ],
+    "style": {
+     "color": "#52525b",
+     "font": "Inter",
+     "lineHeight": {
+      "pct": 150
+     },
+     "size": 14,
+     "weight": 400
+    }
+   }
+  },
+  "homeSmC2": {
+   "id": "homeSmC2",
+   "type": "instance",
+   "name": "Feature card",
+   "page": "p1",
+   "parent": "homeSmGrid",
+   "ord": "W",
+   "w": {
+    "mode": "fill"
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "pos": "flow",
+   "props": {
+    "title": "Open"
+   },
+   "of": "card"
+  },
+  "homeSmCta": {
+   "id": "homeSmCta",
+   "type": "instance",
+   "name": "Sign up",
+   "page": "p1",
+   "parent": "homeSmWrap",
+   "ord": "V",
+   "w": {
+    "mode": "hug"
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "pos": "flow",
+   "props": {
+    "label": "Sign up",
+    "showIcon": false
+   },
+   "variant": {
+    "size": "sm"
+   },
+   "of": "set",
+   "proto": [
+    {
+     "do": [
+      {
+       "act": "navigate",
+       "to": "settings"
+      }
+     ],
+     "on": {
+      "type": "click"
+     }
+    }
+   ]
+  },
+  "homeSmGrid": {
+   "id": "homeSmGrid",
+   "type": "frame",
+   "name": "Cards",
+   "page": "p1",
+   "parent": "homeSm",
+   "ord": "X",
+   "w": {
+    "mode": "fill"
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "pos": "flow",
+   "layout": {
+    "gap": 24,
+    "grid": {
+     "cols": [
+      {
+       "fr": 1
+      }
+     ]
+    },
+    "pad": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "type": "grid"
+   }
+  },
+  "homeSmH": {
+   "id": "homeSmH",
+   "type": "text",
+   "name": "Headline",
+   "page": "p1",
+   "parent": "homeSm",
+   "ord": "W",
+   "w": {
+    "mode": "fill"
+   },
+   "pos": "flow",
+   "text": {
+    "autoSize": "height",
+    "runs": [
+     {
+      "s": {},
+      "t": "Build faster\nwith components"
+     }
+    ],
+    "style": {
+     "color": {
+      "$var": "vText"
+     },
+     "font": "Inter",
+     "lineHeight": {
+      "pct": 120
+     },
+     "size": 32,
+     "weight": 700
+    }
+   }
+  },
+  "homeSmLogo": {
+   "id": "homeSmLogo",
+   "type": "text",
+   "name": "Logo",
+   "page": "p1",
+   "parent": "homeSmNav",
+   "ord": "V",
+   "pos": "flow",
+   "text": {
+    "autoSize": "width",
+    "runs": [
+     {
+      "s": {},
+      "t": "Acme"
+     }
+    ],
+    "style": {
+     "color": {
+      "$var": "vText"
+     },
+     "font": "Inter",
+     "lineHeight": {
+      "pct": 150
+     },
+     "size": 20,
+     "weight": 700
+    }
+   }
+  },
+  "homeSmNav": {
+   "id": "homeSmNav",
+   "type": "frame",
+   "name": "Top bar",
+   "page": "p1",
+   "parent": "homeSm",
+   "ord": "V",
+   "w": {
+    "mode": "fill"
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "pos": "flow",
+   "layout": {
+    "align": "center",
+    "dir": "row",
+    "justify": "space-between",
+    "pad": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "type": "flex"
+   }
+  },
+  "homeSmWrap": {
+   "id": "homeSmWrap",
+   "type": "frame",
+   "name": "Wrapper",
+   "page": "p1",
+   "parent": "homeSmNav",
+   "ord": "W",
+   "w": {
+    "mode": "hug"
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "pos": "flow",
+   "layout": {
+    "dir": "row",
+    "pad": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "type": "flex"
+   }
+  },
+  "homeWrap": {
+   "id": "homeWrap",
+   "type": "frame",
+   "name": "Wrapper",
+   "page": "p1",
+   "parent": "homeNav",
+   "ord": "W",
+   "w": {
+    "mode": "hug"
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "pos": "flow",
+   "layout": {
+    "dir": "row",
+    "pad": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "type": "flex"
+   }
+  },
+  "icon": {
+   "id": "icon",
+   "type": "vector",
+   "name": "Arrow",
+   "page": "p1",
+   "parent": "settings",
+   "ord": "X",
+   "x": 16,
+   "y": 100,
+   "w": {
+    "mode": "fixed",
+    "value": 24
+   },
+   "h": {
+    "mode": "fixed",
+    "value": 24
+   },
+   "pos": "abs",
+   "strokes": [
+    {
+     "align": "center",
+     "color": {
+      "$var": "vText"
+     },
+     "w": 2
+    }
+   ],
+   "d": "M4 12h16M14 6l6 6-6 6"
+  },
+  "note": {
+   "id": "note",
+   "type": "text",
+   "name": "Note",
+   "page": "p1",
+   "parent": "settings",
+   "ord": "Y",
+   "x": 16,
+   "y": 140,
+   "pos": "abs",
+   "text": {
+    "autoSize": "width",
+    "runs": [
+     {
+      "s": {},
+      "t": "Settings are saved automatically."
+     }
+    ],
+    "style": {
+     "case": "upper",
+     "color": {
+      "$var": "vText"
+     },
+     "font": "Inter",
+     "lineHeight": {
+      "pct": 150
+     },
+     "size": 12,
+     "tracking": 0.5,
+     "weight": 400
+    }
+   }
+  },
+  "photo": {
+   "id": "photo",
+   "type": "image",
+   "name": "Avatar",
+   "page": "p1",
+   "parent": "settings",
+   "ord": "W",
+   "x": 16,
+   "y": 16,
+   "w": {
+    "mode": "fixed",
+    "value": 64
+   },
+   "h": {
+    "mode": "fixed",
+    "value": 64
+   },
+   "pos": "abs",
+   "fills": [
+    {
+     "fit": "cover",
+     "media": "mAvatar",
+     "type": "image"
+    }
+   ],
+   "radius": 32,
+   "alt": "Profile photo"
+  },
+  "set": {
+   "id": "set",
+   "type": "componentSet",
+   "name": "Button",
+   "page": "p2",
+   "parent": null,
+   "ord": "V",
+   "x": 0,
+   "y": 0,
+   "w": {
+    "mode": "hug"
+   },
+   "h": {
+    "mode": "hug"
+   },
+   "layout": {
+    "dir": "row",
+    "gap": 16,
+    "pad": [
+     0,
+     0,
+     0,
+     0
+    ],
+    "type": "flex"
+   },
+   "props": {
+    "label": {
+     "default": "Button",
+     "type": "text"
+    },
+    "showIcon": {
+     "default": true,
+     "type": "bool"
+    },
+    "size": {
+     "default": "sm",
+     "options": [
+      "sm",
+      "lg"
+     ],
+     "type": "variant"
+    }
+   },
+   "bind": {}
+  },
+  "settings": {
+   "id": "settings",
+   "type": "frame",
+   "name": "Settings",
+   "page": "p1",
+   "parent": null,
+   "ord": "X",
+   "x": 1400,
+   "y": 0,
+   "w": {
+    "mode": "fixed",
+    "value": 390
+   },
+   "h": {
+    "mode": "fixed",
+    "value": 600
+   },
+   "modes": {
+    "cColor": "dark"
+   },
+   "clip": true,
+   "fills": [
+    {
+     "color": "#fafafa",
+     "type": "solid"
+    }
+   ]
+  }
+ },
+ "vars": {
+  "collections": {
+   "cColor": {
+    "name": "Theme",
+    "modes": [
+     {
+      "id": "light",
+      "name": "Light"
+     },
+     {
+      "id": "dark",
+      "name": "Dark"
+     }
+    ],
+    "default": "light"
+   },
+   "cSpace": {
+    "name": "Space",
+    "modes": [
+     {
+      "id": "base",
+      "name": "Base"
+     }
+    ]
+   }
+  },
+  "items": {
+   "vBrand": {
+    "name": "color/brand",
+    "coll": "cColor",
+    "type": "color",
+    "values": {
+     "dark": "#818cf8",
+     "light": "#4f46e5"
+    }
+   },
+   "vGap": {
+    "name": "space/md",
+    "coll": "cSpace",
+    "type": "number",
+    "unit": "px",
+    "values": {
+     "base": 16
+    }
+   },
+   "vSurface": {
+    "name": "color/surface",
+    "coll": "cColor",
+    "type": "color",
+    "values": {
+     "dark": "#18181b",
+     "light": "#ffffff"
+    }
+   },
+   "vText": {
+    "name": "color/text",
+    "coll": "cColor",
+    "type": "color",
+    "values": {
+     "dark": "#fafafa",
+     "light": "#18181b"
+    }
+   }
+  }
+ },
+ "styles": {},
+ "breakpoints": [
+  {
+   "id": "base",
+   "w": 1280
+  },
+  {
+   "id": "md",
+   "w": 991
+  },
+  {
+   "id": "sm",
+   "w": 478
+  }
+ ],
+ "code": {
+  "links": {},
+  "tokensFile": null
+ },
+ "media": {
+  "mAvatar": {
+   "mime": "image/png",
+   "name": "avatar.png",
+   "w": 1,
+   "h": 1
+  }
+ }
+}
