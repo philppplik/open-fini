@@ -82,7 +82,17 @@ export function payloadFromHtml(html) {
   }
 }
 
-const looksSvg = (s) => /^\s*(<\?xml[^>]*>\s*)?(<!--[\s\S]*?-->\s*)*<svg[\s>]/i.test(s);
+/** True when text starts with an <svg> element (after an XML declaration and comments). */
+function looksSvg(text) {
+  let s = String(text || "").trimStart();
+  if (s.startsWith("<?xml")) s = s.slice(s.indexOf(">") + 1).trimStart();
+  for (let i = 0; i < 32 && s.startsWith("<!--"); i++) {
+    const end = s.indexOf("-->");
+    if (end < 0) return false;
+    s = s.slice(end + 3).trimStart();
+  }
+  return /^<svg[\s>]/i.test(s);
+}
 
 function classify({ proto, html, text, svg, files }) {
   if (proto) {
@@ -101,7 +111,8 @@ function classify({ proto, html, text, svg, files }) {
   if (html && html.trim()) {
     // design tools put SVG inside clipboard HTML
     const inner = /<svg[\s\S]*<\/svg>/i.exec(html);
-    if (inner && html.replace(inner[0], "").replace(/<[^>]+>/g, "").trim() === "") return { kind: "svg", text: inner[0] };
+    // only tags and whitespace around it: the clipboard holds just the SVG (a test, nothing is stripped)
+    if (inner && /^(?:\s|<[^<>]*>)*$/.test(html.replace(inner[0], ""))) return { kind: "svg", text: inner[0] };
     return { kind: "html", text: html };
   }
   if (text && text.trim()) return { kind: "text", text };

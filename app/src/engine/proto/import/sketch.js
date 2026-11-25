@@ -16,8 +16,17 @@
 import { readSketch } from "../../formats/sketch.js";
 import { createBuilder, spec, ImportReport, safeUnzip, hexA, r2, num, cleanName, sniffImage } from "./common.js";
 
-const FONT_SUFFIX = /[-_ ]?(Bold|Italic|Regular|Medium|Light|Semibold|SemiBold|Black|Heavy|Thin|ExtraLight|UltraLight|ExtraBold|Oblique|Book|Roman)+$/i;
-const family = (ps) => String(ps || "Inter").replace(FONT_SUFFIX, "").replace(/([a-z])([A-Z])/g, "$1 $2").trim() || "Inter";
+const FONT_SUFFIX = /[-_ ]?(?:Bold|Italic|Regular|Medium|Light|Semibold|Black|Heavy|Thin|ExtraLight|UltraLight|ExtraBold|Oblique|Book|Roman)$/i;
+/** "Inter-SemiBoldItalic" → "Inter": style words come off the end one at a time (a bounded loop, no nested repetition). */
+function family(ps) {
+  let s = String(ps || "Inter");
+  for (let i = 0; i < 8; i++) {
+    const next = s.replace(FONT_SUFFIX, "");
+    if (next === s) break;
+    s = next;
+  }
+  return s.replace(/([a-z])([A-Z])/g, "$1 $2").trim() || "Inter";
+}
 const weightOf = (ps) => (/black|heavy/i.test(ps) ? 900 : /extrabold|ultrabold/i.test(ps) ? 800 : /semibold|demibold/i.test(ps) ? 600 : /bold/i.test(ps) ? 700 : /medium/i.test(ps) ? 500 : /extralight|ultralight/i.test(ps) ? 200 : /thin/i.test(ps) ? 100 : /light/i.test(ps) ? 300 : 400);
 
 /**
@@ -38,7 +47,7 @@ export function importSketch(bytes, { model, name = "Sketch", random, pages: pag
   for (const pg of sk.pages) for (const ab of pg.artboards) if (ab.symbolID) comp.set(ab.symbolID, b.id("n"));
 
   const imageMedia = (ref) => {
-    const bytes = sk.images[ref] || sk.images[`${ref}.png`] || sk.images[ref.replace(/^images\//, "images/")];
+    const bytes = sk.images[ref] || sk.images[`${ref}.png`] || sk.images[`images/${ref}`];
     if (!bytes) return null;
     return b.media({ bytes, mime: sniffImage(bytes), name: ref.split("/").pop() });
   };

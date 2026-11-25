@@ -21,7 +21,8 @@ const REMOTE = /^\s*(https?:|\/\/|file:|ftp:|blob:)/i;
 
 /** Cleans CSS text: no @import, no expression(), no behavior/-moz-binding, url() only for data: images. */
 export function sanitizeCss(css, counts = { remote: 0, scripts: 0 }) {
-  let s = String(css ?? "").replace(/<\/?style/gi, "");
+  // no "<" at all: CSS needs none, and a style element can then never be closed or opened from inside
+  let s = String(css ?? "").replace(/</g, "\\3c ");
   s = s.replace(/@import[^;]*;?/gi, () => (counts.remote++, ""));
   s = s.replace(/expression\s*\(|behavior\s*:|-moz-binding\s*:|javascript\s*:/gi, () => (counts.scripts++, "invalid("));
   s = s.replace(/url\(\s*(['"]?)([^'")]*)\1\s*\)/gi, (m, q, u) => {
