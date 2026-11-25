@@ -11,11 +11,11 @@ Decision record: [ADR 0010](adr/0010-collaboration-e2e-relay.md). Security summa
 | Live in a room | Not live (by design, in this release) |
 | --- | --- |
 | Chat: messages, @mentions with autocomplete and notification, replies, threads, reactions, edit/delete, typing indicator, links that jump to a layer, page or code line | — |
-| **Edit together (beta)** for documents shared *live*: Vector, Layout and Pixel documents (properties, add, delete, move, reorder, pages, masters, text stories, swatches, styles, and the **bitmaps of pixel layers** in 128 px tiles), Code studio projects and one-file text documents (character-level merge in every text file), every Office app (Document, Spreadsheet, Presentation, Whiteboard) and Scene Studio documents. See [What can be shared live](#what-can-be-shared-live) and [Live editing](#live-editing-edit-together-beta). | Placed image data of Vector and Layout documents (image assets) is not live: it travels with the snapshot and on *Resync*. In the Code studio, creating text files is live; deleting or renaming files and binary files are not. Office kinds added by extensions without a collaboration adapter are shared as copies. |
+| **Edit together (beta)** for documents shared *live*: Vector, Layout and Pixel documents (properties, add, delete, move, reorder, pages, masters, text stories, swatches, styles, and the **bitmaps of pixel layers** in 128 px tiles), Code studio projects and one-file text documents (character-level merge in every text file), every Office app (Document, Spreadsheet, Presentation, Whiteboard), Scene Studio documents and Proto designs (Labs). See [What can be shared live](#what-can-be-shared-live) and [Live editing](#live-editing-edit-together-beta). | Placed image data of Vector and Layout documents (image assets) is not live: it travels with the snapshot and on *Resync*. In the Code studio, creating text files is live; deleting or renaming files and binary files are not. Office kinds added by extensions without a collaboration adapter are shared as copies. |
 | Files (encrypted, chunked, up to 25 MB, allow-listed types, never opened automatically) | Documents shared as a *copy* are snapshots: members choose *Open*, *Open as copy* or *Update my copy* (a version of the old copy is saved first). |
 | Activity feed: "Hana · Move · 3 layers on Page 2 · Jump · Show", generated from each member's own edits (can be turned off); it is the "who changed what" feed of live documents too | Undo across people: Undo only reverts your own steps. |
 | Comments on layers, pages, text and code lines: threads, replies, resolve/reopen, @mentions, synced between members who have the same document (same document id) open | Comments written before you joined are only in documents you share. |
-| Presence: pointer with name and tool, selection halos (Vector, Pixel, Layout), carets in the Code editor and the word processor, the active cell in the Spreadsheet, current studio, document and page | Presence in the Vibe studio, the Presentation, the Whiteboard and the Scene Studio (they show the studio and document only). |
+| Presence: pointer with name and tool, selection halos (Vector, Pixel, Layout, Proto), carets in the Code editor and the word processor, the active cell in the Spreadsheet, current studio, document and page | Presence in the Vibe studio, the Presentation, the Whiteboard and the Scene Studio (they show the studio and document only). |
 | Follow a member: their studio, document, page and viewport (Esc or moving the canvas stops) | Following inside the Office editor (its scroll position is not shared). |
 
 Comments and versions also work **without** a room: comments are saved in the document; versions are snapshots on this device.
@@ -183,6 +183,8 @@ app/src/collab/                 pure, Node-tested (tests/collab/)
   fractional.js    fractional ordering keys
 app/src/core/live-kinds.js      which documents can be shared live (used by the start-up share commands)
 app/src/scene/collab.js         the Scene Studio's records adapter
+app/src/proto/collab.js         the Proto Studio's records adapter (layers in field groups, tree repair)
+app/src/proto/presence.js       Proto canvas presence: payload, follow camera, pointers and selection outlines
   qr.js            tiny QR encoder (relay terminal and join-link QR codes)
 app/src/ui/collab/              lazy UI (loads on the first collab.* command)
   runtime.js       controller (app.collab): rooms, presence, activity, comments, versions, files, follow, jumps
@@ -317,6 +319,7 @@ remove members: start a new room. Same-device rooms share one profile (nickname)
 | Office ▸ Presentation | yes (records) | slide settings, object | — |
 | Office ▸ Whiteboard | yes (records) | element, page | elements over 64 KiB JSON (*Resync*) |
 | Scene Studio | yes (records) | clip, track list, marker list, composition | analysis results over 64 KiB |
+| Proto Studio (Labs) | yes (records) | part of a layer (structure, geometry, layout, look, content, component, prototype), page, variable collection, variable, style, media item | layers over 64 KiB JSON (*Resync*) |
 | Office kinds registered by extensions without a `collabAdapter` | copy only | — | everything: there is no record model to merge |
 | Vibe studio, settings, workspaces | not documents | — | — |
 
@@ -349,7 +352,8 @@ should use the same version.
   document every 2 minutes) under *Versions*. Text never conflicts: concurrent typing merges character by character.
 * **Undo** only reverts your own steps; other people's edits are never in your undo history. In the Office apps and
   the Scene Studio, Undo and Redo apply only the records of your step on top of the current document, so edits other
-  people made after your step stay (Undo used to restore the whole older document and send that to the room).
+  people made after your step stay; the Proto Studio replays the inverse of your operation on the current design
+  (`proto/controller.js ▸ opStep`) (Undo used to restore the whole older document and send that to the room).
   Pixel: Undo restores the rectangle of your stroke, including what others painted inside it since.
 
 ### Design
@@ -402,6 +406,21 @@ Media bigger than what the adapter inlines travel as immutable chunk records `bl
 assembled when complete; the snapshot's `collab-live.json` leaves them out (the archive has the bytes). The word
 processor's blocks have no ids in the model, so `doc-records.js` keeps one per block object (WeakMap) and matches edited
 blocks by position between unchanged neighbors; the caret is mapped through remote edits (`remapBlockIndex`).
+Records the model changed as a side effect of a remote op (the fields of a layer someone deleted while another member
+changed them, a layer an adapter placed elsewhere to keep its tree whole) are compared with the view as well and
+retried when they differ, so they come back once the model can hold them again.
+
+**Proto designs (`proto/collab.js`).** A layer is the record `n:<id>` (type, page, parent, order key, name, visible,
+locked) plus up to seven field-group records `n:<id>/geo|lay|look|text|comp|proto|x` (`x` carries fields this version
+does not know); pages, variable collections, variables, styles and media are `p:`, `vc:`, `v:`, `s:`, `media:` records,
+and every other top-level value is one `meta:<key>` record (so a top-level map a later version adds syncs without code
+changes; `COLLECTIONS` in the adapter makes it sync per entry). Values are canonical (sorted keys). Remote records go
+through the Proto validator: shape errors reject the record (the others of the same layer still apply), reference
+problems (a variable or parent that has not arrived) are accepted. The tree is repaired the same way on every replica:
+layers of a missing page are hidden, layers whose parent is missing or cannot hold them go to the top level of their
+page, and a parent cycle from concurrent moves is broken at the layer with the smallest id. Presence carries the Proto
+page, the pointer and the visible rectangle in design coordinates and the selected layer ids; the others' pointers
+and selection outlines are a drawing layer on the canvas overlay (`view.overlay.addLayer`).
 
 **Pixel tiles (`collab/pixel-sync.js`).** After a local step that touched a pixel layer, its bitmap is hashed in
 128 × 128 tiles and changed tiles are sent as `pixel` ops `{o:"px", id, W, H, s, x, y, w, h, d, c}` (`d` = deflated
@@ -631,7 +650,12 @@ control; the fingerprint words detect a relay that tries to impersonate members.
   cell delivered before its page or sheet (no lost data, no delete sent by the next edit), random shuffled spreadsheet
   histories, Undo/Redo after a remote edit through the real `commitOffice`, paragraph merges, concurrent inserts,
   splits and deletes in the word processor, late joiners from the snapshot state, chunked media, oversized values,
-  rollback for non-editors. `tests/collab/pixel-sync.test.js`: tiles merge, same-tile last writer wins in any order,
+  rollback for non-editors. `tests/proto/collab.test.js`: Proto designs between two and three peers with edits through
+  the real controller: field groups of one layer merging, the same record, a layer delivered before its page and
+  parent, a move into a concurrently deleted frame, a move cycle, Undo/Redo through `opStep` after remote edits, late
+  joiners, variables and styles, chunked media in shuffled order, malformed records, and 300 seeded random concurrent
+  histories with 3 replicas, shuffled delivery, pages, moves, deletes, undo and redo (`PROTO_COLLAB_SEEDS=2000` runs
+  more; identical records and children lists and a valid design required). `tests/collab/pixel-sync.test.js`: tiles merge, same-tile last writer wins in any order,
   resize against concurrent strokes, hostile pixel ops.
 * `tests/collab/tree-crdt.test.js`, `text-crdt.test.js`: property-based convergence (3000 + 1500 seeded random histories
   with 2–4 replicas, shuffled and duplicated delivery, identical documents required), conflict policy, hostile ops, and

@@ -1048,6 +1048,51 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
   `tests/proto/collab.test.js`, `docs/collaboration.md`.
 * Acceptance: convergence property test (thousands of seeded random concurrent histories through the adapter);
   malformed records rejected; two-window manual test over BroadcastChannel.
+* As built (deviations and decisions the later tasks build on):
+  * `proto/collab.js` (`protoCollabAdapter`) runs on the existing records engine (`collab/office-sync.js`, op kind
+    `office`); `"proto"` is in `LIVE_OFFICE_KINDS` and `ui/collab/live.js` loads the adapter for the kind. Records as in
+    §13 with these choices: the structure record `n:<id>` also carries `name`, `visible` and `locked`; `n:<id>/text`
+    carries the content of every layer kind (`text`, `d`, `rule`, `alt`); `opacity` and `blend` are in `look`, `sticky`
+    in `lay`, `tag`, `a11y` and `modes` in `proto`; fields this version does not know travel in `n:<id>/x`. A group
+    record exists only when the layer has one of its fields. Values are canonical (sorted keys) and cached per node
+    object, so unchanged layers cost nothing per flush.
+  * Generic over the model (for T5 and later tasks): `COLLECTIONS` lists the id-keyed maps that sync per entry (`p:`
+    pages, `vc:` `vars.collections`, `v:` `vars.items`, `s:` styles, `media:` media without bytes); every other
+    top-level key (meta, breakpoints, code, and anything a later task adds) is one `meta:<key>` record, so new data
+    syncs without code changes. A new id-keyed map that should merge per entry is one line in `COLLECTIONS`; a new node
+    field is one entry in `GROUPS` (until then it travels in `n:<id>/x`). Components and instances are nodes, so T5's
+    component operations sync through the node records as they are.
+  * Validation: remote node records go through `validate.js ▸ nodeProblems`, the other records through `validate()` on
+    the model without layers. Shape errors reject a record (when a layer fails as a whole its records are tried one by
+    one, so one bad record does not hold back the others of the layer); reference problems (`missing-*`, cycles,
+    limits, binding types) are accepted, because rejecting them depends on arrival order and would make replicas
+    diverge, and the resolver treats them as warnings.
+  * Tree repair, the same on every replica: layers of a missing page are hidden; layers whose parent is missing, is no
+    container, is on another page, or is a component set while the layer is no component, go to the top level of their
+    page (a move into a concurrently deleted frame keeps the layer); a parent cycle from concurrent moves is broken at
+    the layer with the smallest id (the tree CRDT undoes the newest move instead, but the record adapter has no clocks).
+    A text layer whose text record was removed by a concurrent delete while someone renamed it gets the default text.
+    The children index is updated incrementally for the changed layers (`adoptIndex`), as `ops.js` does locally.
+  * `office-sync.js` change for every adapter: records the model changed as a side effect of a remote op (not only the
+    keys of the op) are compared with the view and retried when they differ. Without it, a layer that came back (undo
+    of a delete) missed a group record that had survived in the view, and a repaired placement was never retried.
+  * Undo: nothing new; the workspace's `opStep` replays the inverse on the current model, which keeps remote edits (the
+    binding's `prj.rebase` hook is installed but the Proto history does not use it).
+  * A snapshot opened by a late joiner still has the container fields; the adapter's `prepare` loads it
+    (`format.js ▸ loadModel`) before the binding starts.
+  * Presence: `proto/presence.js` publishes the Proto page, the pointer and the visible rect in world units and the
+    selected ids (the existing presence message; `studio: "proto"`), draws the others' pointers and selection outlines
+    in their colors through `view.overlay.addLayer` (added once per workspace by `ui/collab/overlay.js`, redrawn on
+    presence changes), and *Follow* sets the page and the camera that fits the member's visible rect. The workspace
+    needed no new hooks: the runtime listens to the stage's pointer events and to `ws.on("selection" | "camera" |
+    "page")`.
+  * Not done in T10: the comment anchor kind `proto` with pins on the overlay (comments on a Proto design are document
+    comments for now); it needs the comment composer's canvas hooks, which T4 is changing, and follows as its own task.
+  * Tests: `tests/proto/collab.test.js` (two and three peers with the real controller, shuffled delivery, late joiner,
+    chunked media, malformed records, 300 seeded random histories in CI; 2,000 checked with `PROTO_COLLAB_SEEDS=2000`).
+    Manual check: two tabs of the dev server in a *This device* room (share live, open live, concurrent fill and move
+    of one layer, Undo of the fill in one tab keeps the other's move, pointer and selection outline of the other tab,
+    Follow).
 
 **T11 · Vibe tools, lint and skills** — M — deps: T5
 * Scope: `vibe/tools/proto.js` with the tools of section 7 whose capability exists (describe, get, screenshot,
