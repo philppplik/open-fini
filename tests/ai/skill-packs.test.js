@@ -42,7 +42,7 @@ test("pack skills are stubs until hydrated and the catalog stays compact", async
   const full = await hydrateSkill(stub);
   assert.match(full.body, /\.docx/);
   const cat = skillsCatalog(PACK_SKILL_LIST);
-  assert.equal(cat.split("\n").length, 3, "one line per pack");
+  assert.equal(cat.split("\n").length, 4, "one line per pack (guides, proto, knowledge)");
   assert.ok(cat.length < 1400);
 });
 

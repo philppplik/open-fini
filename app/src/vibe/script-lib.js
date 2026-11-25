@@ -168,11 +168,12 @@ const STUDIO_GROUPS = {
   slides: ["Office suite", "Presentation"],
   board: ["Office suite", "Whiteboard"],
   scene: ["Scene", "Scene understanding", "Scene automation", "Scene motion"],
+  proto: ["Proto"],
 };
 
 /**
  * Names of the tools to list for the model in the compact mode: the core groups, the groups of what is open
- * (`context`: vector, pixel, layout, code, document, sheet, slides, board, scene) and `extra` names (an active skill's
+ * (`context`: vector, pixel, layout, code, document, sheet, slides, board, scene, proto) and `extra` names (an active skill's
  * tools). Everything else stays callable through call_tool after find_tools.
  */
 export function advertisedTools(groups, context, extra = []) {

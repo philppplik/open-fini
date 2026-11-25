@@ -225,6 +225,32 @@ board_describe: every connector has from/to, nothing overlaps, every item has te
 ## Verify
 scene_describe after each batch (duration, clips, no gaps you did not intend); scene_render_frame at the moments that matter (several times give one contact sheet): titles, transitions, captions, framing after a reframe. scene_export only when the user asks; it needs approval.`,
 
+  `${fm("proto", "How to work in the Proto Studio: the design model, auto layout specs, components, variables, lint and checking frames.", "proto_describe, proto_get_node, proto_search, proto_screenshot, proto_new, proto_create, proto_update, proto_move, proto_delete, proto_duplicate, proto_component, proto_variables, proto_styles, proto_tokens, proto_lint, proto_fix, proto_responsive, proto_content, proto_rename, proto_from_screenshot", "proto, ui design, app screen, prototype, wireframe, mockup, component, design system, tokens, screen from screenshot")}
+# Proto Studio guide
+
+## Start
+1. proto_describe: pages, one line per layer (id, type, name, w×h as px/hug/fill, flex or grid with gap and pad, fills, text), components, variables with their modes, styles. proto_new if no design is open (Labs switch Settings > Labs > Proto Studio).
+2. Load the proto skill that fits: proto-screen-from-brief, proto-screen-from-screenshot, proto-component-variants, proto-tokens-dark-mode, proto-handoff, proto-design-audit.
+
+## Model
+- The canvas is real HTML and CSS: frames are boxes with auto layout (flex rows and columns, grids), sizes fixed px, hug (fit content) or fill (share the free space). Children of a flex or grid frame flow; x, y only matter for absolute layers and top-level frames.
+- Colors are #hex or bound to variables ({ "$var": "color/primary" }); variables have modes (Light, Dark, brands) chosen per frame or page.
+- Components: a component (or a set of variants) and its instances; properties (text, bool, swap, slot, variant) drive what an instance shows; overrides change one layer inside an instance by source-id path.
+
+## Tool order
+- Build: proto_create with one nested spec per screen or component (one call, one undo step). Prefer layout, gap, pad, w "fill" over absolute positions; name every frame.
+- Change: proto_update (shorthands and dotted paths, bind to variables), proto_move (reorder, reparent, wrap in auto layout), proto_duplicate, proto_delete.
+- System: proto_variables (collection with modes, then create items), proto_styles, proto_component, proto_tokens for DTCG import and export.
+- Polish: proto_content for realistic text, proto_rename for semantic names and tags.
+
+## Pitfalls
+- Absolute positions inside auto layout, fixed widths where fill is meant, text without a fill width that never wraps.
+- Literal colors and spacing when variables exist; spacing off the 4 px grid; contrast under 4.5:1; touch targets under 44 px.
+- Guessing ids: take them from tool results and proto_describe.
+
+## Verify
+proto_describe after each batch, proto_screenshot of the frame to look at it (approximate render), proto_responsive for widths, proto_lint before you call it done and proto_fix for the mechanical fixes.`,
+
   `${fm("vibe", "How Vibe itself works: skills, sub-agents, plan_work orchestration, blackboard, approvals and verification.", "use_skill, update_plan, plan_work, work_task, blackboard, spawn_agent, wait_agent, ask_user, search_knowledge", "multi studio, orchestrate, several files, website with logo, plan, agents, how vibe works")}
 # Vibe guide
 
