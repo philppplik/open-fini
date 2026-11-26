@@ -1,6 +1,6 @@
 // Proto Studio workspace: the canvas (proto/view.js) of one open design, its input (tools, pan, zoom, keyboard,
 // context menu), the controller (proto/controller.js), the tools (proto/tools/) and the Pages, Layers and Design panels
-// (proto/panels/). One instance per open Proto document, created by proto/host.js; it is `app.protoUI` while its
+// and Code (proto/panels/). One instance per open Proto document, created by proto/host.js; it is `app.protoUI` while its
 // document is active.
 //
 //   mountProto(host, doc, app) → ws
@@ -20,7 +20,11 @@
 //   editing / editText(id) / setEditing(state)   in-place text editing (tools/text.js); rename(id) in the Layers panel
 //   copy() / cut() / paste() / zoomIn() / zoomOut() / zoomTo(z) / zoomAround(sx, sy, dir) / zoomToFit() / zoomToSelection()
 //   addFrame(preset?) / deleteSelection() / duplicateSelection() / selectAll() / selectParent() / selectChildren()
-//   on(event, fn) → off                      "selection", "change", "camera", "geometry", "tool"
+//   mode / setMode("design" | "prototype")   Prototype mode (T9): connections on the canvas, the Prototype panel
+//   play({ flow?, start?, window? })        opens the prototype player (proto/player/player.js)
+//   goTo(id)                                shows a layer (its page, selected, in view)
+//   comments / commentAnchor() / revealComment(anchor)   comment pins and the Comment tool (proto/comments.js)
+//   on(event, fn) → off                      "selection", "change", "camera", "geometry", "tool", "mode"
 //   readOnly                                true for a design saved by a newer version or with errors
 //   activate() / deactivate() / destroy()
 // Invariants: every model change is ONE undo step through the document history (replayed through the operation's
@@ -46,9 +50,14 @@ import { inFlow, lockedSet } from "./tools/common.js";
 import { createLayersPanel } from "./panels/layers.js";
 import { createPagesPanel } from "./panels/pages.js";
 import { createDesignPanel } from "./panels/design.js";
+import { createPrototypePanel, createInspector } from "./panels/prototype.js";
+import { createAssetsPanel } from "./panels/assets.js";
+import { createVariablesPanel } from "./panels/variables.js";
+import { createCommentLayer } from "./comments.js";
+import { createCodePanel } from "./panels/code.js";
 
 const isMod = (e) => (/Mac|iPhone|iPad/.test(navigator.platform || "") ? e.metaKey : e.ctrlKey);
-const PANELS = ["proto-pages", "proto-layers", "proto-inspector"];
+const PANELS = ["proto-pages", "proto-layers", "proto-inspector", "proto-assets", "proto-variables", "proto-code"];
 export const clearProtoPanels = (app) => PANELS.forEach((id) => setPanelSlot(app, id, null));
 export { FRAME_PRESETS };
 
@@ -81,6 +90,7 @@ export function mountProto(host, doc, app) {
   const prj = doc.office;
   const info = ensureProto(prj);
   const state = (prj.view.proto ||= { cam: null, page: null });
+  let mode = state.mode === "prototype" ? "prototype" : "design";
   const listeners = new Map();
   const emit = (ev, d) => listeners.get(ev)?.forEach((fn) => fn(d));
   let active = false;
@@ -147,6 +157,9 @@ export function mountProto(host, doc, app) {
   let layers = null; // created with the API below (the panels read the model, the selection and the geometry)
   let pages = null;
   let design = null;
+  let inspector = null;
+  let assets = null;
+  let variables = null;
 
   function render() {
     if (destroyed) return;
@@ -159,7 +172,9 @@ export function mountProto(host, doc, app) {
     if (!active || !layers) return;
     layers.render();
     pages.render();
-    design.render();
+    inspector.render();
+    assets.render();
+    variables.render();
   }
   function onSelection() {
     view.requestDraw();
@@ -179,7 +194,7 @@ export function mountProto(host, doc, app) {
     emit("camera", cam);
   });
   view.on("geometry", () => {
-    if (active) design?.geometry();
+    if (active) inspector?.geometry();
     emit("geometry", view.geo);
   });
   view.on("frame", () => {
@@ -274,6 +289,7 @@ export function mountProto(host, doc, app) {
     return [
       "proto.copy", "proto.cut", "proto.paste", "proto.duplicate", "proto.delete", "-",
       "proto.autoLayout", "proto.gridLayout", "proto.removeAutoLayout", "proto.group", "proto.ungroup", "-",
+      "proto.createComponent", "proto.combineVariants", "proto.goToMain", "proto.resetInstance", "proto.detachInstance", "-",
       "proto.bringToFront", "proto.bringForward", "proto.sendBackward", "proto.sendToBack", "-",
       "proto.toggleVisible", "proto.toggleLock", "proto.rename", "-", "proto.selectParent", "proto.selectChildren", "proto.zoomSelection",
     ];
@@ -436,6 +452,27 @@ export function mountProto(host, doc, app) {
       stage.style.cursor = tool?.cursor || "";
     },
     emitTool: (id) => emit("tool", id),
+    get mode() {
+      return mode;
+    },
+    /** Design or Prototype mode: the inspector tab, the connections on the canvas and the Connect handle. */
+    setMode(next) {
+      const m = next === "prototype" ? "prototype" : "design";
+      if (m === mode) return;
+      mode = m;
+      state.mode = m;
+      root.classList.toggle("is-prototype", m === "prototype");
+      if (api.tool === "move" || api.tool === "connect") api.tools.set(m === "prototype" ? "connect" : "move");
+      view.requestDraw();
+      panels();
+      emit("mode", m);
+      app.emit("commands");
+    },
+    /** Opens the prototype player (a flow, a start frame, or the selection's frame; `window: true` in its own window). */
+    async play(o = {}) {
+      const { openPlayer } = await import("./player/player.js");
+      return openPlayer(api, o);
+    },
     get hover() {
       return hover;
     },
@@ -463,6 +500,19 @@ export function mountProto(host, doc, app) {
       if (info.readOnly) return false;
       return startTextEdit(api, id);
     },
+    /** Shows a layer: its page, selected and in view (Go to main component). */
+    goTo(id) {
+      const n = prj.model.nodes[id];
+      if (!n) return false;
+      if (ctl.page !== n.page) ctl.setPage(n.page);
+      ctl.select([id]);
+      requestAnimationFrame(() => requestAnimationFrame(() => api.zoomToSelection()));
+      return true;
+    },
+    /** Comments (proto/comments.js): pins on the canvas, the Comment tool, the anchor of "Add comment". */
+    comments: null,
+    commentAnchor: () => api.comments?.currentAnchor() || null,
+    revealComment: (a) => api.comments?.reveal(a),
     /** Renames a layer in the Layers panel (F2, Object ▸ Rename). */
     rename(id) {
       layers?.rename(id);
@@ -576,6 +626,7 @@ export function mountProto(host, doc, app) {
     },
     destroy() {
       destroyed = true;
+      api.comments?.destroy();
       offChange();
       view.destroy();
     },
@@ -594,10 +645,20 @@ export function mountProto(host, doc, app) {
   layers = createLayersPanel(api);
   pages = createPagesPanel(api);
   design = createDesignPanel(api);
+  inspector = createInspector(api, design, createPrototypePanel(api));
+  root.classList.toggle("is-prototype", mode === "prototype");
+  if (mode === "prototype") api.tools.set("connect");
+  assets = createAssetsPanel(api);
+  variables = createVariablesPanel(api);
+  api.comments = createCommentLayer(api, canvasHost);
+  const code = createCodePanel(api);
   function publishPanels() {
     setPanelSlot(app, "proto-pages", { el: pages.el, show: () => pages.render() });
     setPanelSlot(app, "proto-layers", { el: layers.el, show: () => layers.render() });
-    setPanelSlot(app, "proto-inspector", { el: design.el, show: () => design.render() });
+    setPanelSlot(app, "proto-inspector", { el: inspector.el, show: () => inspector.render() });
+    setPanelSlot(app, "proto-assets", { el: assets.el, show: () => assets.render(true) });
+    setPanelSlot(app, "proto-variables", { el: variables.el, show: () => variables.render(true) });
+    setPanelSlot(app, "proto-code", { el: code.el, show: () => code.render() });
   }
   render();
   return api;

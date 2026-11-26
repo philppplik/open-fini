@@ -13,8 +13,10 @@ import { createResolver } from "../../app/src/engine/proto/resolve.js";
 import { layout } from "../../app/src/engine/proto/layout.js";
 import { treeCss } from "../../app/src/engine/proto/css.js";
 import { exportTokens, tokensCss, tokensTailwind, tokensSwift } from "../../app/src/engine/proto/tokens.js";
+import { exportCode, FORMATS as CODE_FORMATS } from "../../app/src/engine/proto/codegen/index.js";
 import { variableValue } from "../../app/src/engine/proto/variables.js";
 import { seededRandom } from "../../app/src/engine/proto/ids.js";
+import { flowGraph, describe as describeInteraction, interactionProblems } from "../../app/src/engine/proto/interactions.js";
 import { UsageError } from "./args.mjs";
 import { table, bytes as fmtBytes, sev } from "./term.mjs";
 import { expandAll } from "./glob.mjs";
@@ -22,7 +24,7 @@ import { CliError, EXIT } from "./project.mjs";
 import { plural, withoutExt, readInput, writeOutput, replaceFile, needArgs, eachFile, safeFileName } from "./io.mjs";
 import { readProto, assertWritable, protoBytes, pagesOf, findPage, topLayers, topOf, findNodes, parseModes, sizeText, fmtNum, withModes } from "./proto-model.mjs";
 import { renderSvg } from "./proto-svg.mjs";
-import { LINT_RULES, lintModel, applyFixes } from "./proto-lint.mjs";
+import { LINT_RULES, lintModel, applyFixes, resolveRules, RULE_ALIASES } from "./proto-lint.mjs";
 
 const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const MIME_EXT = { "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp", "image/avif": "avif", "image/svg+xml": "svg" };
@@ -268,9 +270,9 @@ async function cmdLint(flags, args, ctx) {
   if (!["text", "json", "sarif"].includes(format)) throw new UsageError(`Unknown format “${flags.format}”. Formats: text, json, sarif.`);
   let rules = Object.keys(LINT_RULES);
   if (flags.rules) {
-    rules = String(flags.rules).split(",").map((s) => s.trim()).filter(Boolean);
-    const bad = rules.filter((r) => !LINT_RULES[r]);
-    if (bad.length) throw new UsageError(`Unknown rule “${bad.join(", ")}”. Rules: ${Object.keys(LINT_RULES).join(", ")}.`);
+    const res = resolveRules(String(flags.rules).split(",").map((s) => s.trim()).filter(Boolean));
+    if (res.unknown.length) throw new UsageError(`Unknown rule “${res.unknown.join(", ")}”. Rules: ${Object.keys(LINT_RULES).join(", ")}.`);
+    rules = res.rules;
   }
   if (!flags.fix && (flags["in-place"] || flags.out)) throw new UsageError("--in-place and --out need --fix.");
   const files = expandAll(args, ctx.cwd);
@@ -495,6 +497,36 @@ async function tokensImport(flags, args, ctx) {
   return 0;
 }
 
+// ------------------------------------------------------------------------------------------------ export
+
+async function cmdExport(flags, args, ctx) {
+  needArgs(args, 1, "file");
+  const format = String(flags.format || flags.target || "html").toLowerCase();
+  if (!CODE_FORMATS.includes(format)) throw new UsageError(`Unknown export format “${flags.format || flags.target}”. Formats: ${CODE_FORMATS.join(", ")}.`);
+  if (flags.node && flags.page) throw new UsageError("Use either --node or --page, not both.");
+  const { input, state } = openDesign(ctx, args[0], flags);
+  const { model } = state;
+  const modes = parseModes(model, flags.mode);
+  const ids = flags.node ? findNodes(model, flags.node).map((k) => k.split("/")[0]) : null;
+  const page = flags.page ? findPage(model, flags.page).id : null;
+  const res = await exportCode(model, { format, ids, page, modes: modes || undefined, ts: !flags.js, dataIds: !!flags["data-ids"], collapse: !flags["keep-wrappers"] });
+  for (const w of res.warnings) ctx.out.warn(`${w.key}: ${w.message}`);
+  if (!res.files.some((f) => typeof f.text === "string" && !/^(styles\.css|src\/(tokens|styles)\.css|src\/cx\.[jt]s|src\/index\.[jt]s|Tokens\.swift)$/.test(f.path)))
+    ctx.out.warn("Nothing to export besides the variables: the selection has no visible layers or components.");
+  const dir = flags.out || `${withoutExt(input.path === "-" ? "design" : input.path)}-${format}`;
+  if (dir === "-") {
+    // one stream: every text file with a header line
+    ctx.out.raw(res.files.filter((f) => typeof f.text === "string").map((f) => `/* ===== ${f.path} ===== */\n${f.text}`).join("\n"));
+    return 0;
+  }
+  const absDir = resolve(ctx.cwd, dir);
+  if (existsSync(absDir) && readdirSync(absDir).length && !flags.force) throw new CliError(`${dir} is not empty. Use --force to write into it.`, EXIT.IO);
+  for (const f of res.files) writeOutput(ctx, join(dir, f.path), typeof f.text === "string" ? f.text : f.bytes, { force: true });
+  if (ctx.out.json) ctx.out.data({ file: args[0], format, dir, entry: res.entry, files: res.files.map((f) => ({ path: f.path, bytes: typeof f.text === "string" ? Buffer.byteLength(f.text) : f.bytes.length })), warnings: res.warnings });
+  else ctx.out.result(`${ctx.out.c.green("wrote")} ${plural(res.files.length, "file")} to ${dir} ${ctx.out.c.dim(`(${format}; start with ${res.entry})`)}`);
+  return 0;
+}
+
 // ------------------------------------------------------------------------------------------------ diff
 
 /** Top-level field names whose JSON differs. */
@@ -588,6 +620,63 @@ async function cmdApply(flags, args, ctx) {
   return 0;
 }
 
+// ------------------------------------------------------------------------------------------------ flows
+
+/** Prototype flows of a design: start frames, the screens each flow reaches, and their interactions. */
+function designFlows(model, pageSpec) {
+  const pages = pageSpec !== undefined ? [findPage(model, pageSpec)] : pagesOf(model);
+  const name = (id) => model.nodes[id]?.name || model.vars?.items?.[id]?.name || id;
+  const out = [];
+  const problems = [];
+  for (const p of pages) {
+    for (const f of model.pages[p.id]?.flows || []) {
+      if (!isObj(f)) continue;
+      const g = flowGraph(model, f);
+      if (!model.nodes[f.start]) problems.push({ flow: f.id, message: `The flow “${f.name || f.id}” starts at “${f.start}”, which does not exist.` });
+      for (const id of g.missing) problems.push({ flow: f.id, message: `The flow “${f.name || f.id}” leads to “${id}”, which does not exist.` });
+      const screens = g.screens.map((id) => {
+        const layers = [];
+        const visit = (nid, depth) => {
+          const n = model.nodes[nid];
+          if (!n || depth > 64) return;
+          if (Array.isArray(n.proto) && n.proto.length) layers.push({ id: n.id, name: n.name || "", interactions: n.proto.map((it) => ({ text: describeInteraction(it, name), ...(interactionProblems(model, it).length ? { problems: interactionProblems(model, it) } : {}) })) });
+          for (const c of children(model, nid) || []) visit(c, depth + 1);
+        };
+        visit(id, 0);
+        return { id, name: name(id), layers };
+      });
+      out.push({ page: p.id, pageName: p.name, id: f.id, name: f.name || f.id, start: f.start, ...(f.description ? { description: f.description } : {}), screens, edges: g.edges.map((e) => ({ ...e, fromName: name(e.from), toName: name(e.to) })) });
+    }
+  }
+  return { flows: out, problems };
+}
+
+async function cmdFlows(flags, args, ctx) {
+  needArgs(args, 1, "file");
+  const files = expandAll(args, ctx.cwd);
+  const { worst, results } = await eachFile(ctx, files, async (f) => {
+    const { state } = openDesign(ctx, f, flags);
+    const r = designFlows(state.model, flags.page);
+    if (!ctx.out.json) {
+      const { c } = ctx.out;
+      const lines = [c.bold(f)];
+      if (!r.flows.length) lines.push(c.dim("  No flows. Add one in the Pages panel (Prototype mode) or with flow.create."));
+      for (const fl of r.flows) {
+        lines.push(`  ${c.bold(fl.name)} ${c.dim(`(${fl.id}, page ${fl.pageName})`)}  starts at ${fl.screens[0]?.name || fl.start}, ${plural(fl.screens.length, "screen")}`);
+        for (const sc of fl.screens) {
+          lines.push(`    ${sc.name} ${c.dim(sc.id)}`);
+          for (const l of sc.layers) for (const it of l.interactions) lines.push(`      ${c.dim(`${l.name || l.id}:`)} ${it.text}${it.problems ? c.yellow(` (${it.problems[0]})`) : ""}`);
+        }
+      }
+      for (const pr of r.problems) lines.push(c.yellow(`  ${pr.message}`));
+      ctx.out.result(lines.join("\n") + (files.length > 1 ? "\n" : ""));
+    }
+    return { code: r.problems.length ? EXIT.PROBLEMS : 0, result: { file: f, ...r } };
+  });
+  if (ctx.out.json) ctx.out.data(files.length === 1 ? results[0] : results);
+  return worst;
+}
+
 // ------------------------------------------------------------------------------------------------ command table
 
 const IO = { name: { type: "string", desc: "File name to assume for standard input (-)" } };
@@ -595,7 +684,7 @@ const FORCE = { force: { type: "bool", short: "f", desc: "Overwrite existing fil
 const MODE = { mode: { type: "string", desc: "Variable modes, e.g. Theme=dark,Density=compact" } };
 const WRITE = { out: { type: "string", short: "o", desc: "Write the changed design here (.ofini, or .json for the bare model)" }, "in-place": { type: "bool", desc: "Replace the design file (atomically)" }, "dry-run": { type: "bool", short: "n", desc: "Check only; write nothing" }, ...FORCE };
 
-export const PROTO_SUMMARY = "Proto designs: outline, lint, render, assets, tokens, diff, scripted edits (Labs)";
+export const PROTO_SUMMARY = "Proto designs: outline, lint, render, assets, tokens, code export, diff, scripted edits (Labs)";
 
 export const PROTO_COMMANDS = {
   info: { summary: "Pages, frames, layers, components, variables, styles, media and flows", usage: "ofini proto info <file...>", flags: { ...IO }, run: cmdInfo, examples: ["ofini proto info app.ofini", "ofini proto info 'designs/*.ofini' --json"] },
@@ -603,12 +692,12 @@ export const PROTO_COMMANDS = {
   inspect: { summary: "Full JSON of layers, resolved values, CSS and solver boxes", usage: "ofini proto inspect <file> --node <ids> [--resolved] [--css]", flags: { ...IO, ...MODE, node: { type: "string", desc: "Layer ids, names or instance-inner keys such as n5/n22 (comma-separated)" }, resolved: { type: "bool", short: "r", desc: "Show the resolved layer (instances expanded, variables replaced, styles applied)" }, css: { type: "bool", desc: "Add the CSS declarations the canvas and code export use" } }, run: cmdInspect, examples: ["ofini proto inspect app.ofini --node n5 --resolved", "ofini proto inspect app.ofini --node n5/n22 --css --json"] },
   validate: { summary: "Check designs against the schema; exit code 1 on errors", usage: "ofini proto validate <file...> [--strict]", flags: { ...IO, strict: { type: "bool", desc: "Treat warnings as errors" }, verbose: { type: "bool", short: "v", desc: "Also list warnings of valid designs" } }, run: cmdValidate, examples: ["ofini proto validate 'designs/*.ofini'", "ofini proto validate --strict --json app.ofini"] },
   lint: {
-    summary: "Design lint (schema, overrides, text overflow, clipping, touch targets); exit code 1 on errors",
+    summary: "Design lint (the assistant's design rules plus schema checks); exit code 1 on errors",
     usage: "ofini proto lint <file...> [--rules <ids>] [--format text|json|sarif] [--fix [--in-place | --out <file>]]",
     flags: { ...IO, ...FORCE, rules: { type: "string", desc: `Rules to run (default all): ${Object.keys(LINT_RULES).join(", ")}` }, format: { type: "string", short: "t", desc: "text (default), json or sarif (for CI annotations)" }, strict: { type: "bool", desc: "Exit code 1 also for warnings" }, fix: { type: "bool", desc: "Apply machine-applicable fixes (default: writes <name>.fixed.ofini)" }, "in-place": { type: "bool", desc: "With --fix: replace the design file" }, out: { type: "string", short: "o", desc: "With --fix: write the fixed design here" } },
-    details: Object.entries(LINT_RULES).map(([k, v]) => `${k.padEnd(15)} ${v.severity.padEnd(8)} ${v.summary}${v.fixable ? " (fixable)" : ""}`),
+    details: [...Object.entries(LINT_RULES).map(([k, v]) => `${k.padEnd(17)} ${v.severity.padEnd(8)} ${v.summary}${v.fixable ? " (fixable)" : ""}`), ...Object.entries(RULE_ALIASES).map(([k, v]) => `${k.padEnd(17)} alias of ${v}`)],
     run: cmdLint,
-    examples: ["ofini proto lint app.ofini", "ofini proto lint 'designs/*.ofini' --format sarif > proto.sarif", "ofini proto lint app.ofini --rules schema,stale-override --fix --in-place"],
+    examples: ["ofini proto lint app.ofini", "ofini proto lint 'designs/*.ofini' --format sarif > proto.sarif", "ofini proto lint app.ofini --rules schema,inactive-override --fix --in-place"],
   },
   render: {
     summary: "Render layers to SVG through the pure layout solver (approximate)",
@@ -625,6 +714,14 @@ export const PROTO_COMMANDS = {
     run: cmdTokens,
     examples: ["ofini proto tokens app.ofini > tokens.json", "ofini proto tokens app.ofini -t css -o tokens.css", "ofini proto tokens app.ofini -t json --mode Theme=dark", "ofini proto tokens import app.ofini brand.tokens.json --in-place", "ofini proto tokens import app.ofini dark.tokens.json --mode Dark -o themed.ofini"],
   },
+  export: {
+    summary: "Export layers as code: HTML + CSS, React (CSS Modules or Tailwind), HTML + Tailwind or SwiftUI",
+    usage: "ofini proto export <file> [--format html|react|react-tailwind|tailwind|swiftui] [--node <ids> | --page <p>] [--out <folder>|-]",
+    flags: { ...IO, ...FORCE, ...MODE, format: { type: "string", short: "t", desc: `${CODE_FORMATS.join(", ")} (default html)` }, target: { type: "string", desc: "Same as --format" }, node: { type: "string", desc: "Layers or components to export (ids or names, comma-separated); default: every top-level layer" }, page: { type: "string", short: "p", desc: "Only this page (id, name or number)" }, out: { type: "string", short: "o", desc: "Output folder (default: <name>-<format>), or - to print the text files" }, js: { type: "bool", desc: "React: JavaScript (.jsx) instead of TypeScript" }, "data-ids": { type: "bool", desc: "Mark elements with data-proto-id (layer ids)" }, "keep-wrappers": { type: "bool", desc: "Keep frames that only wrap one layer" } },
+    run: cmdExport,
+    examples: ["ofini proto export app.ofini", "ofini proto export app.ofini -t react -o web/", "ofini proto export app.ofini -t react-tailwind --node Button,Card", "ofini proto export app.ofini -t swiftui --page Screens -o ios/", "ofini proto export app.ofini --node Checkout -o - | less"],
+  },
+  flows: { summary: "Prototype flows: start frames, the screens each flow reaches and their interactions; exit code 1 when a target is missing", usage: "ofini proto flows <file...> [--page <p>]", flags: { ...IO, page: { type: "string", short: "p", desc: "Page id, name or number (default: every page)" } }, run: cmdFlows, examples: ["ofini proto flows app.ofini", "ofini proto flows app.ofini --page Screens --json"] },
   diff: { summary: "Structural diff of two designs; exit code 1 when they differ", usage: "ofini proto diff <a> <b>", flags: { ...IO }, run: cmdDiff, examples: ["ofini proto diff v1.ofini v2.ofini", "ofini proto diff main.ofini feature.ofini --json"] },
   apply: {
     summary: "Apply operations from JSON (one undoable step in the app's terms) for scripting",
@@ -636,4 +733,4 @@ export const PROTO_COMMANDS = {
   },
 };
 
-export { describeNode, flatTokens };
+export { describeNode, flatTokens, designFlows };

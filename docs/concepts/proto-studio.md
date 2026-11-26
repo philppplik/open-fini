@@ -1038,6 +1038,47 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
 * Files: `app/src/proto/panels/{assets,variables,binding}.js`, `app/src/proto/panels/design.js`,
   `tests/proto/panels-model.test.js` (pure view models).
 * Acceptance: every action one undo step; a mode switch repaints only affected frames; keyboard access as in T4.
+* As built (deviations and decisions the later tasks build on):
+  * Modules: `proto/panels/model.js` (pure view models and the operations every panel action runs: `assetList`,
+    `insertInstanceOp`, `instanceInfo`, `componentInfo`, `propBindTargets`, `bindCandidates`, `bindOp`, `variableTable`,
+    `cellOp`, `resetCellOp`, `modeChoices`, `modeOp`, `styleSlotInfo`, the style operations, `tokenExport`; tested in
+    `tests/proto/panels-model.test.js`), `panels/binding.js` (the shared popover, the variable picker and `bindable`, the
+    bind button or bound chip of a Design field), `panels/assets.js` (dock id `proto-assets`, a tab next to Layers),
+    `panels/variables.js` (dock id `proto-variables`, bottom dock). No engine operation was added; every action is one
+    operation (a batch for several layers) through `ws.apply`, so one undo step. The workspace gained `goTo(id)`,
+    `comments`, `commentAnchor()` and `revealComment(anchor)`; the Proto layout now gives the bottom dock its height
+    (it was fixed at 0) and the Window menu shows in the studio.
+  * Component section: create (a frame becomes the component in place) and combine come from the selection; properties
+    are edited in place (rename, defaults, variant options as a comma list); an inner layer binds its `text`,
+    `visible`, `of` (nested instance) or `children` (slot) to a property in a *Component property* section. Text property
+    defaults start as “Text”.
+  * Instance section: swap lists every component and set; variant pickers start from the variant an instance of one
+    variant keeps; overrides count active and inactive paths plus set property values. Overrides of inner layers are not
+    edited from the panel (canvas clicks select the outer instance, T3); they come from the assistant and reset here.
+  * Bindings: opacity, corner radius (also per corner), gap, row gap, padding sides, fill, stroke and shadow colors,
+    stroke width, font, font size, weight, letter spacing, text color and visibility. Width and height and line height
+    are not bindable from the panel yet (`w.value` works through `node.bind`). Variables outside their scopes are listed
+    disabled. Editing a list (fills, padding) keeps bindings of the other items.
+  * Variables panel: a brand table shows the chain's variables; editing a cell writes `ext[brand][mode]`; *Reset to the
+    base value* removes it. Deleting a used variable or collection detaches (layers keep their values) after a
+    confirmation. Tokens import merges into the shown collection (a base collection) or the file's own collections.
+  * Styles: a palette button per section (fill, stroke, effect, text, grid layout); while a style is applied the section
+    shows the style chip instead of the local fields. A stroke uses fill styles, so a stroke style is created from the
+    layer's fills.
+  * Mode switcher: one select per collection family with more than one mode or a brand (`Auto` inherits); a frame's
+    `modes` change re-renders only that top-level layer (T3's `changedRoots`).
+  * Comments (T10 follow-up): anchor kind `proto` (`protocol.js ▸ ANCHOR`, `anchors.js ▸ protoAnchor`: `page`, `pin` in
+    world coordinates, `node` and `off` for the deepest layer under the point, `quote`); `proto/comments.js` draws the
+    pins over the canvas (DOM buttons of the comment UI, two frames after a change so they follow the measured boxes),
+    drags them (`reanchor`), and adds the Comment tool (C). `comments-host` asks `app.protoUI.commentAnchor()` for
+    *Add Comment* and reveals `proto` anchors in the workspace; `comment-context.js` resolves them for the assistant.
+    The assistant's `add_comment` with a `layer_id` still resolves only layers of the classic studios.
+  * Lint (T11/T13 follow-up): `cli/lib/proto-lint.mjs` runs `engine/proto/lint.js` for the design rules; the CLI-only
+    checks are `schema`, `unresolved` and `clipped`. `stale-override` and `text-overflow` are aliases; the CLI's own
+    touch-target and empty-frame checks are gone in favor of the engine's. Safe fixes become one operation or batch;
+    unsafe ones a `suggestion`.
+  * Assets previews are the solver's display list painted into a canvas (`ai-render.js`), cached per component and the
+    identities of its subtree, variables and styles.
 
 **T7 · Code export** — L — deps: T5, T13
 * Scope: `codegen/lower.js` (IR, tag inference, class names), emitters HTML + CSS, React (CSS Modules or Tailwind,
@@ -1047,6 +1088,53 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
   `tests/proto/codegen/*.test.js` with snapshots.
 * Acceptance: deterministic snapshots; exported HTML rendered in Chromium matches T2's recorded geometry per fixture;
   generated React passes a syntax check (TypeScript compiler only if it is already a dev dependency).
+* As built (deviations and decisions the later tasks build on):
+  * Modules: `engine/proto/codegen/` with `lower.js` (`lower(model, { ids, page, modes, assetUrl, dataIds, collapse })`
+    → IR `{ screens, components, assets, vars, fonts, warnings, breakpoints }`; the IR node shape is in its header:
+    `{ key, id, type, name, base, el, decls, attrs, text?, svg?, image?, children, box, r, instance?, bind?, slot?, href? }`),
+    the emitters `html.js` (`emitHtml`, also `htmlMarkup`, `svgMarkup`, `svgFile`, `RESET_CSS`), `react.js` (`emitReact(ir,
+    { styling: "modules" | "tailwind", ts })`), `tailwind.js` (`emitTailwind`, `twClasses(decls)`), `swiftui.js`
+    (`emitSwiftUI`) and `index.js` (`exportCode(model, { format, ids, page, modes, ts, dataIds, collapse })` →
+    `{ format, files: [{ path, text } | { path, bytes, mime }], entry, warnings, ir }`, `FORMATS`, `zipEntries`). The
+    emitters load on demand per format. T12 (`proto_to_code` over MCP) and T14 (export into a Code project) call
+    `exportCode`; T14 adds the guarded regions around the files it writes (`dataIds: true` gives the `data-proto-id`
+    attributes of §10.4). The concept's `emit/` folder and `classes`/`tokens` IR fields became one flat folder and
+    `base` (class names are made unique per stylesheet by the emitters) plus `decls` with `var()` references.
+  * Declarations are css.js's (`vars: "css"`, `root: "none"`, `scroll: true`) without `box-sizing` (every export sets
+    border-box globally: a reset, Tailwind's preflight); four-value `padding`, `border-radius` and `border-width` are
+    shortened; roots get `position: relative`. Verified in Chromium 156 with `scripts/proto-export-roundtrip.mjs`: all 16
+    geometry fixtures within 1 px (2 px with text); `tests/proto/codegen/roundtrip.test.js` runs it with
+    `PROTO_ROUNDTRIP=1`.
+  * Tags: the `tag` field (checked against a list of HTML elements; void elements with children fall back), else text
+    from the text style's name (`H1`…`H6`, heading, title, display) or size (32 px h1, 24 px h2, 20 px semibold h3, else
+    p), click interactions (`navigate` to an exported screen or `openUrl` with http, https, mailto or tel → `a`, else
+    `button`), images with one image fill and no hug size → `img` with `object-fit`, vectors → inline `svg`, names
+    (button, nav, header, footer, form, card/section). Phrasing-only parents turn children into spans. Hidden layers are
+    left out (bound visibility is a conditional instead). Wrappers that draw nothing, hug a single flow child and sit in a
+    flex parent are collapsed (`collapse: false` keeps them).
+  * Classes: kebab-case layer names; equal name and equal declarations share one class. Responsive merge: top-level
+    frames with the same name on one page and the same shape; the media query uses the smallest design breakpoint at or
+    above the narrower frame's width (else its width). There is no `responsive` link field yet.
+  * React components: variants that share one structure print one tree with the declarations common to all variants on
+    the layer's class and the rest under `[data-variant="<slug>"]` (CSS Modules) or a `VARIANT_CLASSES` table (Tailwind);
+    a `VARIANTS` table maps every combination of axis values (up to 256) to the best-matching variant like `pickVariant`.
+    Different structures render a `switch`. Usages pass non-default variant values and properties and a `className` with
+    the instance's differences from the component root (Tailwind marks overriding classes `!`). Instances with `over`
+    are written out (warning `overrides`). A single slot is `children`. Code links (`code.react.path`, `export`,
+    `props` mapping) import instead of generating.
+  * SwiftUI: components are `<Name>View` structs with enum axes, `switch` over variants, swap and slot properties as
+    `AnyView`; vectors are written as SVG assets; breakpoint variants are not exported. The app's Code studio formatter
+    is not run over the output: the emitters print formatted code themselves (two-space indentation), which keeps the
+    output deterministic and the exporter usable in Node.
+  * UI: `proto/panels/code.js` (dock id `proto-code`, a tab next to Design in Essentials; format remembered in
+    `localStorage`), the Design panel's Export section (`exportSection`), ZIP download through fflate and
+    `platform.saveFile`. Vibe tool `proto_to_code` (read-only; `file` and `maxChars` for long exports). CLI `ofini proto
+    export` with `--format` (alias `--target`, so T9 can add `prototype`), `--node`, `--page`, `--out` (`-` prints),
+    `--js`, `--data-ids`, `--keep-wrappers`, `--mode`. `ofini proto tokens` had already moved to T13.
+  * Tests: `tests/proto/codegen/codegen.test.js` (golden files for the sample design and `fixtures/codegen/kit.json` in
+    all five formats, determinism, Lezer syntax checks of TSX, JSX and CSS, balanced Swift, the IR equals the canvas
+    declarations, tag and component lowering, breakpoints, code links, Tailwind mapping); CLI and Vibe tool tests.
+    Budget +29 KiB gzip, all lazy.
 
 **T8 · Imports: HTML and CSS, SVG, clipboard, Sketch, Penpot** — L — deps: T5
 * Scope: `import/html.js` (computed-style mapper in the app, static path for the CLI), SVG through the existing
@@ -1065,6 +1153,44 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
   `tests/proto/{interactions,expr}.test.js`.
 * Acceptance: the evaluator accepts only the data language (fuzz test); the exported prototype contains no external
   URLs (test) and works offline; smart animate at 60 fps for the 200-layer fixture (manual check in the PR).
+* As built (deviations and decisions the later tasks build on):
+  * Engine: `engine/proto/interactions.js` (the interaction and flow model, checks, transitions with springs sampled
+    into CSS `linear()`, connections, the flow graph, `describe`, `interactionsOf`, `flatten` and `matchLayers` for
+    smart animate) and `expr.js` (the data language with a step and depth limit; `{ var }`, `{ op, args }` and the
+    shorthand `{ var, op, value }`). Operations in the one table of `ops.js`: `interaction.add` / `set` / `delete`,
+    `interaction.connect` (the Connect handle: one click navigation per trigger, `to: null` removes it), `flow.create`
+    / `update` / `delete`; their inverses are `node.update` / `page.update`, and they refuse invalid interactions,
+    missing or nested targets and unknown variables (validate.js keeps warning only, so deleting a frame never fails).
+    Shapes: transitions `{ type, dir, dur, ease }` with `ease` a keyword, `{ bezier }` or `{ spring: [mass,
+    stiffness, damping] }` (a spring without `dur` takes its settle time); overlays `{ pos, dim, closeOutside }`;
+    `variant` actions `{ set, target? }`; flows may carry a `description`.
+  * Interactive components: an instance without interactions of its own uses those of the variant it shows
+    (`interactionsOf`), so a hover defined on `state=default` works on every instance. A `variant` action on a layer
+    inside a nested instance writes an override `variant` on the outermost real instance in the player
+    (`withVariants`); this path is only unit tested.
+  * Player: `proto/player/state.js` (pure state machine: history with the transition of each step, back plays it
+    reversed, overlay stack, variables and variants, while-hovering and while-pressing holds that restore what they
+    changed, `variableChange` cascades limited to 8 levels and 256 actions per event), `render.js` (one screen through
+    `css.js` with `scroll: true` and literal variable values, own shadow root, `data-of-key` on every element),
+    `animate.js` (dissolve, move in and out, push, slide, smart animate as FLIP with the Web Animations API: matched
+    layers animate position, width and height, colors, opacity and radius; layers of the old screen fade out above the
+    new one; reduced motion turns transitions off) and `player.js` (toolbar, device frames, hotspot hints, keys,
+    timers, input mapping). The player is one object in the main window; *Preview in New Window* moves its element
+    into a window opened by `ui/docking/windows.js` (the tear-off window: a native window on the desktop, a pop-up in
+    the browser). Edits made while it plays show from the next screen.
+  * Editor: Prototype mode is a workspace state (`ws.mode`, `setMode`, the `mode` event, kept in the view state), the
+    inspector has *Design* and *Prototype* tabs (`panels/prototype.js ▸ createInspector`, so the Design panel itself
+    is unchanged), the Connect tool is the Move tool plus the handle (`tools/connect.js`, chosen by the mode; no
+    toolbar button), and connections are drawn on the overlay. Flows are edited in the Pages panel and the Prototype
+    panel. Commands and the *Prototype* menu: Preview Prototype (Mod+Alt+Enter), Preview in New Window, Design Mode,
+    Prototype Mode, Switch (Shift+E), Add Flow Starting Point.
+  * Assistant and CLI: the Vibe tool `proto_interaction` (list, add, set, delete, connect, addFlow, updateFlow,
+    deleteFlow; names resolve to ids) and the skill `proto-prototype-flow`; `ofini proto flows` lists each flow's
+    screens (breadth first from the start, layers in document order) and interactions, exit code 1 when a start or a
+    target is missing.
+  * Not in this task (follow-ups): presenting in a room (player state as presence), the HTML prototype export (`ofini
+    proto export --target prototype`, which needs T7's export command), the current frame's comments in the player,
+    `media` actions, and a measured 60 fps check of smart animate on the 200-layer fixture.
 
 **T10 · Live collaboration** — M — deps: T3
 * Scope: `proto/collab.js` records adapter (section 13), `"proto"` in `LIVE_OFFICE_KINDS`, per-record validation,
@@ -1111,7 +1237,7 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
     presence changes), and *Follow* sets the page and the camera that fits the member's visible rect. The workspace
     needed no new hooks: the runtime listens to the stage's pointer events and to `ws.on("selection" | "camera" |
     "page")`.
-  * Not done in T10: the comment anchor kind `proto` with pins on the overlay (comments on a Proto design are document
+  * Not done in T10 (added with T6): the comment anchor kind `proto` with pins on the overlay (comments on a Proto design are document
     comments for now); it needs the comment composer's canvas hooks, which T4 is changing, and follows as its own task.
   * Tests: `tests/proto/collab.test.js` (two and three peers with the real controller, shuffled delivery, late joiner,
     chunked media, malformed records, 300 seeded random histories in CI; 2,000 checked with `PROTO_COLLAB_SEEDS=2000`).

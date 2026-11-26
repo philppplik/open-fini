@@ -42,7 +42,7 @@ ofini completion powershell | Out-String | Invoke-Expression   # $PROFILE
 | `ofini unpack <file> [folder]` | Unpacks a project into a folder (`--pretty` indents `document.json` for diffs in Git) |
 | `ofini pack <folder> [file]` | Packs such a folder into an `.ofini` file (the type marker first and stored) |
 | `ofini diff <a> <b>` | Structural comparison: title, kind, pages, layer counts, text stories, stored parts; exit code 1 when they differ |
-| `ofini proto <command>` | Proto designs: `info`, `tree`, `inspect`, `validate`, `lint`, `render`, `assets`, `tokens`, `diff`, `apply` ([below](#proto-designs)) |
+| `ofini proto <command>` | Proto designs: `info`, `tree`, `inspect`, `validate`, `lint`, `render`, `assets`, `tokens`, `flows`, `diff`, `apply` ([below](#proto-designs)) |
 | `ofini version` | Version, document format, Node.js and platform |
 | `ofini help [command]` | Help, options and examples of a command |
 | `ofini completion <shell>` | Completion script for bash, zsh, fish or PowerShell |
@@ -131,7 +131,9 @@ proto <command>` lists every option.
 | `ofini proto render <file> [--node \| --page] [--out]` | SVG of layers (default: the top-level layers of the first page, one file each) through the pure layout solver; `--mode`, `--scale`, `--background`, `--media embed\|link\|none` |
 | `ofini proto assets <file> [--node] [--out dir]` | Vector layers (or the chosen layers) as SVG and embedded media as files, into `<name>-assets` |
 | `ofini proto tokens <file> [--format dtcg\|css\|tailwind\|swift\|json] [--mode]` | Design tokens: DTCG 2025.10 (default), CSS custom properties, Tailwind v4 `@theme`, Swift, or plain values per variable name (`json`) |
+| `ofini proto export <file> [--format html\|react\|react-tailwind\|tailwind\|swiftui] [--node \| --page] [--out dir\|-]` | Code export ([user guide](proto-studio.md#code-export)) into `<name>-<format>` (default html): pages, components, variables and images; `--js` for JavaScript React, `--data-ids` marks elements with layer ids, `--keep-wrappers`, `--mode`; `-o -` prints the text files |
 | `ofini proto tokens import <file> <tokens.json\|->` | Imports DTCG tokens (`--collection`, `--mode`); needs `--out`, `--in-place` or `--dry-run` |
+| `ofini proto flows <file...> [--page]` | Prototype flows: the screens each flow reaches from its start and the interactions on them; exit code 1 when a start frame or a target is missing |
 | `ofini proto diff <a> <b>` | Structural diff: pages, layers (with the changed fields), collections, variables, styles, media; exit code 1 when they differ |
 | `ofini proto apply <file> <ops.json\|->` | Applies operations (one object, an array or `{ "ops": [...] }`; also `--ops '<json>'`) as one all-or-nothing batch; needs `--out`, `--in-place` or `--dry-run`; `--seed` makes new ids reproducible |
 
@@ -139,18 +141,23 @@ proto <command>` lists every option.
 and `tree --boxes` they are set on the top-level layer, so they win over the mode it picks itself. `--node` takes ids,
 exact layer names or instance-inner keys, comma-separated.
 
-**Lint rules.** `schema` (validation errors and warnings), `unresolved` (variables, components or modes that cannot be
-resolved), `stale-override` (instance overrides of layers the main component no longer has; fixable), `text-overflow`,
-`clipped` (a layer sticking out of a parent that clips), `touch-target` (click or press targets smaller than 24 × 24 px)
-and `empty-frame`. The geometry rules use the pure solver and are marked approximate. `--format sarif` writes SARIF
-2.1.0 for code-scanning annotations in CI. The design rules of the assistant's linter (contrast, unbound values) join
-when they land in the engine.
+**Lint rules.** The design rules are the ones the assistant's `proto_lint` and `proto_fix` run
+(`app/src/engine/proto/lint.js`), so the CLI and the assistant report the same findings: `contrast`, `touch-target`
+(under 24 px a warning, under 44 px a note), `unbound-color`, `unbound-spacing`, `off-grid`, `detached-style`,
+`inactive-override` (instance overrides of layers the main component no longer has), `detached-instance`, `empty-frame`,
+`naming`, `overflow-text` and `unused-token`. Three checks of the file itself run only in the CLI: `schema` (validation
+errors and warnings), `unresolved` (variables, components or modes that cannot be resolved) and `clipped` (a layer
+sticking out of a parent that clips). The names of 1.3.0 still work in `--rules`: `stale-override` means
+`inactive-override`, `text-overflow` means `overflow-text`. `--fix` applies the fixes the engine marks safe (one batch per
+finding); the others (deleting unused tokens, replacing detached copies) are listed as `suggestion` in JSON. Engine
+`info` findings are `note`s. The geometry rules use the pure solver and are marked approximate. `--format sarif` writes
+SARIF 2.1.0 for code-scanning annotations in CI.
 
 **Approximate.** Without a browser, layout and text come from the pure solver with the PDF base-14 font metrics (no
 kerning, no real fonts), so text positions can differ by a pixel or two from the canvas. The SVG render also draws conic
 gradients with their first color and leaves out inner shadows and background blur (reported as warnings). PNG needs the
-app's renderer: `--format png` exits with code 4. Code export (`ofini proto export`), imports and `ofini mcp` follow
-with later Proto tasks.
+app's renderer: `--format png` exits with code 4. Code export runs the same exporter as the app and is not approximate.
+Imports and `ofini mcp` follow with later Proto tasks.
 
 ```sh
 ofini new proto app.ofini --template phone
@@ -158,6 +165,7 @@ ofini proto tree app.ofini --boxes
 ofini proto lint 'designs/*.ofini' --format sarif > proto.sarif   # CI annotations
 ofini proto render app.ofini -o shots/ --mode Theme=dark
 ofini proto tokens app.ofini -t css -o tokens.css
+ofini proto export app.ofini -t react -o web/
 ofini proto tokens import app.ofini brand.tokens.json --in-place
 echo '{"op":"node.update","id":"n2","set":{"name":"Title"}}' | ofini proto apply app.ofini - --in-place
 ofini proto diff main.ofini feature.ofini --json

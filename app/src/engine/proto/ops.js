@@ -60,6 +60,10 @@
 //   style.apply         { ids, slot, style|null }             style.detach { ids, slot? } (bake into local fields)
 // Tokens (tokens.js, T5):
 //   tokens.import       { tokens, collection?, mode?, replace? }   DTCG JSON into variables and styles
+// Prototypes (interactions.js, T9):
+//   interaction.add     { id, interaction, index? } / interaction.set { id, index, interaction } / interaction.delete { id, index }
+//   interaction.connect { from, to: frameId | null, trigger?, tr? }   the Connect tool (one navigate per trigger)
+//   flow.create         { start, page?, id?, name?, description? } / flow.update { page, id, set } / flow.delete { page, id }
 //
 // Options: apply(model, op, { random }) — the random source for new ids (tests pass ids.js ▸ seededRandom).
 import { keysBetween, isKey } from "../../collab/fractional.js";
@@ -69,6 +73,7 @@ import { nodeProblems, pageProblems, componentCycleProblems, varsProblems, style
 import { variableOps } from "./variables.js";
 import { componentOps } from "./components.js";
 import { tokenOps } from "./tokens.js";
+import { interactionOps } from "./interactions.js";
 import { createResolver } from "./resolve.js";
 import * as S from "./schema.js";
 
@@ -1008,7 +1013,7 @@ const HANDLERS = {
 };
 
 const KIT = { OpError, runOp: (d, op) => runOp(d, op), patch, clone, createResolver };
-Object.assign(HANDLERS, componentOps(KIT), variableOps(KIT), tokenOps(KIT));
+Object.assign(HANDLERS, componentOps(KIT), variableOps(KIT), tokenOps(KIT), interactionOps(KIT));
 
 /** Names of every operation. */
 export const OPS = Object.freeze(Object.keys(HANDLERS));

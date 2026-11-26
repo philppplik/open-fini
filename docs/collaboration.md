@@ -73,6 +73,7 @@ were added to the existing `ANCHOR` (all optional, old clients and files stay va
 | Code editor | `line` | `path`, `line`, `col`, optional `endLine`, `endCol` (a range), `quote` | line/column to document offsets at draw time; a caret comment underlines the whole line. Lines are not tracked through edits: if the text moves above, the comment stays on its line number and the quote shows what it was about |
 | Office editor | `text` | `path` (paragraph path as JSON), `from`, `to`, `quote` | same as before: offsets in the block at `path` |
 | Website element | `element` | `elem` (the website designer's element id), `quote` | listed in Comments; *Show where* selects the element. Pins are not drawn over the preview (the sandboxed frame is not touched) |
+| Proto Studio (Labs): the Comment tool (C), *Add comment* with a selection | `proto` | `page`, `pin` (clicked point in world coordinates), `node` and `off` when the point is on a layer (the deepest layer under it), `quote` | as `node`: the pin follows the layer through moves and resizes; when the layer is deleted the comment stays at `pin` on its page. Pins are drawn over the design canvas by `app/src/proto/comments.js` and can be dragged to another layer |
 
 Limits: there is no operational transform for anchors, so heavy concurrent editing can move a code or Office comment off
 its text (the quote is kept for display); drag a pin or re-comment to fix it. Pins over the website preview are not drawn.

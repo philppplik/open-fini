@@ -99,6 +99,11 @@ export class CommentsHost {
         return { kind: "line", path: String(ed.active).slice(0, 512), line: line.number, quote: cleanText(line.text.trim(), 200) };
       }
     }
+    // Proto Studio: the selected layer (pin at its top right corner) or the page (proto/comments.js)
+    if (app.studio === "proto" && typeof app.protoUI?.commentAnchor === "function" && app.protoUI.doc === app.doc) {
+      const a = app.protoUI.commentAnchor();
+      if (a?.kind) return a;
+    }
     // Office Suite apps: the mounted instance names its selection (docs/office-suite.md ▸ Comments)
     if (app.studio === "office" && typeof app.officeUI?.commentAnchor === "function") {
       const a = app.officeUI.commentAnchor();
@@ -194,7 +199,16 @@ export class CommentsHost {
     const app = this.app;
     const a = th.anchor;
     if (app.doc !== doc) app.activateDoc(doc);
-    if (["node", "region", "page"].includes(a.kind)) {
+    if (a.kind === "proto") {
+      if (app.studio !== "proto") app.setStudio("proto");
+      // the workspace mounts with the studio: reveal once it is there
+      const show = (tries = 0) => {
+        const ws = app.protoUI;
+        if (ws?.doc === doc) return void ws.revealComment?.(a);
+        if (tries < 20) setTimeout(() => show(tries + 1), 50);
+      };
+      show();
+    } else if (["node", "region", "page"].includes(a.kind)) {
       if (!["vector", "pixel", "layout"].includes(app.studio)) app.setStudio(["vector", "pixel", "layout"].includes(doc.studio) ? doc.studio : "vector");
       const page = doc.pages.find((p) => p.id === a.page) || doc.masters.find((p) => p.id === a.page);
       if (page) app.setActivePage(page);

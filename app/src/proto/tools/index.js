@@ -11,7 +11,9 @@ import { createMoveTool } from "./select.js";
 import { createShapeTool, createLineTool, createZoomTool } from "./draw.js";
 import { createPenTool } from "./pen.js";
 import { createTextTool } from "./text.js";
+import { createConnectTool } from "./connect.js";
 import { FRAME_PRESETS } from "./presets.js";
+import { createCommentTool } from "../comments.js";
 
 /** Tools in toolbar order: id, icon, label, shortcut. */
 export const TOOLS = Object.freeze([
@@ -24,6 +26,7 @@ export const TOOLS = Object.freeze([
   { id: "text", icon: "fonts", label: N_("Text"), key: "T" },
   { id: "hand", icon: "hand-index", label: N_("Hand"), key: "H" },
   { id: "zoom", icon: "zoom-in", label: N_("Zoom"), key: "Z" },
+  { id: "comment", icon: "chat-quote", label: N_("Comment"), key: "C" },
 ]);
 
 export function createTools(ws) {
@@ -37,7 +40,10 @@ export function createTools(ws) {
     text: createTextTool(ws),
     hand: { id: "hand", cursor: "grab", down: () => false },
     zoom: createZoomTool(ws),
+    comment: createCommentTool(ws),
   };
+  // Prototype mode (T9): the Move tool with the connection handle (no toolbar button; the mode selects it)
+  tools.connect = createConnectTool(ws, tools.move);
   let current = tools.move;
   let switching = false;
 
@@ -69,6 +75,8 @@ export function createTools(ws) {
     get: (id) => tools[id] || null,
     /** Makes `id` the current tool (the Move tool for unknown ids). */
     set(id) {
+      if (id === "move" && ws.mode === "prototype") id = "connect";
+      if (id === "connect" && ws.mode !== "prototype") id = "move";
       const next = tools[id] || tools.move;
       if (next === current || switching) return;
       switching = true;
@@ -80,8 +88,9 @@ export function createTools(ws) {
       }
       current = next;
       for (const [k, b] of buttons) {
-        b.setAttribute("aria-pressed", String(k === next.id));
-        b.classList.toggle("active", k === next.id);
+        const on = k === next.id || (k === "move" && next.id === "connect");
+        b.setAttribute("aria-pressed", String(on));
+        b.classList.toggle("active", on);
       }
       ws.setTool(next);
       ws.setHover(null);
