@@ -1,4 +1,4 @@
-/* Studio bar (max five studios + More), custom title bar and window controls. */
+/* Studio bar (picked studios + More), custom title bar and window controls. */
 
 /* ------------------------------------------------------------------ More menu */
 .of-studios sl-dropdown { display: inline-flex; }
@@ -13,7 +13,6 @@ sl-dropdown[open] > .of-studio--more:not(.active) { color: var(--of-text); backg
 .fit-icons .of-studios .of-studio { padding: 0 9px; }
 .is-fit-hidden, .of-overflow[hidden] { display: none !important; }
 .of-studios:not(.is-collapsed) .of-studios__more[data-empty="1"] { display: none; }
-.of-studios.is-collapsed .of-studio:not(.active):not(.of-studio--more) { display: none; }
 .of-studios.is-collapsed .of-studio--more:not(.active) span, .of-studios.is-collapsed .of-studio--more:not(.active) .of-studio__caret { display: none; }
 .of-overflow { display: inline-flex; }
 
@@ -90,3 +89,4 @@ sl-dropdown[open] > .of-studio--more:not(.active) { color: var(--of-text); backg
 .of-studiopick__sub { margin: 14px 0 6px; font-size: var(--of-fs-xs); color: var(--of-text-faint); }
 .of-studiopick__msg { min-height: 1.4em; margin: 0 0 8px; font-size: var(--of-fs-md); }
 .of-studiopick__msg.is-warning { color: var(--of-warning, #e0a030); }
+.of-studiopick__actions { display: flex; flex-wrap: wrap; gap: 8px; }

@@ -1,7 +1,7 @@
 // Responsive shell header (lazy, loaded right after the first frame). A ResizeObserver measures the real header: when it
 // overflows, things are shed in a fixed order (core/header-plan.js) so the window controls never leave the screen:
 //   1 brand name "OpenFini" -> "oFini"   2 studio names -> icons   3 header actions (into the "…" menu)
-//   4 studio tabs -> active studio + "…"  5 menubar menus (into the "…" menu)   6 brand text -> logo only
+//   4 studio tabs -> one by one into "More", rightmost first, the active studio stays  5 menubar menus (into the "…" menu)   6 brand text -> logo only
 import { h } from "../core/util.js";
 import { t } from "../i18n/index.js";
 import { fitSteps } from "../core/header-plan.js";
@@ -41,7 +41,9 @@ export function installHeaderFit(app, header, { studioBar }) {
     // header actions: the panels toggle stays; the rightmost go first
     const acts = [...actions.children].filter((b) => b.dataset.cmd && !b.hidden).reverse();
     for (const b of acts) list.push({ set: (on) => hid(b, on) });
-    list.push({ set: (on) => studioBar.setCollapsed(on) });
+    // one step per studio that may leave the header, so a long custom list sheds only as many as needed
+    for (let i = 1; i <= studioBar.maxShed(); i++) list.push({ set: (on) => studioBar.setShed(on ? i : Math.min(studioBar.shedCount(), i - 1)) });
+
     const menus = [...menubar.children].filter((m) => !m.classList.contains("hidden")).reverse();
     for (const m of menus) list.push({ set: (on) => hid(m, on) });
     list.push({ set: (on) => header.classList.toggle("fit-logo", on) });
