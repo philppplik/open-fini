@@ -1,6 +1,6 @@
 // The Pages panel of the Proto Studio (docs/concepts/proto-studio.md §5.3): the pages of the design (click to show,
 // double-click or F2 to rename, Alt+Up/Down to reorder, Delete to delete; the last page stays) and the prototype
-// flows of the current page (a click selects and shows the flow's start frame). A listbox with a roving tabindex.
+// flows of the current page (play, a click shows the start frame, double-click renames, add and delete). A listbox with a roving tabindex.
 // Every change is one operation (one undo step).
 //
 //   createPagesPanel(ws) → { el, render(force?) }
@@ -16,6 +16,7 @@ export function createPagesPanel(ws) {
   const el = h("div.of-proto-pages", h("div.of-proto-pages__bar", h("span", t("Pages")), add), list, flows);
   let key = null;
   let renaming = null;
+  let renamingFlow = null;
 
   const model = () => ws.model();
 
@@ -29,7 +30,7 @@ export function createPagesPanel(ws) {
 
   function render(force = false) {
     const m = model();
-    const k = [ws.page, m.pages, m.nodes, renaming];
+    const k = [ws.page, m.pages, m.nodes, renaming, renamingFlow, ws.readOnly];
     if (!force && key && k.every((v, i) => v === key[i])) return;
     key = k;
     add.disabled = ws.readOnly;
@@ -46,25 +47,71 @@ export function createPagesPanel(ws) {
       }),
     );
     if (hadFocus && !renaming) list.querySelector(".is-current")?.focus({ preventScroll: true });
-    // flows of the current page (prototype starting points, T9 adds editing them)
+    // flows of the current page: prototype starting points (play, show the start frame, rename, delete, add)
     const fl = Array.isArray(m.pages[ws.page]?.flows) ? m.pages[ws.page].flows : [];
+    const addFlow = h("button.of-proto-pages__addflow", { type: "button", "aria-label": t("Add flow"), "data-tip": t("Add flow"), disabled: ws.readOnly }, h("sl-icon", { name: "plus-lg" }));
+    addFlow.addEventListener("click", () => createFlow());
     flows.replaceChildren(
-      ...(fl.length
-        ? [
-            h("div.of-proto-pages__sub", t("Flows")),
-            ...fl.map((f) => {
-              const b = h("button.of-proto-pages__flow", { type: "button" }, h("sl-icon", { name: "play-circle" }), f.name || t("Flow"));
-              b.addEventListener("click", () => {
-                if (m.nodes[f.start]) {
-                  ws.select([f.start]);
-                  ws.zoomToSelection();
-                }
-              });
-              return b;
-            }),
-          ]
-        : []),
+      h("div.of-proto-pages__sub", h("span", t("Flows")), addFlow),
+      ...fl.map((f) => {
+        const play = h("button.of-proto-pages__play", { type: "button", "aria-label": t("Play {name}", { name: f.name || t("Flow") }), "data-tip": t("Play this flow") }, h("sl-icon", { name: "play-circle" }));
+        play.addEventListener("click", () => ws.play?.({ flow: f.id }));
+        const name = renamingFlow === f.id ? flowRename(f) : h("button.of-proto-pages__flow", { type: "button", title: m.nodes[f.start]?.name || "" }, h("sl-icon", { name: "signpost-split" }), f.name || t("Flow"));
+        if (renamingFlow !== f.id) {
+          name.addEventListener("click", () => {
+            if (m.nodes[f.start]) {
+              ws.select([f.start]);
+              ws.zoomToSelection();
+            }
+          });
+          name.addEventListener("dblclick", () => {
+            if (ws.readOnly) return;
+            renamingFlow = f.id;
+            render(true);
+          });
+        }
+        const del = h("button.of-proto-pages__del", { type: "button", "aria-label": t("Delete flow"), "data-tip": t("Delete flow"), disabled: ws.readOnly }, h("sl-icon", { name: "trash" }));
+        del.addEventListener("click", () => ws.apply({ op: "flow.delete", page: ws.page, id: f.id }, t("Delete flow")));
+        return h("div.of-proto-pages__flowrow", play, name, del);
+      }),
+      ...(fl.length ? [] : [h("p.of-proto-pages__hint", t("No flows yet. A flow starts the prototype at a frame."))]),
     );
+  }
+
+  /** Adds a flow that starts at the selected layer's frame, else at the first frame of the page. */
+  function createFlow() {
+    if (ws.readOnly) return;
+    const m = model();
+    let start = ws.selection[0] ? m.nodes[ws.selection[0]] : null;
+    while (start && start.parent != null) start = m.nodes[start.parent];
+    if (!start) start = Object.values(m.nodes).filter((n) => n.page === ws.page && n.parent == null && n.type === "frame").sort((a, b) => (a.y ?? 0) - (b.y ?? 0) || (a.x ?? 0) - (b.x ?? 0))[0];
+    if (!start) return ws.app?.toast?.(t("Add a frame first: a flow starts at a frame."), "warning", 3000);
+    const n = (m.pages[ws.page]?.flows || []).length + 1;
+    ws.apply({ op: "flow.create", start: start.id, page: ws.page, name: t("Flow {n}", { n }) }, t("Add flow"));
+  }
+
+  function flowRename(f) {
+    const input = h("input.of-proto-pages__rename", { type: "text", value: f.name || "", "aria-label": t("Flow name"), spellcheck: false });
+    let done = false;
+    const finish = (commit) => {
+      if (done) return;
+      done = true;
+      renamingFlow = null;
+      const v = input.value.trim();
+      if (commit && v && v !== f.name) ws.apply({ op: "flow.update", page: ws.page, id: f.id, set: { name: v } }, t("Rename flow"));
+      render(true);
+    };
+    input.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Enter") finish(true);
+      else if (e.key === "Escape") finish(false);
+    });
+    input.addEventListener("blur", () => finish(true));
+    queueMicrotask(() => {
+      input.focus();
+      input.select();
+    });
+    return input;
   }
 
   function renameInput(p) {
@@ -139,5 +186,5 @@ export function createPagesPanel(ws) {
     }
   });
 
-  return { el, render, addPage };
+  return { el, render, addPage, addFlow: createFlow };
 }

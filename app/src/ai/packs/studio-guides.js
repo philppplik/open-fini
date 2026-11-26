@@ -225,12 +225,12 @@ board_describe: every connector has from/to, nothing overlaps, every item has te
 ## Verify
 scene_describe after each batch (duration, clips, no gaps you did not intend); scene_render_frame at the moments that matter (several times give one contact sheet): titles, transitions, captions, framing after a reframe. scene_export only when the user asks; it needs approval.`,
 
-  `${fm("proto", "How to work in the Proto Studio: the design model, auto layout specs, components, variables, lint and checking frames.", "proto_describe, proto_get_node, proto_search, proto_screenshot, proto_new, proto_create, proto_update, proto_move, proto_delete, proto_duplicate, proto_component, proto_variables, proto_styles, proto_tokens, proto_to_code, proto_lint, proto_fix, proto_responsive, proto_content, proto_rename, proto_from_screenshot", "proto, ui design, app screen, prototype, wireframe, mockup, component, design system, tokens, screen from screenshot")}
+  `${fm("proto", "How to work in the Proto Studio: the design model, auto layout specs, components, variables, lint and checking frames.", "proto_describe, proto_get_node, proto_search, proto_screenshot, proto_new, proto_create, proto_update, proto_move, proto_delete, proto_duplicate, proto_component, proto_variables, proto_styles, proto_tokens, proto_to_code, proto_lint, proto_fix, proto_responsive, proto_content, proto_rename, proto_from_screenshot, proto_interaction", "proto, ui design, app screen, prototype, wireframe, mockup, component, design system, tokens, screen from screenshot")}
 # Proto Studio guide
 
 ## Start
 1. proto_describe: pages, one line per layer (id, type, name, w×h as px/hug/fill, flex or grid with gap and pad, fills, text), components, variables with their modes, styles. proto_new if no design is open (Labs switch Settings > Labs > Proto Studio).
-2. Load the proto skill that fits: proto-screen-from-brief, proto-screen-from-screenshot, proto-component-variants, proto-tokens-dark-mode, proto-handoff, proto-design-audit.
+2. Load the proto skill that fits: proto-screen-from-brief, proto-screen-from-screenshot, proto-component-variants, proto-tokens-dark-mode, proto-handoff, proto-design-audit, proto-prototype-flow.
 
 ## Model
 - The canvas is real HTML and CSS: frames are boxes with auto layout (flex rows and columns, grids), sizes fixed px, hug (fit content) or fill (share the free space). Children of a flex or grid frame flow; x, y only matter for absolute layers and top-level frames.
@@ -242,6 +242,7 @@ scene_describe after each batch (duration, clips, no gaps you did not intend); s
 - Change: proto_update (shorthands and dotted paths, bind to variables), proto_move (reorder, reparent, wrap in auto layout), proto_duplicate, proto_delete.
 - System: proto_variables (collection with modes, then create items), proto_styles, proto_component, proto_tokens for DTCG import and export.
 - Polish: proto_content for realistic text, proto_rename for semantic names and tags.
+- Prototype: proto_interaction (connect a layer to a frame with a transition, overlays, variant states, variables, flows); the user plays it with Prototype > Preview.
 - Code: proto_to_code (html, react, react-tailwind, tailwind, swiftui) for the selection or a page; components become components with props.
 
 ## Pitfalls

@@ -237,3 +237,35 @@ test("the screenshot display list follows the solver; media.put is exactly undoa
   assert.deepEqual(apply(r.model, r.inverse).model.media, m0.media);
   assert.throws(() => apply(m0, { op: "media.put", media: { mime: "text/html", bytes } }), /not supported/);
 });
+
+test("proto_interaction connects screens by name, edits interactions and flows, one step each", async () => {
+  const { doc, run, model } = protoApp({ starter: "blank" });
+  await run("proto_variables", { action: "collection", name: "State", modes: ["Default"] });
+  await run("proto_variables", { action: "create", coll: "State", items: [{ name: "liked", type: "bool", value: false }] });
+  await run("proto_create", { nodes: [{ type: "frame", name: "Home", w: 390, h: 844, layout: "column", children: [{ type: "row", name: "Go", w: "fill", h: 48 }] }, { type: "frame", name: "Details", w: 390, h: 844, x: 500 }] });
+  const n0 = steps(doc);
+  const r = await run("proto_interaction", { action: "connect", from: "Go", to: "Details", transition: { type: "smart", dur: 300 } });
+  assert.equal(r.changed, true);
+  assert.equal(steps(doc) - n0, 1);
+  assert.match(doc.history.entries.at(-1).label, /^Vibe: Prototype: connect$/);
+  const m = model();
+  const go = Object.values(m.nodes).find((n) => n.name === "Go");
+  const details = Object.values(m.nodes).find((n) => n.name === "Details");
+  assert.deepEqual(go.proto[0].do[0], { act: "navigate", to: details.id, tr: { type: "smart", dur: 300 } });
+  await run("proto_interaction", { action: "add", id: "Details", interaction: { on: { type: "key", key: "Escape" }, do: [{ act: "back" }, { act: "set", var: "liked", value: { op: "not", args: [{ var: "liked" }] } }] } });
+  const liked = Object.keys(model().vars.items)[0];
+  assert.deepEqual(model().nodes[details.id].proto[0].do[1].value, { op: "not", args: [{ var: liked }] }, "variable names become ids");
+  await run("proto_interaction", { action: "addFlow", start: "Home", name: "Main" });
+  const list = await run("proto_interaction", { action: "list" });
+  assert.equal(list.flows[0].name, "Main");
+  assert.equal(list.flows[0].screens.length, 2);
+  assert.ok(list.layers.some((l) => l.interactions.some((i) => /navigate to Details \(smart animate, 300 ms\)/.test(i.text))));
+  await run("proto_interaction", { action: "updateFlow", flow: "Main", name: "Primary" });
+  await run("proto_interaction", { action: "delete", id: "Details", index: 0 });
+  assert.equal(model().nodes[details.id].proto, undefined);
+  await assert.rejects(run("proto_interaction", { action: "connect", from: "Go", to: "Nowhere" }), /no top-level frame “Nowhere”/);
+  await assert.rejects(run("proto_interaction", { action: "add", id: "Go", interaction: { on: { type: "tap" }, do: [] } }), /not valid/);
+  await run("proto_interaction", { action: "deleteFlow", flow: "Primary" });
+  assert.deepEqual(model().pages[Object.keys(model().pages)[0]].flows, []);
+  assert.deepEqual(validate(model()).errors, []);
+});

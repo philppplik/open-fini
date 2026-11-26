@@ -25,19 +25,20 @@ export const PROTO_STUDIO = {
   newDocument: (app) => host().then((m) => m.newProto(app, { starter: "desktop" })),
   newBlank: (app) => host().then((m) => m.newProto(app, { starter: "blank" })),
   tools: [],
-  // Pages and Layers (left) and the Design and Code panels (right, tabs; ids proto-inspector, proto-code) dock around
-  // the canvas
-  top: ["proto-pages", "proto-layers"],
-  bottom: ["proto-inspector", "proto-code"],
-  essentials: { left: [["proto-pages"], ["proto-layers"]], right: [["proto-inspector", "proto-code"]], sizes: { left: 240, right: 280 } },
+  // Pages, Layers and Assets (left), the Design and Code panels (right, ids proto-inspector and proto-code) and the
+  // Variables table (bottom)
+  top: ["proto-pages", "proto-layers", "proto-assets"],
+  bottom: ["proto-inspector", "proto-code", "proto-variables"],
+  essentials: { left: [["proto-pages"], ["proto-layers", "proto-assets"]], right: [["proto-inspector", "proto-code", "comments"]], bottom: [["proto-variables"]], sizes: { left: 240, right: 280, bottom: 220 } },
 };
 
 /** Menus of the Proto Studio (merged into ui/menus.js MENUS). The commands register when the first design mounts. */
 export const PROTO_MENUS = [
   { label: "Edit", studios: ["proto"], items: ["edit.undo", "edit.redo", "-", "proto.cut", "proto.copy", "proto.paste", "proto.duplicate", "proto.delete", "-", "proto.selectAll", "proto.deselect", "proto.selectParent", "proto.selectChildren", "-", "proto.rename", "proto.editText", "-", "edit.preferences"] },
   { label: "Insert", studios: ["proto"], items: ["proto.addFrame", "proto.addLaptopFrame", "proto.addTabletFrame", "proto.addPhoneFrame", "proto.addWatchFrame", "-", "proto.tool.frame", "proto.tool.rect", "proto.tool.ellipse", "proto.tool.line", "proto.tool.pen", "proto.tool.text", "-", "proto.addPage"] },
-  { label: "Object", studios: ["proto"], items: ["proto.autoLayout", "proto.gridLayout", "proto.removeAutoLayout", "-", "proto.group", "proto.ungroup", "-", "proto.bringToFront", "proto.bringForward", "proto.sendBackward", "proto.sendToBack", "-", "proto.toggleVisible", "proto.toggleLock"] },
-  { label: "View", studios: ["proto"], items: ["proto.zoomIn", "proto.zoomOut", "proto.zoom100", "proto.zoomFit", "proto.zoomSelection", "-", "proto.tool.move", "proto.tool.hand", "proto.tool.zoom", "-", "view.theme"] },
+  { label: "Object", studios: ["proto"], items: ["proto.autoLayout", "proto.gridLayout", "proto.removeAutoLayout", "-", "proto.group", "proto.ungroup", "-", "proto.createComponent", "proto.combineVariants", "proto.goToMain", "proto.resetInstance", "proto.detachInstance", "-", "proto.bringToFront", "proto.bringForward", "proto.sendBackward", "proto.sendToBack", "-", "proto.toggleVisible", "proto.toggleLock"] },
+  { label: "Prototype", studios: ["proto"], items: ["proto.play", "proto.playWindow", "-", "proto.modeDesign", "proto.modePrototype", "-", "proto.addFlow"] },
+  { label: "View", studios: ["proto"], items: ["proto.zoomIn", "proto.zoomOut", "proto.zoom100", "proto.zoomFit", "proto.zoomSelection", "-", "proto.tool.move", "proto.tool.hand", "proto.tool.zoom", "proto.tool.comment", "-", "view.theme"] },
 ];
 
 /**

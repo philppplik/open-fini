@@ -157,7 +157,7 @@ const RECT = V.obj({ x: V.num(-1e7, 1e7), y: V.num(-1e7, 1e7), w: V.num(0, 1e7),
 /** Where a comment thread is anchored. See collab/comments.js. */
 export const ANCHOR = V.obj(
   {
-    kind: V.oneOf("doc", "page", "node", "region", "text", "line", "element", "item"),
+    kind: V.oneOf("doc", "page", "node", "region", "text", "line", "element", "item", "proto"),
     item: V.str(256), // Office Suite record key (item): "cell:s1!B3", "obj:slide2/o7", "item:n42" (collab/anchors.js ▸ officeItemAnchor)
     page: V.id(), // page id (page, node, region)
     node: V.id(), // layer id (node)

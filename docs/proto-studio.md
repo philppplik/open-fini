@@ -6,8 +6,9 @@ Design application interfaces and prototypes on a canvas that is real HTML and C
 
 > **Preview.** Proto is being built in steps during the 1.3.x releases. Until the preview ends it is reachable only
 > with **Settings ▸ Labs ▸ Proto Studio**. What is there today: the canvas, the drawing tools, auto layout and grid,
-> the Pages, Layers and Design panels, undo, saving, editing together in a collaboration room and the assistant's
-> tools. Panels for components and variables, prototyping and code export follow.
+> the Pages, Layers, Assets, Design and Variables panels, components and instances, variables with modes and brands,
+> styles, design tokens, comments, undo, saving, editing together in a collaboration room and the assistant's tools.
+> Prototyping and code export follow.
 
 ## Turning it on
 
@@ -38,6 +39,7 @@ and View menus). After drawing a layer the Move tool comes back.
 | Text | T | Click for a text that grows with what you type, drag for a fixed width that wraps. Type, then Escape or click elsewhere |
 | Hand | H | Drag to pan (Space and the middle mouse button pan with every tool) |
 | Zoom | Z | Click to zoom in, Alt-click to zoom out, drag a rectangle to zoom to it |
+| Comment | C | Click a layer or the page to write a comment there ([Comments](#comments)) |
 
 A new layer goes into the frame under the pointer; in a frame with auto layout it lands in the flow at the pointer.
 
@@ -84,7 +86,8 @@ The panels dock like everywhere else ([workspaces](workspaces.md)).
 
 * **Pages** (left): the pages of the design. Click to show a page, double-click or F2 to rename, Alt+Up/Down to move,
   the trash button or Delete to delete (the last page stays), + to add. The prototype flows of the page are listed
-  below; a click shows the flow's first frame.
+  below: the play button plays a flow, a click shows its first frame, double-click renames, + adds a flow at the
+  selected frame (or the page's first frame).
 * **Layers** (left): the layers of the page, top of the list = in front. Click selects, Shift-click selects a range,
   Ctrl-click adds; double-click a name (or F2, Enter) to rename; the eye and lock buttons hide and lock; drag rows to
   reorder or to move layers into another frame (the middle of a frame's row drops inside); the search field filters by
@@ -99,11 +102,126 @@ The panels dock like everywhere else ([workspaces](workspaces.md)).
   center and outside strokes, drop and inner shadows, layer and background blur); *Text* (font, size, weight, line
   height, letter spacing, alignment, case, decoration, color, auto width / auto height / fixed size, maximum lines);
   *Accessibility and code* (HTML element, role, accessible name); *Export* (a code format, *Export code…* saves a ZIP
-  of the selection or the page, *Show code* opens the Code panel). Drag a field's label to scrub a value. With nothing
-  selected the panel shows the page's name and background.
+  of the selection or the page, *Show code* opens the Code panel). Drag a field's
+  label to scrub a value. With nothing selected the panel shows the page's name and background. Components, instances,
+  variable bindings, styles and modes add their sections ([below](#components-and-instances)). The *Prototype* tab
+  next to *Design* switches to Prototype mode ([Prototypes](#prototypes)).
+* **Assets** (left, a tab next to Layers): the components and component sets of the design with previews, and the
+  styles; search by name. Drag a component onto the canvas to insert an instance.
+* **Variables** (bottom): the variables of a collection as a table ([below](#variables-modes-and-styles)).
 * **Code** (right, a tab next to Design; dockable anywhere): the code of the selection, or of the page when nothing is
   selected, in the chosen format, updated as you edit. Pick a file of the export, copy it, or download every file as a
   ZIP. Notes below the code list what the format cannot express.
+
+## Components and instances
+
+A **component** is a reusable layer: every **instance** of it shows the component and follows its changes.
+
+* **Create** one from the selection with the grid button next to the layer name in the Design panel, *Object ▸ Create
+  Component* (Ctrl+Alt+K) or *Create component* in the Assets panel. A frame becomes the component; other selections are
+  wrapped in one.
+* **Variants**: select several components and choose *Combine as variants*. Names such as `size=md, state=hover` become
+  variant properties (size and state); other names become one property *variant*. The Design panel of a component set
+  lists its variants (click to select one) and *Add variant* copies the selected one.
+* **Properties** (Design panel of a component or set, the + button): text, boolean, number, instance swap, slot and,
+  for sets, variant properties. Rename them in place, set defaults (variant options are written `sm, md, lg`), and
+  delete them. To connect a property, select the layer inside the component: the *Component property* section binds its
+  text content, its visibility, a nested instance (swap) or a slot.
+* **Insert** an instance by dragging a component from the **Assets** panel onto the canvas (it lands in the frame under
+  the pointer, in its auto layout at the pointer), by double-clicking it or pressing Enter on it (into the selected
+  frame, or the middle of the view). Right-click an asset to go to the main component or to swap the selected instances.
+* **Instances** have an *Instance* section in the Design panel: the main component with *Go to main component*, *Swap*,
+  a picker per variant property, a field per property, how many overrides and property values the instance has (and
+  how many no longer apply because the main component changed), *Reset overrides*, *Reset all* (also the property
+  values) and *Detach* (Ctrl+Alt+B; the instance becomes ordinary layers). The same commands are in the Object and
+  context menus.
+
+## Variables, modes and styles
+
+**Variables** are named colors, numbers, texts and booleans grouped in **collections** with **modes** (Light and Dark,
+Compact and Comfortable). Open the **Variables** panel (bottom; *Window ▸ Variables*):
+
+* The collection menu at the top switches collections; + creates one (with Light and Dark modes); the … menu creates a
+  **brand** (a collection that extends the current one and overrides some of its values), renames, adds modes and
+  deletes. Mode names are edited in the column headers; their menu makes a mode the default or deletes it.
+* The table has a row per variable and a column per mode. Type values in the cells (colors also with the swatch);
+  the hexagon button of a cell makes it an **alias** of another variable (shown as a chip; *Detach alias* writes the
+  value back). In a brand, values you change override the base for that brand only (marked with a bar; *Reset to the
+  base value* removes the override); unchanged values are shown in italics.
+* The row menu sets **scopes** (where a variable can be used: fills, strokes, text color, gap, padding, corner radius…),
+  the **code name** (the CSS custom property of code export) and deletes the variable (layers keep its value).
+* **Design tokens**: the … menu imports a DTCG JSON file (W3C Design Tokens Community Group format, with modes and
+  aliases; a notice tells what was created, updated and skipped) and exports the variables and styles as DTCG JSON, CSS
+  custom properties, Tailwind CSS v4 `@theme` or Swift.
+
+**Binding.** Fields in the Design panel that can take a variable (opacity, corner radius, gap, padding, fill, stroke and
+shadow colors, stroke width, font, font size, weight, letter spacing, text color, visibility) have a small hexagon
+button. It opens a picker with the variables of the right type (those whose scopes exclude the field are disabled); a
+bound field shows the variable's name, and the scissors button detaches it (the field keeps the current value).
+
+**Modes per frame.** Frames, components and instances have a *Variable modes* section (the page has one too when
+nothing is selected): choose the mode of each collection (and the brand) for that frame and everything in it, or *Auto*
+to inherit it. Only the frames that use the variables repaint.
+
+**Styles** are named fills, text styles, effects and grids. The palette button in the Fill, Stroke, Effects, Text and
+grid sections applies a style, creates one from the selected layer, updates it from the selection, renames it or
+detaches it (the values stay on the layer). While a style is applied, the section shows the style instead of the local
+values. The Assets panel lists the styles: click one to apply it to the selection; right-click to rename, update or
+delete it.
+
+## Prototypes
+
+A prototype is the design made clickable: layers react to the pointer, keys and time, screens follow each other with
+animated transitions, and the result plays like the finished app.
+
+**Prototype mode.** Click *Prototype* at the top of the Design panel (or *Prototype ▸ Prototype Mode*, Shift+E
+switches). The canvas shows every connection as an arrow from a layer to the frame it opens (dashed for overlays and
+scrolling), *Back* and *Close* marks, and a ▶ badge above each flow's first frame. The selected layer gets a round
+handle at its right edge: **drag it onto a frame** to make a click there navigate to that frame (one undo step); drag
+an existing connection's handle onto empty canvas to remove it. Selecting, moving and resizing work as in Design mode.
+
+**Interactions** (the Prototype panel, for one selected layer). Each interaction has a trigger and a list of actions:
+
+| Triggers | Actions |
+| --- | --- |
+| On click, On double click, While pressing, While hovering, Mouse enter, Mouse leave, On drag, Key (with Shift, Alt, Ctrl, Cmd/Win), After delay, Variable changes | Navigate to, Back, Scroll to, Open overlay (position, dimmed background, close when clicking outside), Swap overlay, Close overlay, Change to variant, Set variable, Conditional (if, then, else), Open link |
+
+*While hovering* and *While pressing* last as long as the pointer: the variants, variables and overlays they changed
+come back when it leaves or is released. *Change to variant* switches the instance the layer belongs to (or a chosen
+instance); put the interaction on a variant of a component set (for example `state=default` → `state=hover`) and
+every instance reacts. *Set variable* takes a value (`true`, `3`, text) or an expression such as `{ "op": "not",
+"args": [{ "var": "v1" }] }`; *Toggle* flips a boolean. Layers bound to variables (visibility, text, colors) update
+as the prototype changes them. *Open link* opens http(s), mailto and tel links after the usual confirmation.
+
+**Transitions** (navigate, back, overlays, variants): Instant, Dissolve, Move in, Move out, Push, Slide (with a
+direction) and **Smart animate**, with an easing (linear, ease, ease in, ease out, ease in and out, or a spring that
+takes as long as it needs to settle) and a duration. Smart animate matches the layers of the two screens: the same
+layer, the only instances of one component, then layers with the same name path (give corresponding layers the same
+names), then the layers inside matched instances; they move, resize and change color, opacity and corner radius from
+the old screen to the new one. Layers only one screen has fade.
+
+**Scrolling** (Prototype panel). *Overflow scrolling* lets a frame scroll content that does not fit (vertical,
+horizontal or both); *When scrolling* makes a layer in auto layout stick to the top, bottom, left or right edge of its
+scrolling frame (a fixed header or tab bar).
+
+**Flows** are named starting points. Add one in the Pages panel, with *Add flow starting point* in the Prototype panel
+of a top-level frame, or *Prototype ▸ Add Flow Starting Point*.
+
+**Playing.** *Prototype ▸ Preview Prototype* (Ctrl+Alt+Enter, Cmd+Option+Return on a Mac) plays the selection's frame,
+else the page's first flow; *Preview in New Window* opens the player in a window of its own (a separate window on the
+desktop, a pop-up window in the browser), which keeps reading the design as you edit. The player has a flow picker,
+Back, Restart (R), the device frame (phone, tablet, watch or desktop by the frame's size) and hotspot hints: a click
+that hits nothing flashes the layers that react. Keys: R restarts, ← and → go to the previous and next flow, Backspace
+goes back, Esc closes the player in the app. Edits made while the player is open show from the next screen or after
+a restart.
+
+## Comments
+
+Comments on a design are the app's comments (saved in the file, shared with a room, listed in the Comments panel). Use
+the **Comment** tool (C) and click a layer or an empty spot, or *Studio ▸ Add Comment* for the selected layer. A
+numbered pin marks the place; it follows its layer when the layer moves or resizes, and stays where it was when the layer
+is deleted. Click a pin to read and answer the thread; drag it to another place (your own comments, or as the host).
+*Show where* in the Comments panel selects the layer and shows it.
 
 ## Code export
 
@@ -191,10 +309,12 @@ the canvas itself, so they can differ slightly from what you see (text widths, b
 Code: `app/src/studios/proto.js` (definition, menus, Labs switch), `app/src/proto/` (host, workspace, renderer) and
 the pure engine in `app/src/engine/proto/`. Live collaboration is the records adapter `app/src/proto/collab.js`
 (records, validation and tree repair in its header; tests in `tests/proto/collab.test.js`) and
-`app/src/proto/presence.js`. The assistant's tools are `app/src/vibe/tools/proto.js` (definitions) with
+`app/src/proto/presence.js`. The Assets, Variables and binding UI are `app/src/proto/panels/{assets,variables,binding}.js`
+on the pure view models of `app/src/proto/panels/model.js` (tests in `tests/proto/panels-model.test.js`); comment pins
+and the Comment tool are `app/src/proto/comments.js`. The assistant's tools are `app/src/vibe/tools/proto.js` (definitions) with
 `app/src/proto/ai-ops.js` (pure: outline, specs to operations, content, names, responsive check),
 `app/src/proto/ai-render.js` (display list and canvas painter), `app/src/proto/ai-runtime.js` (undo step, images) and
-`app/src/engine/proto/lint.js` (rules and fixes, shared with the MCP server and the CLI). Code export is
+`app/src/engine/proto/lint.js` (rules and fixes, shared with the MCP server and `ofini proto lint`). Code export is
 `app/src/engine/proto/codegen/` (`lower.js` builds the one intermediate representation, `html.js`, `react.js`,
 `tailwind.js` and `swiftui.js` print it, `index.js ▸ exportCode` is the entry point; golden files in
 `tests/proto/fixtures/codegen/`, `UPDATE_GOLDEN=1` rewrites them) with the panel `app/src/proto/panels/code.js`; skills in
@@ -202,4 +322,8 @@ the pure engine in `app/src/engine/proto/`. Live collaboration is the records ad
 performance are described in the concept
 ([§4](concepts/proto-studio.md#4-rendering)); `node scripts/proto-perf.mjs` measures the targets of §4.3 in a headless
 Chromium-based browser, and `tests/proto/perf/bench.html` runs the same benchmark by hand in any browser
-(`node scripts/serve.mjs --root .`, then open `/tests/proto/perf/bench.html`).
+(`node scripts/serve.mjs --root .`, then open `/tests/proto/perf/bench.html`). Prototypes: the model, operations and
+smart animate matching are `app/src/engine/proto/interactions.js` with the expression language `expr.js`; the player is
+`app/src/proto/player/` (`state.js` the pure state machine, `render.js` one screen, `animate.js` transitions with the
+Web Animations API, `player.js` the UI); the Prototype panel `app/src/proto/panels/prototype.js`, the connections
+`app/src/proto/tools/connect.js`; tests in `tests/proto/{interactions,expr,player-state}.test.js`.

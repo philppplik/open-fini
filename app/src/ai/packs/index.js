@@ -39,6 +39,7 @@ export const PACK_SKILLS = [
   ["proto-tokens-dark-mode", P, "Set up design tokens (variables and styles) with light and dark modes in the Proto Studio, bind the design to them and export them."],
   ["proto-handoff", P, "Prepare a Proto design for developer handoff: names, tags, tokens, components and a clean lint report."],
   ["proto-design-audit", P, "Audit a Proto design system: contrast, touch targets, token use, detached copies, unused tokens and naming, with a prioritized fix list."],
+  ["proto-prototype-flow", P, "Prototype a flow in the Proto Studio: connect screens with clicks and transitions, overlays, interactive component states and variables, and a flow starting point to play."],
 ].map(([name, pack, description]) => ({ name, pack, description }));
 
 export const GUIDE_FOR_STUDIO = { vector: "studio-guide-vector", pixel: "studio-guide-pixel", layout: "studio-guide-layout", code: "studio-guide-code", document: "studio-guide-document", office: "studio-guide-document", sheet: "studio-guide-sheet", slides: "studio-guide-slides", board: "studio-guide-board", scene: "studio-guide-scene", proto: "studio-guide-proto", vibe: "studio-guide-vibe" };
