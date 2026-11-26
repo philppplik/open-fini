@@ -962,10 +962,10 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
     a text layer named after its content keeps following it. Editing uses `contenteditable="plaintext-only"` (falls back
     to `true` with plain-text paste) and keeps run styles outside the edited range (`math.js ▸ editRuns`).
   * Undo and redo shortcuts now reach the Proto Studio (`ui/shortcuts.js` treats it like the Office Suite).
-  * Not in this task: the Scale tool (K), the Image tool (needs the media upload of T8), the Comment tool (T10) and
+  * Not in this task: the Scale tool (K), the Image tool (added by T8), the Comment tool (T10) and
     Alt-toggling hug, fill and fixed while resizing; alignment of auto layout children is the 3 × 3 matrix in the
     Design panel (padding and gap have canvas handles); equal-spacing snapping; copy and paste stay inside OpenFini
-    (no system clipboard format yet); multi-selection fields show the first layer's value.
+    (T8 added the system clipboard); multi-selection fields show the first layer's value.
 
 **T5 · Components, variables, styles and DTCG tokens (engine)** — L — deps: T2
 * Scope: component and component set ops, property definitions and bindings, instance resolution with overrides by
@@ -1144,6 +1144,63 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
   `tests/proto/import/*.test.js` with synthetic fixtures built from public format descriptions only.
 * Acceptance: export → import → export is stable for the HTML fixtures; sanitizer tests (scripts, event handlers,
   `javascript:` URLs); every importer reports what it skipped.
+* As built (deviations and decisions the later tasks build on):
+  * Modules: `engine/proto/import/` (pure, plain Node): `common.js` (limits, `safeUnzip` with declared-size and ratio
+    checks before inflating, the builder that pre-assigns ids against the target model and deduplicates media,
+    colors, image sniffing and sizes), `sanitize.js`, `html.js` (`importHtml`, `mapProbe`, `tracks`),
+    `html-static.js` (`staticProbe`: user agent defaults, a cascade with specificity, `!important`, inheritance,
+    `@media` widths, `var()` and shorthand expansion; unsupported selectors skip their rule and are counted),
+    `svg.js`, `sketch.js`, `penpot.js` and `index.js` (`detectFormat`, `importInto`, `importImage`, `applyImport`,
+    `designFromImport`). The app side is `proto/paste.js`, `proto/html-probe.js` and `proto/tools/image.js`; the
+    import report is `core/import-report.js` (existing), attached to the document, so *File ▸ Import Report…* shows it.
+  * Every importer returns engine operations (`media.put`, `page.create`, `collection.create` / `var.create`,
+    `node.create` with nested children and pre-assigned ids), so an import is one validated undo step everywhere.
+    Components are created before their instances; `node.create` starts from the type's defaults, so the importers
+    set every field they mean (fills, clip) explicitly.
+  * HTML: the app renders the sanitized page in a hidden `sandbox="allow-scripts"` frame (opaque origin) with its own
+    CSP (only the probe's `data:` script, `data:` images and fonts, no network) instead of the Code studio's preview
+    pane, which is bound to a Code project; the probe waits until the frame has its viewport (a sandboxed frame runs
+    in its own process and gets its size after `load`). The probe reports computed styles, boxes and the *declared*
+    width, height, flex basis and grid templates (from the matching rules), because computed values are always pixels.
+    Sizing rules: `flex-grow` or 100 % → fill, auto in a stretching cross axis → fill, `fit-content` and auto → hug,
+    lengths → fixed (border-box). Blocks become column auto layouts (gap = the most common space between children,
+    first and last margins and equal side margins become padding; uneven spacing is reported), inline-only blocks
+    wrapping rows; a text-only element with decoration becomes a frame around a text layer; a fragment with one
+    element (pasted HTML) becomes that element, a page becomes a frame named after its `<title>`. `data-proto-id`
+    keeps ids. Custom properties of `:root` become the collection *CSS variables*; colors equal to exactly one of them
+    are bound. Repeated sibling structures (three or more) are reported as component candidates, not converted.
+  * Round trip: `tests/proto/import/_export.js` prints `css.js` declarations as style attributes (what T7's HTML
+    export and the live link write); export → import → export is byte-identical for the fixtures, also on a second
+    pass.
+  * SVG is a new pure importer (`office/xml.js` parser, `vector/path.js` for path math), not `vector/svg-import.js`,
+    which needs the DOM and canvas; groups become frames without layout, axis-aligned rectangles and ellipses stay
+    shapes, everything else becomes vectors with all transforms applied.
+  * Sketch: `engine/formats/sketch.js ▸ readSketch(input, { symbols: true })` adds object ids, symbol masters with
+    `symbolID`, instances with override values, image fills, shadows, blurs, text runs, stacks
+    (`MSImmutableFlexGroupLayout`: direction, justify, align, gap, wrap, padding, children's fixed / fit / fill
+    sizing) and Smart Layout (direction, gap from positions); without the option the Vector importer's result is
+    unchanged. Overrides `_stringValue`, `_symbolID` (empty hides), `_image` and `_isVisible` map to `over` by the
+    path of Proto ids; shared style and color overrides are reported.
+  * Penpot: the export format version 3 (Penpot 2.x) as described in Penpot's technical guide; shapes in page
+    coordinates are made relative; `layoutItemHSizing` / `VSizing` map to fill, hug and fixed; copies of components
+    become instances whose overrides are the differences of their `shapeRef` children (text, fills, visibility).
+    Tokens are reported (import them with DTCG); the binary v1 format is refused.
+  * Clipboard: copy writes an OpenFini MIME type (`application/x-openfini-proto+json`), HTML with the same payload in a
+    `data-openfini-proto` attribute (survives other apps and the async Clipboard API) and the layer names as text;
+    the payload carries the images its layers use (16 MiB). Ctrl/Cmd+C, X and V on the canvas pass through to the
+    browser's clipboard events (the workspace stops the shortcut there); *Edit ▸ Paste* reads the system clipboard and
+    falls back to the in-app clipboard. Proto layers pasted into the same design without a target keep T4's
+    placement (next to the originals). Text becomes a text layer.
+  * Image tool (from T4's open list): `Shift+Ctrl/Cmd+K`, click where the pictures go; *Insert ▸ Image…*; media go in
+    through `media.put`.
+  * `proto_write_html` uses the browser probe when the app window exists and the static path in Node; it returns the
+    import report. `ofini proto import <file> [--from] [-o] [--width] [--into <design> --in-place|--out]` (the
+    concept's `<in> <out.ofini>` form is `-o`).
+  * Limits (`IMPORT_LIMITS`): HTML 8 MiB, SVG 16 MiB, archives 256 MiB, 20,000 entries, 128 MiB per entry, 512 MiB
+    unpacked and at most 200× the archive size above 64 MiB, 50,000 layers per import; media keep the 16 MiB schema
+    limit.
+  * Not done: the Figma REST importer (as planned, after 1.3.x); HTML from a URL (the web access tools can fetch it
+    and pass it to `proto_write_html`); converting repeated structures into components automatically.
 
 **T9 · Prototyping and the player** — L — deps: T4, T5
 * Scope: interaction ops, Prototype mode and panel, Connect tool, expression evaluator, player runtime (navigation

@@ -25,6 +25,7 @@ import { plural, withoutExt, readInput, writeOutput, replaceFile, needArgs, each
 import { readProto, assertWritable, protoBytes, pagesOf, findPage, topLayers, topOf, findNodes, parseModes, sizeText, fmtNum, withModes } from "./proto-model.mjs";
 import { renderSvg } from "./proto-svg.mjs";
 import { LINT_RULES, lintModel, applyFixes, resolveRules, RULE_ALIASES } from "./proto-lint.mjs";
+import { IMPORT_COMMAND } from "./proto-import.mjs";
 
 const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const MIME_EXT = { "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp", "image/avif": "avif", "image/svg+xml": "svg" };
@@ -684,7 +685,7 @@ const FORCE = { force: { type: "bool", short: "f", desc: "Overwrite existing fil
 const MODE = { mode: { type: "string", desc: "Variable modes, e.g. Theme=dark,Density=compact" } };
 const WRITE = { out: { type: "string", short: "o", desc: "Write the changed design here (.ofini, or .json for the bare model)" }, "in-place": { type: "bool", desc: "Replace the design file (atomically)" }, "dry-run": { type: "bool", short: "n", desc: "Check only; write nothing" }, ...FORCE };
 
-export const PROTO_SUMMARY = "Proto designs: outline, lint, render, assets, tokens, code export, diff, scripted edits (Labs)";
+export const PROTO_SUMMARY = "Proto designs: outline, lint, render, assets, tokens, code export, import, diff, scripted edits (Labs)";
 
 export const PROTO_COMMANDS = {
   info: { summary: "Pages, frames, layers, components, variables, styles, media and flows", usage: "ofini proto info <file...>", flags: { ...IO }, run: cmdInfo, examples: ["ofini proto info app.ofini", "ofini proto info 'designs/*.ofini' --json"] },
@@ -721,6 +722,7 @@ export const PROTO_COMMANDS = {
     run: cmdExport,
     examples: ["ofini proto export app.ofini", "ofini proto export app.ofini -t react -o web/", "ofini proto export app.ofini -t react-tailwind --node Button,Card", "ofini proto export app.ofini -t swiftui --page Screens -o ios/", "ofini proto export app.ofini --node Checkout -o - | less"],
   },
+  import: IMPORT_COMMAND,
   flows: { summary: "Prototype flows: start frames, the screens each flow reaches and their interactions; exit code 1 when a target is missing", usage: "ofini proto flows <file...> [--page <p>]", flags: { ...IO, page: { type: "string", short: "p", desc: "Page id, name or number (default: every page)" } }, run: cmdFlows, examples: ["ofini proto flows app.ofini", "ofini proto flows app.ofini --page Screens --json"] },
   diff: { summary: "Structural diff of two designs; exit code 1 when they differ", usage: "ofini proto diff <a> <b>", flags: { ...IO }, run: cmdDiff, examples: ["ofini proto diff v1.ofini v2.ofini", "ofini proto diff main.ofini feature.ofini --json"] },
   apply: {

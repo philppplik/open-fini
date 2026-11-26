@@ -135,6 +135,7 @@ proto <command>` lists every option.
 | `ofini proto tokens import <file> <tokens.json\|->` | Imports DTCG tokens (`--collection`, `--mode`); needs `--out`, `--in-place` or `--dry-run` |
 | `ofini proto flows <file...> [--page]` | Prototype flows: the screens each flow reaches from its start and the interactions on them; exit code 1 when a start frame or a target is missing |
 | `ofini proto diff <a> <b>` | Structural diff: pages, layers (with the changed fields), collections, variables, styles, media; exit code 1 when they differ |
+| `ofini proto import <file\|->` | A new design from HTML (static CSS cascade, approximate), SVG, a Sketch file, a Penpot export or an image (`--from` forces the format; `-o` the output, default `<name>.ofini`; `--width` the HTML viewport); `--into <design>` adds the import to a design instead (with `--out`, `--in-place` or `--dry-run`; Sketch and Penpot pages become pages, `--one-page` puts them side by side). Prints the import report; `.fig` exits 4 |
 | `ofini proto apply <file> <ops.json\|->` | Applies operations (one object, an array or `{ "ops": [...] }`; also `--ops '<json>'`) as one all-or-nothing batch; needs `--out`, `--in-place` or `--dry-run`; `--seed` makes new ids reproducible |
 
 `--mode Theme=dark,Density=compact` picks variable modes by collection and mode name (or id); for `render`, `inspect`

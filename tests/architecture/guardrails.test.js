@@ -29,7 +29,7 @@ export const LAZY_AREAS = [
   "src/engine/office/", "src/ui/office/", "src/office/",
   "src/engine/formats/", "src/engine/git/", "src/engine/publish/",
   "src/ui/code/", "src/ui/vibe/", "src/vibe/", "src/ai/",
-  "src/proto/", "src/engine/proto/ops.js", "src/engine/proto/resolve.js", "src/engine/proto/css.js", "src/engine/proto/layout.js", // Proto Studio (proto/host.js)
+  "src/proto/", "src/engine/proto/import/", "src/engine/proto/ops.js", "src/engine/proto/resolve.js", "src/engine/proto/css.js", "src/engine/proto/layout.js", // Proto Studio (proto/host.js)
   "src/i18n/locales/",
   "src/ui/export-dialog.js",
   "src/core/doctor/", "src/ui/doctor-dialog.js", // Help ▸ Doctor and the "Repair with Doctor" offer load them

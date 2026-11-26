@@ -34,6 +34,7 @@ export function registerProtoCommands(app) {
   tool("line", "Line Tool", "L", "slash-lg");
   tool("pen", "Pen Tool", "P", "vector-pen");
   tool("text", "Text Tool", "T", "fonts");
+  tool("image", "Image Tool", "Shift+Mod+K", "image");
   tool("hand", "Hand Tool", "H", "hand-index");
   tool("zoom", "Zoom Tool", "Z", "zoom-in");
   tool("comment", "Comment Tool", "C", "chat-quote");
@@ -45,6 +46,10 @@ export function registerProtoCommands(app) {
   def("proto.addPhoneFrame", "Phone Frame", () => ws().addFrame("phone"), { icon: "phone", enabled: editable });
   def("proto.addWatchFrame", "Watch Frame", () => ws().addFrame("watch"), { icon: "stopwatch", enabled: editable });
   def("proto.addPage", "New Page", () => addPage(), { icon: "file-earmark-plus", enabled: editable });
+  // import (task T8: proto/paste.js and engine/proto/import/)
+  const paste = () => import("../proto/paste.js");
+  def("proto.import", "Import into Proto…", () => paste().then((P) => P.chooseAndImport(ws(), app)), { icon: "box-arrow-in-down", enabled: editable, hideOutside: true });
+  def("proto.placeImage", "Image…", () => paste().then((P) => P.chooseImages(ws(), app)), { icon: "image", enabled: editable });
 
   // edit
   def("proto.copy", "Copy", () => ws().copy(), { icon: "copy", enabled: (a) => on(a) && a.protoUI.selection.length > 0, shortcut: "Mod+C" });
