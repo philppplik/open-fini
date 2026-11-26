@@ -1,6 +1,6 @@
 // Proto Studio workspace: the canvas (proto/view.js) of one open design, its input (tools, pan, zoom, keyboard,
 // context menu), the controller (proto/controller.js), the tools (proto/tools/) and the Pages, Layers and Design panels
-// (proto/panels/). One instance per open Proto document, created by proto/host.js; it is `app.protoUI` while its
+// and Code (proto/panels/). One instance per open Proto document, created by proto/host.js; it is `app.protoUI` while its
 // document is active.
 //
 //   mountProto(host, doc, app) → ws
@@ -54,9 +54,10 @@ import { createPrototypePanel, createInspector } from "./panels/prototype.js";
 import { createAssetsPanel } from "./panels/assets.js";
 import { createVariablesPanel } from "./panels/variables.js";
 import { createCommentLayer } from "./comments.js";
+import { createCodePanel } from "./panels/code.js";
 
 const isMod = (e) => (/Mac|iPhone|iPad/.test(navigator.platform || "") ? e.metaKey : e.ctrlKey);
-const PANELS = ["proto-pages", "proto-layers", "proto-inspector", "proto-assets", "proto-variables"];
+const PANELS = ["proto-pages", "proto-layers", "proto-inspector", "proto-assets", "proto-variables", "proto-code"];
 export const clearProtoPanels = (app) => PANELS.forEach((id) => setPanelSlot(app, id, null));
 export { FRAME_PRESETS };
 
@@ -650,12 +651,14 @@ export function mountProto(host, doc, app) {
   assets = createAssetsPanel(api);
   variables = createVariablesPanel(api);
   api.comments = createCommentLayer(api, canvasHost);
+  const code = createCodePanel(api);
   function publishPanels() {
     setPanelSlot(app, "proto-pages", { el: pages.el, show: () => pages.render() });
     setPanelSlot(app, "proto-layers", { el: layers.el, show: () => layers.render() });
     setPanelSlot(app, "proto-inspector", { el: inspector.el, show: () => inspector.render() });
     setPanelSlot(app, "proto-assets", { el: assets.el, show: () => assets.render(true) });
     setPanelSlot(app, "proto-variables", { el: variables.el, show: () => variables.render(true) });
+    setPanelSlot(app, "proto-code", { el: code.el, show: () => code.render() });
   }
   render();
   return api;

@@ -4802,7 +4802,6 @@
   "Edit properties": "Eigenschaften bearbeiten",
   "Effect": "Effekt",
   "End color": "Endfarbe",
-  "Exporting layers as images and code comes with a later update of this preview.": "Der Export von Ebenen als Bilder und Code folgt in einem späteren Update dieser Vorschau.",
   "Fill container": "Container füllen",
   "Fill opacity": "Deckkraft der Füllung",
   "Fill type": "Füllungsart",
@@ -5021,5 +5020,19 @@
   "Variable changes": "Variable ändert sich",
   "When scrolling": "Beim Scrollen",
   "While hovering": "Beim Überfahren",
-  "While pressing": "Beim Drücken"
+  "While pressing": "Beim Drücken",
+  "{n} notes": "{n} Hinweise",
+  "Binary file ({n} bytes)": "Binärdatei ({n} Bytes)",
+  "Code format": "Code-Format",
+  "Code of “{name}”": "Code von „{name}“",
+  "Code of {n} layers": "Code von {n} Ebenen",
+  "Code of the page “{name}”": "Code der Seite „{name}“",
+  "Copied to the clipboard.": "In die Zwischenablage kopiert.",
+  "Download as ZIP": "Als ZIP herunterladen",
+  "Export code…": "Code exportieren …",
+  "Exports the selected layers, or the page, as code with their components, variables and images.": "Exportiert die ausgewählten Ebenen oder die Seite als Code mit ihren Komponenten, Variablen und Bildern.",
+  "Generated code": "Erzeugter Code",
+  "Open a Proto design to see its code.": "Öffnen Sie ein Proto-Design, um seinen Code zu sehen.",
+  "Show code": "Code anzeigen",
+  "The clipboard is not available here.": "Die Zwischenablage ist hier nicht verfügbar."
 }
