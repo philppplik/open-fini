@@ -37,11 +37,40 @@ and View menus). After drawing a layer the Move tool comes back.
 | Line | L | Drag from one end to the other; Shift keeps 45° steps |
 | Pen | P | Click for corners, drag for curves, click the first point to close; Enter or Escape ends an open path, Backspace removes the last point |
 | Text | T | Click for a text that grows with what you type, drag for a fixed width that wraps. Type, then Escape or click elsewhere |
+| Image | Shift+Ctrl/Cmd+K | Click where the picture goes and choose one or more images (PNG, JPEG, GIF, WebP, AVIF); they are placed at their pixel size. Insert ▸ Image… does the same in the middle of the view |
 | Hand | H | Drag to pan (Space and the middle mouse button pan with every tool) |
 | Zoom | Z | Click to zoom in, Alt-click to zoom out, drag a rectangle to zoom to it |
 | Comment | C | Click a layer or the page to write a comment there ([Comments](#comments)) |
 
 A new layer goes into the frame under the pointer; in a frame with auto layout it lands in the flow at the pointer.
+
+## Importing
+
+*File ▸ Import into Proto…* (also at the end of the Insert menu), dropping files on the canvas and pasting bring
+other designs in as editable layers. One import is one undo step; when something could not be kept editable, a notice
+offers *Details* (the import report: what was kept, flattened and left out; *File ▸ Import Report…* shows it again).
+
+| Source | What you get |
+| --- | --- |
+| HTML and CSS (`.html`, pasted HTML, `proto_write_html`) | The page is rendered in a hidden sandboxed frame at the width of the target frame (1280 px on the page) and read back: flex and grid become auto layout with gaps, padding and alignment; widths and heights become fixed, hug or fill where the CSS says so; other blocks become column auto layouts whose gap is the space between their children; positioned elements become absolute layers; text keeps one run per style; backgrounds, gradients, borders, radii, shadows, blur, opacity and rotation map to the Design panel's fields; `:root` custom properties become a variable collection; inline SVG becomes vector layers; embedded (`data:`) images become image layers. Scripts never run and nothing is downloaded: remote images become gray placeholders |
+| SVG (`.svg`, pasted SVG) | A frame of the SVG's size; groups become frames without layout; rectangles and ellipses stay rectangles and ellipses; paths, polygons and rotated shapes become vector layers; gradients, strokes, text and embedded images are kept. Filters, masks and clip paths are listed in the report |
+| Sketch (`.sketch`) | Every page becomes a page; artboards become frames; symbols become components and symbol instances become instances with their text, image and nested symbol overrides; stacks become auto layout; text keeps its styled runs; shadows and blurs become effects |
+| Penpot (`.penpot`, the export of Penpot 2) | Pages, boards with flex and grid layout, shapes, paths, text runs, images, shadows; components become components and their copies instances with text, fill and visibility overrides. The file's design tokens are listed in the report: import its `tokens.json` with DTCG |
+| Images | Image layers at their pixel size |
+| Figma (`.fig`) | Not supported: the format has no public specification. Copy frames as SVG in Figma and paste them, or export SVG |
+
+Where layers go: into the selected frame (into its flow when it has auto layout), else into the frame you drop on, else
+on the page in the middle of the view. Sketch and Penpot pages become new pages of the design.
+
+**Copy and paste with other apps.** Copying Proto layers also puts them on the system clipboard (as an OpenFini format
+and as HTML carrying it, with the images they use), so they paste into another OpenFini window or tab with their
+fills, text, components and media. Pasting reads the system clipboard: Proto layers, SVG (many design tools copy SVG),
+HTML, images and plain text (a text layer). When the browser blocks clipboard access for *Edit ▸ Paste*, Ctrl+V on
+the canvas still works.
+
+Limits: HTML 8 MiB, SVG 16 MiB, archives 256 MiB that unpack to at most 512 MiB (and not more than 200 times their
+size), 50,000 layers per import, 16 MiB per image. From the terminal, `ofini proto import` uses the same importers
+([CLI](cli.md#proto-designs)); HTML is then laid out without a browser and is approximate.
 
 ## Selecting and editing on the canvas
 
@@ -101,13 +130,17 @@ The panels dock like everywhere else ([workspaces](workspaces.md)).
   blend mode, corner radius, also per corner); *Fill*, *Stroke* and *Effects* lists (solid and gradient fills, inside,
   center and outside strokes, drop and inner shadows, layer and background blur); *Text* (font, size, weight, line
   height, letter spacing, alignment, case, decoration, color, auto width / auto height / fixed size, maximum lines);
-  *Accessibility and code* (HTML element, role, accessible name); *Export* comes with code export. Drag a field's
+  *Accessibility and code* (HTML element, role, accessible name); *Export* (a code format, *Export code…* saves a ZIP
+  of the selection or the page, *Show code* opens the Code panel). Drag a field's
   label to scrub a value. With nothing selected the panel shows the page's name and background. Components, instances,
   variable bindings, styles and modes add their sections ([below](#components-and-instances)). The *Prototype* tab
   next to *Design* switches to Prototype mode ([Prototypes](#prototypes)).
 * **Assets** (left, a tab next to Layers): the components and component sets of the design with previews, and the
   styles; search by name. Drag a component onto the canvas to insert an instance.
 * **Variables** (bottom): the variables of a collection as a table ([below](#variables-modes-and-styles)).
+* **Code** (right, a tab next to Design; dockable anywhere): the code of the selection, or of the page when nothing is
+  selected, in the chosen format, updated as you edit. Pick a file of the export, copy it, or download every file as a
+  ZIP. Notes below the code list what the format cannot express.
 
 ## Components and instances
 
@@ -219,6 +252,39 @@ numbered pin marks the place; it follows its layer when the layer moves or resiz
 is deleted. Click a pin to read and answer the thread; drag it to another place (your own comments, or as the host).
 *Show where* in the Comments panel selects the layer and shows it.
 
+## Code export
+
+Layers become code in five formats: **HTML + CSS**, **React with CSS Modules**, **React with Tailwind**, **HTML +
+Tailwind** (v4) and **SwiftUI**. Export from the Code panel, the Design panel's *Export* section, the assistant
+(`proto_to_code`) or the terminal (`ofini proto export`, [CLI](cli.md#proto-designs)).
+
+* **The same CSS as the canvas.** Each element gets exactly the declarations the canvas renders (hug and fill are
+  intrinsic sizes and flex, never fixed pixels; absolute positions only for absolute layers), so an exported page looks
+  like the design: checked in Chromium against the recorded geometry of the layout fixtures
+  (`node scripts/proto-export-roundtrip.mjs`).
+* **Semantic elements and accessibility.** A layer's *HTML element* wins; otherwise text becomes `h1`, `h2`, `h3` or
+  `p` (from its text style or size), a layer with a click interaction a `button` (or a link `a` when it navigates to
+  another exported screen or opens a web address), an image an `img` with its alternative text, a vector an inline
+  `svg`, and frames named like *Button*, *Nav*, *Header*, *Footer*, *Form* or *Card* the matching element. Accessible
+  names and roles become `aria-label` and `role`. Inside buttons, links, headings and paragraphs everything is a `span`.
+* **Readable names.** Classes come from layer names (`pay-button`); layers with the same name and the same styles share
+  one class. Frames that only wrap one layer and draw nothing are left out.
+* **Components.** In React and SwiftUI every main component (or component set) becomes one component: variant axes are
+  typed props (`size?: "sm" | "lg"`), text, number and boolean properties are props, instance swap and slot properties
+  are `ReactNode` props (a single slot is `children`), and `className` places an instance. Variants with the same layers
+  differ only in styles; variants with different layers render one branch each. Instances with overrides inside them
+  are written out as their layers. A component with a code link (`code.react.path`) is imported from your code instead.
+  HTML has no components: instances are written out.
+* **Variables** become CSS custom properties (`var(--color-brand, #4f46e5)`) with `[data-mode-…]` rules for their modes,
+  Tailwind v4 `@theme` tokens, or Swift `Color` and `CGFloat` constants (light and dark values for collections with those
+  modes). **Images** are files in `assets/` (`public/assets/` for React, `Assets/` for SwiftUI).
+* **Breakpoints.** Top-level frames with the same name on one page whose layers match are one responsive screen: the
+  widest is the base and the narrower ones become `@media (max-width: …)` differences with the design's breakpoints
+  (Tailwind: `max-[478px]:` classes). SwiftUI exports the base frame only.
+* **SwiftUI is best effort**: stacks, grids, padding, frames, backgrounds, strokes, radius, shadows, opacity and text
+  map; blend modes, blur, conic gradients, inner shadows, wrapping and grid placement are listed as comments.
+* **Deterministic**: the same design and options always give the same bytes.
+
 ## Editing together
 
 A design can be shared live in a collaboration room like every other document
@@ -253,12 +319,14 @@ a tool call either applies completely or not at all.
 | `proto_screenshot` | A picture of a frame for the assistant to look at; with `compare` next to a reference image with a difference score |
 | `proto_new` | A new design (empty, desktop or phone frame) |
 | `proto_create` | Whole screens or components from one nested spec: auto layout (rows, columns, grids), hug, fill and fixed sizes, fills, strokes, radius, shadows, text, instances, `{ "$var": "color/primary" }` bindings |
+| `proto_write_html` | Layers from HTML and CSS (the HTML importer above): agents write HTML fluently, and the result has auto layout, text runs, variables from `:root` and an import report |
 | `proto_update`, `proto_move`, `proto_delete`, `proto_duplicate` | Change fields (shorthands and paths such as `layout.gap`), bind variables, reorder, reparent, wrap in auto layout |
 | `proto_component` | Make components, combine variants, define and bind properties, create, set, swap, override, reset and detach instances |
 | `proto_variables`, `proto_styles`, `proto_tokens` | Collections, modes (light and dark, brands), variables and aliases, mode per frame; text, effect, fill and grid styles; DTCG import and export, CSS, Tailwind and Swift |
 | `proto_lint`, `proto_fix` | Contrast, touch targets, unbound colors and spacing, spacing off the 4 px grid, values that equal a style, stale overrides, detached copies of components, empty frames, default names, cut-off text, unused tokens; fixes as one undo step |
 | `proto_responsive` | The frame at several widths: what overflows and which text is cut off |
 | `proto_content`, `proto_rename` | Realistic text (names, prices, dates or values you give); semantic names and HTML tags |
+| `proto_to_code` | The selection, layers or a page as code: HTML + CSS, React (CSS Modules or Tailwind), HTML + Tailwind or SwiftUI, with notes on what the format cannot express |
 | `proto_from_screenshot` | An attached screenshot as a locked reference layer next to an empty frame, with its colors and recognized text (a local text recognition engine where installed), to rebuild it as editable layers |
 
 The pictures of `proto_screenshot` come from the layout solver (concept §4.4) painted with the app's fonts, not from
@@ -276,7 +344,14 @@ on the pure view models of `app/src/proto/panels/model.js` (tests in `tests/prot
 and the Comment tool are `app/src/proto/comments.js`. The assistant's tools are `app/src/vibe/tools/proto.js` (definitions) with
 `app/src/proto/ai-ops.js` (pure: outline, specs to operations, content, names, responsive check),
 `app/src/proto/ai-render.js` (display list and canvas painter), `app/src/proto/ai-runtime.js` (undo step, images) and
-`app/src/engine/proto/lint.js` (rules and fixes, shared with the MCP server and `ofini proto lint`); skills in
+`app/src/engine/proto/lint.js` (rules and fixes, shared with the MCP server and `ofini proto lint`). Code export is
+`app/src/engine/proto/codegen/` (`lower.js` builds the one intermediate representation, `html.js`, `react.js`,
+`tailwind.js` and `swiftui.js` print it, `index.js ▸ exportCode` is the entry point; golden files in
+`tests/proto/fixtures/codegen/`, `UPDATE_GOLDEN=1` rewrites them) with the panel `app/src/proto/panels/code.js`;
+the importers are
+`app/src/engine/proto/import/` (pure: HTML mapper and static CSS cascade, sanitizer, SVG, Sketch, Penpot, images,
+limits; tests in `tests/proto/import/`) with `app/src/proto/paste.js` (clipboard, drops, File ▸ Import),
+`app/src/proto/html-probe.js` (the sandboxed preview probe) and `app/src/proto/tools/image.js`; skills in
 `app/src/ai/packs/proto.js` and the studio guide in `app/src/ai/packs/studio-guides.js`. The renderer and its
 performance are described in the concept
 ([§4](concepts/proto-studio.md#4-rendering)); `node scripts/proto-perf.mjs` measures the targets of §4.3 in a headless

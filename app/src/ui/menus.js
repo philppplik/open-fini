@@ -13,7 +13,7 @@ const DESIGN = ["vector", "pixel", "layout"];
 export const MENUS = [
   {
     label: "File",
-    items: ["file.new", { label: "New Blank", dynamic: "newBlank" }, "window.new", "file.open", "file.openFolder", { label: "Open Recent", dynamic: "recent" }, "-", "file.save", "file.saveAs", "file.saveAll", "-", "file.export", "file.preflight", { label: "Quick Export", items: ["file.exportPNG", "file.exportJPG", "file.exportWEBP", "file.exportSVG", "file.exportPDF", "file.exportOra"] }, "-", "file.place", "file.insertPdf", "file.extractPages", "file.importReport", { label: "Swatches", items: ["file.importPalette", "-", "file.exportPalette.gpl", "file.exportPalette.ase", "file.exportPalette.aco"] }, "file.docSetup", "color.settings", { label: "Convert Colors", items: ["color.toCmyk", "color.toRgb"] }, "-", "window.popoutStudio", "window.returnToMain", "-", "file.close"],
+    items: ["file.new", { label: "New Blank", dynamic: "newBlank" }, "window.new", "file.open", "file.openFolder", { label: "Open Recent", dynamic: "recent" }, "-", "file.save", "file.saveAs", "file.saveAll", "-", "file.export", "file.preflight", { label: "Quick Export", items: ["file.exportPNG", "file.exportJPG", "file.exportWEBP", "file.exportSVG", "file.exportPDF", "file.exportOra"] }, "-", "file.place", "proto.import", "file.insertPdf", "file.extractPages", "file.importReport", { label: "Swatches", items: ["file.importPalette", "-", "file.exportPalette.gpl", "file.exportPalette.ase", "file.exportPalette.aco"] }, "file.docSetup", "color.settings", { label: "Convert Colors", items: ["color.toCmyk", "color.toRgb"] }, "-", "window.popoutStudio", "window.returnToMain", "-", "file.close"],
   },
   {
     label: "Edit",
@@ -103,6 +103,8 @@ export const MENUS = [
 function itemFor(app, cmdId) {
   const c = app.commands.get(cmdId);
   if (!c) return null;
+  // studio commands listed in a shared menu (File ▸ Import into Proto) show only in their studios
+  if (c.hideOutside && c.studios && !c.studios.includes(app.studio)) return null;
   const type = c.checked ? "checkbox" : undefined;
   const el = h("sl-menu-item", { value: cmdId, type, disabled: c.enabled ? !c.enabled(app) : false });
   el.dataset.key = cmdId;

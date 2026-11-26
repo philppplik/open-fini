@@ -11,6 +11,7 @@ import { createMoveTool } from "./select.js";
 import { createShapeTool, createLineTool, createZoomTool } from "./draw.js";
 import { createPenTool } from "./pen.js";
 import { createTextTool } from "./text.js";
+import { createImageTool } from "./image.js";
 import { createConnectTool } from "./connect.js";
 import { FRAME_PRESETS } from "./presets.js";
 import { createCommentTool } from "../comments.js";
@@ -24,6 +25,7 @@ export const TOOLS = Object.freeze([
   { id: "line", icon: "slash-lg", label: N_("Line"), key: "L" },
   { id: "pen", icon: "vector-pen", label: N_("Pen"), key: "P" },
   { id: "text", icon: "fonts", label: N_("Text"), key: "T" },
+  { id: "image", icon: "image", label: N_("Image"), key: "Shift+Mod+K" },
   { id: "hand", icon: "hand-index", label: N_("Hand"), key: "H" },
   { id: "zoom", icon: "zoom-in", label: N_("Zoom"), key: "Z" },
   { id: "comment", icon: "chat-quote", label: N_("Comment"), key: "C" },
@@ -38,6 +40,7 @@ export function createTools(ws) {
     line: createLineTool(ws),
     pen: createPenTool(ws),
     text: createTextTool(ws),
+    image: createImageTool(ws),
     hand: { id: "hand", cursor: "grab", down: () => false },
     zoom: createZoomTool(ws),
     comment: createCommentTool(ws),

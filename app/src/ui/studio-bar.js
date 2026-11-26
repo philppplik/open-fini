@@ -1,5 +1,6 @@
-// Header studio switcher: at most five studios side by side (the user's choice, see Settings > Studios), plus a
-// "More" menu with every other registered studio so none is unreachable. Opening a studio from "More" shows it
+// Header studio switcher: the studios the user picked (Settings > Studios), plus a "More" menu with every other
+// registered studio so none is unreachable. A narrow header sheds the rightmost picked studios into that menu one by
+// one (ui/header-fit.js calls setShed), never the active one. Opening a studio from "More" shows it
 // there temporarily: the More button turns into that studio's button until another studio is chosen.
 import { h } from "../core/util.js";
 import { t } from "../i18n/index.js";
@@ -13,7 +14,8 @@ export function createStudioBar(app) {
   /** @type {Map<string, HTMLButtonElement>} */
   let buttons = new Map();
   let moreBtn = null;
-  let collapsed = false; // narrow header: only the active studio shows, the others live in the "…" menu (ui/header-fit.js)
+  let shed = 0; // narrow header: this many of the picked studios (rightmost first, not the active one) live in "More"
+  const shedIds = () => (shed > 0 ? app.visibleStudios.filter((id) => id !== app.studio).slice(-shed) : []);
 
   function tip(s) {
     const name = t("{studio} Studio", { studio: s.label });
@@ -43,13 +45,21 @@ export function createStudioBar(app) {
     dd.addEventListener("sl-show", (e) => {
       if (e.target !== dd) return;
       for (const c of [...dd.children]) if (c.tagName === "SL-MENU") c.remove();
-      const shown = collapsed ? app.visibleStudios.filter((id) => id !== app.studio) : [];
+      const order = app.visibleStudios;
+      const shown = shedIds().sort((a, b) => order.indexOf(a) - order.indexOf(b));
       dd.append(buildMenu(app, [...shown, ...app.moreStudios].map((id) => `studio.${id}`).concat(["-", "studio.choose"])));
     });
     return dd;
   }
 
+  function applyShed() {
+    const gone = new Set(shedIds());
+    for (const [id, b] of buttons) b.classList.toggle("is-fit-hidden", gone.has(id));
+    el.classList.toggle("is-collapsed", gone.size > 0);
+  }
+
   function sync() {
+    applyShed();
     for (const [id, b] of buttons) {
       const on = id === app.studio;
       b.classList.toggle("active", on);
@@ -63,10 +73,12 @@ export function createStudioBar(app) {
     moreBtn.replaceChildren(iconEl(hidden ? studioIconSpec(hidden) : "three-dots"), h("span", hidden ? hidden.label : t("More")), h("sl-icon.of-studio__caret", { name: "chevron-down" }));
   }
 
-  function setCollapsed(on) {
-    collapsed = !!on;
-    el.classList.toggle("is-collapsed", collapsed);
+  /** Moves `n` studios out of the header into "More" (0 = all shown). Returns how many can be shed at most. */
+  function setShed(n) {
+    shed = Math.max(0, Math.min(n | 0, maxShed()));
+    applyShed();
   }
+  const maxShed = () => app.visibleStudios.filter((id) => id !== app.studio).length;
 
   app.on("studio", sync);
   app.on("locale", () => {
@@ -76,5 +88,5 @@ export function createStudioBar(app) {
   app.on("prefs", (key) => (key === "visibleStudios" || key === "*") && render());
   onStudioRegistered(render);
   render();
-  return { el, sync, render, setCollapsed };
+  return { el, sync, render, setShed, maxShed, shedCount: () => shed };
 }

@@ -57,14 +57,15 @@ Never leave the design as one flat image; every text must be a text layer.`,
 5. Dark mode: proto_variables action setMode on a frame (or the page) with coll Color and mode Dark; proto_screenshot both modes.
 6. Export with proto_tokens action export (dtcg, css, tailwind or swift); import a DTCG file with proto_tokens action import.`,
 
-  `${fm("handoff", "Prepare a Proto design for developer handoff: names, tags, tokens, components and a clean lint report.", `${READ}, proto_rename, proto_search, proto_update, proto_tokens, proto_responsive`, "handoff, prepare for developers, clean up design, ready for code, spec")}
+  `${fm("handoff", "Prepare a Proto design for developer handoff: names, tags, tokens, components and a clean lint report.", `${READ}, proto_rename, proto_search, proto_update, proto_tokens, proto_responsive, proto_to_code`, "handoff, prepare for developers, clean up design, ready for code, spec, export code, react, swiftui")}
 # Prepare for handoff
 
 1. proto_lint for the whole design; proto_fix the safe issues; list what still needs a decision.
 2. proto_rename for semantic names and tags (button, nav, header, h1, p) so code export reads well.
 3. No literal colors where tokens exist: proto_search unbound color; bind them.
 4. proto_responsive for each screen at the breakpoints; fix overflow with fill sizes and wrapping.
-5. proto_tokens export (dtcg) and summarize: screens, components with their variants, tokens, open issues.`,
+5. proto_tokens export (dtcg); proto_to_code in the format the team uses (html, react, react-tailwind, tailwind, swiftui) and read its notes.
+6. Summarize: screens, components with their variants, tokens, open issues.`,
 
   `${fm("design-audit", "Audit a Proto design system: contrast, touch targets, token use, detached copies, unused tokens and naming, with a prioritized fix list.", `${READ}, proto_search, proto_get_node`, "audit, review design, design system audit, accessibility check, consistency check")}
 # Design system audit

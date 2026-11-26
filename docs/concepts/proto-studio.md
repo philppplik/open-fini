@@ -962,10 +962,10 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
     a text layer named after its content keeps following it. Editing uses `contenteditable="plaintext-only"` (falls back
     to `true` with plain-text paste) and keeps run styles outside the edited range (`math.js ▸ editRuns`).
   * Undo and redo shortcuts now reach the Proto Studio (`ui/shortcuts.js` treats it like the Office Suite).
-  * Not in this task: the Scale tool (K), the Image tool (needs the media upload of T8), the Comment tool (T10) and
+  * Not in this task: the Scale tool (K), the Image tool (added by T8), the Comment tool (T10) and
     Alt-toggling hug, fill and fixed while resizing; alignment of auto layout children is the 3 × 3 matrix in the
     Design panel (padding and gap have canvas handles); equal-spacing snapping; copy and paste stay inside OpenFini
-    (no system clipboard format yet); multi-selection fields show the first layer's value.
+    (T8 added the system clipboard); multi-selection fields show the first layer's value.
 
 **T5 · Components, variables, styles and DTCG tokens (engine)** — L — deps: T2
 * Scope: component and component set ops, property definitions and bindings, instance resolution with overrides by
@@ -1088,6 +1088,53 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
   `tests/proto/codegen/*.test.js` with snapshots.
 * Acceptance: deterministic snapshots; exported HTML rendered in Chromium matches T2's recorded geometry per fixture;
   generated React passes a syntax check (TypeScript compiler only if it is already a dev dependency).
+* As built (deviations and decisions the later tasks build on):
+  * Modules: `engine/proto/codegen/` with `lower.js` (`lower(model, { ids, page, modes, assetUrl, dataIds, collapse })`
+    → IR `{ screens, components, assets, vars, fonts, warnings, breakpoints }`; the IR node shape is in its header:
+    `{ key, id, type, name, base, el, decls, attrs, text?, svg?, image?, children, box, r, instance?, bind?, slot?, href? }`),
+    the emitters `html.js` (`emitHtml`, also `htmlMarkup`, `svgMarkup`, `svgFile`, `RESET_CSS`), `react.js` (`emitReact(ir,
+    { styling: "modules" | "tailwind", ts })`), `tailwind.js` (`emitTailwind`, `twClasses(decls)`), `swiftui.js`
+    (`emitSwiftUI`) and `index.js` (`exportCode(model, { format, ids, page, modes, ts, dataIds, collapse })` →
+    `{ format, files: [{ path, text } | { path, bytes, mime }], entry, warnings, ir }`, `FORMATS`, `zipEntries`). The
+    emitters load on demand per format. T12 (`proto_to_code` over MCP) and T14 (export into a Code project) call
+    `exportCode`; T14 adds the guarded regions around the files it writes (`dataIds: true` gives the `data-proto-id`
+    attributes of §10.4). The concept's `emit/` folder and `classes`/`tokens` IR fields became one flat folder and
+    `base` (class names are made unique per stylesheet by the emitters) plus `decls` with `var()` references.
+  * Declarations are css.js's (`vars: "css"`, `root: "none"`, `scroll: true`) without `box-sizing` (every export sets
+    border-box globally: a reset, Tailwind's preflight); four-value `padding`, `border-radius` and `border-width` are
+    shortened; roots get `position: relative`. Verified in Chromium 156 with `scripts/proto-export-roundtrip.mjs`: all 16
+    geometry fixtures within 1 px (2 px with text); `tests/proto/codegen/roundtrip.test.js` runs it with
+    `PROTO_ROUNDTRIP=1`.
+  * Tags: the `tag` field (checked against a list of HTML elements; void elements with children fall back), else text
+    from the text style's name (`H1`…`H6`, heading, title, display) or size (32 px h1, 24 px h2, 20 px semibold h3, else
+    p), click interactions (`navigate` to an exported screen or `openUrl` with http, https, mailto or tel → `a`, else
+    `button`), images with one image fill and no hug size → `img` with `object-fit`, vectors → inline `svg`, names
+    (button, nav, header, footer, form, card/section). Phrasing-only parents turn children into spans. Hidden layers are
+    left out (bound visibility is a conditional instead). Wrappers that draw nothing, hug a single flow child and sit in a
+    flex parent are collapsed (`collapse: false` keeps them).
+  * Classes: kebab-case layer names; equal name and equal declarations share one class. Responsive merge: top-level
+    frames with the same name on one page and the same shape; the media query uses the smallest design breakpoint at or
+    above the narrower frame's width (else its width). There is no `responsive` link field yet.
+  * React components: variants that share one structure print one tree with the declarations common to all variants on
+    the layer's class and the rest under `[data-variant="<slug>"]` (CSS Modules) or a `VARIANT_CLASSES` table (Tailwind);
+    a `VARIANTS` table maps every combination of axis values (up to 256) to the best-matching variant like `pickVariant`.
+    Different structures render a `switch`. Usages pass non-default variant values and properties and a `className` with
+    the instance's differences from the component root (Tailwind marks overriding classes `!`). Instances with `over`
+    are written out (warning `overrides`). A single slot is `children`. Code links (`code.react.path`, `export`,
+    `props` mapping) import instead of generating.
+  * SwiftUI: components are `<Name>View` structs with enum axes, `switch` over variants, swap and slot properties as
+    `AnyView`; vectors are written as SVG assets; breakpoint variants are not exported. The app's Code studio formatter
+    is not run over the output: the emitters print formatted code themselves (two-space indentation), which keeps the
+    output deterministic and the exporter usable in Node.
+  * UI: `proto/panels/code.js` (dock id `proto-code`, a tab next to Design in Essentials; format remembered in
+    `localStorage`), the Design panel's Export section (`exportSection`), ZIP download through fflate and
+    `platform.saveFile`. Vibe tool `proto_to_code` (read-only; `file` and `maxChars` for long exports). CLI `ofini proto
+    export` with `--format` (alias `--target`, so T9 can add `prototype`), `--node`, `--page`, `--out` (`-` prints),
+    `--js`, `--data-ids`, `--keep-wrappers`, `--mode`. `ofini proto tokens` had already moved to T13.
+  * Tests: `tests/proto/codegen/codegen.test.js` (golden files for the sample design and `fixtures/codegen/kit.json` in
+    all five formats, determinism, Lezer syntax checks of TSX, JSX and CSS, balanced Swift, the IR equals the canvas
+    declarations, tag and component lowering, breakpoints, code links, Tailwind mapping); CLI and Vibe tool tests.
+    Budget +29 KiB gzip, all lazy.
 
 **T8 · Imports: HTML and CSS, SVG, clipboard, Sketch, Penpot** — L — deps: T5
 * Scope: `import/html.js` (computed-style mapper in the app, static path for the CLI), SVG through the existing
@@ -1097,6 +1144,63 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
   `tests/proto/import/*.test.js` with synthetic fixtures built from public format descriptions only.
 * Acceptance: export → import → export is stable for the HTML fixtures; sanitizer tests (scripts, event handlers,
   `javascript:` URLs); every importer reports what it skipped.
+* As built (deviations and decisions the later tasks build on):
+  * Modules: `engine/proto/import/` (pure, plain Node): `common.js` (limits, `safeUnzip` with declared-size and ratio
+    checks before inflating, the builder that pre-assigns ids against the target model and deduplicates media,
+    colors, image sniffing and sizes), `sanitize.js`, `html.js` (`importHtml`, `mapProbe`, `tracks`),
+    `html-static.js` (`staticProbe`: user agent defaults, a cascade with specificity, `!important`, inheritance,
+    `@media` widths, `var()` and shorthand expansion; unsupported selectors skip their rule and are counted),
+    `svg.js`, `sketch.js`, `penpot.js` and `index.js` (`detectFormat`, `importInto`, `importImage`, `applyImport`,
+    `designFromImport`). The app side is `proto/paste.js`, `proto/html-probe.js` and `proto/tools/image.js`; the
+    import report is `core/import-report.js` (existing), attached to the document, so *File ▸ Import Report…* shows it.
+  * Every importer returns engine operations (`media.put`, `page.create`, `collection.create` / `var.create`,
+    `node.create` with nested children and pre-assigned ids), so an import is one validated undo step everywhere.
+    Components are created before their instances; `node.create` starts from the type's defaults, so the importers
+    set every field they mean (fills, clip) explicitly.
+  * HTML: the app renders the sanitized page in a hidden `sandbox="allow-scripts"` frame (opaque origin) with its own
+    CSP (only the probe's `data:` script, `data:` images and fonts, no network) instead of the Code studio's preview
+    pane, which is bound to a Code project; the probe waits until the frame has its viewport (a sandboxed frame runs
+    in its own process and gets its size after `load`). The probe reports computed styles, boxes and the *declared*
+    width, height, flex basis and grid templates (from the matching rules), because computed values are always pixels.
+    Sizing rules: `flex-grow` or 100 % → fill, auto in a stretching cross axis → fill, `fit-content` and auto → hug,
+    lengths → fixed (border-box). Blocks become column auto layouts (gap = the most common space between children,
+    first and last margins and equal side margins become padding; uneven spacing is reported), inline-only blocks
+    wrapping rows; a text-only element with decoration becomes a frame around a text layer; a fragment with one
+    element (pasted HTML) becomes that element, a page becomes a frame named after its `<title>`. `data-proto-id`
+    keeps ids. Custom properties of `:root` become the collection *CSS variables*; colors equal to exactly one of them
+    are bound. Repeated sibling structures (three or more) are reported as component candidates, not converted.
+  * Round trip: `tests/proto/import/_export.js` prints `css.js` declarations as style attributes (what T7's HTML
+    export and the live link write); export → import → export is byte-identical for the fixtures, also on a second
+    pass.
+  * SVG is a new pure importer (`office/xml.js` parser, `vector/path.js` for path math), not `vector/svg-import.js`,
+    which needs the DOM and canvas; groups become frames without layout, axis-aligned rectangles and ellipses stay
+    shapes, everything else becomes vectors with all transforms applied.
+  * Sketch: `engine/formats/sketch.js ▸ readSketch(input, { symbols: true })` adds object ids, symbol masters with
+    `symbolID`, instances with override values, image fills, shadows, blurs, text runs, stacks
+    (`MSImmutableFlexGroupLayout`: direction, justify, align, gap, wrap, padding, children's fixed / fit / fill
+    sizing) and Smart Layout (direction, gap from positions); without the option the Vector importer's result is
+    unchanged. Overrides `_stringValue`, `_symbolID` (empty hides), `_image` and `_isVisible` map to `over` by the
+    path of Proto ids; shared style and color overrides are reported.
+  * Penpot: the export format version 3 (Penpot 2.x) as described in Penpot's technical guide; shapes in page
+    coordinates are made relative; `layoutItemHSizing` / `VSizing` map to fill, hug and fixed; copies of components
+    become instances whose overrides are the differences of their `shapeRef` children (text, fills, visibility).
+    Tokens are reported (import them with DTCG); the binary v1 format is refused.
+  * Clipboard: copy writes an OpenFini MIME type (`application/x-openfini-proto+json`), HTML with the same payload in a
+    `data-openfini-proto` attribute (survives other apps and the async Clipboard API) and the layer names as text;
+    the payload carries the images its layers use (16 MiB). Ctrl/Cmd+C, X and V on the canvas pass through to the
+    browser's clipboard events (the workspace stops the shortcut there); *Edit ▸ Paste* reads the system clipboard and
+    falls back to the in-app clipboard. Proto layers pasted into the same design without a target keep T4's
+    placement (next to the originals). Text becomes a text layer.
+  * Image tool (from T4's open list): `Shift+Ctrl/Cmd+K`, click where the pictures go; *Insert ▸ Image…*; media go in
+    through `media.put`.
+  * `proto_write_html` uses the browser probe when the app window exists and the static path in Node; it returns the
+    import report. `ofini proto import <file> [--from] [-o] [--width] [--into <design> --in-place|--out]` (the
+    concept's `<in> <out.ofini>` form is `-o`).
+  * Limits (`IMPORT_LIMITS`): HTML 8 MiB, SVG 16 MiB, archives 256 MiB, 20,000 entries, 128 MiB per entry, 512 MiB
+    unpacked and at most 200× the archive size above 64 MiB, 50,000 layers per import; media keep the 16 MiB schema
+    limit.
+  * Not done: the Figma REST importer (as planned, after 1.3.x); HTML from a URL (the web access tools can fetch it
+    and pass it to `proto_write_html`); converting repeated structures into components automatically.
 
 **T9 · Prototyping and the player** — L — deps: T4, T5
 * Scope: interaction ops, Prototype mode and panel, Connect tool, expression evaluator, player runtime (navigation

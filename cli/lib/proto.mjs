@@ -13,6 +13,7 @@ import { createResolver } from "../../app/src/engine/proto/resolve.js";
 import { layout } from "../../app/src/engine/proto/layout.js";
 import { treeCss } from "../../app/src/engine/proto/css.js";
 import { exportTokens, tokensCss, tokensTailwind, tokensSwift } from "../../app/src/engine/proto/tokens.js";
+import { exportCode, FORMATS as CODE_FORMATS } from "../../app/src/engine/proto/codegen/index.js";
 import { variableValue } from "../../app/src/engine/proto/variables.js";
 import { seededRandom } from "../../app/src/engine/proto/ids.js";
 import { flowGraph, describe as describeInteraction, interactionProblems } from "../../app/src/engine/proto/interactions.js";
@@ -24,6 +25,7 @@ import { plural, withoutExt, readInput, writeOutput, replaceFile, needArgs, each
 import { readProto, assertWritable, protoBytes, pagesOf, findPage, topLayers, topOf, findNodes, parseModes, sizeText, fmtNum, withModes } from "./proto-model.mjs";
 import { renderSvg } from "./proto-svg.mjs";
 import { LINT_RULES, lintModel, applyFixes, resolveRules, RULE_ALIASES } from "./proto-lint.mjs";
+import { IMPORT_COMMAND } from "./proto-import.mjs";
 
 const isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const MIME_EXT = { "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp", "image/avif": "avif", "image/svg+xml": "svg" };
@@ -496,6 +498,36 @@ async function tokensImport(flags, args, ctx) {
   return 0;
 }
 
+// ------------------------------------------------------------------------------------------------ export
+
+async function cmdExport(flags, args, ctx) {
+  needArgs(args, 1, "file");
+  const format = String(flags.format || flags.target || "html").toLowerCase();
+  if (!CODE_FORMATS.includes(format)) throw new UsageError(`Unknown export format “${flags.format || flags.target}”. Formats: ${CODE_FORMATS.join(", ")}.`);
+  if (flags.node && flags.page) throw new UsageError("Use either --node or --page, not both.");
+  const { input, state } = openDesign(ctx, args[0], flags);
+  const { model } = state;
+  const modes = parseModes(model, flags.mode);
+  const ids = flags.node ? findNodes(model, flags.node).map((k) => k.split("/")[0]) : null;
+  const page = flags.page ? findPage(model, flags.page).id : null;
+  const res = await exportCode(model, { format, ids, page, modes: modes || undefined, ts: !flags.js, dataIds: !!flags["data-ids"], collapse: !flags["keep-wrappers"] });
+  for (const w of res.warnings) ctx.out.warn(`${w.key}: ${w.message}`);
+  if (!res.files.some((f) => typeof f.text === "string" && !/^(styles\.css|src\/(tokens|styles)\.css|src\/cx\.[jt]s|src\/index\.[jt]s|Tokens\.swift)$/.test(f.path)))
+    ctx.out.warn("Nothing to export besides the variables: the selection has no visible layers or components.");
+  const dir = flags.out || `${withoutExt(input.path === "-" ? "design" : input.path)}-${format}`;
+  if (dir === "-") {
+    // one stream: every text file with a header line
+    ctx.out.raw(res.files.filter((f) => typeof f.text === "string").map((f) => `/* ===== ${f.path} ===== */\n${f.text}`).join("\n"));
+    return 0;
+  }
+  const absDir = resolve(ctx.cwd, dir);
+  if (existsSync(absDir) && readdirSync(absDir).length && !flags.force) throw new CliError(`${dir} is not empty. Use --force to write into it.`, EXIT.IO);
+  for (const f of res.files) writeOutput(ctx, join(dir, f.path), typeof f.text === "string" ? f.text : f.bytes, { force: true });
+  if (ctx.out.json) ctx.out.data({ file: args[0], format, dir, entry: res.entry, files: res.files.map((f) => ({ path: f.path, bytes: typeof f.text === "string" ? Buffer.byteLength(f.text) : f.bytes.length })), warnings: res.warnings });
+  else ctx.out.result(`${ctx.out.c.green("wrote")} ${plural(res.files.length, "file")} to ${dir} ${ctx.out.c.dim(`(${format}; start with ${res.entry})`)}`);
+  return 0;
+}
+
 // ------------------------------------------------------------------------------------------------ diff
 
 /** Top-level field names whose JSON differs. */
@@ -653,7 +685,7 @@ const FORCE = { force: { type: "bool", short: "f", desc: "Overwrite existing fil
 const MODE = { mode: { type: "string", desc: "Variable modes, e.g. Theme=dark,Density=compact" } };
 const WRITE = { out: { type: "string", short: "o", desc: "Write the changed design here (.ofini, or .json for the bare model)" }, "in-place": { type: "bool", desc: "Replace the design file (atomically)" }, "dry-run": { type: "bool", short: "n", desc: "Check only; write nothing" }, ...FORCE };
 
-export const PROTO_SUMMARY = "Proto designs: outline, lint, render, assets, tokens, diff, scripted edits (Labs)";
+export const PROTO_SUMMARY = "Proto designs: outline, lint, render, assets, tokens, code export, import, diff, scripted edits (Labs)";
 
 export const PROTO_COMMANDS = {
   info: { summary: "Pages, frames, layers, components, variables, styles, media and flows", usage: "ofini proto info <file...>", flags: { ...IO }, run: cmdInfo, examples: ["ofini proto info app.ofini", "ofini proto info 'designs/*.ofini' --json"] },
@@ -683,6 +715,14 @@ export const PROTO_COMMANDS = {
     run: cmdTokens,
     examples: ["ofini proto tokens app.ofini > tokens.json", "ofini proto tokens app.ofini -t css -o tokens.css", "ofini proto tokens app.ofini -t json --mode Theme=dark", "ofini proto tokens import app.ofini brand.tokens.json --in-place", "ofini proto tokens import app.ofini dark.tokens.json --mode Dark -o themed.ofini"],
   },
+  export: {
+    summary: "Export layers as code: HTML + CSS, React (CSS Modules or Tailwind), HTML + Tailwind or SwiftUI",
+    usage: "ofini proto export <file> [--format html|react|react-tailwind|tailwind|swiftui] [--node <ids> | --page <p>] [--out <folder>|-]",
+    flags: { ...IO, ...FORCE, ...MODE, format: { type: "string", short: "t", desc: `${CODE_FORMATS.join(", ")} (default html)` }, target: { type: "string", desc: "Same as --format" }, node: { type: "string", desc: "Layers or components to export (ids or names, comma-separated); default: every top-level layer" }, page: { type: "string", short: "p", desc: "Only this page (id, name or number)" }, out: { type: "string", short: "o", desc: "Output folder (default: <name>-<format>), or - to print the text files" }, js: { type: "bool", desc: "React: JavaScript (.jsx) instead of TypeScript" }, "data-ids": { type: "bool", desc: "Mark elements with data-proto-id (layer ids)" }, "keep-wrappers": { type: "bool", desc: "Keep frames that only wrap one layer" } },
+    run: cmdExport,
+    examples: ["ofini proto export app.ofini", "ofini proto export app.ofini -t react -o web/", "ofini proto export app.ofini -t react-tailwind --node Button,Card", "ofini proto export app.ofini -t swiftui --page Screens -o ios/", "ofini proto export app.ofini --node Checkout -o - | less"],
+  },
+  import: IMPORT_COMMAND,
   flows: { summary: "Prototype flows: start frames, the screens each flow reaches and their interactions; exit code 1 when a target is missing", usage: "ofini proto flows <file...> [--page <p>]", flags: { ...IO, page: { type: "string", short: "p", desc: "Page id, name or number (default: every page)" } }, run: cmdFlows, examples: ["ofini proto flows app.ofini", "ofini proto flows app.ofini --page Screens --json"] },
   diff: { summary: "Structural diff of two designs; exit code 1 when they differ", usage: "ofini proto diff <a> <b>", flags: { ...IO }, run: cmdDiff, examples: ["ofini proto diff v1.ofini v2.ofini", "ofini proto diff main.ofini feature.ofini --json"] },
   apply: {

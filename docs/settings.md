@@ -20,6 +20,7 @@ device (`localStorage`); *Security and privacy ▸ Reset all settings* restores 
 | **Troubleshooting** | Open the troubleshooting dialog, verbose logging, copy report, save bundle, report an issue, safe mode, reset app data. See [troubleshooting.md](troubleshooting.md) |
 | **Keyboard shortcuts** | Editable: rebind any command or tool, conflicts, presets, import / export (see [Customization](customization.md)) |
 | **Toolbox and menus** | Show, hide and reorder tools per studio, hide menus and items, choose the header's quick actions. Every studio is listed; studios that work in their own workspace (Code, Vibe, Office, Scene) have no toolbox and say so, their commands are in the menus below |
+| **Studios** | Choose which studios the header switcher shows (any number, at least one: Vector, Pixel, Layout, Code, Vibe, Office apps, Scene and enabled Labs studios such as Proto), reorder them by drag or with the arrow buttons, *Show all studios*, *Reset to default*. Hidden studios stay in the *More* menu, the Studio menu and the command palette, and their files still open. A header that is too narrow moves the rightmost studios into *More* automatically. Stored as the `visibleStudios` preference |
 | **Layout and workspaces** | Panels, dock side and width, built-in and saved workspaces per studio |
 | **Defaults for new things** | New-document size, unit, resolution and background per studio; export and text defaults |
 | **Profiles and backup** | Export / import `.ofprofile`, named profiles, reset everything |

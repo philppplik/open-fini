@@ -2,6 +2,12 @@
 // (document.json, meta.json, pages/<id>.json) and bitmaps (images/...), a structure that is documented in Sketch's
 // public file format reference. Only the common layer types are read; everything else is reported in `warnings`.
 // Verified with synthetic fixtures built from that documentation; not with files saved by every Sketch version.
+//
+// readSketch(input, { symbols: true }) (the Proto importer, engine/proto/import/sketch.js) also keeps what a
+// component-aware importer needs: symbol masters as artboards with their `symbolID`, symbol instances with their
+// override values, layer object ids, image (pattern) fills, shadows and blurs, text runs, and group layouts (stacks:
+// MSImmutableFlexGroupLayout; Smart Layout: MSImmutableInferredGroupLayout) with padding and child sizing. Without
+// the option the result is what the Vector studio's importer has always read.
 import { unzipSync } from '../../../vendor/fflate/fflate.js';
 
 const hex2 = (v) => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0');
@@ -12,7 +18,7 @@ const pt = (s) => {
 };
 const num = (v, d = 0) => (typeof v === 'number' && isFinite(v) ? v : d);
 
-function paints(style, warnings) {
+function paints(style, warnings, ctx = {}) {
   const fills = [];
   for (const f of style?.fills || []) {
     if (f.isEnabled === false) continue;
@@ -24,7 +30,10 @@ function paints(style, warnings) {
         fills.push({ type: 'solid', ...stops[0] });
         warnings.add('Angular gradients were replaced by their first color.');
       }
-    } else if (f.fillType === 4) warnings.add('Pattern (image) fills were not imported.');
+    } else if (f.fillType === 4) {
+      if (ctx.symbols && f.image?._ref) fills.push({ type: 'image', imageRef: f.image._ref, fit: ['tile', 'fill', 'stretch', 'fit'][f.patternFillType] || 'fill', alpha: num(f.contextSettings?.opacity, 1) });
+      else warnings.add('Pattern (image) fills were not imported.');
+    }
     else {
       const c = col(f.color);
       if (c) fills.push({ type: 'solid', ...c, alpha: c.alpha * num(f.contextSettings?.opacity, 1) });
@@ -36,6 +45,17 @@ function paints(style, warnings) {
     const c = col(b.color);
     if (!c || !(b.thickness > 0)) continue;
     borders.push({ ...c, width: b.thickness, position: b.position === 1 ? 'inside' : b.position === 2 ? 'outside' : 'center', dash: style?.borderOptions?.dashPattern?.length ? style.borderOptions.dashPattern : null, cap: ['butt', 'round', 'square'][style?.borderOptions?.lineCapStyle] || 'butt', join: ['miter', 'round', 'bevel'][style?.borderOptions?.lineJoinStyle] || 'miter' });
+  }
+  if (ctx.symbols) {
+    const shadows = [];
+    for (const [list, inset] of [[style?.shadows, false], [style?.innerShadows, true]]) {
+      for (const sh of list || []) {
+        if (sh.isEnabled === false) continue;
+        shadows.push({ ...(col(sh.color) || { color: '#000000', alpha: 0.5 }), x: num(sh.offsetX), y: num(sh.offsetY), blur: Math.max(0, num(sh.blurRadius)), spread: num(sh.spread), inset });
+      }
+    }
+    const blur = style?.blur?.isEnabled ? { kind: style.blur.type === 3 ? 'background' : style.blur.type === 0 || style.blur.type === undefined ? 'layer' : 'other', radius: Math.max(0, num(style.blur.radius)) } : null;
+    return { fills, borders, shadows, blur };
   }
   if (style?.shadows?.some((s) => s.isEnabled) || style?.innerShadows?.some((s) => s.isEnabled)) warnings.add('Shadows were not imported.');
   if (style?.blur?.isEnabled) warnings.add('Blur effects were not imported.');
@@ -68,16 +88,60 @@ function pathData(layer) {
 
 const ALIGN = ['left', 'right', 'center', 'justify'];
 
+/** Stack (flex) or Smart Layout of a group or artboard, with padding; null for none. */
+function groupLayout(l) {
+  const g = l.groupLayout;
+  if (!g || typeof g !== 'object') return null;
+  const pad = [num(l.topPadding), num(l.rightPadding), num(l.bottomPadding), num(l.leftPadding)];
+  if (g._class === 'MSImmutableFlexGroupLayout') {
+    return {
+      kind: 'stack',
+      dir: g.flexDirection === 1 ? 'column' : 'row',
+      justify: ['start', 'center', 'end', 'space-between', 'space-around', 'space-evenly'][g.justifyContent] || 'start',
+      align: ['start', 'center', 'end', 'stretch'][g.alignItems] || 'start',
+      gap: Math.max(0, num(g.allGuttersGap)),
+      crossGap: Math.max(0, num(g.crossAxisGutterGap, num(g.allGuttersGap))),
+      wrap: !!g.wrappingEnabled,
+      pad,
+    };
+  }
+  if (g._class === 'MSImmutableInferredGroupLayout') return { kind: 'smart', dir: g.axis === 1 ? 'column' : 'row', anchor: ['start', 'center', 'end'][g.layoutAnchor] || 'start', pad };
+  return null;
+}
+
+/** Text runs of an attributed string: [{ text, font, size, color, alpha, kerning, underline, strike }]. */
+function textRuns(as) {
+  const str = String(as.string || '').replace(/\r\n?/g, '\n');
+  const runs = [];
+  for (const a of as.attributes || []) {
+    const at = a.attributes || {};
+    const font = at.MSAttributedStringFontAttribute?.attributes || {};
+    const c = col(at.MSAttributedStringColorAttribute) || { color: '#000000', alpha: 1 };
+    const loc = Math.max(0, num(a.location));
+    const len = Math.max(0, num(a.length));
+    runs.push({ text: str.slice(loc, loc + len), font: String(font.name || 'Helvetica'), size: num(font.size, 14), color: c.color, alpha: c.alpha, kerning: num(at.kerning), underline: !!at.underlineStyle, strike: !!at.strikethroughStyle, lineHeight: num(at.paragraphStyle?.maximumLineHeight, 0) || null });
+  }
+  if (!runs.length && str) runs.push({ text: str, font: 'Helvetica', size: 14, color: '#000000', alpha: 1, kerning: 0, underline: false, strike: false, lineHeight: null });
+  return runs;
+}
+
 function readLayer(l, ctx) {
   if (!l || typeof l !== 'object') return null;
   const frame = l.frame || {};
   const base = { name: String(l.name || l._class || 'Layer'), x: num(frame.x), y: num(frame.y), width: Math.max(0, num(frame.width)), height: Math.max(0, num(frame.height)), rotation: -num(l.rotation), visible: l.isVisible !== false, locked: !!l.isLocked, opacity: num(l.style?.contextSettings?.opacity, 1) };
   if (l.isFlippedHorizontal || l.isFlippedVertical) ctx.warnings.add('Flipped layers were imported without the flip.');
-  const { fills, borders } = paints(l.style, ctx.warnings);
+  const { fills, borders, shadows, blur } = paints(l.style, ctx.warnings, ctx);
   const kids = () => (l.layers || []).map((c) => readLayer(c, ctx)).filter(Boolean);
+  if (ctx.symbols) {
+    base.id = String(l.do_objectID || '');
+    if (shadows?.length) base.shadows = shadows;
+    if (blur) base.blur = blur;
+    base.sizing = { h: ['fixed', 'hug', 'fill'][l.horizontalSizing] || null, v: ['fixed', 'hug', 'fill'][l.verticalSizing] || null };
+    if (l.isFixedToViewport || l.flexItem?.ignoreLayout) base.absolute = true;
+  }
   switch (l._class) {
     case 'group':
-      return { ...base, kind: 'group', children: kids() };
+      return { ...base, kind: 'group', children: kids(), ...(ctx.symbols ? { layout: groupLayout(l), fills, borders, clip: !!l.hasClippingMask } : {}) };
     case 'shapeGroup': {
       if ((l.layers || []).length > 1 && (l.layers || []).some((c) => c.booleanOperation > 0)) ctx.warnings.add('Boolean shape operations were imported as separate shapes.');
       const children = kids().map((c) => (c.kind === 'group' ? c : { ...c, fills: c.fills?.length ? c.fills : fills, borders: c.borders?.length ? c.borders : borders }));
@@ -104,6 +168,7 @@ function readLayer(l, ctx) {
       const name = String(font.name || 'Helvetica');
       return {
         ...base, kind: 'text',
+        ...(ctx.symbols ? { runs: textRuns(as) } : {}),
         text: { string: String(as.string || '').replace(/\r\n?/g, '\n'), fontFamily: name.replace(/[-_ ](Bold|Italic|Regular|Medium|Light|Semibold|Black|Oblique).*$/i, '').replace(/([a-z])([A-Z])/g, '$1 $2'), fontPostScript: name, fontSize: num(font.size, 14), color: c.color, align: ALIGN[l.style?.textStyle?.encodedAttributes?.paragraphStyle?.alignment ?? a0.paragraphStyle?.alignment] || 'left', fixedWidth: l.textBehaviour !== 0 },
         fills: [],
         borders: [],
@@ -115,7 +180,14 @@ function readLayer(l, ctx) {
       return { ...base, kind: 'image', imageRef: ref };
     }
     case 'symbolInstance':
+      if (ctx.symbols) return { ...base, kind: 'instance', symbolID: String(l.symbolID || ''), overrides: (l.overrideValues || []).filter((o) => o && typeof o.overrideName === 'string').map((o) => ({ name: o.overrideName, value: o.value })), fills, borders };
       ctx.warnings.add('Symbol instances were not expanded; they are left out.');
+      return null;
+    case 'artboard':
+    case 'symbolMaster':
+      // nested artboards (frames inside frames) read like groups with a background
+      if (ctx.symbols) return { ...base, kind: 'group', children: kids(), layout: groupLayout(l), fills: l.hasBackgroundColor && col(l.backgroundColor) ? [{ type: 'solid', ...col(l.backgroundColor) }] : fills, borders, clip: true, frame: true };
+      ctx.warnings.add(`Layers of type “${l._class}” were not imported.`);
       return null;
     case 'slice':
     case 'hotspot':
@@ -135,11 +207,11 @@ export function isSketch(entries) {
  * @param {Uint8Array|Record<string, Uint8Array>} input zip bytes or unzipped entries
  * @returns {{name: string, version: number|null, pages: {name: string, artboards: object[]}[], images: Record<string, Uint8Array>, warnings: string[]}}
  */
-export function readSketch(input) {
+export function readSketch(input, { symbols = false, unzip = null } = {}) {
   let entries = input;
   if (input instanceof Uint8Array) {
     try {
-      entries = unzipSync(input, { filter: (f) => f.originalSize < 256 * 1024 * 1024 });
+      entries = unzip ? unzip(input) : unzipSync(input, { filter: (f) => f.originalSize < 256 * 1024 * 1024 });
     } catch {
       throw new Error('This file is not a valid Sketch document (it is not a ZIP archive).');
     }
@@ -157,7 +229,7 @@ export function readSketch(input) {
   const meta = json('meta.json') || {};
   if (!doc) throw new Error('The Sketch document.json could not be read.');
   const warnings = new Set();
-  const ctx = { warnings };
+  const ctx = { warnings, symbols };
   const refs = (doc.pages || []).map((p) => p._ref).filter(Boolean);
   const pageFiles = refs.length ? refs.map((r) => `${r}.json`) : Object.keys(entries).filter((k) => /^pages\/[^/]+\.json$/.test(k));
   const pages = [];
@@ -172,8 +244,13 @@ export function readSketch(input) {
     for (const l of pj.layers || []) {
       if (l._class === 'artboard' || l._class === 'symbolMaster') {
         const bg = l.hasBackgroundColor ? col(l.backgroundColor) : null;
-        artboards.push({ name: String(l.name || 'Artboard'), x: num(l.frame?.x), y: num(l.frame?.y), width: Math.max(1, num(l.frame?.width, 100)), height: Math.max(1, num(l.frame?.height, 100)), background: bg ? bg.color : null, items: (l.layers || []).map((c) => readLayer(c, ctx)).filter(Boolean) });
-        if (l._class === 'symbolMaster') warnings.add('Symbol masters were imported as artboards.');
+        const ab = { name: String(l.name || 'Artboard'), x: num(l.frame?.x), y: num(l.frame?.y), width: Math.max(1, num(l.frame?.width, 100)), height: Math.max(1, num(l.frame?.height, 100)), background: bg ? bg.color : null, items: (l.layers || []).map((c) => readLayer(c, ctx)).filter(Boolean) };
+        if (symbols) {
+          Object.assign(ab, { id: String(l.do_objectID || ''), layout: groupLayout(l), backgroundAlpha: bg ? bg.alpha : 1, visible: l.isVisible !== false, ...paints(l.style, warnings, ctx) });
+          if (l._class === 'symbolMaster') ab.symbolID = String(l.symbolID || '');
+        }
+        artboards.push(ab);
+        if (l._class === 'symbolMaster' && !symbols) warnings.add('Symbol masters were imported as artboards.');
       } else {
         const it = readLayer(l, ctx);
         if (it) loose.push(it);

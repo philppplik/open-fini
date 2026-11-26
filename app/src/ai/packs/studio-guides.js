@@ -225,7 +225,7 @@ board_describe: every connector has from/to, nothing overlaps, every item has te
 ## Verify
 scene_describe after each batch (duration, clips, no gaps you did not intend); scene_render_frame at the moments that matter (several times give one contact sheet): titles, transitions, captions, framing after a reframe. scene_export only when the user asks; it needs approval.`,
 
-  `${fm("proto", "How to work in the Proto Studio: the design model, auto layout specs, components, variables, lint and checking frames.", "proto_describe, proto_get_node, proto_search, proto_screenshot, proto_new, proto_create, proto_update, proto_move, proto_delete, proto_duplicate, proto_component, proto_variables, proto_styles, proto_tokens, proto_lint, proto_fix, proto_responsive, proto_content, proto_rename, proto_from_screenshot, proto_interaction", "proto, ui design, app screen, prototype, wireframe, mockup, component, design system, tokens, screen from screenshot")}
+  `${fm("proto", "How to work in the Proto Studio: the design model, auto layout specs, components, variables, lint and checking frames.", "proto_describe, proto_get_node, proto_search, proto_screenshot, proto_new, proto_create, proto_write_html, proto_update, proto_move, proto_delete, proto_duplicate, proto_component, proto_variables, proto_styles, proto_tokens, proto_to_code, proto_lint, proto_fix, proto_responsive, proto_content, proto_rename, proto_from_screenshot, proto_interaction", "proto, ui design, app screen, prototype, wireframe, mockup, component, design system, tokens, screen from screenshot")}
 # Proto Studio guide
 
 ## Start
@@ -239,10 +239,12 @@ scene_describe after each batch (duration, clips, no gaps you did not intend); s
 
 ## Tool order
 - Build: proto_create with one nested spec per screen or component (one call, one undo step). Prefer layout, gap, pad, w "fill" over absolute positions; name every frame.
+- Or write HTML and CSS: proto_write_html turns a self-contained snippet (flexbox, grid, a <style> block, :root custom properties) into editable layers with auto layout in one step; check the result with proto_describe and proto_screenshot.
 - Change: proto_update (shorthands and dotted paths, bind to variables), proto_move (reorder, reparent, wrap in auto layout), proto_duplicate, proto_delete.
 - System: proto_variables (collection with modes, then create items), proto_styles, proto_component, proto_tokens for DTCG import and export.
 - Polish: proto_content for realistic text, proto_rename for semantic names and tags.
 - Prototype: proto_interaction (connect a layer to a frame with a transition, overlays, variant states, variables, flows); the user plays it with Prototype > Preview.
+- Code: proto_to_code (html, react, react-tailwind, tailwind, swiftui) for the selection or a page; components become components with props.
 
 ## Pitfalls
 - Absolute positions inside auto layout, fixed widths where fill is meant, text without a fill width that never wraps.
