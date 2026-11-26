@@ -363,6 +363,33 @@ test("proto tokens exports the engine's formats and imports DTCG", async () => {
 
 // ------------------------------------------------------------------------------------------------ diff, apply
 
+// ------------------------------------------------------------------------------------------------ export
+
+test("proto export writes code in every format; --node, --page, - and exit codes", async () => {
+  const r = await run("proto", "export", "sample.ofini", "--json");
+  assert.equal(r.code, 0, r.err);
+  const a = json(r);
+  assert.equal(a.dir, "sample-html");
+  assert.equal(a.format, "html");
+  assert.deepEqual(a.files.map((f) => f.path), ["checkout.html", "done.html", "index.html", "styles.css", "assets/bag.png"]);
+  assert.deepEqual([...readFileSync(join(dir, "sample-html", "assets", "bag.png"))], [...PNG]);
+  assert.match(readFileSync(join(dir, "sample-html", "checkout.html"), "utf8"), /<main class="checkout"/);
+  assert.equal((await run("proto", "export", "sample.ofini")).code, 3, "a non-empty folder needs --force");
+  for (const t of ["react", "react-tailwind", "tailwind", "swiftui"]) {
+    const x = json(await run("proto", "export", "sample.ofini", "-t", t, "--json"));
+    assert.equal(x.dir, `sample-${t}`);
+    assert.ok(x.files.length > 3, t);
+  }
+  const react = json(await run("proto", "export", "sample.ofini", "--target", "react", "--js", "--node", "Button", "-o", "button", "--json"));
+  assert.deepEqual(react.files.map((f) => f.path).filter((f) => f.startsWith("src/components")), ["src/components/Button.jsx", "src/components/Button.module.css", "src/components/IconCheck.jsx", "src/components/IconCheck.module.css"]);
+  const page = json(await run("proto", "export", "sample.ofini", "--page", "1", "-o", "page", "--json"));
+  assert.ok(page.files.some((f) => f.path === "checkout.html"));
+  const out = await run("proto", "export", "sample.ofini", "--node", "n40", "-o", "-");
+  assert.match(out.out, /\/\* ===== index.html ===== \*\/\n<!doctype html>/);
+  assert.equal((await run("proto", "export", "sample.ofini", "-t", "vue")).code, 2);
+  assert.equal((await run("proto", "export", "sample.ofini", "--node", "n1", "--page", "1")).code, 2);
+});
+
 test("proto diff lists added, removed and changed layers, variables and styles", async () => {
   assert.equal((await run("proto", "diff", "sample.ofini", "sample.json")).code, 1, "media bytes differ");
   writeFileSync(p("copy.json"), JSON.stringify(SAMPLE));

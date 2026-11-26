@@ -5,7 +5,7 @@
 // ("Vibe: …") through engine/proto/ops.js, validated by the engine, and recorded in the AI log like every tool call.
 // Names match the MCP tools of the concept (§8) where they overlap. proto_write_html (T8) runs the HTML importer
 // (engine/proto/import/html.js; in the app the HTML renders in a sandboxed frame first, proto/html-probe.js);
-// proto_interaction (T9) edits prototype interactions and flows; proto_to_code arrives with T7.
+// proto_interaction (T9) edits prototype interactions and flows; proto_to_code (T7) exports code (engine/proto/codegen/).
 import { tool, S } from "./helpers.js";
 
 const ops = () => import("../../proto/ai-ops.js");
@@ -343,6 +343,35 @@ export function protoTools(app, ctx = {}) {
       if (!json || typeof json !== "object") throw new Error("Pass tokens (DTCG JSON).");
       return edit(app, "Import tokens", async () => ({ ops: [{ op: "tokens.import", tokens: json, ...(a.collection ? { collection: a.collection } : {}), ...(a.mode ? { mode: a.mode } : {}) }], result: {} }));
     }),
+
+    tool("proto_to_code", "Exports layers as code, the way the Code panel and `ofini proto export` do: html (HTML + CSS), react (React with CSS Modules), react-tailwind (React with Tailwind v4), tailwind (HTML with Tailwind classes) or swiftui. Components become reusable components with variant and property props, variables become CSS custom properties or theme tokens, images are listed as assets. Default: the selection, else the page on screen. Returns the files (text) and notes about what the format cannot express; use file to read one file in full.", {
+      format: S.str("Code format (default html)", { enum: ["html", "react", "react-tailwind", "tailwind", "swiftui"] }), ids: IDS("Layers or components to export (default: the selection, else the page)"),
+      page: S.str("Page id (instead of ids)"), file: S.str("Only this file (a path from an earlier call)"), js: S.bool("React: JavaScript instead of TypeScript"),
+      maxChars: S.num("Most characters of code returned (default 40000)", { minimum: 1000, maximum: 400000 }),
+    }, [], async (a) => {
+      const [R, C] = await Promise.all([rt(), import("../../engine/proto/codegen/index.js")]);
+      const t = R.protoTarget(app);
+      const m = t.model();
+      const ids = a.ids?.length ? a.ids : a.page ? null : t.selection.length ? t.selection : null;
+      const missing = (ids || []).filter((id) => !m.nodes[id]);
+      if (missing.length) throw new Error(`There is no layer ${missing.map((x) => `“${x}”`).join(", ")}. Call proto_describe for the ids.`);
+      const res = await C.exportCode(m, { format: a.format || "html", ids, page: ids ? null : a.page || t.page, ts: !a.js });
+      const max = a.maxChars || 40000;
+      const text = res.files.filter((f) => typeof f.text === "string" && (!a.file || f.path === a.file));
+      if (a.file && !text.length) throw new Error(`No file “${a.file}” in this export. Files: ${res.files.map((f) => f.path).join(", ")}`);
+      let used = 0;
+      const files = [];
+      for (const f of text) {
+        const room = max - used;
+        if (room <= 0) {
+          files.push({ path: f.path, omitted: true });
+          continue;
+        }
+        files.push(f.text.length > room ? { path: f.path, text: f.text.slice(0, room), truncated: true } : { path: f.path, text: f.text });
+        used += Math.min(room, f.text.length);
+      }
+      return { format: res.format, entry: res.entry, files, assets: res.files.filter((f) => typeof f.text !== "string").map((f) => f.path), notes: res.warnings.slice(0, 50).map((w) => w.message) };
+    }, { readOnly: true }),
 
     tool("proto_lint", "Checks the design: text contrast (WCAG), touch targets, colors and spacing that equal a variable but are not bound, spacing off the 4 px grid, local values that equal a style, overrides of layers a component no longer has, frames named like a component (detached copies), empty frames, default layer names, cut-off or clipped text, unused variables and styles. Each issue has an id, a severity, the layer and, where it can be repaired mechanically, a fix (apply with proto_fix).", {
       ids: IDS("Only these layers and their contents"), page: S.str("Only this page (default: every page)"),

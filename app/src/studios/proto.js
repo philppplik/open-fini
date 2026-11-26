@@ -25,10 +25,11 @@ export const PROTO_STUDIO = {
   newDocument: (app) => host().then((m) => m.newProto(app, { starter: "desktop" })),
   newBlank: (app) => host().then((m) => m.newProto(app, { starter: "blank" })),
   tools: [],
-  // Pages, Layers and Assets (left), the Design panel (right, id proto-inspector) and the Variables table (bottom)
+  // Pages, Layers and Assets (left), the Design and Code panels (right, ids proto-inspector and proto-code) and the
+  // Variables table (bottom)
   top: ["proto-pages", "proto-layers", "proto-assets"],
-  bottom: ["proto-inspector", "proto-variables"],
-  essentials: { left: [["proto-pages"], ["proto-layers", "proto-assets"]], right: [["proto-inspector", "comments"]], bottom: [["proto-variables"]], sizes: { left: 240, right: 280, bottom: 220 } },
+  bottom: ["proto-inspector", "proto-code", "proto-variables"],
+  essentials: { left: [["proto-pages"], ["proto-layers", "proto-assets"]], right: [["proto-inspector", "proto-code", "comments"]], bottom: [["proto-variables"]], sizes: { left: 240, right: 280, bottom: 220 } },
 };
 
 /** Menus of the Proto Studio (merged into ui/menus.js MENUS). The commands register when the first design mounts. */
