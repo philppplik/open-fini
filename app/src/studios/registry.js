@@ -5,14 +5,17 @@
 //   registerStudio({ id: "office", label: "Office", icon: "office", blurb: "Documents, sheets and slides", order: 60, workspace: true });
 //
 // Everything else (header switcher, "More" menu, Studio menu, Alt+N shortcuts, welcome cards, New document dialog,
-// command palette, Settings > Studios) is derived from the registry. The header shows at most MAX_VISIBLE_STUDIOS
-// studios; the rest live in the "More" menu, so no studio is ever unreachable.
+// command palette, Settings > Studios) is derived from the registry. The header shows the studios the user picked
+// (any number, at least one); the rest live in the "More" menu, and a header too narrow for all of them moves the
+// rightmost ones there too (ui/header-fit.js), so no studio is ever unreachable.
 
-/** Hard limit of studios shown side by side in the header. */
-export const MAX_VISIBLE_STUDIOS = 5;
+/** Optional upper bound for the header list. There is none by default: the user may show every studio. */
+export const MAX_VISIBLE_STUDIOS = Infinity;
 
 /** The studios shown by default (a fresh install, or after "Reset"). Studios registered later start in "More". */
 export const DEFAULT_VISIBLE_STUDIOS = ["vector", "pixel", "layout", "code", "vibe"];
+
+import { N_ } from "../i18n/index.js";
 
 const ID_RE = /^[a-z][a-z0-9-]{0,31}$/;
 
@@ -108,7 +111,7 @@ export function overflowStudios(visible, registered) {
  */
 export function toggleVisibleStudio(visible, id, { max = MAX_VISIBLE_STUDIOS } = {}) {
   if (visible.includes(id)) {
-    if (visible.length <= 1) return { visible, error: "At least one studio must stay in the header." };
+    if (visible.length <= 1) return { visible, error: N_("At least one studio must stay in the header.") };
     return { visible: visible.filter((x) => x !== id), error: null };
   }
   if (visible.length >= max) return { visible, error: `The header shows at most ${max} studios. Remove one first; the others stay available in the More menu.` };
