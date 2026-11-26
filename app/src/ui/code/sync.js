@@ -193,6 +193,10 @@ export class SyncController {
       this.match = null;
       ws.preview.matchSelector(selector);
     }
+    // text selected in the page's HTML is highlighted in the preview (only while the user selects in the editor, so a
+    // selection the preview itself put into the editor does not come back)
+    const mark = this.on && c && c.path === ws.page && c.to > c.from && ws.view !== "code" && ws.editors.hasFocus();
+    ws.preview.markSource(mark ? c.from : null, mark ? c.to : null);
     this.render();
   }
 

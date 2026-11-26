@@ -41,7 +41,8 @@ Conventions (same as `docs/engine-contracts.md`)
 | `libs.js` | CDN URLs, library catalog, import-map and tag edit producers, package API parsers, vendoring planner |
 | `frameworks.js` | framework detection, Tailwind / Bootstrap class lists, Alpine and htmx attributes, Add-panel snippets |
 | `ssg.js` | Markdown site generator (`content/` + `layouts/` → pages) |
-| `text-map.js` | maps a text selection in the preview (DOM text node and offset) to the exact source range, entities and CRLF included ([code-studio.md](code-studio.md#text-selection-in-the-preview)); not re-exported, import it directly |
+| `text-map.js` | maps a text selection in the preview (DOM text node and offset) to the exact source range, entities and CRLF included, and a source range back to preview text points (`textPointsFor`) ([code-studio.md](code-studio.md#text-selection-in-the-preview)) |
+| `live-patch.js` | plans how the preview follows an edit of the page without a reload (`planPagePatch`) and the self-contained `morphKit` the preview frame applies it with ([code-studio.md](code-studio.md#live-updates)) |
 | `index.js` | re-exports everything above with `export *` (111 names, no duplicates). `emmet.js` is owned by the UI and is not re-exported |
 
 Every module is importable on its own (`tests/web/purity.test.js` loads each one and scans the sources for DOM,

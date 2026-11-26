@@ -3,10 +3,15 @@
 // self-contained: no imports, no references to anything outside of `bridgeMain`.
 //
 // Parent → frame messages: { of:1, type: "mode"|"select"|"hover"|"computed"|"live"|"liveClear"|"css"|"scroll"|
-//   "reveal"|"dropProbe"|"dropEnd"|"textEditStart"|"spacing"|"measure"|"measureBox"|"probe" , ... }
+//   "reveal"|"dropProbe"|"dropEnd"|"textEditStart"|"spacing"|"measure"|"measureBox"|"probe"|"patch"|"restore"|
+//   "markText"|"reportScroll" , ... }
 // Frame → parent messages: { of:1, type: "ready"|"console"|"pick"|"hover"|"context"|"computed"|"scroll"|"navigate"|
 //   "external"|"textEdit"|"htmlEdit"|"moveDrop"|"dropTarget"|"key"|"dblclick"|"submit"|"measureInfo"|"measureBox"|
-//   "measureExit"|"measureCopied"|"measureOpt"|"probe"|"textSel" , ... }
+//   "measureExit"|"measureCopied"|"measureOpt"|"probe"|"textSel"|"patched"|"restored" , ... }
+// "patch" applies an edit of the page without reloading: the rebuilt page is parsed with DOMParser and only the changed
+// element is morphed (`morpher` = morphKit of engine/web/live-patch.js, planned by planPagePatch). "restore" puts the
+// scroll position and text selection back into a freshly loaded frame before the host shows it. "markText" highlights
+// the text selected in the code editor (CSS Custom Highlight API; the page's own selection is never touched).
 // "probe" answers the assistant's questions about the rendered page and performs simple interactions (click, type,
 // …) with the self-contained `probeKit` of ui/code/probe.js, passed in as `pageProbe`. It never evaluates code.
 // The measure tool (section "measure tool" below) draws its overlay in the frame; its geometry and unit code is the
@@ -15,8 +20,9 @@
 /* eslint-disable no-undef */
 import { measureKit } from "../../engine/web/measure.js";
 import { probeKit } from "./probe.js";
+import { morphKit } from "../../engine/web/live-patch.js";
 
-export function bridgeMain(kit, pageProbe) {
+export function bridgeMain(kit, pageProbe, morpher) {
   var cfg = window.__OF_CONFIG__ || {};
   var TOP = window.parent;
   var ACCENT = cfg.accent || "#4f8cff";
@@ -919,6 +925,103 @@ export function bridgeMain(kit, pageProbe) {
     if (files.length) post({ type: "dropFiles", files: files, parentId: target ? target.parentId : null, index: target ? target.index : 1e9 });
   }, true);
 
+  // ---------------------------------------------------------------- live patch, restore, code highlight
+  function keepNode(n) {
+    return n === ov || n === sbStyle || (n.nodeType === 1 && n.id && n.id.indexOf("__of_") === 0);
+  }
+  function applyPatch(m) {
+    if (typeof m.html !== "string" || typeof DOMParser === "undefined") return false;
+    if (!(m.keep >= 0 && m.removed >= 0 && m.added >= 0)) return false;
+    var next = new DOMParser().parseFromString(m.html, "text/html");
+    var root = m.root == null ? null : Number(m.root);
+    var live = root == null ? document.documentElement : byId(root);
+    var want = root == null ? next.documentElement : next.querySelector('[data-of="' + root + '"]');
+    if (!live || !want || live.tagName !== want.tagName) return false;
+    morpher.renumber(document.documentElement, m.keep, m.removed, m.added);
+    // the element being edited inline is the origin of this edit: it already shows it
+    if (!(textEl && (textEl === live || textEl.contains(live)))) {
+      morpher.morph(live, want, {
+        adopt: function (n) {
+          return document.importNode(n, true);
+        },
+        keep: keepNode,
+        frozen: function (n) {
+          return n === textEl;
+        },
+      });
+    }
+    liveEls = [];
+    lastSel = "";
+    schedule();
+    return true;
+  }
+  function textNodeFor(p) {
+    var el = p && byId(p.id);
+    if (!el || typeof p.data !== "string") return null;
+    var texts = [];
+    for (var c = el.firstChild; c; c = c.nextSibling) if (c.nodeType === 3) texts.push(c);
+    var n = texts[p.index];
+    if (!n || n.data !== p.data) {
+      n = null;
+      for (var i = 0; i < texts.length; i++) if (texts[i].data === p.data) n = n || texts[i];
+    }
+    return n ? { node: n, offset: Math.max(0, Math.min(Number(p.offset) || 0, n.data.length)) } : null;
+  }
+  function rangeFor(a, b) {
+    var x = textNodeFor(a);
+    var y = textNodeFor(b);
+    if (!x || !y) return null;
+    var r = document.createRange();
+    try {
+      r.setStart(x.node, x.offset);
+      r.setEnd(y.node, y.offset);
+    } catch (e) {
+      return null;
+    }
+    return r.collapsed ? null : r;
+  }
+  var hlStyle = null;
+  function markText(m) {
+    if (!window.CSS || !CSS.highlights || typeof Highlight === "undefined") return;
+    CSS.highlights.delete("of-code");
+    var r = m && m.a && m.b ? rangeFor(m.a, m.b) : null;
+    if (!r) return;
+    if (!hlStyle) {
+      hlStyle = document.createElement("style");
+      hlStyle.id = "__of_hl";
+      hlStyle.textContent = "::highlight(of-code){background-color:rgba(255,200,40,.5);color:inherit}";
+      ov.appendChild(hlStyle);
+    }
+    CSS.highlights.set("of-code", new Highlight(r));
+    var rc = r.getBoundingClientRect();
+    if (m.scroll !== false && (rc.bottom < 0 || rc.top > lh())) window.scrollBy(0, rc.top - lh() / 3);
+  }
+  function restore(m) {
+    var done = false;
+    function run() {
+      if (done) return;
+      done = true;
+      window.scrollTo(Number(m.x) || 0, Number(m.y) || 0);
+      if (m.sel && !edit) {
+        var r = rangeFor(m.sel.a, m.sel.b);
+        if (r) {
+          var sel = getSelection();
+          sel.removeAllRanges();
+          sel.addRange(r);
+        }
+      }
+      post({ type: "restored" });
+      // images and fonts that arrive later make the page taller: try once more unless the user scrolled meanwhile
+      var want = { x: Number(m.x) || 0, y: Number(m.y) || 0 };
+      var at = window.scrollY;
+      window.addEventListener("load", function () {
+        if (window.scrollY === at && at !== want.y) window.scrollTo(want.x, want.y);
+      }, { once: true });
+    }
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run, { once: true });
+    else run();
+  }
+
   // ---------------------------------------------------------------- parent commands
   var PROPS_FALLBACK = ["display", "position"];
   window.addEventListener("message", function (e) {
@@ -1076,6 +1179,25 @@ export function bridgeMain(kit, pageProbe) {
       case "endTextEdit":
         endTextEdit(true);
         break;
+      case "patch": {
+        var ok = false;
+        try {
+          ok = applyPatch(m);
+        } catch (err) {
+          ok = false;
+        }
+        post({ type: "patched", seq: m.seq, ok: ok });
+        break;
+      }
+      case "restore":
+        restore(m);
+        break;
+      case "reportScroll":
+        post({ type: "scroll", x: window.scrollX, y: window.scrollY });
+        break;
+      case "markText":
+        markText(m);
+        break;
       case "probe": {
         var reply = { type: "probe", reqId: m.reqId };
         var wasEdit = edit;
@@ -1105,4 +1227,4 @@ export function bridgeMain(kit, pageProbe) {
 }
 
 /** Source text injected into the preview: the function body wrapped in an IIFE. */
-export const bridgeSource = `(${bridgeMain.toString()})((${measureKit.toString()})(), (${probeKit.toString()})());`;
+export const bridgeSource = `(${bridgeMain.toString()})((${measureKit.toString()})(), (${probeKit.toString()})(), (${morphKit.toString()})());`;

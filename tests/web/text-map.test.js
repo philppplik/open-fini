@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { alignText, sanitizeTextPoint, sourceOffsetFor, sourceRangeFor } from "../../app/src/engine/web/text-map.js";
+import { alignText, sanitizeTextPoint, sourceOffsetFor, sourceRangeFor, decodeTextMap, textPointsFor } from "../../app/src/engine/web/text-map.js";
 import { parseHtml } from "../../app/src/engine/web/html.js";
 
 const byTag = (parsed, tag, n = 0) => parsed.elements.filter((e) => e.tag === tag)[n];
@@ -81,4 +81,57 @@ test("stale or forged points map to nothing", () => {
   assert.equal(sourceOffsetFor(parsed, { id: 99, index: 0, offset: 0, data: "Hello" }), null);
   assert.equal(sourceOffsetFor(null, { id: 0, index: 0, offset: 0, data: "Hello" }), null);
   assert.equal(sourceRangeFor(parsed, { id: 0, index: 0, offset: 0, data: "Hello" }, { id: 0, index: 0, offset: 9, data: "Hello" }), null);
+});
+
+// ------------------------------------------------------------------ source -> preview
+
+test("decodeTextMap is the inverse of alignText", () => {
+  for (const [src, pre] of [["A &amp; B", false], ["caf&eacute;!", false], ["a\r\nb\rc", false], ["\nline", true], ["x&#128512;y &nosuch; &amp", false]]) {
+    const { text, map } = decodeTextMap(src, pre);
+    assert.deepEqual(alignText(src, text), map, src);
+  }
+  assert.equal(decodeTextMap("a &lt;b&gt;").text, "a <b>");
+});
+
+test("textPointsFor maps an editor selection to preview text points", () => {
+  const src = "<body><p>Hello <b>big</b> &amp; wide world</p></body>";
+  const parsed = parseHtml(src);
+  const p = byTag(parsed, "p");
+  const b = byTag(parsed, "b");
+  // one word
+  const w = src.indexOf("wide");
+  assert.deepEqual(textPointsFor(parsed, w, w + 4), {
+    a: { id: p.id, index: 1, offset: 3, data: " & wide world" },
+    b: { id: p.id, index: 1, offset: 7, data: " & wide world" },
+  });
+  // across a nested inline tag and an entity
+  const r = textPointsFor(parsed, src.indexOf("llo"), src.indexOf("wide"));
+  assert.deepEqual(r.a, { id: p.id, index: 0, offset: 2, data: "Hello " });
+  assert.deepEqual(r.b, { id: p.id, index: 1, offset: 3, data: " & wide world" });
+  // half of a reference selects the whole character
+  const amp = src.indexOf("&amp;");
+  assert.equal(textPointsFor(parsed, amp + 2, amp + 3).b.offset, 2);
+  assert.equal(textPointsFor(parsed, amp + 2, amp + 3).a.offset, 1);
+  // starting inside a tag snaps to the text after it
+  const t = textPointsFor(parsed, src.indexOf("<b>") + 1, src.indexOf("</b>"));
+  assert.deepEqual(t.a, { id: b.id, index: 0, offset: 0, data: "big" });
+  assert.deepEqual(t.b, { id: b.id, index: 0, offset: 3, data: "big" });
+  // round trip: the points map back to the same source text
+  const back = sourceRangeFor(parsed, r.a, r.b);
+  assert.equal(src.slice(back.from, back.to), "llo <b>big</b> &amp; ");
+});
+
+test("textPointsFor skips whitespace, scripts and the head", () => {
+  const src = "<html><head><title>T</title></head><body>\n  <h1>A</h1>\n  <script>var x</script>\n</body></html>";
+  const parsed = parseHtml(src);
+  const h1 = byTag(parsed, "h1");
+  const r = textPointsFor(parsed, src.indexOf("<body>"), src.length);
+  assert.equal(r.a.id, h1.id);
+  assert.equal(r.b.id, h1.id);
+  assert.equal(textPointsFor(parsed, src.indexOf("T</title>"), src.indexOf("T</title>") + 1), null);
+  assert.equal(textPointsFor(parsed, src.indexOf("var"), src.indexOf("var") + 3), null);
+  assert.equal(textPointsFor(parsed, 5, 5), null);
+  // the dropped newline of <pre>
+  const pre = parseHtml("<pre>\nab</pre>");
+  assert.deepEqual(textPointsFor(pre, 6, 8).a, { id: 0, index: 0, offset: 0, data: "ab" });
 });
