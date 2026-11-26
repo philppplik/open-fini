@@ -41,6 +41,7 @@ export function changedRange(a, b) {
 }
 
 const HANDLER = /^on[a-z]{3,}$/;
+const RAW_RELOAD = new Set(["script", "template", "noscript"]);
 /** True when [from, to) (an insertion point when empty) touches the inside of [start, end). */
 const touches = (start, end, from, to) => (from === to ? start < from && end > from : start < to && end > from);
 const overlaps = (el, from, to) => touches(el.start, el.end, from, to);
@@ -102,10 +103,11 @@ export function planPagePatch(oldSrc, newSrc, cache = {}) {
   }
   for (let j = keep; j < keep + added; j++) if (E1[j].start < from || E1[j].start >= newTo) return reload("structure");
 
-  // scripts, inline event handlers and templates are never patched
-  const risky = (el, lo, hi) => overlaps(el, lo, hi) && (el.tag === "script" || el.tag === "template" || (hasHandler(el) && touches(el.open.start, el.open.end, lo, hi)));
-  for (const el of E0) if (risky(el, from, oldTo)) return reload(el.tag === "script" ? "script" : el.tag === "template" ? "template" : "handler");
-  for (const el of E1) if (risky(el, from, newTo)) return reload(el.tag === "script" ? "script" : el.tag === "template" ? "template" : "handler");
+  // scripts, inline event handlers, templates and noscript (parsed differently with scripting off) are never patched
+  const risky = (el, lo, hi) => overlaps(el, lo, hi) && (RAW_RELOAD.has(el.tag) || (hasHandler(el) && touches(el.open.start, el.open.end, lo, hi)));
+  const why = (el) => (RAW_RELOAD.has(el.tag) ? el.tag : "handler");
+  for (const el of E0) if (risky(el, from, oldTo)) return reload(why(el));
+  for (const el of E1) if (risky(el, from, newTo)) return reload(why(el));
   for (let j = keep; j < keep + added; j++) if (hasHandler(E1[j])) return reload("handler");
 
   // the root: the deepest kept element that contains the whole change in both versions
@@ -152,6 +154,8 @@ export function planPagePatch(oldSrc, newSrc, cache = {}) {
  * The DOM side of a patch. Runs inside the preview frame (serialized), and in the tests on a fake DOM.
  * renumber(root, keep, removed, added): rewrites data-of ids of the live document to the new numbering; removed
  *   elements get a key that matches nothing, so the morph drops them.
+ * toTree(node) / fromTree(tree, doc): the root of the rebuilt page as plain JSON (built by the host from a DOMParser copy,
+ *   rebuilt in the frame with createElementNS), so the frame never parses HTML it receives in a message.
  * morph(live, next, opts): makes `live` equal to `next` (an element of a parsed copy of the rebuilt page) with as few
  *   DOM changes as possible. Children are matched by data-of id, others by position and node name. opts:
  *   adopt(node) -> a live copy of a node of `next`; keep(node) -> true for live nodes the morph must not touch or
@@ -250,10 +254,37 @@ export function morphKit() {
       cur = nx;
     }
   }
+  function toTree(n) {
+    if (n.nodeType === 3) return n.nodeValue;
+    if (n.nodeType === 8) return { c: n.nodeValue };
+    if (n.nodeType !== 1) return null;
+    var a = [];
+    for (var i = 0; i < n.attributes.length; i++) a.push([n.attributes[i].name, n.attributes[i].value, n.attributes[i].namespaceURI || null]);
+    var k = [];
+    for (var c = n.firstChild; c; c = c.nextSibling) {
+      var t = toTree(c);
+      if (t != null) k.push(t);
+    }
+    return { t: n.localName || String(n.nodeName).toLowerCase(), ns: n.namespaceURI || null, a: a, k: k };
+  }
+  function fromTree(t, doc) {
+    if (typeof t === "string") return doc.createTextNode(t);
+    if (!t || typeof t !== "object") throw new Error("bad tree");
+    if (typeof t.c === "string") return doc.createComment(t.c);
+    if (typeof t.t !== "string" || !Array.isArray(t.a) || !Array.isArray(t.k)) throw new Error("bad tree");
+    var el = t.ns ? doc.createElementNS(String(t.ns), t.t) : doc.createElement(t.t);
+    for (var i = 0; i < t.a.length; i++) {
+      var at = t.a[i];
+      if (at[2]) el.setAttributeNS(String(at[2]), String(at[0]), String(at[1]));
+      else el.setAttribute(String(at[0]), String(at[1]));
+    }
+    for (var j = 0; j < t.k.length; j++) el.appendChild(fromTree(t.k[j], doc));
+    return el;
+  }
   function morph(live, next, o) {
     var stats = { inserted: 0, removed: 0, moved: 0, text: 0 };
     morphEl(live, next, o || {}, stats);
     return stats;
   }
-  return { renumber: renumber, morph: morph };
+  return { renumber: renumber, morph: morph, toTree: toTree, fromTree: fromTree };
 }

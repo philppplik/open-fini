@@ -9,7 +9,7 @@
 //     the document. That is double-buffered: the new frame stays hidden until it has restored the scroll position and
 //     text selection (bridge "restore"), then it is swapped in, so it never flashes or jumps.
 import { Emitter, h } from "../../core/util.js";
-import { buildPreview, hotCss, planPagePatch, textPointsFor, sanitizeTextPoint, BREAKPOINTS, breakpointForWidth, breakpointMarkers, clampSize, snapWidth, sanitizeBox, sanitizeLayoutMetrics, describeLayout, UNITS } from "../../engine/web/index.js";
+import { buildPreview, hotCss, morphKit, planPagePatch, textPointsFor, sanitizeTextPoint, BREAKPOINTS, breakpointForWidth, breakpointMarkers, clampSize, snapWidth, sanitizeBox, sanitizeLayoutMetrics, describeLayout, UNITS } from "../../engine/web/index.js";
 import { createViewportBar, createRulers, attachHandles } from "./viewport-ui.js";
 import { t } from "../../i18n/index.js";
 import { bridgeSource } from "./bridge.js";
@@ -18,6 +18,7 @@ import { withOfflinePreviewCsp } from "../../core/network.js";
 import { protectedBanner } from "../protected-banner.js";
 
 const dataUrlCache = new WeakMap();
+const morpher = morphKit();
 
 export function toDataUrl(path, bytes, mime) {
   let url = dataUrlCache.get(bytes);
@@ -331,6 +332,16 @@ export class PreviewPane extends Emitter {
     if (plan.kind !== "patch") return this.rebuild();
     const res = this.#build();
     if (!res) return;
+    // the changed element of the rebuilt page, parsed here (inert: DOMParser runs nothing) and sent as plain JSON
+    let tree = null;
+    try {
+      const doc = new DOMParser().parseFromString(withOfflinePreviewCsp(res.html, this.app.network?.offline), "text/html");
+      const el = plan.root == null ? doc.documentElement : doc.querySelector(`[data-of="${plan.root}"]`);
+      tree = el ? morpher.toTree(el) : null;
+    } catch (err) {
+      console.warn("OpenFini: live patch", err);
+    }
+    if (!tree) return this.rebuild();
     this.last = res;
     this.emit("built", res);
     this.shown = { page: this.page, src, parsed: this.ws.model?.html(this.page) };
@@ -339,7 +350,7 @@ export class PreviewPane extends Emitter {
     // a frame that never confirms (a crashed page) is rebuilt
     this.patching = { seq, timer: setTimeout(() => this.patching?.seq === seq && this.rebuild(), 2000) };
     this.liveClear();
-    this.#post({ type: "patch", seq, html: withOfflinePreviewCsp(res.html, this.app.network?.offline), root: plan.root, keep: plan.keep, removed: plan.removed, added: plan.added });
+    this.#post({ type: "patch", seq, tree, root: plan.root, keep: plan.keep, removed: plan.removed, added: plan.added });
   }
 
   #patched(m) {

@@ -194,8 +194,10 @@ How: `planPagePatch(old, new)` in `engine/web/live-patch.js` finds the changed s
 insertion or deletion is slid to start at a tag), the deepest element that contains it in both versions (the root), and the
 renumbering of the `data-of` ids (ids before the change stay, the ones inside are dropped, later ones move by the difference).
 It verifies every other element (tag, position and, outside the root, parent) and asks for a reload when anything does not
-match, when a `<script>`, `<template>` or inline event handler is touched, or when the doctype changes. The host rebuilds the
-preview document as before and posts it with the plan (bridge `patch`, accepted only from the app window's origin, which the host passes in the preview config); the bridge parses it with `DOMParser`, renumbers the live
+match, when a `<script>`, `<template>`, `<noscript>` or inline event handler is touched, or when the doctype changes. The host rebuilds the
+preview document as before, parses it with `DOMParser` (inert) and posts the root element as a plain JSON tree with the plan
+(bridge `patch`, accepted only from the app window's origin, which the host passes in the preview config; the frame never parses
+HTML from a message); the bridge rebuilds the tree detached with `createElementNS`, renumbers the live
 ids and morphs the root to its new version with the self-contained `morphKit`: children are matched by `data-of`, the rest by
 position and node name; text nodes, attributes and moved elements are updated in place; scripts are never re-created; nodes
 the page's own scripts added (no `data-of`) and the inspector's overlay are kept. A frame that cannot apply a patch answers
@@ -516,7 +518,7 @@ studio is opened, so it adds nothing to application start-up.
   `StateField`, hover links, breadcrumb bar) on top of the pure `engine/web/sync.js` (`crumbsOf`, `openTagLines`, `cssRuleAt`,
   `matchableSelector`, `rulesForElement`; tests in `tests/web/sync.test.js`). Formatters: `engine/web/format.js`; editor entry points
   `CodeEditors#format`, `#formatSelection`, format-on-paste in `editor.js`.
-* **Live updates** (bridge messages): host to frame `patch {seq, html, root, keep, removed, added}`, `restore {x, y, sel}`,
+* **Live updates** (bridge messages): host to frame `patch {seq, tree, root, keep, removed, added}`, `restore {x, y, sel}`,
   `reportScroll`, `markText {a, b, scroll}`; frame to host `patched {seq, ok}`, `restored`. Planning is pure
   (`engine/web/live-patch.js`: `changedRange`, `planPagePatch`, the serialized `morphKit`); `PreviewPane#flush` decides between
   hot CSS, patch and rebuild, and `PreviewPane.stats` counts patches and rebuilds. See [Live updates](#live-updates).

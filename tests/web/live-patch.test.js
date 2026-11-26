@@ -32,6 +32,13 @@ class Node {
     if (a) a.value = String(v);
     else this.attributes.push({ name: n, value: String(v) });
   }
+  get localName() {
+    return this.nodeName.toLowerCase();
+  }
+  setAttributeNS(ns, n, v) {
+    this.setAttribute(n, v);
+    this.attributes.find((a) => a.name === n).namespaceURI = ns;
+  }
   removeAttribute(n) {
     this.attributes = this.attributes.filter((a) => a.name !== n);
   }
@@ -254,6 +261,35 @@ test("morph: a frozen element (inline text editing) is left alone", () => {
   const next = dom("<p>old</p>");
   kit.morph(live, next, { adopt: (n) => n.clone(), frozen: (n) => n.nodeName === "P" });
   assert.equal(serialize(live), '<p data-of="0">typing…</p>');
+});
+
+test("toTree and fromTree carry an element as plain JSON (namespaces, comments, text)", () => {
+  const kit = morphKit();
+  const fake = {
+    createTextNode: (v) => new Node(3, "#text", v),
+    createComment: (v) => new Node(8, "#comment", v),
+    createElement: (t) => new Node(1, t.toUpperCase()),
+    createElementNS: (ns, t) => Object.assign(new Node(1, t.toUpperCase()), { namespaceURI: ns }),
+  };
+  const src = dom('<div class="a"><!-- c --><p>x &amp; <b>y</b></p><svg><use href="#i"></use></svg></div>');
+  const div = src.childNodes[0];
+  div.childNodes[2].namespaceURI = "http://www.w3.org/2000/svg";
+  div.childNodes[2].childNodes[0].setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", "#i");
+  const tree = JSON.parse(JSON.stringify(kit.toTree(div)));
+  const back = kit.fromTree(tree, fake);
+  assert.equal(serialize(back), serialize(div));
+  assert.equal(back.childNodes[2].namespaceURI, "http://www.w3.org/2000/svg");
+  assert.equal(back.childNodes[2].childNodes[0].attributes.find((a) => a.name === "xlink:href").namespaceURI, "http://www.w3.org/1999/xlink");
+  for (const bad of [null, 5, { t: "p" }, { t: 1, a: [], k: [] }]) assert.throws(() => kit.fromTree(bad, fake));
+  // a patch through the JSON tree gives the same result as through the parsed copy
+  const a = PAGE("<main><p>one</p></main>");
+  const b = PAGE("<main><p>one</p><p>two &amp; <i>three</i></p></main>");
+  const plan = planPagePatch(a, b);
+  const live = dom(a);
+  kit.renumber(live, plan.keep, plan.removed, plan.added);
+  kit.morph(find(live, plan.root), kit.fromTree(kit.toTree(find(dom(b), plan.root)), fake), { adopt: (n) => n.clone() });
+  assert.equal(serialize(live), serialize(dom(b)));
+  assert.equal(planPagePatch("<noscript><p>a</p></noscript>", "<noscript><p>b</p></noscript>").reason, "noscript");
 });
 
 test("morph never re-creates or empties scripts", () => {

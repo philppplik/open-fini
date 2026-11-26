@@ -8,8 +8,8 @@
 // Frame → parent messages: { of:1, type: "ready"|"console"|"pick"|"hover"|"context"|"computed"|"scroll"|"navigate"|
 //   "external"|"textEdit"|"htmlEdit"|"moveDrop"|"dropTarget"|"key"|"dblclick"|"submit"|"measureInfo"|"measureBox"|
 //   "measureExit"|"measureCopied"|"measureOpt"|"probe"|"textSel"|"patched"|"restored" , ... }
-// "patch" applies an edit of the page without reloading: the rebuilt page is parsed with DOMParser and only the changed
-// element is morphed (`morpher` = morphKit of engine/web/live-patch.js, planned by planPagePatch). "restore" puts the
+// "patch" applies an edit of the page without reloading: the host sends the changed element of the rebuilt page as a
+// JSON tree (morphKit toTree) and only that element is morphed (`morpher` = morphKit of engine/web/live-patch.js, planned by planPagePatch). "restore" puts the
 // scroll position and text selection back into a freshly loaded frame before the host shows it. "markText" highlights
 // the text selected in the code editor (CSS Custom Highlight API; the page's own selection is never touched).
 // "probe" answers the assistant's questions about the rendered page and performs simple interactions (click, type,
@@ -933,19 +933,19 @@ export function bridgeMain(kit, pageProbe, morpher) {
   }
   function applyPatch(e, m) {
     if (!HOST_ORIGIN || e.origin !== HOST_ORIGIN) return false;
-    if (typeof m.html !== "string" || typeof DOMParser === "undefined") return false;
-    if (!(m.keep >= 0 && m.removed >= 0 && m.added >= 0)) return false;
-    var next = new DOMParser().parseFromString(m.html, "text/html");
+    if (!m.tree || !(m.keep >= 0 && m.removed >= 0 && m.added >= 0)) return false;
     var root = m.root == null ? null : Number(m.root);
     var live = root == null ? document.documentElement : byId(root);
-    var want = root == null ? next.documentElement : next.querySelector('[data-of="' + root + '"]');
+    var want = morpher.fromTree(m.tree, document); // a detached copy: nothing in it runs or loads scripts
     if (!live || !want || live.tagName !== want.tagName) return false;
     morpher.renumber(document.documentElement, m.keep, m.removed, m.added);
     // the element being edited inline is the origin of this edit: it already shows it
     if (!(textEl && (textEl === live || textEl.contains(live)))) {
       morpher.morph(live, want, {
         adopt: function (n) {
-          return document.importNode(n, true);
+          // a script inserted into the page would run: the host rebuilds instead
+          if (n.nodeType === 1 && (n.tagName === "SCRIPT" || n.querySelector("script"))) throw new Error("script");
+          return n.cloneNode(true);
         },
         keep: keepNode,
         frozen: function (n) {
