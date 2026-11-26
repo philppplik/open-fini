@@ -37,3 +37,4 @@ in place and are marked as such.
 | [0032](0032-ofini-cli.md) | The `ofini` command line tool reuses the pure engine modules in Node; rendering stays in the app | Accepted |
 | [0033](0033-docking-layout.md) | Docking layout with our own small engine: a pure layout tree plus a DOM renderer | Accepted |
 | [0034](0034-proto-studio.md) | Proto Studio: UI design and prototyping on a real HTML and CSS canvas, one operation layer for editor, Vibe, MCP and CLI | Proposed |
+| [0035](0035-world-studio.md) | World Studio: 3D on a pure scene and mesh model with one operation layer, rendered through a pinned three.js (WebGPU with a WebGL 2 fallback) behind our own adapter | Proposed |
