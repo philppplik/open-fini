@@ -1,4 +1,4 @@
-# ADR 0035: World Studio: a 3D studio on a pure scene and mesh model, rendered through a pinned three.js behind our own adapter
+# ADR 0035: World Studio: 3D on a pure model, rendered through a pinned three.js
 
 - Status: Proposed
 - Date: 2026-11-25
