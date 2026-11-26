@@ -1,6 +1,6 @@
 // Lazy skill pack: Proto Studio skills (`proto-*`, docs/concepts/proto-studio.md §7, task T11). Loaded by
 // packs/index.js only when one is used. SKILL.md strings parsed with parseSkill(); keep each small. No backticks inside
-// the markdown. "Prototype a flow" arrives with the interaction tools (T9).
+// the markdown. "Prototype a flow" came with the interaction tools (T9).
 
 const fm = (name, description, tools, when) => `---
 name: proto-${name}
@@ -73,4 +73,17 @@ Never leave the design as one flat image; every text must be a text layer.`,
 2. Group the findings: accessibility (contrast, touch-target, overflow-text), consistency (unbound-color, unbound-spacing, off-grid, detached-style), components (detached-instance, inactive-override), hygiene (naming, empty-frame, unused-token).
 3. Look at the worst screens with proto_screenshot.
 4. Report a prioritized list (errors first) with issue ids; apply fixes only after the user agrees, with proto_fix and the ids (structural fixes run only when named).`,
+
+  `${fm("prototype-flow", "Prototype a flow in the Proto Studio: connect screens with clicks and transitions, overlays, interactive component states and variables, and a flow starting point to play.", `${READ}, proto_interaction, proto_create, proto_update, proto_component, proto_variables`, "prototype, clickable prototype, flow, user flow, connect screens, interactions, smart animate, overlay, onboarding flow, checkout flow")}
+# Prototype a flow
+
+1. proto_describe and proto_interaction action list: which frames exist, which interactions and flows are there already. Screens of a flow are top-level frames on one page.
+2. Missing screens: build them first (proto-screen-from-brief). Give the layers that should match between screens the same names (a card, a header, a button), so smart animate can move them.
+3. Connect: proto_interaction connect from = the button or row, to = the next frame, transition { type: "smart", dur: 300, ease: "ease-out" } for screens that share layers, push or moveIn with a dir for drill-down, dissolve otherwise. Back buttons: add with { on: { type: "click" }, do: [{ act: "back" }] }.
+4. Overlays (menus, dialogs, sheets): openOverlay with pos (center, bottom for sheets) and dim; a close button gets closeOverlay; key Escape closes too.
+5. States: hover and pressed looks as variants of a component (proto_component), then on the variant { on: { type: "hover" }, do: [{ act: "variant", set: { state: "hover" }, tr: { type: "smart", dur: 150 } }] } so every instance reacts. Toggles and counters: a variable (proto_variables) with set and if actions; bind the visible field or a text to it.
+6. Timed screens (splash): { on: { type: "afterDelay", ms: 1500 }, do: [{ act: "navigate", to: "Home" }] } on the frame.
+7. proto_interaction addFlow with start = the first screen and a name; list again and check that every screen of the flow is reached and no target is missing.
+
+Tell the user to press Ctrl+Alt+Enter (Prototype ▸ Preview) to play it, and which flow to pick.`,
 ];

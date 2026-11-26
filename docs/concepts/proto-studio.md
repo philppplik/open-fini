@@ -1163,6 +1163,44 @@ Until 1.3.0 is released the studio is reachable only with the *Labs ▸ Proto St
   `tests/proto/{interactions,expr}.test.js`.
 * Acceptance: the evaluator accepts only the data language (fuzz test); the exported prototype contains no external
   URLs (test) and works offline; smart animate at 60 fps for the 200-layer fixture (manual check in the PR).
+* As built (deviations and decisions the later tasks build on):
+  * Engine: `engine/proto/interactions.js` (the interaction and flow model, checks, transitions with springs sampled
+    into CSS `linear()`, connections, the flow graph, `describe`, `interactionsOf`, `flatten` and `matchLayers` for
+    smart animate) and `expr.js` (the data language with a step and depth limit; `{ var }`, `{ op, args }` and the
+    shorthand `{ var, op, value }`). Operations in the one table of `ops.js`: `interaction.add` / `set` / `delete`,
+    `interaction.connect` (the Connect handle: one click navigation per trigger, `to: null` removes it), `flow.create`
+    / `update` / `delete`; their inverses are `node.update` / `page.update`, and they refuse invalid interactions,
+    missing or nested targets and unknown variables (validate.js keeps warning only, so deleting a frame never fails).
+    Shapes: transitions `{ type, dir, dur, ease }` with `ease` a keyword, `{ bezier }` or `{ spring: [mass,
+    stiffness, damping] }` (a spring without `dur` takes its settle time); overlays `{ pos, dim, closeOutside }`;
+    `variant` actions `{ set, target? }`; flows may carry a `description`.
+  * Interactive components: an instance without interactions of its own uses those of the variant it shows
+    (`interactionsOf`), so a hover defined on `state=default` works on every instance. A `variant` action on a layer
+    inside a nested instance writes an override `variant` on the outermost real instance in the player
+    (`withVariants`); this path is only unit tested.
+  * Player: `proto/player/state.js` (pure state machine: history with the transition of each step, back plays it
+    reversed, overlay stack, variables and variants, while-hovering and while-pressing holds that restore what they
+    changed, `variableChange` cascades limited to 8 levels and 256 actions per event), `render.js` (one screen through
+    `css.js` with `scroll: true` and literal variable values, own shadow root, `data-of-key` on every element),
+    `animate.js` (dissolve, move in and out, push, slide, smart animate as FLIP with the Web Animations API: matched
+    layers animate position, width and height, colors, opacity and radius; layers of the old screen fade out above the
+    new one; reduced motion turns transitions off) and `player.js` (toolbar, device frames, hotspot hints, keys,
+    timers, input mapping). The player is one object in the main window; *Preview in New Window* moves its element
+    into a window opened by `ui/docking/windows.js` (the tear-off window: a native window on the desktop, a pop-up in
+    the browser). Edits made while it plays show from the next screen.
+  * Editor: Prototype mode is a workspace state (`ws.mode`, `setMode`, the `mode` event, kept in the view state), the
+    inspector has *Design* and *Prototype* tabs (`panels/prototype.js ▸ createInspector`, so the Design panel itself
+    is unchanged), the Connect tool is the Move tool plus the handle (`tools/connect.js`, chosen by the mode; no
+    toolbar button), and connections are drawn on the overlay. Flows are edited in the Pages panel and the Prototype
+    panel. Commands and the *Prototype* menu: Preview Prototype (Mod+Alt+Enter), Preview in New Window, Design Mode,
+    Prototype Mode, Switch (Shift+E), Add Flow Starting Point.
+  * Assistant and CLI: the Vibe tool `proto_interaction` (list, add, set, delete, connect, addFlow, updateFlow,
+    deleteFlow; names resolve to ids) and the skill `proto-prototype-flow`; `ofini proto flows` lists each flow's
+    screens (breadth first from the start, layers in document order) and interactions, exit code 1 when a start or a
+    target is missing.
+  * Not in this task (follow-ups): presenting in a room (player state as presence), the HTML prototype export (`ofini
+    proto export --target prototype`, which needs T7's export command), the current frame's comments in the player,
+    `media` actions, and a measured 60 fps check of smart animate on the 200-layer fixture.
 
 **T10 · Live collaboration** — M — deps: T3
 * Scope: `proto/collab.js` records adapter (section 13), `"proto"` in `LIVE_OFFICE_KINDS`, per-record validation,

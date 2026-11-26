@@ -36,6 +36,7 @@ export const PROTO_MENUS = [
   { label: "Edit", studios: ["proto"], items: ["edit.undo", "edit.redo", "-", "proto.cut", "proto.copy", "proto.paste", "proto.duplicate", "proto.delete", "-", "proto.selectAll", "proto.deselect", "proto.selectParent", "proto.selectChildren", "-", "proto.rename", "proto.editText", "-", "edit.preferences"] },
   { label: "Insert", studios: ["proto"], items: ["proto.addFrame", "proto.addLaptopFrame", "proto.addTabletFrame", "proto.addPhoneFrame", "proto.addWatchFrame", "-", "proto.tool.frame", "proto.tool.rect", "proto.tool.ellipse", "proto.tool.line", "proto.tool.pen", "proto.tool.text", "proto.placeImage", "-", "proto.addPage", "-", "proto.import"] },
   { label: "Object", studios: ["proto"], items: ["proto.autoLayout", "proto.gridLayout", "proto.removeAutoLayout", "-", "proto.group", "proto.ungroup", "-", "proto.createComponent", "proto.combineVariants", "proto.goToMain", "proto.resetInstance", "proto.detachInstance", "-", "proto.bringToFront", "proto.bringForward", "proto.sendBackward", "proto.sendToBack", "-", "proto.toggleVisible", "proto.toggleLock"] },
+  { label: "Prototype", studios: ["proto"], items: ["proto.play", "proto.playWindow", "-", "proto.modeDesign", "proto.modePrototype", "-", "proto.addFlow"] },
   { label: "View", studios: ["proto"], items: ["proto.zoomIn", "proto.zoomOut", "proto.zoom100", "proto.zoomFit", "proto.zoomSelection", "-", "proto.tool.move", "proto.tool.hand", "proto.tool.zoom", "proto.tool.comment", "-", "view.theme"] },
 ];
 
