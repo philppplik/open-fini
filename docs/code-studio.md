@@ -166,6 +166,46 @@ parsed text node (`alignText`) and returns the source range; the message is untr
 (`sanitizeTextPoint`) and a text that does not match the source exactly (a script changed it, or the page changed meanwhile)
 selects nothing. Tests: `tests/web/text-map.test.js`.
 
+The other way round, **selecting text in the page's HTML in the editor highlights exactly that text in the preview** (Split and
+Design views, with *Sync highlighting* on) and scrolls it into view when it is off screen. `textPointsFor` in `text-map.js` turns
+the source range into the same `{ id, index, offset, data }` points (`decodeTextMap` is the inverse of `alignText`: references,
+CRLF and the `<pre>` newline), ends inside tags snap to the nearest text in the range and whitespace-only text at the ends is
+skipped. The bridge (`markText`) finds the text nodes, checks their text, and paints the range with the CSS Custom Highlight
+API; it never changes the page's own selection, so a selection made in the preview and shown in the editor is not sent back.
+The highlight is only sent while the editor has the focus.
+
+#### Live updates
+
+Typing in the code editor or editing in the visual designer **never reloads the preview** unless it must, so the page does not
+flicker or jump and keeps its scroll position, text selection, focus, form input and the state of its scripts:
+
+| Edit | What the preview does |
+| --- | --- |
+| A linked stylesheet the page uses | Hot-swaps its `<style>` (no reload) |
+| The page's HTML: text, attributes, elements, inline `<style>`, `<title>` | Patches the changed element in place (no reload) |
+| A script, an inline event handler (`onclick="…"`), a `<template>`, the doctype, other files the page loads | Rebuilds the page, restoring scroll position and text selection before showing it |
+| Another page, a caret move, a click, a selection | Nothing |
+
+Typing is debounced (about 220 ms in the editor; edits from the visual designer go out at once). An edit made inline in the
+visual designer is written to the code and the preview is patched, but the text being edited is left alone, so the caret does
+not move.
+
+How: `planPagePatch(old, new)` in `engine/web/live-patch.js` finds the changed source range (common prefix and suffix; an
+insertion or deletion is slid to start at a tag), the deepest element that contains it in both versions (the root), and the
+renumbering of the `data-of` ids (ids before the change stay, the ones inside are dropped, later ones move by the difference).
+It verifies every other element (tag, position and, outside the root, parent) and asks for a reload when anything does not
+match, when a `<script>`, `<template>`, `<noscript>` or inline event handler is touched, or when the doctype changes. The host rebuilds the
+preview document as before, parses it with `DOMParser` (inert) and posts the root element as a plain JSON tree with the plan
+(bridge `patch`, accepted only from the app window's origin, which the host passes in the preview config; the frame never parses
+HTML from a message); the bridge rebuilds the tree detached with `createElementNS`, renumbers the live
+ids and morphs the root to its new version with the self-contained `morphKit`: children are matched by `data-of`, the rest by
+position and node name; text nodes, attributes and moved elements are updated in place; scripts are never re-created; nodes
+the page's own scripts added (no `data-of`) and the inspector's overlay are kept. A frame that cannot apply a patch answers
+`ok: false` and is rebuilt. For a rebuild, the new frame stays hidden until it reports `restored` (scroll position from the frame
+on screen, bridge `reportScroll`, and the last text selection in live preview mode). Elements the page's scripts created inside
+the edited element, and text the scripts changed there, are reset to the source. Tests: `tests/web/live-patch.test.js` (a small
+fake DOM, including a fuzz test that every patched edit gives exactly the new document).
+
 #### Editing assets in a design studio
 
 Right-click an image in **Assets** or the **Explorer**: *Open in Pixel Studio* (PNG, JPEG, WebP, ICO) or *Open in Vector Studio* (SVG)
@@ -478,6 +518,10 @@ studio is opened, so it adds nothing to application start-up.
   `StateField`, hover links, breadcrumb bar) on top of the pure `engine/web/sync.js` (`crumbsOf`, `openTagLines`, `cssRuleAt`,
   `matchableSelector`, `rulesForElement`; tests in `tests/web/sync.test.js`). Formatters: `engine/web/format.js`; editor entry points
   `CodeEditors#format`, `#formatSelection`, format-on-paste in `editor.js`.
+* **Live updates** (bridge messages): host to frame `patch {seq, tree, root, keep, removed, added}`, `restore {x, y, sel}`,
+  `reportScroll`, `markText {a, b, scroll}`; frame to host `patched {seq, ok}`, `restored`. Planning is pure
+  (`engine/web/live-patch.js`: `changedRange`, `planPagePatch`, the serialized `morphKit`); `PreviewPane#flush` decides between
+  hot CSS, patch and rebuild, and `PreviewPane.stats` counts patches and rebuilds. See [Live updates](#live-updates).
 
 How to extend: add a preset to `DEVICE_PRESETS`, a unit to `UNITS` and the kit's `PER_INCH` / `DECIMALS`, or a bridge message in
 `bridge.js` plus a validated handler in `preview.js`.

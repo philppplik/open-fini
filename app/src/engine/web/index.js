@@ -24,3 +24,5 @@ export * from "./measure.js";
 export * from "./viewport.js";
 export * from "./format.js";
 export * from "./sync.js";
+export * from "./text-map.js";
+export * from "./live-patch.js";

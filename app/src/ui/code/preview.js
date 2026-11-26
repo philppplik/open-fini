@@ -1,8 +1,15 @@
 // The live preview of the Code studio: a sandboxed iframe (scripts allowed, never same-origin) that shows the
-// page being edited at the selected breakpoint width. It is double-buffered — a rebuilt document is swapped in
-// only once it reports "ready" — so typing in the editor never flashes. CSS-only edits are patched in place.
+// page being edited at the selected breakpoint width.
+//
+// Edits never reload the page when they do not have to (docs/code-studio.md ▸ "Live updates"):
+//   * stylesheet edits are hot-swapped (bridge "css");
+//   * edits of the page's HTML are planned by planPagePatch (engine/web/live-patch.js) and applied as a DOM morph of
+//     the changed element (bridge "patch"), so scroll position, text selection, focus and script state survive;
+//   * only script changes, inline event handlers, other files the page loads, or edits that cannot be patched rebuild
+//     the document. That is double-buffered: the new frame stays hidden until it has restored the scroll position and
+//     text selection (bridge "restore"), then it is swapped in, so it never flashes or jumps.
 import { Emitter, h } from "../../core/util.js";
-import { buildPreview, hotCss, BREAKPOINTS, breakpointForWidth, breakpointMarkers, clampSize, snapWidth, sanitizeBox, sanitizeLayoutMetrics, describeLayout, UNITS } from "../../engine/web/index.js";
+import { buildPreview, hotCss, morphKit, planPagePatch, textPointsFor, sanitizeTextPoint, BREAKPOINTS, breakpointForWidth, breakpointMarkers, clampSize, snapWidth, sanitizeBox, sanitizeLayoutMetrics, describeLayout, UNITS } from "../../engine/web/index.js";
 import { createViewportBar, createRulers, attachHandles } from "./viewport-ui.js";
 import { t } from "../../i18n/index.js";
 import { bridgeSource } from "./bridge.js";
@@ -11,6 +18,7 @@ import { withOfflinePreviewCsp } from "../../core/network.js";
 import { protectedBanner } from "../protected-banner.js";
 
 const dataUrlCache = new WeakMap();
+const morpher = morphKit();
 
 export function toDataUrl(path, bytes, mime) {
   let url = dataUrlCache.get(bytes);
@@ -62,6 +70,12 @@ export class PreviewPane extends Emitter {
     this.dirtyFiles = new Set();
     this.last = null; // PreviewResult of the document on screen
     this.timer = 0;
+    this.shown = null; // { page, src } the page source the frame on screen shows
+    this.patchSeq = 0;
+    this.patching = null; // { seq, timer } a patch the frame has not confirmed yet
+    this.textSel = null; // { a, b } last text selection reported by the frame (restored after a rebuild)
+    this.mark = null; // { from, to } source range selected in the editor, highlighted in the preview
+    this.stats = { patches: 0, rebuilds: 0 }; // counters for tests and the console
     this.label = h("div.of-prev__label");
     this.device = h("div.of-prev__device");
     this.dwrap = h("div.of-prev__dwrap", this.device);
@@ -278,23 +292,96 @@ export class PreviewPane extends Emitter {
     const files = this.dirtyFiles;
     this.dirtyFiles = new Set();
     if (!files.size) return;
-    // stylesheet-only edits patch the live document; everything else rebuilds it
-    const onlyCss = !files.has("*") && [...files].every((f) => /\.css$/i.test(f) && this.last?.styles.some((s) => s.file === f && !s.inline));
-    if (onlyCss && this.current) {
-      for (const f of files) {
-        try {
-          this.#post({ type: "css", file: f, inline: false, text: hotCss(this.web.source, f, { makeAssetUrl: toDataUrl }) });
-        } catch {
-          return this.rebuild();
-        }
+    if (!this.current || this.pending || files.has("*")) return this.rebuild();
+    const page = this.page;
+    // linked stylesheets the page uses are hot-swapped; HTML of the page is patched; other pages do not matter;
+    // anything else the page may load (scripts, images, unused or new CSS …) rebuilds it
+    const hot = [];
+    let pageEdit = false;
+    for (const f of files) {
+      if (f === page) pageEdit = true;
+      else if (/\.css$/i.test(f) && this.last?.styles.some((st) => st.file === f && !st.inline)) hot.push(f);
+      else if (!/\.html?$/i.test(f)) return this.rebuild();
+    }
+    for (const f of hot) {
+      try {
+        this.#post({ type: "css", file: f, inline: false, text: hotCss(this.web.source, f, { makeAssetUrl: toDataUrl }) });
+      } catch {
+        return this.rebuild();
       }
+    }
+    if (pageEdit) return this.#patchPage();
+    if (hot.length) {
       this.liveClear();
       setTimeout(() => this.emit("hot"), 40);
-      return;
     }
-    // changes to files the page does not use (another page, unused CSS) do not need a rebuild
-    const relevant = files.has("*") || [...files].some((f) => f === this.page || !/\.html?$/i.test(f));
-    if (relevant) this.rebuild();
+  }
+
+  /** Applies an edit of the page's HTML to the frame on screen without reloading it, or rebuilds when it cannot. */
+  #patchPage() {
+    const src = this.web.text(this.page) ?? "";
+    if (!this.shown || this.shown.page !== this.page) return this.rebuild();
+    let plan;
+    try {
+      plan = planPagePatch(this.shown.src, src, { oldParsed: this.shown.parsed, newParsed: this.ws.model?.html(this.page) });
+    } catch (err) {
+      console.warn("OpenFini: live patch", err);
+      return this.rebuild();
+    }
+    if (plan.kind === "none") return;
+    if (plan.kind !== "patch") return this.rebuild();
+    const res = this.#build();
+    if (!res) return;
+    // the changed element of the rebuilt page, parsed here (inert: DOMParser runs nothing) and sent as plain JSON
+    let tree = null;
+    try {
+      const doc = new DOMParser().parseFromString(withOfflinePreviewCsp(res.html, this.app.network?.offline), "text/html");
+      const el = plan.root == null ? doc.documentElement : doc.querySelector(`[data-of="${plan.root}"]`);
+      tree = el ? morpher.toTree(el) : null;
+    } catch (err) {
+      console.warn("OpenFini: live patch", err);
+    }
+    if (!tree) return this.rebuild();
+    this.last = res;
+    this.emit("built", res);
+    this.shown = { page: this.page, src, parsed: this.ws.model?.html(this.page) };
+    const seq = ++this.patchSeq;
+    clearTimeout(this.patching?.timer);
+    // a frame that never confirms (a crashed page) is rebuilt
+    this.patching = { seq, timer: setTimeout(() => this.patching?.seq === seq && this.rebuild(), 2000) };
+    this.liveClear();
+    this.#post({ type: "patch", seq, tree, root: plan.root, keep: plan.keep, removed: plan.removed, added: plan.added });
+  }
+
+  #patched(m) {
+    if (!this.patching || m.seq !== this.patching.seq) return;
+    clearTimeout(this.patching.timer);
+    this.patching = null;
+    if (m.ok !== true) return this.rebuild();
+    this.stats.patches++;
+    this.selectionChanged(); // element ids may have moved
+    if (this.matchSel) this.#post({ type: "matchSel", selector: this.matchSel });
+    this.#postMark(false);
+    this.emit("hot");
+    this.emit("patched");
+  }
+
+  /** Builds the preview document of the current page, or null (with a toast) when that fails. */
+  #build() {
+    try {
+      return buildPreview(this.web.source, this.page, {
+        bridge: bridgeSource,
+        config: { mode: this.edit ? "edit" : "preview", accent: "#4f8cff", spacing: true, scrollbar: this.showScrollbar, host: location.origin },
+        // with "Run JavaScript in the preview" off, only the inspector runs: page scripts become empty
+        makeScriptUrl: (code, info) => scriptUrl(scriptsBlocked(this.app.prefs, this.ws.doc) && info?.file !== "openfini-bridge.js" ? "" : code),
+        makeAssetUrl: toDataUrl,
+        annotate: true,
+      });
+    } catch (err) {
+      console.error(err);
+      this.app.toast(`Preview failed: ${err.message}`, "danger", 5000);
+      return null;
+    }
   }
 
   rebuild() {
@@ -304,21 +391,14 @@ export class PreviewPane extends Emitter {
     this.device.classList.toggle("hidden", empty);
     this.dwrap.classList.toggle("hidden", empty);
     if (empty) return;
-    let res;
-    try {
-      res = buildPreview(this.web.source, this.page, {
-        bridge: bridgeSource,
-        config: { mode: this.edit ? "edit" : "preview", accent: "#4f8cff", spacing: true, scrollbar: this.showScrollbar },
-        // with "Run JavaScript in the preview" off, only the inspector runs: page scripts become empty
-        makeScriptUrl: (code, info) => scriptUrl(scriptsBlocked(this.app.prefs, this.ws.doc) && info?.file !== "openfini-bridge.js" ? "" : code),
-        makeAssetUrl: toDataUrl,
-        annotate: true,
-      });
-    } catch (err) {
-      console.error(err);
-      this.app.toast(`Preview failed: ${err.message}`, "danger", 5000);
-      return;
-    }
+    clearTimeout(this.timer);
+    this.dirtyFiles.clear();
+    clearTimeout(this.patching?.timer);
+    this.patching = null;
+    const src = this.web.text(this.page) ?? "";
+    const res = this.#build();
+    if (!res) return;
+    this.stats.rebuilds++;
     this.last = res;
     this.emit("built", res);
     // a stale pending frame is dropped
@@ -329,7 +409,7 @@ export class PreviewPane extends Emitter {
       referrerpolicy: "no-referrer",
     });
     frame.style.visibility = "hidden";
-    this.pending = { frame, started: performance.now() };
+    this.pending = { frame, started: performance.now(), shown: { page: this.page, src } };
     this.device.append(frame);
     this.layout();
     frame.srcdoc = withOfflinePreviewCsp(res.html, this.app.network?.offline); // offline mode: no remote scripts, fonts or requests
@@ -337,16 +417,18 @@ export class PreviewPane extends Emitter {
     this.pending.timer = setTimeout(() => this.#swap(frame), 2500);
   }
 
-  #swap(frame) {
+  #swap(frame, restored = false) {
     if (!this.pending || this.pending.frame !== frame) return;
     clearTimeout(this.pending.timer);
     const old = this.current?.frame;
     this.current = { frame };
+    this.shown = this.pending.shown;
     this.pending = null;
     frame.style.visibility = "";
     old?.remove();
     this.ws.clearConsole(); // the console shows the output of the document that is on screen
-    this.#post({ type: "scroll", x: this.scroll.x, y: this.scroll.y });
+    if (!restored) this.#post({ type: "scroll", x: this.scroll.x, y: this.scroll.y });
+    this.#postMark(false);
     this.#post({ type: "mode", edit: this.edit });
     this.#postMeasure();
     this.#post({ type: "viewportOpts", scrollbar: this.showScrollbar }); // also asks the frame for fresh layout metrics
@@ -360,6 +442,25 @@ export class PreviewPane extends Emitter {
   #post(msg) {
     const w = this.current?.frame?.contentWindow;
     if (w) w.postMessage({ of: 1, ...msg }, "*");
+  }
+
+  /**
+   * Highlights in the preview the text of a source range of the page (the selection in the code editor); null clears.
+   * The page's own selection is not touched, so this never feeds back into the editor.
+   */
+  markSource(from, to) {
+    const next = from != null && to > from ? { from, to } : null;
+    if (!next && !this.mark) return;
+    if (next && this.mark && next.from === this.mark.from && next.to === this.mark.to) return;
+    this.mark = next;
+    this.#postMark(true);
+  }
+  #postMark(scroll) {
+    const parsed = this.mark && this.ws.model?.html(this.page);
+    const pts = parsed ? textPointsFor(parsed, this.mark.from, this.mark.to) : null;
+    if (!pts && !this.markShown) return;
+    this.markShown = !!pts;
+    this.#post({ type: "markText", a: pts?.a || null, b: pts?.b || null, scroll });
   }
 
   /** Selected element id changed (or the breakpoint did): redraw the frame's selection box. */
@@ -547,8 +648,24 @@ export class PreviewPane extends Emitter {
     const isPending = w === this.pending?.frame?.contentWindow;
     if (!isCurrent && !isPending) return;
     if (m.type === "ready") {
-      if (isPending) this.#swap(this.pending.frame);
-      else {
+      if (isPending) {
+        // the new document restores the scroll position (and the text selection) before it is shown; the document on
+        // screen is asked for its exact position first (scroll events are throttled, and missing in a hidden window)
+        const frame = this.pending.frame;
+        const send = () => {
+          if (this.pending?.frame !== frame || this.pending.restoring) return;
+          this.pending.restoring = true;
+          clearTimeout(this.pending.askTimer);
+          const sel = this.textSel && !this.edit ? this.textSel : null;
+          w.postMessage({ of: 1, type: "restore", x: this.scroll.x, y: this.scroll.y, sel }, "*");
+        };
+        if (!this.current) send();
+        else {
+          this.pending.sendRestore = send;
+          this.pending.askTimer = setTimeout(send, 250);
+          this.#post({ type: "reportScroll" });
+        }
+      } else {
         // the frame was reloaded by the browser (for example after being moved in the DOM): restore its state
         this.#post({ type: "scroll", x: this.scroll.x, y: this.scroll.y });
         this.#post({ type: "mode", edit: this.edit });
@@ -563,8 +680,14 @@ export class PreviewPane extends Emitter {
       if (typeof cb === "function") cb(m);
       return;
     }
+    if (m.type === "restored") {
+      if (isPending) this.#swap(this.pending.frame, true);
+      return;
+    }
     if (m.type === "scroll") {
-      this.scroll = { x: m.x, y: m.y };
+      // only the document on screen decides where the page is scrolled
+      if (isCurrent && Number.isFinite(m.x) && Number.isFinite(m.y)) this.scroll = { x: m.x, y: m.y };
+      if (isCurrent) this.pending?.sendRestore?.();
       return;
     }
     if (!isCurrent) {
@@ -603,8 +726,15 @@ export class PreviewPane extends Emitter {
       case "dblclick":
         this.ws.revealInCode(m.id);
         break;
-      case "textSel":
+      case "textSel": {
+        const a = sanitizeTextPoint(m.a);
+        const b = sanitizeTextPoint(m.b);
+        this.textSel = a && b && a.data != null && b.data != null ? { a, b } : null;
         this.ws.revealTextSelection(m.a, m.b); // untrusted points: validated by engine/web/text-map.js
+        break;
+      }
+      case "patched":
+        this.#patched(m);
         break;
       case "textEdit":
         this.ws.applyTextEdit(m.id, m.text, false);
