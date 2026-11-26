@@ -26,6 +26,8 @@ export function bridgeMain(kit, pageProbe, morpher) {
   var cfg = window.__OF_CONFIG__ || {};
   var TOP = window.parent;
   var ACCENT = cfg.accent || "#4f8cff";
+  // the origin of the app window: only it may send page patches (the frame itself has an opaque origin)
+  var HOST_ORIGIN = typeof cfg.host === "string" && cfg.host !== "null" ? cfg.host : "";
   var edit = cfg.mode !== "preview";
   var selectedId = null;
   var hoverId = null;
@@ -929,7 +931,8 @@ export function bridgeMain(kit, pageProbe, morpher) {
   function keepNode(n) {
     return n === ov || n === sbStyle || (n.nodeType === 1 && n.id && n.id.indexOf("__of_") === 0);
   }
-  function applyPatch(m) {
+  function applyPatch(e, m) {
+    if (!HOST_ORIGIN || e.origin !== HOST_ORIGIN) return false;
     if (typeof m.html !== "string" || typeof DOMParser === "undefined") return false;
     if (!(m.keep >= 0 && m.removed >= 0 && m.added >= 0)) return false;
     var next = new DOMParser().parseFromString(m.html, "text/html");
@@ -1182,7 +1185,7 @@ export function bridgeMain(kit, pageProbe, morpher) {
       case "patch": {
         var ok = false;
         try {
-          ok = applyPatch(m);
+          ok = applyPatch(e, m);
         } catch (err) {
           ok = false;
         }

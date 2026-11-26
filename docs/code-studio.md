@@ -195,7 +195,7 @@ insertion or deletion is slid to start at a tag), the deepest element that conta
 renumbering of the `data-of` ids (ids before the change stay, the ones inside are dropped, later ones move by the difference).
 It verifies every other element (tag, position and, outside the root, parent) and asks for a reload when anything does not
 match, when a `<script>`, `<template>` or inline event handler is touched, or when the doctype changes. The host rebuilds the
-preview document as before and posts it with the plan (bridge `patch`); the bridge parses it with `DOMParser`, renumbers the live
+preview document as before and posts it with the plan (bridge `patch`, accepted only from the app window's origin, which the host passes in the preview config); the bridge parses it with `DOMParser`, renumbers the live
 ids and morphs the root to its new version with the self-contained `morphKit`: children are matched by `data-of`, the rest by
 position and node name; text nodes, attributes and moved elements are updated in place; scripts are never re-created; nodes
 the page's own scripts added (no `data-of`) and the inspector's overlay are kept. A frame that cannot apply a patch answers

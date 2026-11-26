@@ -360,7 +360,7 @@ export class PreviewPane extends Emitter {
     try {
       return buildPreview(this.web.source, this.page, {
         bridge: bridgeSource,
-        config: { mode: this.edit ? "edit" : "preview", accent: "#4f8cff", spacing: true, scrollbar: this.showScrollbar },
+        config: { mode: this.edit ? "edit" : "preview", accent: "#4f8cff", spacing: true, scrollbar: this.showScrollbar, host: location.origin },
         // with "Run JavaScript in the preview" off, only the inspector runs: page scripts become empty
         makeScriptUrl: (code, info) => scriptUrl(scriptsBlocked(this.app.prefs, this.ws.doc) && info?.file !== "openfini-bridge.js" ? "" : code),
         makeAssetUrl: toDataUrl,
